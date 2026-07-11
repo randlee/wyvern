@@ -1,0 +1,14 @@
+[package]
+name        = "wyvern"
+version     = "0.1.0"
+edition     = "2021"
+description = "What You View, Engine Renders Natively — native webview dialog CLI"
+
+[[bin]]
+name = "wyvern"
+path = "src/main.rs"
+
+[dependencies]
+wyvern-schema = { path = "../wyvern-schema" }
+wyvern-window = { path = "../wyvern-window" }
+serde_json    = { workspace = true }

@@ -1,0 +1,15 @@
+boundary_id = "BOUNDARY-WyvernWindow"
+owner_package = "wyvern-window"
+name = "WyvernWindow"
+
+[dependencies]
+allowed_dependencies = ["wyvern-schema", "wyvern-wizard", "wry", "winit"]
+forbidden_dependencies = ["wyvern", "wyvern-mcp"]
+forbidden_edges = ["wyvern-window -> wyvern", "wyvern-window -> wyvern-mcp"]
+
+[ownership]
+io_owns = ["webview_creation", "window_lifecycle", "ipc_bridge", "html_frame", "platform_chrome"]
+io_forbidden = ["stdin_reading", "stdout_writing", "arg_parsing", "mcp_protocol"]
+
+[enforcement]
+lint_rules = ["LINT-BOUNDARY-WINDOW-NO-CLI", "LINT-BOUNDARY-WINDOW-NO-MCP"]

@@ -1,0 +1,14 @@
+boundary_id = "BOUNDARY-WyvernWizard"
+owner_package = "wyvern-wizard"
+name = "WyvernWizard"
+
+[dependencies]
+allowed_dependencies = ["wyvern-schema"]
+forbidden_dependencies = ["wyvern", "wyvern-window", "wyvern-mcp", "wry", "winit"]
+
+[ownership]
+io_owns = ["history_cursor", "page_resolution", "stack_management", "navigation_signals"]
+io_forbidden = ["file_io", "network_io", "window_creation", "webview", "ipc", "async_runtime"]
+
+[enforcement]
+lint_rules = ["LINT-BOUNDARY-WIZARD-PURE-LOGIC"]

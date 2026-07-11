@@ -1,0 +1,15 @@
+boundary_id = "BOUNDARY-WyvernMcp"
+owner_package = "wyvern-mcp"
+name = "WyvernMcp"
+
+[dependencies]
+allowed_dependencies = ["wyvern-schema", "wyvern-window", "tokio"]
+forbidden_dependencies = ["wyvern", "wyvern-wizard"]
+forbidden_edges = ["wyvern-mcp -> wyvern", "wyvern-mcp -> wyvern-wizard"]
+
+[ownership]
+io_owns = ["mcp_stdio_transport", "tool_registration", "persistent_window_lifecycle"]
+io_forbidden = ["arg_parsing", "stdin_readline_loop", "direct_wizard_navigation"]
+
+[enforcement]
+lint_rules = ["LINT-BOUNDARY-MCP-NO-CLI", "LINT-BOUNDARY-MCP-WINDOW-VIA-API-ONLY"]

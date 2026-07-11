@@ -1,0 +1,33 @@
+[workspace]
+members = [
+    "crates/wyvern",
+    "crates/wyvern-schema",
+    "crates/wyvern-window",
+    "crates/wyvern-wizard",
+    "crates/wyvern-mcp",
+]
+resolver = "2"
+
+[workspace.dependencies]
+# Webview
+wry    = "0.44"
+winit  = "0.30"
+
+# Serialization
+serde      = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Validation
+strsim = "0.11"
+
+# Async (MCP server)
+tokio = { version = "1", features = ["full"] }
+
+# Logging (path dep — resolved at integration)
+# sc-observability = { path = "../../sc-observability" }
+
+[profile.release]
+opt-level     = "z"
+lto           = true
+codegen-units = 1
+strip         = true

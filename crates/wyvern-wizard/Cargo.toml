@@ -1,0 +1,9 @@
+[package]
+name        = "wyvern-wizard"
+version     = "0.1.0"
+edition     = "2021"
+description = "Wyvern wizard navigation state machine (browser-history cursor)"
+
+[dependencies]
+wyvern-schema = { path = "../wyvern-schema" }
+serde_json    = { workspace = true }

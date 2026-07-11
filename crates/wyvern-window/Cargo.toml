@@ -1,0 +1,12 @@
+[package]
+name        = "wyvern-window"
+version     = "0.1.0"
+edition     = "2021"
+description = "Wyvern native webview window, IPC bridge, and HTML chrome frame"
+
+[dependencies]
+wyvern-schema = { path = "../wyvern-schema" }
+wyvern-wizard = { path = "../wyvern-wizard" }
+wry           = { workspace = true }
+winit         = { workspace = true }
+serde_json    = { workspace = true }

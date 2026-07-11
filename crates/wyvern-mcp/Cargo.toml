@@ -1,0 +1,15 @@
+[package]
+name        = "wyvern-mcp"
+version     = "0.1.0"
+edition     = "2021"
+description = "Wyvern MCP server — persistent native webview via Model Context Protocol"
+
+[[bin]]
+name = "wyvern-mcp"
+path = "src/main.rs"
+
+[dependencies]
+wyvern-schema = { path = "../wyvern-schema" }
+wyvern-window = { path = "../wyvern-window" }
+serde_json    = { workspace = true }
+tokio         = { workspace = true }

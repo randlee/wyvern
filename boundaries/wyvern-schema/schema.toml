@@ -1,0 +1,14 @@
+boundary_id = "BOUNDARY-WyvernSchema"
+owner_package = "wyvern-schema"
+name = "WyvernSchema"
+
+[dependencies]
+allowed_dependencies = []
+forbidden_dependencies = ["wyvern", "wyvern-window", "wyvern-wizard", "wyvern-mcp", "wry", "winit"]
+
+[ownership]
+io_owns = ["type_definitions", "validation_logic", "error_message_formatting"]
+io_forbidden = ["file_io", "network_io", "window_creation", "webview", "async_runtime"]
+
+[enforcement]
+lint_rules = ["LINT-BOUNDARY-SCHEMA-PURE-LOGIC"]
