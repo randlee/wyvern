@@ -169,3 +169,15 @@ Requirements are categorized as functional (**REQ**) or non-functional (**NFR**)
 **REQ-0084** — The `wizard` type and `--interactive` mode shall enable the minimize button and allow window resizing.
 
 **NFR-0011** — On Windows and Linux, standard OS window decorations shall be used for MVP. Transparent title bar is a macOS-only feature in the initial release.
+
+---
+
+### Window Chrome — Cross-Platform (supersedes NFR-0011)
+
+**REQ-0085** — On Windows and Linux, the window shall use `decorations: false` with a custom HTML title bar rendering close and minimize buttons. *(See ADR-0010a)*
+
+**REQ-0086** — HTML-rendered close and minimize buttons shall invoke the corresponding window actions via IPC on all platforms.
+
+**REQ-0087** — Window dragging shall be supported on all platforms via `-webkit-app-region: drag` on the HTML title bar element.
+
+**NFR-0011 (VOIDED)** — ~~Windows and Linux use standard OS decorations for MVP.~~ Replaced by REQ-0085.

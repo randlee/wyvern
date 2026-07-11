@@ -200,3 +200,27 @@ Use Option B — `with_titlebar_transparent(true)` + `with_fullsize_content_view
 - Window dragging handled via `-webkit-app-region: drag` on the HTML title bar element
 - On Windows/Linux, standard window decorations remain (no transparent title bar support assumed for MVP)
 - Minimize should be disabled for modal dialog types (`message`, `input`, `markdown`, `question`); enabled for `wizard` and `--interactive` status viewer
+
+---
+
+## ADR-0010a: Full-size content view extended to all platforms
+
+**Status:** Accepted — supersedes NFR-0011 in requirements.md
+
+**Context:**
+ADR-0010 initially limited transparent/full-size content view to macOS. The goal — maximum screen real estate with close/minimize controls — applies equally on Windows and Linux.
+
+**Decision:**
+Apply full-size content view with no OS title bar on all platforms:
+- **macOS** — `with_titlebar_transparent(true)` + `with_fullsize_content_view(true)`; native traffic lights float over HTML
+- **Windows** — `with_decorations(false)` + custom HTML title bar with close/minimize buttons; use DWM hit-test to preserve native window snap/resize behavior
+- **Linux** — `with_decorations(false)` + custom HTML title bar with close/minimize buttons
+
+On Windows and Linux, Wyvern renders its own close and minimize buttons in the HTML chrome. These call `window.close()` / `window.minimize()` via IPC rather than relying on OS-drawn controls.
+
+**Consequences:**
+- Consistent immersive look across all platforms
+- Maximum content area on every OS
+- Windows/Linux require HTML-rendered close + minimize buttons wired to IPC
+- Window dragging via `-webkit-app-region: drag` works on all three platforms
+- NFR-0011 (macOS-only limitation) is voided
