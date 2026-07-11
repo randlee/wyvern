@@ -1,0 +1,51 @@
+[atm]
+default_team = "wyvern"
+identity = "team-lead"
+
+[[atm.post_send_hooks]]
+recipient = "cwy"
+command = ["/Users/randlee/.atm/scripts/atm-nudge-xml-1.py", "cwy"]
+
+[[atm.post_send_hooks]]
+recipient = "quality-mgr"
+command = ["/Users/randlee/.atm/scripts/atm-nudge-xml-1.py", "quality-mgr"]
+
+[atm.idle_notify]
+recipient = "team-lead"
+
+[atm.idle_notify.agent.cwy]
+seconds = 60
+
+[rmux]
+session = "wyvern"
+
+[[rmux.windows]]
+layout = "even-horizontal"
+name = "agents"
+
+[[rmux.windows.panes]]
+model = "sonnet"
+name = "team-lead"
+
+[rmux.windows.panes.env]
+ATM_IDENTITY = "team-lead"
+ATM_TEAM = "wyvern"
+CLAUDE_CODE_TASK_LIST_ID = "wyvern"
+
+[[rmux.windows.panes]]
+command = "codex -c features.codex_hooks=true --yolo"
+name = "cwy"
+
+[rmux.windows.panes.env]
+ATM_IDENTITY = "cwy"
+ATM_TEAM = "wyvern"
+CLAUDE_CODE_TASK_LIST_ID = "wyvern"
+
+[[rmux.windows.panes]]
+model = "sonnet"
+name = "quality-mgr"
+
+[rmux.windows.panes.env]
+ATM_IDENTITY = "quality-mgr"
+ATM_TEAM = "wyvern"
+CLAUDE_CODE_TASK_LIST_ID = "wyvern"
