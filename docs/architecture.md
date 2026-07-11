@@ -224,3 +224,51 @@ On Windows and Linux, Wyvern renders its own close and minimize buttons in the H
 - Windows/Linux require HTML-rendered close + minimize buttons wired to IPC
 - Window dragging via `-webkit-app-region: drag` works on all three platforms
 - NFR-0011 (macOS-only limitation) is voided
+
+---
+
+## ADR-0011: Cargo workspace crate structure and boundaries
+
+**Status:** Accepted
+
+**Context:**
+Wyvern has distinct concerns — schema/validation, window management, wizard navigation, CLI entry point, and MCP server — that benefit from explicit separation for testability, clarity, and dependency control.
+
+**Decision:**
+Organize as a Cargo workspace with five crates:
+
+```
+wyvern/
+├── Cargo.toml          # workspace root
+└── crates/
+    ├── wyvern/         # binary — CLI entry point, arg parsing, --interactive loop
+    ├── wyvern-schema/  # library — JSON types, serde, validation, error messages
+    ├── wyvern-window/  # library — webview, IPC bridge, HTML chrome frame, window lifecycle
+    ├── wyvern-wizard/  # library — wizard navigation state machine (browser-history cursor)
+    └── wyvern-mcp/     # binary — MCP server, tool mapping, persistent window lifecycle
+```
+
+**Dependency graph (no cycles):**
+
+```
+wyvern-schema   →  (no internal deps — pure types + logic)
+wyvern-wizard   →  wyvern-schema
+wyvern-window   →  wyvern-schema, wyvern-wizard, wry, winit
+wyvern          →  wyvern-window, wyvern-schema
+wyvern-mcp      →  wyvern-window, wyvern-schema
+```
+
+**Boundary rules:**
+- `wyvern-schema` and `wyvern-wizard` are pure logic crates — no I/O, no window, no async. Fully unit-testable without a display.
+- `wyvern-window` is the only crate that may depend on `wry` or `winit`. Window concerns must not leak into schema or wizard.
+- `wyvern-mcp` never touches the window directly — only through `wyvern-window`'s public API.
+- `wyvern` (binary) is a thin entry point — business logic belongs in the library crates.
+
+**sc-lint-boundary enforcement:**
+These boundary rules are encoded as sc-lint-boundary constraints, enforced in CI from Phase 2 onwards.
+
+**Consequences:**
+- `wyvern-schema` and `wyvern-wizard` can be tested headlessly in CI with no display
+- The MCP and CLI surfaces share the same host logic via `wyvern-window`
+- Adding a new dialog type requires changes to `wyvern-schema` and `wyvern-window` only
+- All five crate names confirmed available on crates.io
