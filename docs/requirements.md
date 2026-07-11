@@ -153,3 +153,19 @@ Requirements are categorized as functional (**REQ**) or non-functional (**NFR**)
 **NFR-0009** — The `question` type shall remain backward-compatible with the Claude `AskUserQuestion` API schema at all times. Extensions shall be additive only. *(See ADR-0007)*
 
 **NFR-0010** — Interactive mode shall support concurrent use from a background shell process with stdin/stdout handles held open, with no additional setup required.
+
+---
+
+### Window Chrome & Title Bar
+
+**REQ-0080** — On macOS, the window shall use a transparent title bar with full-size content view so HTML content fills the entire window including the title bar area. *(See ADR-0010)*
+
+**REQ-0081** — The HTML title bar element shall reserve a left safe zone of ~72px on macOS to avoid overlapping the native traffic light buttons.
+
+**REQ-0082** — The HTML title bar element shall be draggable via `-webkit-app-region: drag`.
+
+**REQ-0083** — Modal dialog types (`message`, `input`, `markdown`, `question`) shall disable the minimize and maximize/fullscreen buttons.
+
+**REQ-0084** — The `wizard` type and `--interactive` mode shall enable the minimize button and allow window resizing.
+
+**NFR-0011** — On Windows and Linux, standard OS window decorations shall be used for MVP. Transparent title bar is a macOS-only feature in the initial release.

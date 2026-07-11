@@ -176,3 +176,27 @@ Wyvern MCP server is a persistent background process. The window persists across
 - No per-call launch latency after first invocation
 - `question` tool calls block until answered, matching the `canUseTool` callback pattern
 - A single Wyvern MCP instance serves the full agent session
+
+---
+
+## ADR-0010: Transparent title bar with full-size content view (macOS)
+
+**Status:** Accepted
+
+**Context:**
+macOS windows have native traffic light buttons (close/minimize/maximize) in the upper-left. Since Wyvern renders all chrome as HTML (ADR-0002), three options exist:
+
+- **Option A** — Keep native traffic lights; HTML content starts below the title bar strip
+- **Option B** — Transparent title bar + `fullSizeContentView`; traffic lights float over HTML
+- **Option C** — No decorations (`decorations: false`); fully borderless HTML window
+
+**Decision:**
+Use Option B — `with_titlebar_transparent(true)` + `with_fullsize_content_view(true)` on the `winit` WindowBuilder. Traffic lights remain visible and native. The HTML content view extends to fill the full window including the title bar area. Our HTML chrome renders a left-padding safe zone (~72px) so the title text does not clash with the traffic light buttons.
+
+**Consequences:**
+- Native macOS traffic lights visible and functional — familiar UX
+- HTML content fills the full window for an immersive, modern look
+- HTML title bar must reserve a ~72px left safe zone on macOS
+- Window dragging handled via `-webkit-app-region: drag` on the HTML title bar element
+- On Windows/Linux, standard window decorations remain (no transparent title bar support assumed for MVP)
+- Minimize should be disabled for modal dialog types (`message`, `input`, `markdown`, `question`); enabled for `wizard` and `--interactive` status viewer
