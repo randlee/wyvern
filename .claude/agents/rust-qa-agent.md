@@ -37,6 +37,14 @@ with free-form input.
   "baseline_ref": "optional git ref for artifact or regression comparison",
   "artifact_regeneration_required": false,
   "artifact_commands": "",
+  "round_limit": false,
+  "changed_files": [
+    "optional changed-file hint"
+  ],
+  "triage_records": [
+    "optional prior findings"
+  ],
+  "carry_forward_findings": [],
   "notes": "optional context"
 }
 ```
@@ -47,6 +55,8 @@ Rules:
 - `review_targets` is optional. Omit to review the default changed-file scope plus impacted files when needed.
 - `run_checks` is optional. If omitted, default to `fmt=true`, `clippy=true`, `tests=true`, `coverage=false`.
 - `artifact_commands` is optional. If `artifact_regeneration_required` is true and commands are supplied, treat failed regeneration as a finding.
+- `round_limit`, `changed_files`, `triage_records`, and `carry_forward_findings`
+  are prior-round context; they do not replace re-running requested checks.
 - This agent does not own `rust-best-practices` or `rust-service-hardening` policy. Do not infer those reviews from this input.
 
 ## Review Process
