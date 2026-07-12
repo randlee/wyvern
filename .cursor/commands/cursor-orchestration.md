@@ -12,6 +12,8 @@ Run Wyvern sprint/phase orchestration **inside this Cursor session**.
 5. Developer work → Task `rust-developer` with the planned model.
 6. Do not edit `.claude/skills/codex-orchestration/` or
    `.claude/agents/quality-mgr.md` as part of this flow.
+7. Keep all authored paths repo-root-relative (see skill **Path portability**).
+   Do not paste host-absolute paths into skill/agent/template text.
 
 ## Quick flow
 

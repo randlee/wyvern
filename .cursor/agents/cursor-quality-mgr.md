@@ -24,9 +24,18 @@ primary implementation work yourself.
 - If an assignment says `assignee="quality-mgr"`, treat it as addressed to you
   (`cursor-quality-mgr`) and continue — do not dual-dispatch.
 
+## Path portability
+
+- All prompt references are **repo-root-relative** (`.claude/...`, `.cursor/...`).
+- Never hardcode host-absolute paths in prompts, examples, or spawned Task text
+  you author yourself.
+- Use assignment placeholders (`worktree_path`, `sprint_doc`) as provided; if you
+  must resolve a path, derive it from the repo root / git worktree metadata for
+  the current machine (macOS, Linux, or Windows).
+
 ## Required reading
 
-Always read before starting a QA assignment:
+Always read before starting a QA assignment (repo-root-relative):
 
 - `.claude/agents/req-qa.md`
 - `.claude/agents/arch-qa.md`

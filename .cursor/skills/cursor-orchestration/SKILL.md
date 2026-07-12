@@ -48,6 +48,27 @@ While this skill governs the session:
 - Prefer short Task completion summaries over pasting full agent transcripts.
 - Worktrees via `/sc-git-worktree` (never switch main repo off `develop`).
 
+## Path portability (required)
+
+All authored paths in this skill, its templates, the `/cursor-orchestration`
+command, and `.cursor/agents/cursor-quality-mgr.md` must be portable:
+
+- Use **repo-root-relative** paths (e.g. `.cursor/skills/...`,
+  `.claude/agents/...`, `docs/plans/...`).
+- Skill-local template names may be basename-only when the skill directory is
+  already implied (e.g. `dev-template.xml.j2`).
+- **Never** hardcode host-absolute paths (`/Users/...`, `/Volumes/...`,
+  `/home/...`, `C:\...`, `D:\...`, `\\server\...`).
+- Do not embed machine-specific roots in examples or defaults.
+- Worktree layout is a **sibling of the repo root**:
+  `../wyvern-worktrees/<branch>` (POSIX) / equivalent sibling path on Windows.
+  Resolve the real location via `/sc-git-worktree` or git worktree metadata —
+  never paste a machine path into skill text.
+- Runtime assignment fields (`worktree_path`, etc.) may be absolute **only**
+  when resolved dynamically for the current machine; authored skill/prompt
+  content must still use relative forms and placeholders like
+  `{{ worktree_path }}`.
+
 ## Default model matrix
 
 Override only when the user names a model for a role.
@@ -63,9 +84,10 @@ Override only when the user names a model for a role.
 
 1. Sprint/phase target defined in `docs/requirements.md`,
    `docs/architecture.md`, and `docs/plans/project-plan.md` (or linked phase plan).
-2. Sprint worktree exists under `../wyvern-worktrees/<branch>` (create via
-   `/sc-git-worktree` if missing).
-3. These exist and are readable:
+2. Sprint worktree exists as a sibling of the repo root under
+   `wyvern-worktrees/<branch>` (create via `/sc-git-worktree` if missing;
+   path is relative to the parent of the git common dir — not a host absolute).
+3. These exist and are readable (repo-root-relative):
    - `.cursor/agents/cursor-quality-mgr.md`
    - `.claude/agents/{req-qa,arch-qa,flaky-test-qa,rust-qa-agent,rust-best-practices-agent,rust-service-hardening-agent,rust-developer}.md`
    - `.claude/skills/quality-management-gh/SKILL.md`
