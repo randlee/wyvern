@@ -124,8 +124,17 @@ Override only when the user names a model for a role.
 7. QA-2+: omit RBP and service-hardening reviewers; merge gate remains
    0B+0I+0m with no backlog deferral.
 8. On FAIL: run `/triaging-findings`, then fix via
-   `fix-assignment.xml.j2` → `rust-developer`, then re-QA via
-   `cursor-quality-mgr` only.
+   `.cursor/skills/cursor-orchestration/fix-assignment.xml.j2` →
+   `rust-developer`, then re-QA via `cursor-quality-mgr` only.
+   Fix assignments must include:
+   - authoritative `sprint_doc` = owning/promoted branch sprint plan (plus
+     additional sprint docs when findings span multiple sprint origins)
+   - specific requirement ids and ADR ids the fix must address (not whole
+     requirements/architecture dumps; planning already embeds those in the
+     sprint plan)
+   - triage `.ttl` paths and concrete occurrences
+   Fresh `rust-developer` Tasks have no prior sprint memory — never omit
+   these fields.
 9. On PASS + green CI: merge may proceed.
 
 ## Plan review flow

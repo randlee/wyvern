@@ -1,6 +1,6 @@
 ---
 name: triaging-findings
-version: 1.1.0
+version: 1.2.0
 description: Orchestrate pre-dispatch QA finding triage as team-lead. Launch one qa-triage agent per finding, collect phase-scoped Turtle records, aggregate by promoted branch, and only then dispatch branch-scoped fix assignments to arch-ctm.
 depends_on:
   codex-orchestration: 0.x
@@ -25,6 +25,8 @@ Before using this workflow:
 3. The ordered worktree list is known in promotion order.
 4. QA findings exist in a structured form with stable finding ids.
 5. `sc-compose` is installed for rendering assignment templates.
+6. `oxigraph` is on `PATH` when building carry-forward payloads via
+   `.claude/skills/triaging-findings/scripts/triage_carry_forward.py`.
 
 ## Ownership Model
 
@@ -51,6 +53,13 @@ For each triage batch, assemble:
   - `pattern`
   - `repeatable`
   - `sweep_scope`
+  - `originating_sprint_doc` (repo-root-relative sprint plan path for the
+    sprint that introduced or owns the change under review; required when
+    known)
+  - `requirement_ids` (stable REQ/NFR ids the finding violates or the fix must
+    satisfy; cite ids, not a dump of `docs/requirements.md`)
+  - `adr_ids` (specific ADR ids violated or that constrain the fix; cite ids,
+    not a dump of architecture docs)
 - triage mode:
   - `initial_pass`
   - `followup_pass`
@@ -63,6 +72,39 @@ Required ownership rule:
 - the phase integration worktree is the canonical source of truth for triage
   artifacts
 
+## Fix assignment context (sprint docs and REQ/ADR)
+
+Planning already embeds requirements and ADR links inside each sprint plan.
+Fix dispatch must not rely on ambient agent memory or paste entire requirements
+/ architecture documents into the task.
+
+### Choosing `sprint_doc` (may be multiple)
+
+1. **Authoritative `sprint_doc`** (required on every fix assignment): the sprint
+   plan for the **promoted / owning branch** (`promote_to_branch` /
+   `highest_open_branch`). Prefer the finding's `originating_sprint_doc` when
+   it matches that branch's sprint; otherwise resolve from the branch's sprint
+   plan path (frontmatter `branch:` / `worktree:` or phase plan index).
+2. **Additional sprint docs** (when needed): if the same promoted-branch fix
+   batch covers findings that originated in other sprints, list those sprint
+   plan paths explicitly in the assignment (additional sprint-docs block and/or
+   `references`). Do not silently collapse them into one wrong plan.
+3. The authoritative sprint doc remains the scope authority when assignment
+   prose and the plan disagree. Additional sprint docs are supporting context
+   for cross-sprint findings on the same branch.
+
+### REQ and ADR citations
+
+- Do **not** default to linking whole `docs/requirements.md` or
+  `docs/architecture.md` as the primary fix context.
+- For each finding in the batch, cite the **specific requirement ids** and
+  **specific ADR ids** the finding violates and that the fix must restore
+  compliance with.
+- Pull those ids from the QA finding text when present; otherwise from the
+  authoritative (and additional) sprint plan sections that name REQ/ADR
+  targets. If a finding has no identifiable REQ/ADR, say so explicitly in
+  `references` rather than inventing ids.
+- Keep triage `.ttl` paths in `references` as evidence pointers.
 ## Triage Modes
 
 ### `initial_pass`
@@ -191,10 +233,13 @@ Do not dispatch dev work from uncommitted `.ttl` state.
 
 For each promoted branch with open work:
 1. render `.claude/skills/codex-orchestration/fix-assignment.xml.j2`
-2. include all findings promoted to that branch
-3. include all concrete occurrences found on that branch
-4. include triage record paths in the references section
-5. send one branch-scoped ATM assignment to `arch-ctm`
+2. set authoritative `sprint_doc` per **Fix assignment context** (owning-branch
+   sprint plan; include additional sprint docs when the batch spans origins)
+3. include all findings promoted to that branch
+4. include all concrete occurrences found on that branch
+5. include per-finding **requirement ids** and **ADR ids** the fix must address
+6. include triage record paths in the references section
+7. send one branch-scoped ATM assignment to `arch-ctm`
 
 Recommended render pattern:
 
@@ -209,19 +254,23 @@ For follow-up QA or reviewer rechecks, build the carry-forward payload from the
 same `.ttl` records instead of handcrafting it:
 
 ```bash
-python3 scripts/triage_carry_forward.py \
+python3 .claude/skills/triaging-findings/scripts/triage_carry_forward.py \
   --branch <branch> \
   --ttl <triage_record_1.ttl> \
   --ttl <triage_record_2.ttl>
 ```
 
-Use the script output as the `carry_forward_findings_json` template input.
+Requires `oxigraph` on `PATH`. Use the script output as the
+`carry_forward_findings_json` template input.
 
 Prompt/handoff contract:
 - `qa-triage` itself is a JSON-in / fenced-JSON-out agent prompt
 - ATM task assignment templates remain XML ATM messages
 - when dispatching work, pass triage record paths or rendered carry-forward JSON
   rather than copying raw `.ttl` contents into the task body
+- `sprint_doc`, requirement ids, and ADR ids are mandatory context for cold or
+  warm developer sessions alike — do not omit them because the assignee "already
+  saw" the sprint
 
 ## Dispatch Rules
 
@@ -292,9 +341,14 @@ Send findings to `arch-ctm` only after triage completes.
 
 Each fix assignment must include:
 - target branch and worktree
+- authoritative `sprint_doc` (owning-branch sprint plan) plus any additional
+  sprint docs when findings span multiple sprint origins
 - finding ids
 - concise summaries
 - all promoted-branch occurrences
+- specific **requirement ids** and **ADR ids** the fix must satisfy (not whole
+  requirements/architecture dumps)
+- triage `.ttl` paths
 - whether the issue is repeatable
 - whether merge-forward handling is part of the task
 - required validation

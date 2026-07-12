@@ -39,7 +39,8 @@ sc-compose render \
   --var-file "$_VARS"
 ```
 
-5. On FAIL: triage → fix Task → re-QA via `cursor-quality-mgr`.
+5. On FAIL: triage → fix Task (with owning-branch `sprint_doc`, REQ/ADR ids,
+   triage `.ttl` paths) → re-QA via `cursor-quality-mgr`.
 6. On PASS + green CI: merge to sprint `pr_target`.
 
 ```bash
