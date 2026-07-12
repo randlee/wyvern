@@ -33,7 +33,7 @@ Functional requirements are prefixed **REQ**, non-functional **NFR**. Crate-spec
 
 ## Command Surface Summary
 
-**Phase 1 executable** — `chrome` (foundation shell probe; validates → opens chrome → returns `dismissed`)
+**Phase 1 executable** — `chrome` (Phase A foundation probe)
 
 **Blocking dialog commands** — `message`, `input`, `markdown`, `question`, `wizard` (Phase 2+; validated incrementally as each type ships)
 

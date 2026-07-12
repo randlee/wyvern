@@ -4,20 +4,30 @@
 
 ---
 
-## ADR-0013 (local): Incremental validation surface
+## ADR-0013 (local): Incremental validation + protocol types
 
-Validation modules are added per command type as that type becomes executable. Phase 1 implements `chrome` only. `validate(value, phase_surface) -> Result<Command, ValidationError>` rejects unimplemented types before any window code runs.
+Validation grows with each phase's executable `Command` enum variants. Phase A: `chrome` only.
 
 ```rust
 pub enum Command {
     Chrome { title: String, status: Option<String> },
-    // Message { ... },  // Phase 2
 }
 
-pub fn validate(value: &serde_json::Value, surface: PhaseSurface) -> Result<Command, ValidationError>;
+pub enum ValidationError {
+    Validation { field: String, message: String },
+    State { field: String, message: String },
+}
+
+pub struct CommandResult {
+    pub button: String,
+}
+
+pub fn validate(value: &serde_json::Value) -> Result<Command, ValidationError>;
 ```
 
-No runtime fallback for unknown types after validation.
+`CommandResult` lives in `wyvern-schema` (protocol out-type). `wyvern-window::run` returns it.
+
+Parse/io errors are **not** `ValidationError` — they are `LoadError` in `crates/wyvern` (see `docs/plans/phase-A/README.md`).
 
 ---
 

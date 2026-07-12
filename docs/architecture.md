@@ -93,3 +93,4 @@ load → parse_json → validate(phase_surface) → Command → dispatch(type) �
 - Each Phase 2+ sprint adds one enum variant, one validator module, one handler — not a routing table refactor
 - `--interactive` reuses the same `validate → dispatch` path inside the read loop; lifecycle `action` values are a separate small enum, not mixed into dialog `type` routing
 - If implementation needs complicated branching to pick a path, treat that as a design smell and simplify before merging
+- Each pipeline stage uses a **discriminated union** for errors; re-map to stderr JSON at scope boundaries only — do not merge unlike variants into one generic error type

@@ -9,14 +9,14 @@
 - **ALWAYS create worktrees FROM `develop`**
 - All sprint work happens in worktrees at `../wyvern-worktrees/<branch-name>`
 - All PRs target `integrate/phase-N` (not `develop` directly)
-- Phase 1 (Foundation) PRs target `integrate/phase-A` — see `docs/plans/phase-1/README.md`
+- Phase A (Foundation) PRs target `integrate/phase-A` — see `docs/plans/phase-A/README.md`
 
 ```bash
 # ✅ CORRECT
-sc-git-worktree --create feature/p1-s1a-scaffold develop
+sc-git-worktree --create feature/phase-A-a1-scaffold develop
 
 # ❌ WRONG
-git checkout -b feature/p1-s1a-scaffold
+git checkout -b feature/phase-A-a1-scaffold
 ```
 
 ---
@@ -81,8 +81,8 @@ wyvern-mcp      →  wyvern-window, wyvern-schema
 ```
 main
   └── develop
-        ├── integrate/phase-A          ← Phase 1 Foundation
-        ├── integrate/phase-1          ← Phase 2 Core Dialogs
+        ├── integrate/phase-A          ← Phase A Foundation
+        ├── integrate/phase-B          ← Phase B Core Dialogs
         ├── integrate/phase-2 … phase-4
         └── feature/pN-sXa-...         ← sprint PR targets integrate/phase-* for that phase
         After all sprints in a phase → integrate/phase-* → develop
@@ -97,7 +97,7 @@ main
 
 ### Sprint naming convention
 `feature/p{phase}-s{sprint}-{short-description}`
-Example: `feature/p1-s1a-scaffold`, `feature/p2-s2a-message-type`
+Example: `feature/phase-A-a1-scaffold`, `feature/phase-B-b1-message`
 
 ---
 

@@ -4,16 +4,18 @@
 
 ---
 
-## ADR-0013 (local): CLI obeys direct dispatch
+## ADR-0013 (local): CLI pipeline
 
-`wyvern` binary is a thin entry point. It does not embed routing logic beyond:
+`crates/wyvern/src/main.rs` wires stages; each stage owns a discriminated error enum:
 
-1. `load_input(argv, stdin) -> Value`
-2. `wyvern_schema::validate(value) -> Command`
-3. `wyvern_window::run(command) -> CommandResult`
-4. `emit_stdout(result)`
+1. `load_command_input() -> Result<Value, LoadError>` (`Parse` | `Io` | `Usage`)
+2. `wyvern_schema::validate(value) -> Result<Command, ValidationError>`
+3. `wyvern_window::run(command) -> Result<CommandResult, RunError>`
+4. `emit_stdout(CommandResult)`
 
-Library crates own behavior. The binary wires I/O only.
+Map errors to stderr JSON at the CLI boundary — one variant → one `error` field value. No generic catch-all.
+
+**Forbidden:** `--window-demo`, extra CLI flags, or any path that bypasses load → validate → run.
 
 ---
 

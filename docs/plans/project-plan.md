@@ -2,7 +2,7 @@
 
 A sprint is a single testable deliverable that fits within one AI context window (~200k tokens) and represents 1–5 days of focused work. Each sprint has explicit acceptance criteria that must pass before the next sprint begins.
 
-**sc-lint-boundary** is a planning activity applied from Phase 2 onwards — architectural boundary rules are reviewed at sprint planning, not implemented as a sprint.
+**sc-lint-boundary** is a planning activity applied from Phase B onwards — architectural boundary rules are reviewed at sprint planning, not implemented as a sprint.
 
 **Review and hardening principle:** If something feels complicated, assume the design is unclear or overspecified before assuming more API is needed. Reviews should attack complication directly by collapsing semantic drift, clarifying contracts, and defending the smallest coherent command surface.
 
@@ -10,136 +10,41 @@ A sprint is a single testable deliverable that fits within one AI context window
 
 | Integration branch | Project plan phase | Sprint docs |
 |---|---|---|
-| `integrate/phase-A` | Phase 1 — Foundation | `docs/plans/phase-1/` |
-| `integrate/phase-1` | Phase 2 — Core Dialogs | `docs/plans/phase-2/` |
-| `integrate/phase-2` | Phase 3 — Polish & Icons | `docs/plans/phase-3/` |
-| `integrate/phase-3` | Phase 4 — Wizard | `docs/plans/phase-4/` |
-| `integrate/phase-4` | Phase 5 — Persistent & MCP | `docs/plans/phase-5/` |
+| `integrate/phase-A` | Phase A — Foundation | `docs/plans/phase-A/` |
+| `integrate/phase-B` | Phase B — Core Dialogs | `docs/plans/phase-2/` |
+| `integrate/phase-C` | Phase C — Polish & Icons | `docs/plans/phase-3/` |
+| `integrate/phase-D` | Phase D — Wizard | `docs/plans/phase-4/` |
+| `integrate/phase-E` | Phase E — Persistent & MCP | `docs/plans/phase-5/` |
 
-Phase A sprint PRs target `integrate/phase-A`. See `docs/plans/phase-1/README.md` for execution principles.
+Phase A sprint PRs target `integrate/phase-A`. Sprint authority: `docs/plans/phase-A/` (sprints **a.1–a.7**).
 
 ---
 
-## Phase 1 — Foundation
+## Phase A — Foundation
 
-**Phase goal:** A working binary with macOS native window, HTML chrome frame, and validated JSON I/O on a **single direct execution path**. No dialog content rendering yet — only the `chrome` foundation command exercises the full validate → open → emit loop.
+**Phase goal:** macOS binary with HTML chrome frame and validated JSON I/O on a **single direct path**. Only `type: "chrome"` is executable.
 
-**Execution model (Phase 1):** `parse JSON → validate Command → dispatch by type → run handler → write one JSON line to stdout`. One `type` value maps to one handler. No mode flags, no fallback routing tables, no stub handlers for unimplemented types.
+**Execution model:** `load (LoadError) → validate (ValidationError) → Command → run (RunError) → CommandResult → stdout`. One `type` → one handler. No CLI flags, no stub handlers.
 
 **Phase acceptance criteria:**
 
-1. **Invalid command (no window):**
-   `wyvern '{"type":"message","title":"t","message":"m","buttons":"ok"}'` writes structured validation JSON to stderr and exits non-zero. `message` is not executable in Phase 1.
-2. **Foundation path (window + result):**
-   `wyvern '{"type":"chrome","title":"Foundation"}'` validates, opens the chrome frame with the title in the title bar, and on OS close writes `{"button":"dismissed"}` to stdout.
-3. **Unknown type (no window):**
-   `wyvern '{"type":"unknown"}'` writes `{ "error": "validation", "field": "type", ... }` to stderr and exits non-zero.
+1. `wyvern '{"type":"message",...}'` → validation stderr, exit ≠ 0, no window
+2. `wyvern '{"type":"chrome","title":"Foundation"}'` → chrome opens; OS close → `{"button":"dismissed"}`
+3. `wyvern '{"type":"unknown"}'` → validation stderr on `type`, exit ≠ 0, no window
 
-**Platform scope:** macOS only for window/chrome runtime. Windows/Linux chrome deferred to Phase 3 (`S3.2a`).
+**Platform:** macOS only. Win/Linux chrome → Phase C.
 
-**Sprint count:** 8 sprints (`S1.1a`–`S1.5`). No `S1.3b` in Phase 1.
+**Sprints:** seven active (**a.1–a.7**). See [docs/plans/phase-A/README.md](phase-A/README.md).
 
----
-
-### S1.1a — Rust workspace scaffold (five crates)
-
-Create the ADR-0011 five-crate workspace on day one. Stub crates compile; only `wyvern-schema` and `wyvern-window` contain logic in later sprints.
-
-**Acceptance criteria:**
-- Workspace contains: `wyvern-schema`, `wyvern-wizard`, `wyvern-window`, `wyvern`, `wyvern-mcp`
-- Dependency edges match ADR-0011 (no `wry`/`winit` outside `wyvern-window`)
-- `cargo build --workspace` succeeds on macOS with no warnings
-- Core deps pinned: `wry`, `winit`, `serde`, `serde_json`, `strsim`
-- `wyvern` binary crate depends only on `wyvern-window` + `wyvern-schema`
-- Stub `wyvern-wizard` and `wyvern-mcp` expose empty `lib.rs` only
-
----
-
-### S1.1b — Native window opens and closes (macOS)
-
-Wire `winit` + `wry` in `wyvern-window`. Expose a minimal `open_blank_window() -> Result<CloseReason>` API. macOS only.
-
-**Acceptance criteria:**
-- `cargo run -p wyvern -- --window-demo` opens a blank native window on macOS
-- Window closes without panic or resource leak on OS × button
-- Transparent title bar + full-size content view active (ADR-0010)
-- Close reason surfaces to caller as an enum (maps to `dismissed` in JSON layer)
-- No JSON CLI integration in this sprint — window API only
-
----
-
-### S1.2a — CLI arg detection and JSON loading
-
-Implement the four input loaders in `wyvern` (thin binary). Output raw parsed `serde_json::Value` or typed bytes — no validation yet.
-
-**Acceptance criteria:**
-- Inline JSON string arg loads payload
-- `.json` file path loads payload
-- `.md` file path wraps as `{ "type": "markdown", "file": "<path>" }` shorthand
-- No arg reads stdin
-- Ambiguous/missing input prints usage to stderr, exits non-zero
-- Loaders are pure functions testable without opening a window
-
----
-
-### S1.2b — JSON schema validation (`chrome` only)
-
-Implement `wyvern-schema` validation for the **Phase 1 executable surface only**: `type: "chrome"`. Reject all other `type` values with structured errors. Do not validate dialog fields for unimplemented types.
-
-**Acceptance criteria:**
-- `{"type":"chrome","title":"T"}` passes validation
-- `{"type":"message",...}` fails: `{ "error": "validation", "field": "type", "message": "type not implemented in this phase" }` (or equivalent explicit message)
-- Unknown fields on `chrome` → validation error (REQ-0053)
-- Missing `title` on `chrome` → explicit named error
-- Wrong JSON types → `"expected string, got ..."` style message
-- `{"action":"show"}` outside `--interactive` → state error (REQ-0060)
-- Parse failures → `{ "error": "parse", ... }` (REQ-0069)
-- Exit code non-zero on any failure; no window opened on validation failure
-- Unit tests cover every rule above in `wyvern-schema` only
-
----
-
-### S1.3a — HTML chrome frame + `chrome` command E2E (macOS)
-
-Render the HTML shell (title bar, content area, optional status bar, static button bar). Wire the `chrome` command through the direct dispatch path: validate → render shell → wait for close → emit JSON.
-
-**Acceptance criteria:**
-- `wyvern '{"type":"chrome","title":"Test"}'` opens chrome with title text in title bar
-- Content area shows static placeholder (no dialog-type rendering)
-- Title bar has 72px macOS safe zone; `-webkit-app-region: drag` on title bar
-- OS close writes `{"button":"dismissed"}` to stdout (REQ-0068 pattern)
-- Window auto-sizes to content with max width/height caps
-- Dispatch is a single `match command.type` with one `Chrome` arm — no stub arms for other types
-- Status bar hidden when not provided
-
-**Deferred to Phase 3 (`S3.2a`):** Windows/Linux HTML close/minimize buttons (REQ-0085–REQ-0086).
-
----
-
-### S1.4 — sc-observability integration
-
-Integrate structured logging at the binary boundary only (`wyvern/src/main.rs`). Sibling repo path is fixed relative to the wyvern repo root.
-
-**Acceptance criteria:**
-- Dependency path: `../sc-observability` (sibling checkout per `CLAUDE.md` Environment)
-- CI/doc note: clone `sc-observability` beside wyvern before building; local path dep, not crates.io
-- Structured log events: process start, command received, validation result, window open/close, result emitted, error
-- `WYVERN_LOG` env var controls log level
-- Usage guidelines in `docs/observability.md`
-- No `sc-observability` imports in library crates (arch-qa boundary gate)
-
----
-
-### S1.5 — sc-lint integration
-
-Integrate the `sc-lint` lint tooling. Define lint rules and enforce them in CI.
-
-**Acceptance criteria:**
-- `sc-lint` added and configured from `../sc-lint`
-- Lint passes on all existing code with zero warnings
-- CI fails on lint errors
-- Lint configuration documented in `docs/linting.md`
-- sc-lint-boundary rules identified and noted for Phase 2 planning
+| Sprint | Title | Doc |
+|--------|-------|-----|
+| a.1 | Workspace scaffold | [a1-scaffold.md](phase-A/a1-scaffold.md) |
+| a.2 | Native window (tests) | [a2-window.md](phase-A/a2-window.md) |
+| a.3 | JSON loading | [a3-json-io.md](phase-A/a3-json-io.md) |
+| a.4 | Validation (`chrome`) | [a4-validation.md](phase-A/a4-validation.md) |
+| a.5 | Chrome E2E | [a5-chrome-frame.md](phase-A/a5-chrome-frame.md) |
+| a.6 | sc-observability | [a6-sc-observability.md](phase-A/a6-sc-observability.md) |
+| a.7 | sc-lint | [a7-sc-lint.md](phase-A/a7-sc-lint.md) |
 
 ---
 
@@ -292,7 +197,7 @@ Implement full icon field resolution: named, indexed variant, file path, base64.
 
 ### S3.2a — Windows and Linux platform chrome
 
-Implement `decorations: false` + HTML close/minimize buttons on Windows and Linux. Absorbs the deferred Phase 1 `S1.3b` scope (REQ-0085–REQ-0086).
+Implement `decorations: false` + HTML close/minimize buttons on Windows and Linux. Deferred from Phase A (was never in a.1–a.7 scope).
 
 **Acceptance criteria:**
 - Windows: borderless window with HTML close + minimize buttons functional via IPC
@@ -473,8 +378,8 @@ Implement persistent window lifecycle for MCP mode; test with Claude Code.
 
 | Phase | Sprints | Ships |
 |-------|---------|-------|
-| 1 — Foundation | 8 | Working binary, nothing useful |
-| 2 — Core Dialogs | 8 | **MVP — all dialog types usable** |
+| Phase A — Foundation | 7 | Working binary, `chrome` command |
+| Phase B — Core Dialogs | 8 | **MVP — all dialog types usable** |
 | 3 — Release | 5 | **v0.1.0 on mac/win/linux** |
 | 4 — Wizard | 6 | Multi-page wizard with branching |
 | 5 — Interactive & MCP | 4 | Agent-driveable status viewer + MCP |
@@ -482,9 +387,9 @@ Implement persistent window lifecycle for MCP mode; test with Claude Code.
 ## Dependency Map
 
 ```
-Phase 1
-  └─ Phase 2 ──────────────────── sc-lint-boundary applied from here
-       └─ Phase 3 (v0.1.0 release)
-            └─ Phase 4 (wizard)
-                 └─ Phase 5 (interactive + MCP)
+Phase A
+  └─ Phase B ──────────────────── sc-lint-boundary applied from here
+       └─ Phase C (v0.1.0 release)
+            └─ Phase D (wizard)
+                 └─ Phase E (interactive + MCP)
 ```

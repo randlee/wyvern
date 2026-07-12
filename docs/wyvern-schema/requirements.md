@@ -52,6 +52,8 @@
 
 **REQ-0063** — Every successful command writes exactly one JSON result line to stdout on completion.
 
+**REQ-0063a** — `chrome` (Phase A) → `{ "button": "dismissed" }` on OS close.
+
 **REQ-0064** — `message` and `markdown` → `{ "button": "<label>" }`.
 
 **REQ-0065** — `input` → `{ "button": "<label>", "input": "<value>" }`. Multi-file → `input` as array.
@@ -68,10 +70,10 @@
 
 ## Error Model (REQ-0069 – REQ-0072)
 
-**REQ-0069** — JSON parse failures write `{ "error": "parse", "message": "..." }` to stderr and exit non-zero.
+**REQ-0069** — JSON parse failures: `LoadError::Parse` in `crates/wyvern` → stderr `{ "error": "parse", "message": "..." }`, exit non-zero.
 
-**REQ-0070** — Schema and cross-field failures write `{ "error": "validation", "field": "...", "message": "..." }` to stderr and exit non-zero.
+**REQ-0070** — Schema/cross-field failures: `ValidationError::Validation` → stderr `{ "error": "validation", "field": "...", "message": "..." }`, exit non-zero.
 
-**REQ-0071** — File/path failures write `{ "error": "io", "field": "...", "message": "..." }` to stderr and exit non-zero.
+**REQ-0071** — File/path load failures: `LoadError::Io` in `crates/wyvern` → stderr `{ "error": "io", "field": "...", "message": "..." }`, exit non-zero.
 
-**REQ-0072** — Mode/state failures write `{ "error": "state", "field": "...", "message": "..." }` to stderr and exit non-zero.
+**REQ-0072** — Mode/state failures: `ValidationError::State` → stderr `{ "error": "state", "field": "...", "message": "..." }`, exit non-zero.
