@@ -1,15 +1,15 @@
-# Default models for orchestration Task spawns.
+# Cursor orchestration default models for Task spawns.
 #
-# Orchestration skills, commands, and coordinator agents read this file when
-# launching subagents. Pass `model:` explicitly on each Task spawn.
+# Read from `.cursor/` skills, commands, and agents only (cursor-orchestration).
+# Pass `model:` explicitly on each Task spawn.
 #
 # Precedence:
 #   1. User-named model override for a role
 #   2. Entry in this file
 #   3. Agent frontmatter default (avoid — prefer explicit Task model)
 #
-# Contextual overrides (e.g. phase-ending review) stay in orchestration prose,
-# not in this table.
+# Contextual overrides (e.g. phase-ending review) stay in cursor-orchestration
+# prose, not in this table.
 
 version: 1
 

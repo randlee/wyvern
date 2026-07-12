@@ -87,7 +87,7 @@ Try in order; stop at the first success. Never fall through to `quality-mgr`.
 
 ## Agent model defaults
 
-Read `.claude/orchestration-agent-models.yaml` before launching any subagent.
+Read `.cursor/orchestration-agent-models.yaml` before launching any subagent.
 Override only when the user names a model for a role. Always pass `model:`
 explicitly on Task spawns (do not rely on agent frontmatter defaults).
 
@@ -114,7 +114,7 @@ Other phase-end reviewers stay on their YAML defaults.
    `docs/architecture.md`, and `docs/plans/project-plan.md` (or linked phase plan).
 2. Sprint worktree exists (create via `/sc-git-worktree` from `develop` if missing).
 3. These exist and are readable (repo-root-relative):
-   - `.claude/orchestration-agent-models.yaml`
+   - `.cursor/orchestration-agent-models.yaml`
    - `.cursor/agents/cursor-quality-mgr.md`
    - `.claude/agents/{req-qa,arch-qa,flaky-test-qa,rust-qa-agent,rust-best-practices-agent,rust-service-hardening-agent,rust-developer}.md`
    - `.claude/skills/quality-management-gh/SKILL.md`

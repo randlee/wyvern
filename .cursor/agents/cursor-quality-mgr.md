@@ -44,7 +44,7 @@ parent explicitly instructs you to.
 
 Always read before starting a QA assignment (repo-root-relative):
 
-- `.claude/orchestration-agent-models.yaml`
+- `.cursor/orchestration-agent-models.yaml`
 - `.claude/agents/req-qa.md`
 - `.claude/agents/arch-qa.md`
 - `.claude/agents/flaky-test-qa.md`
@@ -345,7 +345,7 @@ rm -f "$_VARS"
 
 ## Default reviewer set
 
-When launching reviewers, read `.claude/orchestration-agent-models.yaml` and pass
+When launching reviewers, read `.cursor/orchestration-agent-models.yaml` and pass
 each agent's `model` explicitly on every Task.
 
 Implementation QA-1:
