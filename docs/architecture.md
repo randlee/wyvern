@@ -69,3 +69,27 @@ wyvern-mcp      →  wyvern-window, wyvern-schema
 Boundary rules are encoded as sc-lint-boundary constraints in `boundaries/` and enforced in CI from Phase 2.
 
 All five crate names confirmed available on crates.io.
+
+---
+
+### ADR-0013: Direct type dispatch — one handler per command
+
+**Status:** Accepted
+
+**Context:**
+Wyvern accepts many JSON command shapes over time. A common failure mode is accumulating mode flags, stub handlers, and nested routing that makes it hard to trace JSON input to stdout output.
+
+**Decision:**
+After validation, each command becomes a typed `Command` enum variant. Execution is a single `match` (or equivalent) on `type` with one handler function per variant. Handlers return a `CommandResult` serialized to stdout. Unimplemented types are rejected at validation time for the current phase — never at runtime with a stub handler.
+
+**Pipeline:**
+
+```
+load → parse_json → validate(phase_surface) → Command → dispatch(type) → CommandResult → stdout
+```
+
+**Consequences:**
+- Phase 1 validates and executes only `chrome`
+- Each Phase 2+ sprint adds one enum variant, one validator module, one handler — not a routing table refactor
+- `--interactive` reuses the same `validate → dispatch` path inside the read loop; lifecycle `action` values are a separate small enum, not mixed into dialog `type` routing
+- If implementation needs complicated branching to pick a path, treat that as a design smell and simplify before merging

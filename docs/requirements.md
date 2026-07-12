@@ -20,6 +20,7 @@ Functional requirements are prefixed **REQ**, non-functional **NFR**. Crate-spec
 
 | Command | Return |
 |------|--------|
+| `chrome` (Phase 1) | `{ "button": "dismissed" }` on OS close |
 | `message` | `{ "button": "..." }` |
 | `input` | `{ "button": "...", "input": "..." }` |
 | `markdown` | `{ "button": "..." }` |
@@ -32,9 +33,11 @@ Functional requirements are prefixed **REQ**, non-functional **NFR**. Crate-spec
 
 ## Command Surface Summary
 
-**Blocking dialog commands** — `message`, `input`, `markdown`, `question`, `wizard`
+**Phase 1 executable** — `chrome` (foundation shell probe; validates → opens chrome → returns `dismissed`)
 
-**`--interactive` lifecycle actions** — `show`, `hide`, `exit`
+**Blocking dialog commands** — `message`, `input`, `markdown`, `question`, `wizard` (Phase 2+; validated incrementally as each type ships)
+
+**`--interactive` lifecycle actions** — `show`, `hide`, `exit` (Phase 5)
 
 **Deferred** — `notification` is reserved as the future fire-and-forget path for ephemeral updates. MVP does not overload `message` with modeless semantics.
 

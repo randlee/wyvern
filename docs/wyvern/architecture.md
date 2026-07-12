@@ -4,6 +4,19 @@
 
 ---
 
+## ADR-0013 (local): CLI obeys direct dispatch
+
+`wyvern` binary is a thin entry point. It does not embed routing logic beyond:
+
+1. `load_input(argv, stdin) -> Value`
+2. `wyvern_schema::validate(value) -> Command`
+3. `wyvern_window::run(command) -> CommandResult`
+4. `emit_stdout(result)`
+
+Library crates own behavior. The binary wires I/O only.
+
+---
+
 ## ADR-0008: Interactive mode uses stdin readline loop
 
 **Status:** Accepted

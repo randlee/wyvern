@@ -6,7 +6,9 @@
 
 ## Dialog Types (REQ-0010 – REQ-0018)
 
-**REQ-0010** — Support `message` type: `type`, `title`, `message`, `markdown`, `status`, `level`, `icon`, `image`, `buttons`, `custom_buttons`, `default_button`.
+**REQ-0009** — Support `chrome` type (Phase 1 foundation): `type`, `title`, optional `status`. Opens the HTML shell with no dialog-specific content binding.
+
+**REQ-0010** — Support `message` type. *Phase 2.*
 
 **REQ-0011** — `message` button presets: `ok`, `ok_cancel`, `yes_no`, `yes_no_cancel`, `retry_cancel`, `custom`.
 

@@ -4,6 +4,23 @@
 
 ---
 
+## ADR-0013 (local): Incremental validation surface
+
+Validation modules are added per command type as that type becomes executable. Phase 1 implements `chrome` only. `validate(value, phase_surface) -> Result<Command, ValidationError>` rejects unimplemented types before any window code runs.
+
+```rust
+pub enum Command {
+    Chrome { title: String, status: Option<String> },
+    // Message { ... },  // Phase 2
+}
+
+pub fn validate(value: &serde_json::Value, surface: PhaseSurface) -> Result<Command, ValidationError>;
+```
+
+No runtime fallback for unknown types after validation.
+
+---
+
 ## ADR-0007: Base `question` on Claude's public AskUserQuestion API
 
 **Status:** Accepted

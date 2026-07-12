@@ -6,103 +6,127 @@ A sprint is a single testable deliverable that fits within one AI context window
 
 **Review and hardening principle:** If something feels complicated, assume the design is unclear or overspecified before assuming more API is needed. Reviews should attack complication directly by collapsing semantic drift, clarifying contracts, and defending the smallest coherent command surface.
 
+**Integration branch map:**
+
+| Integration branch | Project plan phase | Sprint docs |
+|---|---|---|
+| `integrate/phase-A` | Phase 1 — Foundation | `docs/plans/phase-1/` |
+| `integrate/phase-1` | Phase 2 — Core Dialogs | `docs/plans/phase-2/` |
+| `integrate/phase-2` | Phase 3 — Polish & Icons | `docs/plans/phase-3/` |
+| `integrate/phase-3` | Phase 4 — Wizard | `docs/plans/phase-4/` |
+| `integrate/phase-4` | Phase 5 — Persistent & MCP | `docs/plans/phase-5/` |
+
+Phase A sprint PRs target `integrate/phase-A`. See `docs/plans/phase-1/README.md` for execution principles.
+
 ---
 
 ## Phase 1 — Foundation
 
-**Phase goal:** A working binary with a native window, HTML chrome frame, and validated JSON I/O. Nothing useful yet — but everything subsequent phases build on.
+**Phase goal:** A working binary with macOS native window, HTML chrome frame, and validated JSON I/O on a **single direct execution path**. No dialog content rendering yet — only the `chrome` foundation command exercises the full validate → open → emit loop.
 
-**Phase acceptance criteria:** `wyvern '{"type":"message","title":"test","message":"hello","buttons":"ok"}'` loads a validated command, opens a correctly-framed window, and on OS close returns `{"button":"dismissed"}`.
+**Execution model (Phase 1):** `parse JSON → validate Command → dispatch by type → run handler → write one JSON line to stdout`. One `type` value maps to one handler. No mode flags, no fallback routing tables, no stub handlers for unimplemented types.
+
+**Phase acceptance criteria:**
+
+1. **Invalid command (no window):**
+   `wyvern '{"type":"message","title":"t","message":"m","buttons":"ok"}'` writes structured validation JSON to stderr and exits non-zero. `message` is not executable in Phase 1.
+2. **Foundation path (window + result):**
+   `wyvern '{"type":"chrome","title":"Foundation"}'` validates, opens the chrome frame with the title in the title bar, and on OS close writes `{"button":"dismissed"}` to stdout.
+3. **Unknown type (no window):**
+   `wyvern '{"type":"unknown"}'` writes `{ "error": "validation", "field": "type", ... }` to stderr and exits non-zero.
+
+**Platform scope:** macOS only for window/chrome runtime. Windows/Linux chrome deferred to Phase 3 (`S3.2a`).
+
+**Sprint count:** 8 sprints (`S1.1a`–`S1.5`). No `S1.3b` in Phase 1.
 
 ---
 
-### S1.1a — Rust project scaffold
+### S1.1a — Rust workspace scaffold (five crates)
 
-Set up the Cargo workspace, add core dependencies (`wry`, `winit`, `serde`, `serde_json`, `strsim`), and confirm a `cargo build` produces a binary on macOS.
+Create the ADR-0011 five-crate workspace on day one. Stub crates compile; only `wyvern-schema` and `wyvern-window` contain logic in later sprints.
 
 **Acceptance criteria:**
-- `cargo build` succeeds with no warnings
-- All dependencies resolve at pinned versions
-- Workspace structure established for future crate separation
+- Workspace contains: `wyvern-schema`, `wyvern-wizard`, `wyvern-window`, `wyvern`, `wyvern-mcp`
+- Dependency edges match ADR-0011 (no `wry`/`winit` outside `wyvern-window`)
+- `cargo build --workspace` succeeds on macOS with no warnings
+- Core deps pinned: `wry`, `winit`, `serde`, `serde_json`, `strsim`
+- `wyvern` binary crate depends only on `wyvern-window` + `wyvern-schema`
+- Stub `wyvern-wizard` and `wyvern-mcp` expose empty `lib.rs` only
 
 ---
 
-### S1.1b — Native window opens and closes
+### S1.1b — Native window opens and closes (macOS)
 
-Wire up the `winit` event loop and `wry` WebView. Open a blank window; close it cleanly on OS × button or programmatic exit.
+Wire `winit` + `wry` in `wyvern-window`. Expose a minimal `open_blank_window() -> Result<CloseReason>` API. macOS only.
 
 **Acceptance criteria:**
-- `cargo run` opens a blank native window on macOS
-- Window closes without panic or resource leak
+- `cargo run -p wyvern -- --window-demo` opens a blank native window on macOS
+- Window closes without panic or resource leak on OS × button
 - Transparent title bar + full-size content view active (ADR-0010)
-- `-webkit-app-region: drag` wired on the title bar element
+- Close reason surfaces to caller as an enum (maps to `dismissed` in JSON layer)
+- No JSON CLI integration in this sprint — window API only
 
 ---
 
 ### S1.2a — CLI arg detection and JSON loading
 
-Detect and load input from four sources: inline JSON string arg, `.json` file path, `.md` file path, and stdin.
+Implement the four input loaders in `wyvern` (thin binary). Output raw parsed `serde_json::Value` or typed bytes — no validation yet.
 
 **Acceptance criteria:**
-- All four input modes correctly load their payload
-- `.md` extension → markdown type shorthand
-- `.json` extension → dialog command
-- No arg + stdin → reads from stdin
-- Ambiguous/missing input prints usage to stderr and exits non-zero
+- Inline JSON string arg loads payload
+- `.json` file path loads payload
+- `.md` file path wraps as `{ "type": "markdown", "file": "<path>" }` shorthand
+- No arg reads stdin
+- Ambiguous/missing input prints usage to stderr, exits non-zero
+- Loaders are pure functions testable without opening a window
 
 ---
 
-### S1.2b — JSON schema validation and error output
+### S1.2b — JSON schema validation (`chrome` only)
 
-Validate all input against the full schema for all types. Write structured errors to stderr.
+Implement `wyvern-schema` validation for the **Phase 1 executable surface only**: `type: "chrome"`. Reject all other `type` values with structured errors. Do not validate dialog fields for unimplemented types.
 
 **Acceptance criteria:**
-- Unknown fields → `{ "error": "validation", "field": "...", "message": "..." }` on stderr
-- Missing required field → explicit named error
-- Wrong enum value → lists valid options + Levenshtein suggestion (distance ≤ 2)
-- Wrong type → `"expected boolean, got string"`
-- Cross-field rules: `custom` buttons without `custom_buttons`, `multiline` + file mode, `markdown` `file` xor `content`, and lifecycle actions outside `--interactive`
-- Exit code non-zero on any validation failure
-- Unit tests cover all validation rules
+- `{"type":"chrome","title":"T"}` passes validation
+- `{"type":"message",...}` fails: `{ "error": "validation", "field": "type", "message": "type not implemented in this phase" }` (or equivalent explicit message)
+- Unknown fields on `chrome` → validation error (REQ-0053)
+- Missing `title` on `chrome` → explicit named error
+- Wrong JSON types → `"expected string, got ..."` style message
+- `{"action":"show"}` outside `--interactive` → state error (REQ-0060)
+- Parse failures → `{ "error": "parse", ... }` (REQ-0069)
+- Exit code non-zero on any failure; no window opened on validation failure
+- Unit tests cover every rule above in `wyvern-schema` only
 
 ---
 
-### S1.3a — HTML chrome frame structure
+### S1.3a — HTML chrome frame + `chrome` command E2E (macOS)
 
-Implement the consistent HTML shell: title bar, content area, status bar (optional), button bar. Render static placeholder content in each zone.
-
-**Acceptance criteria:**
-- Frame renders correctly in the wry webview
-- Title bar occupies full width with 72px left safe zone (macOS traffic lights)
-- Status bar hides cleanly when not provided
-- Button bar renders 1–5 buttons from a hardcoded array
-- Auto-sizing: window fits content with defined max width/height
-
----
-
-### S1.3b — Platform window chrome (close/minimize buttons)
-
-Wire platform-specific window controls. macOS: traffic lights float over HTML. Windows/Linux: HTML-rendered close + minimize buttons via IPC.
+Render the HTML shell (title bar, content area, optional status bar, static button bar). Wire the `chrome` command through the direct dispatch path: validate → render shell → wait for close → emit JSON.
 
 **Acceptance criteria:**
-- macOS: traffic light buttons visible and functional
-- Windows + Linux: HTML close and minimize buttons call window actions via IPC
-- Window draggable via title bar on all platforms
-- Modal types (message, input, markdown, question): minimize disabled
-- `{"button":"dismissed"}` returned when window closed via any OS mechanism
+- `wyvern '{"type":"chrome","title":"Test"}'` opens chrome with title text in title bar
+- Content area shows static placeholder (no dialog-type rendering)
+- Title bar has 72px macOS safe zone; `-webkit-app-region: drag` on title bar
+- OS close writes `{"button":"dismissed"}` to stdout (REQ-0068 pattern)
+- Window auto-sizes to content with max width/height caps
+- Dispatch is a single `match command.type` with one `Chrome` arm — no stub arms for other types
+- Status bar hidden when not provided
+
+**Deferred to Phase 3 (`S3.2a`):** Windows/Linux HTML close/minimize buttons (REQ-0085–REQ-0086).
 
 ---
 
 ### S1.4 — sc-observability integration
 
-Integrate the `sc-observability` structured logging library. Define logging conventions and usage guidelines for the Wyvern codebase.
+Integrate structured logging at the binary boundary only (`wyvern/src/main.rs`). Sibling repo path is fixed relative to the wyvern repo root.
 
 **Acceptance criteria:**
-- `sc-observability` added as dependency from `../sc-observability`
-- Structured log output on: process start, command received, window open/close, result emitted, error
+- Dependency path: `../sc-observability` (sibling checkout per `CLAUDE.md` Environment)
+- CI/doc note: clone `sc-observability` beside wyvern before building; local path dep, not crates.io
+- Structured log events: process start, command received, validation result, window open/close, result emitted, error
 - `WYVERN_LOG` env var controls log level
-- Usage guidelines documented in `docs/observability.md`
-- All existing code updated to use structured logging
+- Usage guidelines in `docs/observability.md`
+- No `sc-observability` imports in library crates (arch-qa boundary gate)
 
 ---
 
@@ -266,15 +290,16 @@ Implement full icon field resolution: named, indexed variant, file path, base64.
 
 ---
 
-### S3.2a — Windows and Linux full-size content view
+### S3.2a — Windows and Linux platform chrome
 
-Implement `decorations: false` + HTML close/minimize buttons on Windows and Linux.
+Implement `decorations: false` + HTML close/minimize buttons on Windows and Linux. Absorbs the deferred Phase 1 `S1.3b` scope (REQ-0085–REQ-0086).
 
 **Acceptance criteria:**
-- Windows: borderless window with HTML close + minimize buttons functional
-- Linux: borderless window with HTML close + minimize buttons functional
+- Windows: borderless window with HTML close + minimize buttons functional via IPC
+- Linux: borderless window with HTML close + minimize buttons functional via IPC
 - Window draggable on both platforms via `-webkit-app-region: drag`
 - All Phase 2 dialog types render correctly on Windows and Linux
+- `chrome` foundation command still returns `{"button":"dismissed"}` on OS close on all platforms
 
 ---
 
