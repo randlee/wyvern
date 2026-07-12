@@ -287,6 +287,9 @@ rm -f "$_VARS"
 
 ## Default reviewer set
 
+When launching reviewers, read `.claude/orchestration-agent-models.yaml` and pass
+each agent's `model` explicitly on every Task.
+
 Implementation QA-1:
 
 - always: `req-qa`, `arch-qa`, `rust-qa-agent`, `rust-best-practices-agent`,
@@ -301,6 +304,11 @@ QA-2 and later rechecks:
 - conditional: `flaky-test-qa` as above
 
 Phase-ending QA: all six reviewers (flaky always on).
+
+- For phase-ending only: spawn `rust-qa-agent` with **`gpt-5.6-terra-medium`**
+  (GPT-5.6 Terra) when available in Task; otherwise use `grok-4.5-fast-xhigh`.
+- Keep `arch-qa` on its Sonnet-class default so phase-end still mixes Claude
+  precision with Terra comprehensive review.
 
 Docs-only plan review (`review_mode: plan`):
 

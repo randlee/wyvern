@@ -85,16 +85,28 @@ Try in order; stop at the first success. Never fall through to `quality-mgr`.
 3. **Custom subagent:** if the product exposes project agents by name, invoke
    the `cursor-quality-mgr` agent with the same QA XML payload.
 
-## Default model matrix
+## Agent model defaults
 
-Override only when the user names a model for a role.
+Read `.claude/orchestration-agent-models.yaml` before launching any subagent.
+Override only when the user names a model for a role. Always pass `model:`
+explicitly on Task spawns (do not rely on agent frontmatter defaults).
 
-| Role | Default |
-|------|---------|
-| Parent orchestrator | current session model |
-| `rust-developer` | user-planned / `claude-4.6-sonnet-medium-thinking` if unspecified |
-| `cursor-quality-mgr` | `claude-4.6-sonnet-medium-thinking` |
-| Reviewers | leave agent default unless user overrides |
+- Parent orchestrator: current session model (not in the table).
+- `inherit` entries: use the agent frontmatter default.
+- `alternates` on an agent: honor only when the user explicitly prefers that model.
+
+### Phase-ending review model override
+
+For phase-ending QA (`review_mode` / assignment indicating phase-end), use the
+YAML defaults **except**:
+
+- Prefer **`gpt-5.6-terra-medium`** (GPT-5.6 Terra) for **`rust-qa-agent`**
+  when available in the Cursor Task model list; otherwise fall back to the YAML
+  default for `rust-qa-agent`.
+- Do not replace `arch-qa`'s Sonnet assignment; keep the Claude precision gate
+  and the Terra comprehensive reviewer as a deliberate mix.
+
+Other phase-end reviewers stay on their YAML defaults.
 
 ## Preconditions
 

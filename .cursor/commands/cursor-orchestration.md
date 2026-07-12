@@ -10,12 +10,16 @@ Run Wyvern sprint/phase orchestration **inside this Cursor session**.
 3. **Never** spawn `quality-mgr` (ATM/Claude agent) while this command is active.
 4. If any prompt or skill says `quality-mgr`, remap to `cursor-quality-mgr` and
    launch once — do not dual-dispatch.
-5. Developer work → Task `rust-developer` with the planned model.
+5. Developer work → Task `rust-developer` with model from
+   `.claude/orchestration-agent-models.yaml` (user override wins).
 6. Do not edit `.claude/skills/codex-orchestration/` or
    `.claude/agents/quality-mgr.md` as part of this flow.
 7. Keep all authored paths repo-root-relative (see skill **Path portability**).
 8. Use ambient `git` / `gh` / `sc-compose` only — no account or login flags.
 9. Render assignments with the fenced `sc-compose` recipes in the skill.
+10. Pass reviewer models from `.claude/orchestration-agent-models.yaml`; for
+    phase-ending QA prefer `gpt-5.6-terra-medium` on `rust-qa-agent` when
+    available (else YAML default).
 
 ## Quick flow
 
