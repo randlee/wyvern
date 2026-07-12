@@ -45,6 +45,14 @@ with free-form input.
   ],
   "practice_mode": "all | selected",
   "practice_ids": ["RBP-001", "RBP-004"],
+  "round_limit": false,
+  "changed_files": [
+    "optional changed-file hint"
+  ],
+  "triage_records": [
+    "optional prior findings"
+  ],
+  "carry_forward_findings": [],
   "notes": "optional context"
 }
 ```
@@ -53,6 +61,8 @@ Rules:
 - `review_mode` is required.
 - `worktree_path` is required and must be absolute.
 - `practice_mode` is required.
+- `round_limit`, `changed_files`, `triage_records`, and `carry_forward_findings`
+  are prior-round context; they do not replace re-verification of assigned practices.
 - `review_targets` is optional. Omit to review default changed-file scope plus directly impacted boundaries.
 - `practice_ids` must be non-empty when `practice_mode` is `selected`.
 - Unknown practice ids are input errors. Do not guess.

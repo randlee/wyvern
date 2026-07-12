@@ -28,9 +28,22 @@ with free-form input.
   "review_targets": [
     "optional paths"
   ],
+  "round_limit": false,
+  "changed_files": [
+    "optional changed-file hint for limited recheck rounds"
+  ],
+  "triage_records": [
+    "optional prior finding records to recheck"
+  ],
+  "carry_forward_findings": [],
   "notes": "optional context"
 }
 ```
+
+Rules:
+- `worktree_path` must be absolute when provided.
+- `round_limit`, `changed_files`, `triage_records`, and `carry_forward_findings`
+  are prior-round context; they do not replace re-verification of the requested scope.
 
 ## Scope
 
