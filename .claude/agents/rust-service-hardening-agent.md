@@ -44,6 +44,15 @@ with free-form input.
     "actix-web",
     "reqwest"
   ],
+  "service_indicators_extra": [],
+  "round_limit": false,
+  "changed_files": [
+    "optional changed-file hint"
+  ],
+  "triage_records": [
+    "optional prior findings"
+  ],
+  "carry_forward_findings": [],
   "notes": "optional context"
 }
 ```
@@ -53,6 +62,9 @@ Rules:
 - `worktree_path` is required and must be absolute.
 - `topics` is optional. Omit to use the default topic set for the selected review mode.
 - `service_indicator_dependencies` is optional. Omit to use the default service-indicator dependency list shown above.
+- `service_indicators_extra` is optional. Merge with the default dependency list when supplied.
+- `round_limit`, `changed_files`, `triage_records`, and `carry_forward_findings`
+  are prior-round context; they do not replace re-verification of the requested scope.
 - `review_targets` is optional. Omit to review default changed-file scope plus directly impacted runtime boundaries.
 
 ## Review Process

@@ -23,6 +23,11 @@ Run Wyvern sprint/phase orchestration **inside this Cursor session**.
 
 ## Quick flow
 
+Build `$_VARS` JSON maps with the fenced `sc-compose` recipes in
+`.cursor/skills/cursor-orchestration/SKILL.md` (dev, QA, fix, and reviewer
+assignments). Read `.claude/orchestration-agent-models.yaml` before each Task
+spawn.
+
 1. Ensure sprint worktree via `/sc-git-worktree` from `develop`.
 2. Render + assign dev:
 

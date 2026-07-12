@@ -114,6 +114,7 @@ Other phase-end reviewers stay on their YAML defaults.
    `docs/architecture.md`, and `docs/plans/project-plan.md` (or linked phase plan).
 2. Sprint worktree exists (create via `/sc-git-worktree` from `develop` if missing).
 3. These exist and are readable (repo-root-relative):
+   - `.claude/orchestration-agent-models.yaml`
    - `.cursor/agents/cursor-quality-mgr.md`
    - `.claude/agents/{req-qa,arch-qa,flaky-test-qa,rust-qa-agent,rust-best-practices-agent,rust-service-hardening-agent,rust-developer}.md`
    - `.claude/skills/quality-management-gh/SKILL.md`
@@ -232,13 +233,42 @@ sc-compose render \
 rm -f "$_VARS"
 ```
 
+### Render fix assignment
+
+```bash
+_VARS=$(mktemp)
+cat > "$_VARS" <<'JSON'
+{
+  "task_id": "fix-1",
+  "phase": "1",
+  "sprint_doc": "docs/plans/<sprint>.md",
+  "branch": "<branch>",
+  "worktree_path": "<resolved-worktree-path>",
+  "pr_target": "integrate/phase-N",
+  "description": "<summary>",
+  "finding_ids": "- <id>",
+  "triage_records": "- .triage/<phase>/<finding>.ttl",
+  "required_fixes": "- <fix>",
+  "acceptance_criteria": "- <criterion>",
+  "references": "- docs/requirements.md",
+  "requirement_ids": "- REQ-0001",
+  "adr_ids": "- ADR-0001"
+}
+JSON
+sc-compose render \
+  --root .cursor/skills/cursor-orchestration \
+  --file fix-assignment.xml.j2 \
+  --var-file "$_VARS"
+rm -f "$_VARS"
+```
+
 ### Render reviewer JSON (req-qa example)
 
 ```bash
 _VARS=$(mktemp)
 cat > "$_VARS" <<'JSON'
 {
-  "reference_docs": ["docs/requirements.md", "docs/architecture.md"],
+  "reference_docs": ["docs/requirements.md", "docs/architecture.md", "docs/plans/project-plan.md"],
   "sprint_doc": "docs/plans/<sprint>.md",
   "phase": "1",
   "sprint": "1a",

@@ -44,6 +44,7 @@ parent explicitly instructs you to.
 
 Always read before starting a QA assignment (repo-root-relative):
 
+- `.claude/orchestration-agent-models.yaml`
 - `.claude/agents/req-qa.md`
 - `.claude/agents/arch-qa.md`
 - `.claude/agents/flaky-test-qa.md`
@@ -118,7 +119,7 @@ TODO rule:
 _VARS=$(mktemp)
 cat > "$_VARS" <<'JSON'
 {
-  "reference_docs": ["docs/requirements.md", "docs/architecture.md"],
+  "reference_docs": ["docs/requirements.md", "docs/architecture.md", "docs/plans/project-plan.md"],
   "sprint_doc": "docs/plans/<sprint>.md",
   "phase": "1",
   "sprint": "1a",
@@ -195,7 +196,11 @@ rm -f "$_VARS"
 
 ### Rust reviewer assignments
 
-Follow `.claude/assets/sc-rust/quality-mgr/quality-mgr.rust.md`. Example:
+Follow `.claude/assets/sc-rust/quality-mgr/quality-mgr.rust.md`. Use the same
+`review_targets`, `round_limit`, `changed_files`, `carry_forward_findings_json`,
+and `triage_records` values across all Rust reviewer renders for a given QA round.
+
+#### rust-qa-agent
 
 ```bash
 _VARS=$(mktemp)
@@ -203,12 +208,65 @@ cat > "$_VARS" <<'JSON'
 {
   "review_mode": "sprint_review",
   "worktree_path": "<resolved-worktree-path>",
-  "review_targets": ["<path>"]
+  "review_targets": ["<path>"],
+  "round_limit": false,
+  "changed_files": [],
+  "carry_forward_findings_json": "[]",
+  "triage_records": [],
+  "notes": ""
 }
 JSON
 sc-compose render \
   --root .claude/assets/sc-rust/quality-mgr/templates \
   --file rust-qa-assignment.json.j2 \
+  --var-file "$_VARS"
+rm -f "$_VARS"
+```
+
+#### rust-best-practices-agent
+
+```bash
+_VARS=$(mktemp)
+cat > "$_VARS" <<'JSON'
+{
+  "review_mode": "sprint_review",
+  "worktree_path": "<resolved-worktree-path>",
+  "review_targets": ["<path>"],
+  "practice_mode": "selected",
+  "practice_ids": ["RBP-001", "RBP-004", "RBP-006", "RBP-007"],
+  "round_limit": false,
+  "changed_files": [],
+  "carry_forward_findings_json": "[]",
+  "triage_records": [],
+  "notes": ""
+}
+JSON
+sc-compose render \
+  --root .claude/assets/sc-rust/quality-mgr/templates \
+  --file rust-best-practices-assignment.json.j2 \
+  --var-file "$_VARS"
+rm -f "$_VARS"
+```
+
+#### rust-service-hardening-agent
+
+```bash
+_VARS=$(mktemp)
+cat > "$_VARS" <<'JSON'
+{
+  "review_mode": "sprint_review",
+  "worktree_path": "<resolved-worktree-path>",
+  "review_targets": ["<path>"],
+  "round_limit": false,
+  "changed_files": [],
+  "carry_forward_findings_json": "[]",
+  "triage_records": [],
+  "notes": ""
+}
+JSON
+sc-compose render \
+  --root .claude/assets/sc-rust/quality-mgr/templates \
+  --file rust-service-hardening-assignment.json.j2 \
   --var-file "$_VARS"
 rm -f "$_VARS"
 ```
@@ -281,7 +339,7 @@ rm -f "$_VARS"
 9. Check PR CI with the fenced `gh` recipes when a PR number is present.
 10. Publish PR updates with the fenced findings/closeout recipes (full paths:
     `.claude/skills/quality-management-gh/findings-report.md.j2` and
-    `quality-report.md.j2`).
+    `.claude/skills/quality-management-gh/quality-report.md.j2`).
 11. Report final PASS, FAIL, or IN-FLIGHT to the parent, including deliverable
     completion as `X/Y (Z%)`.
 
@@ -306,7 +364,8 @@ QA-2 and later rechecks:
 Phase-ending QA: all six reviewers (flaky always on).
 
 - For phase-ending only: spawn `rust-qa-agent` with **`gpt-5.6-terra-medium`**
-  (GPT-5.6 Terra) when available in Task; otherwise use `grok-4.5-fast-xhigh`.
+  (GPT-5.6 Terra) when available in Task; otherwise use the YAML default for
+  `rust-qa-agent`.
 - Keep `arch-qa` on its Sonnet-class default so phase-end still mixes Claude
   precision with Terra comprehensive review.
 

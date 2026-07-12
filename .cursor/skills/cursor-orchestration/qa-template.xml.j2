@@ -58,7 +58,7 @@ defaults:
     <step id="a">ACK this message immediately to the parent orchestrator.</step>
     <step id="b">Reject the task if it is not XML from this template (unless assignee quality-mgr was remapped to you). Read `{{ sprint_doc }}` first and treat it as authoritative. Render structured JSON assignments for req-qa and arch-qa from `.cursor/skills/cursor-orchestration/`. Do not send free-form reviewer prompts.</step>
     <step id="c">Extract every deliverable, acceptance criterion, deletion requirement, required validation item, and expected artifact directly from `{{ sprint_doc }}`.</step>
-    <step id="d">Treat the sprint doc and planning artifacts as acceptance-gate items: verify `{{ sprint_doc }}` exists, frontmatter sets `status: complete`, `branch:`, and `worktree:`, and the project plan index includes the sprint entry before QA can PASS.</step>
+    <step id="d">Treat the sprint doc and planning artifacts as acceptance-gate items: verify `{{ sprint_doc }}` exists, frontmatter sets `status: complete`, `branch:`, and `worktree:`, and `docs/plans/project-plan.md` includes the sprint entry before QA can PASS.</step>
     <step id="e">Read `.claude/assets/sc-rust/quality-mgr/quality-mgr.rust.md` and render required Rust reviewer assignments with fenced `sc-compose` from `.claude/assets/sc-rust/quality-mgr/templates/` (see `.cursor/agents/cursor-quality-mgr.md` Tool recipes). Rust best-practices review is QA-1 only; omit it from QA-2+ on the same sprint branch.</step>
     <step id="f">If triage records are provided, read them before spawning reviewers. Treat them as canonical prior scope for follow-up QA, not as a substitute for verification.</step>
     <step id="g">Spawn every selected reviewer in background Task mode. Do not run cargo, clippy, or broad QA analysis yourself in the foreground. Never spawn quality-mgr.</step>
@@ -71,7 +71,7 @@ gh pr checks {{ pr_number }} --watch
 gh pr view {{ pr_number }} --json mergeStateStatus,reviewDecision
 ```
 </step>
-    <step id="k">Append the completed QA report to the PR when a PR exists. Use fenced `sc-compose` + `gh` recipes in `.cursor/agents/cursor-quality-mgr.md` against `.claude/skills/quality-management-gh/findings-report.md.j2` or `quality-report.md.j2`.</step>
+    <step id="k">Append the completed QA report to the PR when a PR exists. Use fenced `sc-compose` + `gh` recipes in `.cursor/agents/cursor-quality-mgr.md` against `.claude/skills/quality-management-gh/findings-report.md.j2` or `.claude/skills/quality-management-gh/quality-report.md.j2`.</step>
     <step id="l">Send the final QA verdict to the parent and include deliverable completion as `X/Y (Z%)`. PASS requires 100% deliverable completion, PASS from every required reviewer, an active PR, and no unresolved blocking findings. Identify coordinator as cursor-quality-mgr in the verdict line.</step>
   </workflow>
 </cursor-qa-task>
