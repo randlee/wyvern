@@ -29,9 +29,16 @@ primary implementation work yourself.
 - All prompt references are **repo-root-relative** (`.claude/...`, `.cursor/...`).
 - Never hardcode host-absolute paths in prompts, examples, or spawned Task text
   you author yourself.
-- Use assignment placeholders (`worktree_path`, `sprint_doc`) as provided; if you
-  must resolve a path, derive it from the repo root / git worktree metadata for
-  the current machine (macOS, Linux, or Windows).
+- Use assignment placeholders (`worktree_path`, `sprint_doc`) as provided.
+- Resolve unknown paths via git common-dir / `/sc-git-worktree` metadata for the
+  current machine (macOS, Linux, or Windows). Never assume cwd-relative
+  `../wyvern-worktrees`.
+
+## CLI auth
+
+Use ambient `git` and `gh` only. Do not pass account, hostname, or login flags
+(`gh auth login`, `gh --hostname`, account switch helpers, etc.) unless the
+parent explicitly instructs you to.
 
 ## Required reading
 
@@ -43,6 +50,7 @@ Always read before starting a QA assignment (repo-root-relative):
 - `.claude/skills/quality-management-gh/SKILL.md`
 - `.claude/skills/todo-triage/SKILL.md`
 - `.claude/assets/sc-rust/quality-mgr/quality-mgr.rust.md`
+- `.cursor/skills/cursor-orchestration/SKILL.md` (tool recipes section)
 
 Use the Rust supplement for when/how to launch Rust reviewers and how to render
 their JSON assignments. Use `quality-management-gh` for multi-pass QA status,
@@ -100,6 +108,163 @@ TODO rule:
 - report TODOs as findings unless fixed, removed, or rewritten as non-action
   explanatory comments before the final verdict
 
+## Tool recipes (fenced)
+
+`sc-compose` must be on `PATH`.
+
+### Reviewer assignment — req-qa
+
+```bash
+_VARS=$(mktemp)
+cat > "$_VARS" <<'JSON'
+{
+  "reference_docs": ["docs/requirements.md", "docs/architecture.md"],
+  "sprint_doc": "docs/plans/<sprint>.md",
+  "phase": "1",
+  "sprint": "1a",
+  "worktree_path": "<resolved-worktree-path>",
+  "branch": "<branch>",
+  "commit": "<sha>",
+  "review_targets": ["<path>"],
+  "round_limit": false,
+  "changed_files": [],
+  "carry_forward_findings_json": "[]",
+  "triage_records": [],
+  "notes": ""
+}
+JSON
+sc-compose render \
+  --root .cursor/skills/cursor-orchestration \
+  --file req-qa-assignment.json.j2 \
+  --var-file "$_VARS"
+rm -f "$_VARS"
+```
+
+### Reviewer assignment — arch-qa
+
+```bash
+_VARS=$(mktemp)
+cat > "$_VARS" <<'JSON'
+{
+  "review_mode": "sprint_review",
+  "worktree_path": "<resolved-worktree-path>",
+  "branch": "<branch>",
+  "review_targets": ["<path>"],
+  "reference_docs": ["docs/architecture.md"],
+  "commit": "<sha>",
+  "phase": "1",
+  "sprint": "1a",
+  "sprint_doc": "docs/plans/<sprint>.md",
+  "round_limit": false,
+  "changed_files": [],
+  "carry_forward_findings_json": "[]",
+  "triage_records": [],
+  "notes": ""
+}
+JSON
+sc-compose render \
+  --root .cursor/skills/cursor-orchestration \
+  --file arch-qa-assignment.json.j2 \
+  --var-file "$_VARS"
+rm -f "$_VARS"
+```
+
+### Reviewer assignment — flaky-test-qa (when needed)
+
+```bash
+_VARS=$(mktemp)
+cat > "$_VARS" <<'JSON'
+{
+  "worktree_path": "<resolved-worktree-path>",
+  "review_targets": ["<path>"],
+  "phase": "1",
+  "sprint": "1a",
+  "round_limit": false,
+  "changed_files": [],
+  "carry_forward_findings_json": "[]",
+  "triage_records": [],
+  "notes": ""
+}
+JSON
+sc-compose render \
+  --root .cursor/skills/cursor-orchestration \
+  --file flaky-test-qa-assignment.json.j2 \
+  --var-file "$_VARS"
+rm -f "$_VARS"
+```
+
+### Rust reviewer assignments
+
+Follow `.claude/assets/sc-rust/quality-mgr/quality-mgr.rust.md`. Example:
+
+```bash
+_VARS=$(mktemp)
+cat > "$_VARS" <<'JSON'
+{
+  "review_mode": "sprint_review",
+  "worktree_path": "<resolved-worktree-path>",
+  "review_targets": ["<path>"]
+}
+JSON
+sc-compose render \
+  --root .claude/assets/sc-rust/quality-mgr/templates \
+  --file rust-qa-assignment.json.j2 \
+  --var-file "$_VARS"
+rm -f "$_VARS"
+```
+
+### CI
+
+```bash
+gh pr checks <PR> --watch
+gh pr view <PR> --json mergeStateStatus,reviewDecision
+```
+
+### PR findings (FAIL / IN-FLIGHT)
+
+Read required variables from
+`.claude/skills/quality-management-gh/findings-report.md.j2` frontmatter and
+supply a flat string JSON map.
+
+```bash
+_VARS=$(mktemp)
+# populate generated_at, qa_pass, sprint_id, task_id, branch, commit,
+# pr_number, verdict, deliverables_*, findings_*, blocking_ids_json,
+# blocking_findings_md, detailed_findings_md, next_action, action_owner,
+# merge_readiness, merge_reason, optional resolved_findings_md
+sc-compose render \
+  --root .claude/skills/quality-management-gh \
+  --file findings-report.md.j2 \
+  --var-file "$_VARS" \
+  | gh pr review <PR> --request-changes --body-file -
+rm -f "$_VARS"
+```
+
+In-flight (non-blocking comment):
+
+```bash
+sc-compose render \
+  --root .claude/skills/quality-management-gh \
+  --file findings-report.md.j2 \
+  --var-file "$_VARS" \
+  | gh pr comment <PR> --body-file -
+```
+
+### PR closeout (PASS)
+
+Read required variables from
+`.claude/skills/quality-management-gh/quality-report.md.j2` frontmatter.
+
+```bash
+_VARS=$(mktemp)
+sc-compose render \
+  --root .claude/skills/quality-management-gh \
+  --file quality-report.md.j2 \
+  --var-file "$_VARS" \
+  | gh pr review <PR> --approve --body-file -
+rm -f "$_VARS"
+```
+
 ## Workflow
 
 1. ACK immediately to the parent (short status message).
@@ -108,20 +273,15 @@ TODO rule:
 4. If review mode is neither `round_limit` nor `plan`, expand `review_targets`.
 5. For implementation sprint-end or integration review, run the TODO scan from
    `.claude/skills/todo-triage/SKILL.md`.
-6. Render structured JSON assignments via `sc-compose`:
-   - `req-qa` ← `.cursor/skills/cursor-orchestration/req-qa-assignment.json.j2`
-   - `arch-qa` ← `.cursor/skills/cursor-orchestration/arch-qa-assignment.json.j2`
-   - `flaky-test-qa` ← `.cursor/skills/cursor-orchestration/flaky-test-qa-assignment.json.j2`
-     only when tests changed or instability is suspected
-   - Rust reviewers ← `.claude/assets/sc-rust/quality-mgr/templates/` as directed
-     by `.claude/assets/sc-rust/quality-mgr/quality-mgr.rust.md`
+6. Render structured JSON assignments via the **Tool recipes** `sc-compose`
+   fences above (req-qa, arch-qa, optional flaky-test-qa, Rust templates).
 7. Launch selected reviewers as **background Task** agents. Never run cargo,
    clippy, or broad QA analysis yourself in the foreground.
 8. Collect results; classify blocking / non-blocking / skipped.
-9. Check PR CI with `gh` when a PR number is present:
-   - `gh pr checks <PR> --watch` (or one-shot if already complete)
-   - `gh pr view <PR> --json mergeStateStatus,reviewDecision`
-10. Publish PR updates using `.claude/skills/quality-management-gh/` templates.
+9. Check PR CI with the fenced `gh` recipes when a PR number is present.
+10. Publish PR updates with the fenced findings/closeout recipes (full paths:
+    `.claude/skills/quality-management-gh/findings-report.md.j2` and
+    `quality-report.md.j2`).
 11. Report final PASS, FAIL, or IN-FLIGHT to the parent, including deliverable
     completion as `X/Y (Z%)`.
 
@@ -163,8 +323,8 @@ Message sequence to parent:
 
 PR updates:
 
-- FAIL / IN-FLIGHT → `findings-report.md.j2`
-- PASS → `quality-report.md.j2`
+- FAIL / IN-FLIGHT → `.claude/skills/quality-management-gh/findings-report.md.j2`
+- PASS → `.claude/skills/quality-management-gh/quality-report.md.j2`
 - include the fenced JSON machine-status block from those templates
 
 PASS line:
