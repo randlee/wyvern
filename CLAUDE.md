@@ -29,7 +29,7 @@ git checkout -b feature/p1-s1a-scaffold
 - Five-crate workspace: `wyvern-schema`, `wyvern-window`, `wyvern-wizard`, `wyvern` (CLI), `wyvern-mcp`
 - Built on `wry` (Tauri) — wraps OS webviews (WebKit/WebView2/WebKitGTK)
 - Dialog types: `message`, `input`, `markdown`, `question` (AskUserQuestion-compatible), `wizard`
-- Interactive mode (`--interactive`): persistent stdin loop for agent status displays
+- Interactive mode (`--interactive`): persistent stdin loop for blocking dialog commands plus `show`/`hide`/`exit`
 - MCP mode: persistent background process, tool-call driven
 
 ---
@@ -41,7 +41,7 @@ git checkout -b feature/p1-s1a-scaffold
 | [`docs/prd/wyvern-prd.md`](docs/prd/wyvern-prd.md) | Full product requirements |
 | [`docs/requirements.md`](docs/requirements.md) | Numbered requirements (REQ/NFR) — links to crate docs |
 | [`docs/architecture.md`](docs/architecture.md) | ADRs — links to crate docs |
-| [`docs/plans/project-plan.md`](docs/plans/project-plan.md) | 5-phase, 33-sprint plan |
+| [`docs/plans/project-plan.md`](docs/plans/project-plan.md) | 5-phase, 31-sprint plan |
 
 **Per-crate docs** (referenced by principals above):
 

@@ -4,13 +4,15 @@ A sprint is a single testable deliverable that fits within one AI context window
 
 **sc-lint-boundary** is a planning activity applied from Phase 2 onwards — architectural boundary rules are reviewed at sprint planning, not implemented as a sprint.
 
+**Review and hardening principle:** If something feels complicated, assume the design is unclear or overspecified before assuming more API is needed. Reviews should attack complication directly by collapsing semantic drift, clarifying contracts, and defending the smallest coherent command surface.
+
 ---
 
 ## Phase 1 — Foundation
 
 **Phase goal:** A working binary with a native window, HTML chrome frame, and validated JSON I/O. Nothing useful yet — but everything subsequent phases build on.
 
-**Phase acceptance criteria:** `wyvern '{"type":"message","title":"test","message":"hello","buttons":"ok"}'` opens a correctly-framed window and returns `{"button":"ok"}` to stdout.
+**Phase acceptance criteria:** `wyvern '{"type":"message","title":"test","message":"hello","buttons":"ok"}'` loads a validated command, opens a correctly-framed window, and on OS close returns `{"button":"dismissed"}`.
 
 ---
 
@@ -39,7 +41,7 @@ Wire up the `winit` event loop and `wry` WebView. Open a blank window; close it 
 
 ### S1.2a — CLI arg detection and JSON loading
 
-Detect and load input from three sources: inline JSON string arg, `.json` file path, `.md` file path, and stdin.
+Detect and load input from four sources: inline JSON string arg, `.json` file path, `.md` file path, and stdin.
 
 **Acceptance criteria:**
 - All four input modes correctly load their payload
@@ -59,7 +61,7 @@ Validate all input against the full schema for all types. Write structured error
 - Missing required field → explicit named error
 - Wrong enum value → lists valid options + Levenshtein suggestion (distance ≤ 2)
 - Wrong type → `"expected boolean, got string"`
-- Cross-field rules: `custom` buttons without `custom_buttons`, `multiline` + file mode
+- Cross-field rules: `custom` buttons without `custom_buttons`, `multiline` + file mode, `markdown` `file` xor `content`, and lifecycle actions outside `--interactive`
 - Exit code non-zero on any validation failure
 - Unit tests cover all validation rules
 
@@ -218,15 +220,15 @@ Render question cards with radio (single-select) and checkbox (multi-select) opt
 
 ---
 
-### S2.4b — `question` type: preview, freeform, and schema compliance
+### S2.4b — `question` type: preview and schema compliance
 
-Add `preview` field rendering, freeform "Other" input, and full Claude AskUserQuestion response compliance.
+Add `preview` field rendering and schema compliance within Wyvern's `type: "question"` command envelope.
 
 **Acceptance criteria:**
 - `preview` HTML/markdown fragment renders alongside option when present
-- "Other" freeform input appended after options; user text used as answer value
-- `response` field populated when user dismisses structured options and types freely
-- `questions` array passed through verbatim in response (REQ-0065)
+- Public AskUserQuestion field set and constraints are documented and enforced
+- `response` field behavior matches the public AskUserQuestion contract
+- `questions` array passed through verbatim in response
 - Tested against sample AskUserQuestion payloads from Claude Agent SDK docs
 
 ---
@@ -312,10 +314,10 @@ GitHub Actions builds and publishes binaries. README quickstart complete.
 
 ### S4.1a — Wizard host: HTML load and config injection
 
-Load caller-supplied HTML into the webview and inject `config` on load.
+Load caller-supplied HTML into the webview and inject the initial page descriptor plus `config` on load.
 
 **Acceptance criteria:**
-- `{"type":"wizard","html":"path/to/wizard.html","config":{}}` opens the HTML file
+- `{"type":"wizard","page":{"id":"start","title":"Start","html":"path/to/wizard.html"},"config":{}}` opens the initial HTML file
 - `config` object injected into the page as `window.wyvern.config` on load
 - Wizard window uses explicit `width`/`height` when provided
 - Minimize enabled for wizard windows
@@ -324,14 +326,14 @@ Load caller-supplied HTML into the webview and inject `config` on load.
 
 ### S4.1b — Wizard IPC contract
 
-Implement bidirectional IPC between wizard pages and the Rust host.
+Implement bidirectional IPC between wizard pages and the Rust host using explicit page descriptors.
 
 **Acceptance criteria:**
-- Page can send: `{"action":"next","button":"label","data":{}}` → host advances
-- Page can send: `{"action":"back"}` → host navigates back
-- Page can send: `{"action":"finish","data":{}}` → host closes + returns result
+- Page can send: `{"action":"next","page":{...},"data":{},"next":{...}}` → host advances
+- Page can send: `{"action":"back","page":{...},"data":{}}` → host navigates back
+- Page can send: `{"action":"finish","page":{...},"data":{}}` → host closes + returns result
 - Page can send: `{"action":"cancel"}` → host closes + returns `{"button":"cancel"}`
-- Host sends on page load: `{"page_data":{},"stack":[]}`
+- Host sends on page load: `{"page":{},"page_data":{},"stack":[]}`
 
 ---
 
@@ -353,7 +355,7 @@ Implement the cursor-over-array history (ADR-0005).
 Inject full history stack into each page on load; restore page data on back-navigation.
 
 **Acceptance criteria:**
-- `stack` array in host→page message contains all prior `{id, data}` entries
+- `stack` array in host→page message contains all prior `{page, data}` entries
 - `page_data` populated with this page's previously collected data on restore
 - JS on any page can access `window.wyvern.stack` to read prior answers
 - Data round-trips correctly through JSON serialization
@@ -390,30 +392,28 @@ Handle edge cases and improve wizard UX.
 
 **Phase goal:** Wyvern runs as a persistent process, driveable by agents over stdin or as an MCP server.
 
-**Phase acceptance criteria:** A Claude Code agent can open Wyvern in `--interactive` mode from a background shell, push markdown status updates, ask a question, receive the answer, and exit — with no MCP required.
+**Phase acceptance criteria:** A Claude Code agent can open Wyvern in `--interactive` mode from a background shell, issue multiple blocking dialog commands against one persistent process, receive the JSON results, and exit — with no MCP required.
 
 ---
 
-### S5.1a — `--interactive` stdin loop and display commands
+### S5.1a — `--interactive` stdin loop and lifecycle actions
 
-Implement the `--interactive` readline loop for fire-and-forget display commands.
+Implement the `--interactive` readline loop and persistent-process lifecycle actions.
 
 **Acceptance criteria:**
 - `wyvern --interactive` opens window and enters read loop on stdin
-- `{"type":"markdown","content":"..."}` updates window content immediately
-- `{"type":"image","file":"..."}` displays image in window
 - `{"action":"hide"}` and `{"action":"show"}` toggle window visibility
-- Loop continues waiting after each display command (no block)
+- Lifecycle actions return `{"action":"...","ok":true}`
+- Loop remains alive after lifecycle actions and continues waiting for the next command
 
 ---
 
-### S5.1b — Blocking `question` in interactive mode
+### S5.1b — Blocking dialogs and `exit` in interactive mode
 
-Implement blocking question handling and `exit` in the interactive loop.
+Implement blocking dialog handling and `exit` in the interactive loop.
 
 **Acceptance criteria:**
-- `{"type":"question",...}` blocks the loop until user answers
-- Answer written to stdout as JSON line; loop resumes
+- Blocking dialog commands return their normal JSON result on stdout; loop resumes afterward
 - `{"action":"exit"}` closes window and terminates process cleanly
 - Window close by user also terminates process and loop
 - `--persistent` accepted as alias for `--interactive`
@@ -438,8 +438,7 @@ Implement persistent window lifecycle for MCP mode; test with Claude Code.
 
 **Acceptance criteria:**
 - Window persists across MCP tool calls (`show`/`hide` semantics)
-- `question` tool call blocks until user answers; result returned as tool response
-- Display commands (`markdown`, `image`) are fire-and-forget in MCP context
+- Blocking dialog tools keep their normal CLI semantics and return their normal JSON result as the tool response
 - Tested end-to-end as registered MCP server in Claude Code
 - `docs/mcp-setup.md` documents how to register Wyvern as an MCP server
 
@@ -449,7 +448,7 @@ Implement persistent window lifecycle for MCP mode; test with Claude Code.
 
 | Phase | Sprints | Ships |
 |-------|---------|-------|
-| 1 — Foundation | 10 | Working binary, nothing useful |
+| 1 — Foundation | 8 | Working binary, nothing useful |
 | 2 — Core Dialogs | 8 | **MVP — all dialog types usable** |
 | 3 — Release | 5 | **v0.1.0 on mac/win/linux** |
 | 4 — Wizard | 6 | Multi-page wizard with branching |

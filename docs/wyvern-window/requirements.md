@@ -18,11 +18,11 @@
 
 **REQ-0015** — `input` `mode: file` supports `filter` (extension patterns) and `multiple` (multi-file selection).
 
-**REQ-0016** — Support `markdown` type: renders `.md` file or inline markdown in a styled HTML viewer.
+**REQ-0016** — Support `markdown` type with fields: `type`, exactly one of `file` or `content`, optional `title`, optional `status`, and `buttons`.
 
-**REQ-0017** — Support `wizard` type: loads caller-supplied HTML, passes `config` object on load.
+**REQ-0017** — Support `wizard` type with fields: `type`, `page`, `config`, optional `width`, optional `height`. `page` contains `id`, `title`, and `html`.
 
-**REQ-0018** — Support `question` type: input and output schemas match Claude `AskUserQuestion` API exactly.
+**REQ-0018** — Support `question` type: Wyvern uses `type: "question"` plus the public Claude `AskUserQuestion` fields and behavior.
 
 ---
 

@@ -4,18 +4,18 @@
 
 ---
 
-## ADR-0007: Adopt Claude AskUserQuestion schema verbatim for `question` type
+## ADR-0007: Base `question` on Claude's public AskUserQuestion API
 
 **Status:** Accepted
 
 **Context:**
-Wyvern needs a question/multiple-choice dialog type. Claude's `AskUserQuestion` tool already defines a well-specified schema. Options: define a custom Wyvern schema, or adopt Claude's verbatim.
+Wyvern needs a question dialog type. Claude's public `AskUserQuestion` API already defines the core fields and behavior for this problem. Options: define a new Wyvern-specific schema, or adopt the Claude API inside Wyvern's standard command envelope.
 
 **Decision:**
-Adopt the Claude `AskUserQuestion` JSON schema exactly — same input, same output. Wyvern becomes a drop-in native renderer for Claude's own tool calls.
+Adopt the public Claude `AskUserQuestion` fields and behavior for Wyvern's `question` command, while keeping Wyvern's normal top-level `type: "question"` envelope.
 
 **Consequences:**
-- Zero translation layer when intercepting Claude's `AskUserQuestion` calls
+- Best-effort compatibility with Claude Code hooks without reinventing a second question schema
 - Can be used standalone with no Claude dependency
-- Future extensions must remain backward-compatible with the Claude API
-- Limited to 1–4 questions, 2–4 options each (current Claude API constraints)
+- Future extensions must remain backward-compatible with the public Claude API semantics where possible
+- Question semantics follow the public AskUserQuestion contract rather than a Wyvern-specific redesign. Multi-step questionnaires remain wizard territory.

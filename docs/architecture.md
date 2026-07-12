@@ -32,7 +32,17 @@ Architecture decisions are recorded as ADRs. Cross-cutting ADRs live here. Crate
 
 JSON in (stdin, file, or inline arg), JSON out (stdout). Errors on stderr as structured JSON. One command per line in interactive mode.
 
-**Consequences:** Works from any shell, language, or agent. MCP tool parameters map 1:1 — no restructuring. Binary data passed by file path or base64.
+**Consequences:** Works from any shell, language, or agent. MCP tool parameters map 1:1 — no restructuring. Binary data passed by file path or base64. The protocol stays intentionally small: blocking dialog commands plus a few lifecycle actions in `--interactive`.
+
+---
+
+### ADR-0012: Prefer the smallest coherent API surface
+
+**Status:** Accepted
+
+Wyvern should solve the product with the fewest command shapes that preserve clear semantics. If an interaction starts to feel complicated, treat that as a documentation, scoping, or boundary problem first.
+
+**Consequences:** `message` remains a blocking modal. Persistent transports (`--interactive`, MCP) do not silently change dialog semantics. Modeless behavior belongs in a separate future `notification` command rather than overloading existing commands.
 
 ---
 

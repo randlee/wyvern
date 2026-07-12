@@ -24,16 +24,51 @@
 
 ---
 
-## Return Values (REQ-0060 – REQ-0065)
+## Command & Field Validation (REQ-0058 – REQ-0060)
 
-**REQ-0060** — All dialog types write their result to stdout as a single JSON line on completion.
+**REQ-0058** — `markdown` requires exactly one of `file` or `content`. Providing both or neither is a validation error.
 
-**REQ-0061** — OS window close (× button) → all types return `{ "button": "dismissed" }`.
+**REQ-0059** — `input` cross-field validation rules:
+- `filter` and `multiple` are valid only with `mode: file`
+- `start_path` is valid only with `mode: file` or `mode: folder`
+- `placeholder` and `default` are valid only with `mode: text`
 
-**REQ-0062** — `message` and `markdown` → `{ "button": "<label>" }`.
+**REQ-0060** — `show`, `hide`, and `exit` are invalid outside `--interactive`; using them elsewhere produces a structured state error.
 
-**REQ-0063** — `input` → `{ "button": "<label>", "input": "<value>" }`. Multi-file → `input` as array.
+---
 
-**REQ-0064** — `wizard` → `{ "button": "finish|cancel|dismissed", "data": {}, "stack": [] }`.
+## Question Contract (REQ-0061 – REQ-0062)
 
-**REQ-0065** — `question` → Claude AskUserQuestion response schema: `{ "questions": [], "answers": {}, "response": "" }`.
+**REQ-0061** — `question` input uses Wyvern's standard `type: "question"` command envelope while preserving the public Claude `AskUserQuestion` field names and meanings inside that command.
+
+**REQ-0062** — `question.questions` contains 1–4 entries. Each question has a `question` string, `header` of at most 12 characters, `options` with 2–4 entries, optional `preview`, and `multiSelect` boolean. Multi-select answers are serialized as comma-joined labels to match the public API.
+
+---
+
+## Return Values (REQ-0063 – REQ-0068)
+
+**REQ-0063** — Every successful command writes exactly one JSON result line to stdout on completion.
+
+**REQ-0064** — `message` and `markdown` → `{ "button": "<label>" }`.
+
+**REQ-0065** — `input` → `{ "button": "<label>", "input": "<value>" }`. Multi-file → `input` as array.
+
+**REQ-0066** — `wizard` → `{ "button": "finish|cancel|dismissed", "data": {}, "stack": [] }`.
+
+**REQ-0067** — `question` on normal completion → Claude AskUserQuestion response schema: `{ "questions": [], "answers": {}, "response": "" }`. `response` is optional.
+
+**REQ-0068** — Force close behavior:
+- `message`, `input`, `markdown`, `wizard` return `{ "button": "dismissed", ... }` in their normal shape
+- `question` returns `{ "button": "dismissed", "questions": [...], "answers": {}, "response": "" }` as an explicit Wyvern extension for abnormal termination
+
+---
+
+## Error Model (REQ-0069 – REQ-0072)
+
+**REQ-0069** — JSON parse failures write `{ "error": "parse", "message": "..." }` to stderr and exit non-zero.
+
+**REQ-0070** — Schema and cross-field failures write `{ "error": "validation", "field": "...", "message": "..." }` to stderr and exit non-zero.
+
+**REQ-0071** — File/path failures write `{ "error": "io", "field": "...", "message": "..." }` to stderr and exit non-zero.
+
+**REQ-0072** — Mode/state failures write `{ "error": "state", "field": "...", "message": "..." }` to stderr and exit non-zero.
