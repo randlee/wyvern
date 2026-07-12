@@ -5,3 +5,5 @@ Cargo.lock
 *.pdb
 .DS_Store
 .env
+.sc/
+.sc-compose/

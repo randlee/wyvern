@@ -42,6 +42,9 @@ with free-form input.
   "file_filter": "tests\\.rs|test_",
   "repeatable": true,
   "sweep_scope": "crate",
+  "originating_sprint_doc": "docs/plans/<sprint>.md",
+  "requirement_ids": ["REQ-001"],
+  "adr_ids": ["ADR-0011"],
   "worktrees": [
     {
       "branch": "R.15",
@@ -78,6 +81,10 @@ Input rules:
 - `finding_id`, `title`, `description`, `category`, `severity`, `pattern`,
   `worktrees`, `integration_branch`, `integration_worktree_path`, and
   `triage_root` are required.
+- `originating_sprint_doc`, `requirement_ids`, and `adr_ids` are strongly
+  recommended when known: the owning sprint plan path, and the specific REQ/NFR
+  and ADR ids the finding violates / the eventual fix must satisfy. Cite ids,
+  not whole requirements or architecture documents.
 - `worktrees` must already be listed in the desired promotion order. Do not
   invent or infer branch priority from branch names.
 - `repeatable` is required.
@@ -196,6 +203,11 @@ Minimum Finding properties:
 - `triage:status`
 - `triage:dispatchReady`
 - `triage:triagedAt`
+
+Recommended Finding properties when known:
+- `triage:originatingSprintDoc` (repo-root-relative sprint plan path)
+- `triage:requirementId` (repeatable; one triple per REQ/NFR id)
+- `triage:adrId` (repeatable; one triple per ADR id)
 
 Minimum Occurrence properties:
 - `triage:file`
