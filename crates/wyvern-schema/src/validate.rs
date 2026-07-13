@@ -11,6 +11,7 @@ use crate::command::{
 };
 use crate::error::ValidationError;
 use crate::field_name::FieldName;
+use crate::icons;
 
 /// Known lifecycle actions that require `--interactive` (REQ-0060).
 const LIFECYCLE_ACTIONS: &[&str] = &["show", "hide", "exit"];
@@ -308,6 +309,16 @@ fn validate_message(obj: &Map<String, Value>) -> Result<Command, ValidationError
 
     let icon = optional_string_field(obj, "icon")?;
     let image = optional_string_field(obj, "image")?;
+    if let Some(spec) = icon.as_deref() {
+        if is_named_icon_spec(spec) {
+            validate_named_icon("icon", spec)?;
+        }
+    }
+    if let Some(spec) = image.as_deref() {
+        if is_named_icon_spec(spec) {
+            validate_named_icon("image", spec)?;
+        }
+    }
     let markdown = optional_bool_field(obj, "markdown")?.unwrap_or(false);
 
     Ok(Command::Message {
@@ -339,6 +350,11 @@ fn validate_input(obj: &Map<String, Value>) -> Result<Command, ValidationError> 
     let message = require_string_field(obj, "message")?;
     let status = optional_string_field(obj, "status")?;
     let icon = optional_string_field(obj, "icon")?;
+    if let Some(spec) = icon.as_deref() {
+        if is_named_icon_spec(spec) {
+            validate_named_icon("icon", spec)?;
+        }
+    }
     let markdown = optional_bool_field(obj, "markdown")?.unwrap_or(false);
     let multiline = optional_bool_field(obj, "multiline")?.unwrap_or(false);
     let placeholder = optional_string_field(obj, "placeholder")?;
@@ -871,6 +887,45 @@ fn validate_question(obj: &Map<String, Value>) -> Result<Command, ValidationErro
         questions,
         questions_raw,
     })
+}
+
+/// True when `spec` is a named icon (`role` / `role:N`), not a path or data URI.
+fn is_named_icon_spec(spec: &str) -> bool {
+    if spec.starts_with("data:") {
+        return false;
+    }
+    if spec.contains('/') || spec.contains('\\') || spec.starts_with('.') {
+        return false;
+    }
+    // Same filesystem-extension heuristic as b.2 `looks_like_path`.
+    Path::new(spec).extension().is_none()
+}
+
+/// Validate a named icon / image spec against the schema catalog (REQ-0031).
+fn validate_named_icon(field: &str, spec: &str) -> Result<(String, u32), ValidationError> {
+    let (role, variant) = icons::parse_icon_spec(spec).map_err(|()| {
+        ValidationError::validation(
+            field,
+            format!("invalid icon variant in '{spec}'; expected numeric suffix like ':2'"),
+        )
+    })?;
+    if !icons::ROLES.contains(&role.as_str()) {
+        return Err(ValidationError::validation(
+            field,
+            format!(
+                "unknown icon '{role}'; valid names: {}",
+                icons::ROLES.join(", ")
+            ),
+        ));
+    }
+    let max = icons::variant_count(&role);
+    if variant < 1 || variant > max {
+        return Err(ValidationError::validation(
+            field,
+            format!("variant {variant} out of range for '{role}' (valid: 1–{max})"),
+        ));
+    }
+    Ok((role, variant))
 }
 
 fn require_string_field(obj: &Map<String, Value>, field: &str) -> Result<String, ValidationError> {

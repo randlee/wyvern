@@ -372,6 +372,27 @@ mod tests {
     }
 
     #[test]
+    fn render_named_icon_selects_variant() {
+        let html = render_input_html(&InputRenderInput {
+            title: "T",
+            message: "M",
+            status: None,
+            icon: Some("warning:2"),
+            markdown: false,
+            multiline: false,
+            placeholder: None,
+            default: None,
+            mode: InputMode::Text,
+            buttons: ButtonsPreset::OkCancel,
+        })
+        .expect("render");
+        assert!(html.contains(r#"id="level-icon""#));
+        assert!(html.contains(r#"data-icon-role="warning""#));
+        assert!(html.contains(r#"data-icon-variant="2""#));
+        assert!(!html.contains("data-placeholder-level"));
+    }
+
+    #[test]
     fn parse_input_submitted_with_value() {
         let ipc =
             parse_input_page_ipc(r#"{"kind":"input_submitted","button":"ok","value":"hello"}"#)
