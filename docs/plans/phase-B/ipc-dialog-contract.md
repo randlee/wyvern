@@ -49,7 +49,7 @@ User clicked Submit on a `question` dialog (b.7+). Question dialogs use a dedica
 - `answers` — map keyed by each card's `question` string; values are selected `options[].label` (comma-joined when `multiSelect: true` per REQ-0062)
 - Host closes window and completes with `QuestionResult` **without** top-level `button` field (REQ-0067)
 - Host echoes input `questions` array verbatim in stdout result
-- Validation of answer completeness (every card answered) is enforced in page JS before send; host rejects empty `answers` with fail-safe `dismissed`
+- Validation of answer completeness (every card answered) is enforced in page JS before send; host rejects empty `answers` with **REQ-0068** fail-safe: `{ "button": "dismissed", "questions": [...], "answers": {}, "response": "" }`
 
 ### `dismissed`
 
@@ -60,7 +60,7 @@ User closed via OS chrome (×) or equivalent.
 ```
 
 - Host maps to `ButtonLabel::dismissed()` for `message`/`markdown`/`input`
-- `question` uses extended shape per REQ-0068 (includes `button`, `questions`, `answers`, `response`)
+- `question` uses extended shape per REQ-0068 (includes `button`, `questions`, `answers`, `response`) — same shape for empty-`answers` fail-safe above
 
 ## Host → page injection (on load)
 

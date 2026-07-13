@@ -35,7 +35,7 @@ target: integrate/phase-B
 - `options[].preview` present → validation pass; **not rendered at b.7** (no preview slot in template; field preserved in passthrough `questions` array)
 - Submit returns `{ "questions": [...], "answers": { "<question>": "<label>" }, "response": "" }` per [question-contract-examples.md](question-contract-examples.md)
 - Multi-select answers comma-join labels (REQ-0062)
-- Force close shape deferred to b.8 acceptance tests (REQ-0068)
+- OS close / fail-safe: return REQ-0068 shape `{ "button": "dismissed", "questions": [...], "answers": {}, "response": "" }` starting in b.7 (automated AC coverage in b.8)
 - `question` executable for render+submit; preview compliance in b.8
 
 ## Required Work — question render behavior (authoritative)
@@ -64,6 +64,7 @@ target: integrate/phase-B
 - Page validates every card has a selection before send
 - Host builds `answers` map from IPC payload; echoes input `questions` verbatim in stdout
 - Multi-select: comma-join selected `options[].label` with `", "` (REQ-0062)
+- OS close / malformed IPC / empty `answers`: host completes with REQ-0068 dismissed shape (not a bare `{ "button": "dismissed" }`)
 
 ### ADR-0007
 
@@ -114,7 +115,7 @@ See [question-contract-examples.md](question-contract-examples.md) for minimal s
 
 - `preview` HTML rendering (b.8)
 - Full AskUserQuestion compliance audit (b.8)
-- REQ-0068 force-close `button: dismissed` extension tests (b.8)
+- Automated REQ-0068 force-close fixture tests (b.8 — shape already implemented in b.7)
 - `wizard` type
 
 ## Acceptance Criteria

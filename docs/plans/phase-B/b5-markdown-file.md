@@ -68,11 +68,11 @@ target: integrate/phase-B
 pub enum Command {
     // ...
     Markdown {
-        title: ChromeTitle,
+        title: Option<ChromeTitle>, // omitted → filename default at load/validate
         file: Option<String>,   // b.5: required; content rejected until b.6
         content: Option<String>, // rejected at b.5
         status: Option<ChromeStatus>,
-        buttons: ButtonsPreset,
+        buttons: ButtonsPreset, // default Ok when omitted
     },
 }
 

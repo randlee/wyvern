@@ -68,11 +68,11 @@ target: integrate/phase-B
 pub enum Command {
     // ...
     Markdown {
-        title: ChromeTitle,
+        title: Option<ChromeTitle>, // omitted → filename (file) or "Markdown" (inline)
         file: Option<String>,
         content: Option<String>, // exactly one of file|content required (REQ-0058)
         status: Option<ChromeStatus>,
-        buttons: ButtonsPreset,
+        buttons: ButtonsPreset, // default Ok when omitted
     },
 }
 ```

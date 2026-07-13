@@ -22,6 +22,7 @@ target: integrate/phase-B
 - `crates/wyvern-schema/src/command.rs` — extend `Command::Message` with `level`, `icon`, `image`, `markdown`
 - `crates/wyvern-schema/src/validate.rs` — unlock `level`, `icon`, `image`, `markdown` on message
 - `crates/wyvern-schema/tests/validation_message.rs` — extended rules
+- `crates/wyvern-window/src/markdown/mod.rs` — shared markdown→HTML renderer (owned by `wyvern-window`; reused by message body, markdown dialog, question preview)
 - `crates/wyvern-window/src/message/render.rs` — icon/image/markdown body layout
 - `crates/wyvern-window/src/message/template.html` — content area structure
 - `crates/wyvern-window/assets/icons/placeholder/` — four level SVGs (`info`, `warning`, `error`, `question`)
@@ -29,6 +30,7 @@ target: integrate/phase-B
 ## Deliverables
 
 - `Command::Message` gains optional `level`, `icon`, `image`, and `markdown` fields (see code sample)
+- Shared markdown renderer module lands in `wyvern-window` (not `wyvern-schema`) and is the sole converter for Phase B
 - `level` renders distinct placeholder icon per value (REQ-0012)
 - `icon` field: named icon, file path, or base64 data URI (REQ-0031 subset — named resolves to placeholder set in b.2)
 - `image` decorative body image (REQ-0032)
@@ -48,7 +50,7 @@ target: integrate/phase-B
 | `question` | `question.svg` | Distinct from `message` type name collision |
 
 - Omit `level` → no level icon column
-- `level` + `icon` → both may render; `icon` takes precedence in the level-icon layout slot when both present
+- `level` + `icon` → **`icon` wins the `#level-icon` slot**; `level` placeholder is not shown when `icon` is set
 
 ### `icon` resolution (b.2 scope)
 
@@ -62,8 +64,9 @@ target: integrate/phase-B
 
 ### `markdown: true`
 
-- `message` string passed through markdown→HTML converter (same engine reused by b.5/b.6)
+- `message` string passed through `wyvern-window::markdown` converter (same module reused by b.5/b.6/b.8)
 - `markdown: false` (default) → plain text with HTML escaping
+- **Boundary:** conversion is render-layer only — `wyvern-schema` never depends on a markdown crate
 
 ### Validation additions
 

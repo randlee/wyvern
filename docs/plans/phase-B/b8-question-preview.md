@@ -109,6 +109,7 @@ QuestionResult {
 
 ## Acceptance Criteria
 
+- `preview` renders alongside option when present (HTML or markdown→HTML)
 - Preview sanitization: `<script>` stripped; `on*` attributes removed (unit tests with malicious fragment)
 - All question-contract-examples.md cases pass in automated tests
 - Normal submit: AskUserQuestion shape without `button`
