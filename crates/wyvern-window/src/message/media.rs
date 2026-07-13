@@ -88,8 +88,8 @@ fn resolve_media_as_icon_html(spec: &str) -> Result<IconHtml, RunError> {
             escape_attr(&src)
         ));
     }
-    // Named icon (optional `:variant`). c.1 always renders variant 1; c.2 selects index.
-    Ok(named_role_svg_markup(spec).to_string())
+    // Named icon (optional `:variant`) — schema already validated role + bounds.
+    Ok(resolve_named_icon_svg(spec).to_string())
 }
 
 fn resolve_media_as_src(spec: &str) -> Result<ImageSrc, RunError> {
@@ -100,27 +100,18 @@ fn resolve_media_as_src(spec: &str) -> Result<ImageSrc, RunError> {
         return load_path_as_data_uri(spec);
     }
     // Named → embed production SVG as data URI for <img>.
-    Ok(svg_to_data_uri(named_role_svg_markup(spec)))
+    Ok(svg_to_data_uri(resolve_named_icon_svg(spec)))
 }
 
-/// Resolve a named role to production SVG markup (variant 1 in c.1).
+/// Resolve a schema-validated named icon spec to production SVG markup.
 ///
-/// Unknown names fall back to `info` until c.2 validation errors land.
-fn named_role_svg_markup(spec: &str) -> &'static str {
-    let base = match schema_icons::parse_icon_spec(spec) {
-        Ok((base, _)) => base,
-        Err(()) => named_icon_base(spec).to_string(),
-    };
-    let role = if schema_icons::variant_count(&base) > 0 {
-        base.as_str()
-    } else {
-        "info"
-    };
-    icons::svg_markup(role, 1).expect("c.1 bundles variant 1 for every catalog role")
-}
-
-fn named_icon_base(spec: &str) -> &str {
-    spec.split_once(':').map(|(base, _)| base).unwrap_or(spec)
+/// # Panics
+///
+/// Panics if `spec` was not validated by `wyvern-schema` (unknown role, bad
+/// variant suffix, or out-of-range index).
+fn resolve_named_icon_svg(spec: &str) -> &'static str {
+    let (role, index) = schema_icons::parse_icon_spec(spec).expect("schema validated spec");
+    icons::svg_markup(&role, index).expect("schema validated variant exists")
 }
 
 fn looks_like_path(spec: &str) -> bool {
@@ -253,13 +244,27 @@ mod tests {
     }
 
     #[test]
-    fn named_icon_with_variant_maps_to_production_variant_one() {
-        let html = resolve_level_icon_html(None, Some("warning:2"))
+    fn named_icon_default_is_variant_one() {
+        let html = resolve_level_icon_html(None, Some("warning"))
             .expect("named")
             .expect("some");
         assert!(html.contains(r#"data-icon-role="warning""#));
         assert!(html.contains(r#"data-icon-variant="1""#));
         assert!(!html.contains("data-placeholder-level"));
+    }
+
+    #[test]
+    fn named_icon_with_variant_selects_index() {
+        let v1 = resolve_level_icon_html(None, Some("warning"))
+            .expect("named")
+            .expect("some");
+        let v2 = resolve_level_icon_html(None, Some("warning:2"))
+            .expect("named")
+            .expect("some");
+        assert!(v2.contains(r#"data-icon-role="warning""#));
+        assert!(v2.contains(r#"data-icon-variant="2""#));
+        assert!(!v2.contains("data-placeholder-level"));
+        assert_ne!(v1, v2);
     }
 
     #[test]

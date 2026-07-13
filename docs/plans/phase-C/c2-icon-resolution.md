@@ -1,9 +1,10 @@
 ---
 id: c.2
 title: Full icon field resolution and validation
-status: pending
+status: complete
 branch: feature/phase-C-c2-icon-resolution
 target: integrate/phase-C
+worktree: /Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-C-c2-icon-resolution
 ---
 
 # Sprint c.2 — Full icon field resolution and validation
