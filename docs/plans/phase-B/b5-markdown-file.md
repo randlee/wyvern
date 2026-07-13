@@ -64,6 +64,18 @@ target: integrate/phase-B
 ## Explicit Code Samples
 
 ```rust
+// crates/wyvern-schema/src/command.rs
+pub enum Command {
+    // ...
+    Markdown {
+        title: ChromeTitle,
+        file: Option<String>,   // b.5: required; content rejected until b.6
+        content: Option<String>, // rejected at b.5
+        status: Option<ChromeStatus>,
+        buttons: ButtonsPreset,
+    },
+}
+
 // crates/wyvern/src/input.rs — conceptual
 pub fn load_command_from_args(args: &[String]) -> Result<serde_json::Value, LoadError> {
     // if single arg ends with .md → build {"type":"markdown","file": arg}

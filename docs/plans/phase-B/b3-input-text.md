@@ -31,7 +31,7 @@ target: integrate/phase-B
 
 - `Command::Input` with text-mode fields: `title`, `message`, optional `status`, optional `icon`, optional `markdown`, `multiline`, optional `placeholder`, optional `default`, `buttons`
 - `mode` omitted or `mode: text` → executable; `mode: file` / `mode: folder` → validation error until b.4
-- `InputResult { button: ButtonLabel, input: Option<String> }` → wire `{ "button": "ok", "input": "..." }` (REQ-0065)
+- `InputResult { button: ButtonLabel, input: Option<InputValue> }` → wire `{ "button": "ok", "input": "..." }` (REQ-0065); b.3 uses `InputValue::Text` only
 - HTML: prompt text, single-line `<input>` or multiline `<textarea>`, button bar
 - IPC `input_submitted` with `button` + `value`; cancel omits value
 - Cross-field: `filter`, `multiple`, `start_path` rejected unless `mode: file`/`folder` (REQ-0059); at b.3 those modes are themselves rejected
@@ -65,12 +65,37 @@ target: integrate/phase-B
 ## Explicit Code Samples
 
 ```rust
+// crates/wyvern-schema/src/command.rs
+pub enum Command {
+    // ...
+    Input {
+        title: ChromeTitle,
+        message: String,
+        status: Option<ChromeStatus>,
+        mode: InputMode, // Text default; File/Folder rejected until b.4
+        // icon, markdown, multiline, placeholder, default, buttons — see deliverables
+    },
+}
+
+pub enum InputMode {
+    Text,
+    File,
+    Folder,
+}
+
 // crates/wyvern-schema/src/result.rs
+#[derive(Serialize)]
+#[serde(untagged)]
+pub enum InputValue {
+    Text(String),
+    Paths(Vec<String>), // b.4 multi-select; single path uses Text variant
+}
+
 #[derive(Serialize)]
 pub struct InputResult {
     pub button: ButtonLabel,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub input: Option<String>,
+    pub input: Option<InputValue>,
 }
 ```
 

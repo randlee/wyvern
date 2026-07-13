@@ -51,16 +51,23 @@ target: integrate/phase-B
 - File mode with `multiple: true` → `input` serializes as JSON array
 - Folder mode ignores `filter` and `multiple` (validation error if present per REQ-0059)
 
-### Headless CI strategy
+### Headless CI strategy (authoritative)
 
-- Linux CI (xvfb): use `WYVERN_MOCK_PICKER_PATH` env var (test-only) to inject path without showing picker UI when set
-- When mock unset on headless Linux: test marked `#[ignore]` or uses `rfd` with pre-seeded path via test hook — document chosen approach in `picker.rs` module docs
-- macOS/Windows CI: run picker tests with mock env or stub callback
+- **All CI platforms:** picker integration tests set `WYVERN_MOCK_PICKER_PATH` to a fixture path; `picker.rs` reads this test-only env var and skips `rfd` UI when set.
+- **Linux CI (xvfb):** mock env required for non-ignored picker tests; tests that require real picker UI without mock are `#[ignore]` with reason `requires native picker UI`.
+- **macOS/Windows CI:** same mock env pattern; no real picker UI in CI matrix.
+- Document mock hook in `picker.rs` module docs (one paragraph; no alternate strategies).
 
-### UX flow
+### UX flow (authoritative — picker-on-OK)
 
-- `mode: file|folder`: dialog may show message + Browse affordance, or open picker on OK — pick one flow in implementation; must return path on successful OK
-- Text field hidden for file/folder modes
+1. HTML renders message prompt + button bar only (no text field, no Browse button).
+2. User clicks **OK** → page sends `{ "kind": "input_submitted", "button": "ok" }` without `value`.
+3. Host opens `rfd` picker synchronously (`FileDialog` for file, folder dialog for folder).
+4. **Selection:** host closes window and writes `{ "button": "ok", "input": "<path>" }` (or array when `multiple: true`).
+5. **Picker cancel:** dialog stays open; no stdout until user submits Cancel or OS close.
+6. **Cancel button:** `{ "button": "cancel" }` without `input`; no picker opened.
+
+Host→page live IPC is not used in Phase B; picker runs entirely in Rust on `input_submitted`.
 
 ## Explicit Code Samples
 
@@ -89,6 +96,9 @@ pub fn pick_file(filter: &[String], multiple: bool, start_path: Option<&Path>) -
 
 ## Acceptance Criteria
 
+- File/folder mode renders message + button bar only (no text field)
+- OK opens native picker; selected path returned on successful pick
+- Picker cancel leaves dialog open (no premature stdout)
 - `mode: file` returns selected file path on OK
 - `mode: folder` returns selected folder path on OK
 - `filter` restricts extensions; `multiple: true` returns array

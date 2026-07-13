@@ -46,7 +46,7 @@ target: integrate/phase-B
 | `question` | `question.svg` | Distinct from `message` type name collision |
 
 - Omit `level` → no level icon column
-- `level` + `icon` → both may render; `icon` takes precedence in layout slot when both present (document in render tests)
+- `level` + `icon` → both may render; `icon` takes precedence in the level-icon layout slot when both present
 
 ### `icon` resolution (b.2 scope)
 
@@ -102,6 +102,7 @@ target: integrate/phase-B
 - `icon` accepts named, path, and base64 forms
 - `image` renders decorative body image without breaking button bar layout
 - `markdown: true` renders formatted markdown in body
+- `level` + `icon` together: `icon` wins the level-icon slot; body layout unchanged
 - Combinations (`level` + `markdown` + `image` + `icon`) render without layout breakage
 - b.1 button/IPC/dismiss behavior unchanged
 

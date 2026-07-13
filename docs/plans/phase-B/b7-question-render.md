@@ -32,7 +32,7 @@ target: integrate/phase-B
 - Questions render as cards with `header` (≤12 chars) and `question` prompt
 - `multiSelect: false` → radio buttons; `true` → checkboxes
 - `description` below each `options[].label`
-- `options[].preview` present → validation pass but **ignored** until b.8 (or render placeholder text — document in tests)
+- `options[].preview` present → validation pass; **not rendered at b.7** (no preview slot in template; field preserved in passthrough `questions` array)
 - Submit returns `{ "questions": [...], "answers": { "<question>": "<label>" }, "response": "" }` per [question-contract-examples.md](question-contract-examples.md)
 - Multi-select answers comma-join labels (REQ-0062)
 - Force close shape deferred to b.8 acceptance tests (REQ-0068)
@@ -72,8 +72,30 @@ target: integrate/phase-B
 ## Explicit Code Samples
 
 ```rust
+// crates/wyvern-schema/src/command.rs
+pub struct QuestionOption {
+    pub label: String,
+    pub description: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preview: Option<String>, // accepted; not rendered until b.8
+}
+
+pub struct QuestionCard {
+    pub question: String,
+    pub header: String, // max 12 chars
+    pub options: Vec<QuestionOption>, // 2–4 entries
+    pub multi_select: bool, // JSON: "multiSelect"
+}
+
+pub enum Command {
+    // ...
+    Question { questions: Vec<QuestionCard> }, // 1–4 cards
+}
+
 #[derive(Serialize)]
 pub struct QuestionResult {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub button: Option<ButtonLabel>, // None at b.7 normal completion; Some(dismissed) deferred to b.8
     pub questions: Vec<serde_json::Value>, // verbatim passthrough
     pub answers: std::collections::HashMap<String, String>,
     #[serde(skip_serializing_if = "String::is_empty")]
@@ -99,7 +121,7 @@ See [question-contract-examples.md](question-contract-examples.md) for minimal s
 - `questions` array in stdout matches input verbatim
 - `response` field present as empty string on normal completion
 - Validation rejects 0 or 5 questions, 1 option, header > 12 chars
-- `preview` field does not break layout (ignored or stub)
+- `preview` field accepted in validation but not rendered (no layout slot at b.7)
 
 ## Required Validation
 

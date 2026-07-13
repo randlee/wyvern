@@ -31,8 +31,9 @@ User confirmed an `input` dialog.
 { "kind": "input_submitted", "button": "ok", "value": "user text" }
 ```
 
-- `value` — string for `mode: text`; absolute path string for single file/folder; omitted when `button` is `cancel`
-- For `multiple: true`, host receives paths from native picker **before** this message (see file-picker ADR); `value` is JSON array serialized as string paths in result envelope per REQ-0065
+- `value` — required for `mode: text` (or omitted) when `button` is `ok`; omitted when `button` is `cancel`
+- **`mode: file` / `mode: folder` (b.4):** page sends `{ "kind": "input_submitted", "button": "ok" }` **without** `value`. Host opens native picker via `rfd` synchronously on receive; on selection, host completes with `InputResult.input` set to path string (or path array when `multiple: true`). Picker cancel leaves dialog open (no stdout yet); user may retry or press Cancel.
+- Text field is hidden for file/folder modes; message prompt and button bar remain visible per b.4 UX flow.
 
 ### `dismissed`
 

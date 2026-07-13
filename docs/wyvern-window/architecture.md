@@ -66,9 +66,12 @@ ADR-0010a describes the **target** cross-platform chrome. During **Phase B**, Wi
 - `wyvern-schema` validates picker-related fields (`filter`, `multiple`, `start_path`) but never depends on `rfd`.
 - Selected paths are returned as **plain strings** in `InputResult.input` (single path) or a **JSON array of strings** when `multiple: true` (REQ-0065).
 
-**Headless CI strategy:**
-- Test-only env `WYVERN_MOCK_PICKER_PATH` injects a path without showing picker UI when set.
-- Linux CI (xvfb): prefer mock injection; tests that require real picker UI may be `#[ignore]` on headless runners.
+**Headless CI strategy (authoritative):**
+- All CI platforms: picker tests set test-only env `WYVERN_MOCK_PICKER_PATH` to a fixture path; `picker.rs` skips `rfd` UI when set.
+- Linux CI (xvfb): mock env required for non-ignored picker tests; real picker UI tests are `#[ignore]` when mock unset.
+- macOS/Windows CI: same mock env pattern.
 - Boundary enforcement: `sc-lint` confirms `rfd` appears only in `wyvern-window` dependency graph.
+
+**Picker UX (Phase B):** file/folder modes use picker-on-OK — page sends `input_submitted` without `value`; host opens `rfd` synchronously. See [ipc-dialog-contract.md](../plans/phase-B/ipc-dialog-contract.md).
 
 **Consequences:** Small dependency footprint; native look-and-feel per OS. Picker logic is not unit-testable in `wyvern-schema`; integration tests live in `wyvern-window` with mocks.

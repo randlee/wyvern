@@ -63,6 +63,20 @@ target: integrate/phase-B
 
 ## Explicit Code Samples
 
+```rust
+// crates/wyvern-schema/src/command.rs — b.6 unlocks content
+pub enum Command {
+    // ...
+    Markdown {
+        title: ChromeTitle,
+        file: Option<String>,
+        content: Option<String>, // exactly one of file|content required (REQ-0058)
+        status: Option<ChromeStatus>,
+        buttons: ButtonsPreset,
+    },
+}
+```
+
 ```json
 {
   "type": "markdown",
