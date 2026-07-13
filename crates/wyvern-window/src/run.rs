@@ -1,4 +1,4 @@
-//! Public `run` entry: open chrome/message/input/markdown windows and return protocol results.
+//! Public `run` entry: open chrome/message/input/markdown/question windows and return protocol results.
 
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
@@ -24,6 +24,7 @@ use crate::markdown::{
 use crate::message::{
     estimate_message_window_size, parse_page_ipc, render_message_html, MessageRenderInput, PageIpc,
 };
+use crate::question::run_question;
 use crate::window::{
     chrome_window_attributes, init_platform, modal_window_attributes, pump_gtk_events,
 };
@@ -125,6 +126,10 @@ pub fn run(command: Command) -> Result<CommandResult, RunError> {
                 buttons,
             })
         }
+        Command::Question {
+            questions,
+            questions_raw,
+        } => run_question(questions, questions_raw),
     }
 }
 

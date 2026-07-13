@@ -205,6 +205,37 @@ pub enum Command {
         /// Defaults to [`ButtonsPreset::Ok`] when omitted.
         buttons: ButtonsPreset,
     },
+    /// Question cards dialog (REQ-0061 / REQ-0062).
+    Question {
+        /// Typed cards used for rendering and host-side answer checks.
+        questions: Vec<QuestionCard>,
+        /// Verbatim `questions` array entries for stdout echo (REQ-0067).
+        questions_raw: Vec<serde_json::Value>,
+    },
+}
+
+/// One selectable option inside a [`QuestionCard`] (AskUserQuestion wire names).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct QuestionOption {
+    /// Display / answer label.
+    pub label: String,
+    /// Secondary text under the label.
+    pub description: String,
+    /// Optional HTML/markdown preview fragment (accepted; rendered in b.8).
+    pub preview: Option<String>,
+}
+
+/// One question card in a `type: "question"` command (REQ-0062).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct QuestionCard {
+    /// Prompt text; also the key in the stdout `answers` map.
+    pub question: String,
+    /// Short card header (max 12 characters).
+    pub header: String,
+    /// Selectable options (2–4 entries).
+    pub options: Vec<QuestionOption>,
+    /// When true, checkboxes and comma-joined labels; otherwise radio.
+    pub multi_select: bool,
 }
 
 #[cfg(test)]

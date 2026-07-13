@@ -50,3 +50,13 @@ name = "input_folder_ipc"
 path = "tests/input_folder_ipc.rs"
 harness = false
 
+[[test]]
+name = "question_ipc"
+path = "tests/question_ipc.rs"
+harness = false
+
+[[test]]
+name = "question_multi_ipc"
+path = "tests/question_multi_ipc.rs"
+harness = false
+
