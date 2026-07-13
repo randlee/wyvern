@@ -6,6 +6,8 @@ fn wyvern() -> Command {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_wyvern"));
     // Auto-dismiss so chrome GUI paths do not block the test harness.
     cmd.env("WYVERN_AUTO_DISMISS", "1");
+    // Isolate from developer/CI WYVERN_LOG so stdout/stderr assertions stay stable.
+    cmd.env_remove("WYVERN_LOG");
     cmd
 }
 

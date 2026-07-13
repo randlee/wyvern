@@ -43,7 +43,7 @@ target: integrate/phase-A
 - Win/Linux Phase A: native OS decorations (see README platform policy); OS close → dismissed
 - OS close → stdout `{"button":"dismissed"}` via `CommandResult::Chrome(ChromeResult { button: "dismissed" })`
 - Fixed open **480×360px**; max **800×600px**; no content auto-size until Phase B
-- wry loads chrome via **data URL** from `render_chrome_html()`
+- wry loads chrome via **`with_html`** from `render_chrome_html()` (wry 0.44; data URLs are not used)
 
 ## Explicit Code Samples
 

@@ -168,14 +168,12 @@ fn build_event(
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
-
     use super::*;
 
     #[test]
     fn apply_level_accepts_debug() {
         let service = ServiceName::new("wyvern-test").expect("service");
-        let mut config = LoggerConfig::default_for(service, PathBuf::from("/tmp/wyvern-test-logs"));
+        let mut config = LoggerConfig::default_for(service, std::env::temp_dir().join("wyvern-test-logs"));
         apply_level(&mut config, "debug").expect("debug level");
         let encoded = serde_json::to_value(config.level).expect("serialize level");
         assert_eq!(encoded, json!("Debug"));
