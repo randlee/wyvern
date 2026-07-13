@@ -1,8 +1,9 @@
 ---
 id: a.5
 title: HTML chrome frame + chrome command E2E
-status: planned
+status: complete
 branch: feature/phase-A-a5-chrome-frame
+worktree: /Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-A-a5-chrome-frame
 target: integrate/phase-A
 ---
 

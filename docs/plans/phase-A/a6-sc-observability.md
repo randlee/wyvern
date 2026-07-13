@@ -1,8 +1,9 @@
 ---
 id: a.6
 title: sc-observability integration
-status: planned
+status: complete
 branch: feature/phase-A-a6-sc-observability
+worktree: /Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-A-a6-sc-observability
 target: integrate/phase-A
 ---
 
