@@ -1,0 +1,109 @@
+---
+id: b.7
+title: Question cards, radio and checkbox rendering
+status: pending
+branch: feature/phase-B-b7-question-render
+target: integrate/phase-B
+---
+
+# Sprint b.7 — `question` cards, radio and checkbox rendering
+
+## Goal
+
+- Executable `type: "question"` for card rendering and answer collection.
+- REQ-0061/REQ-0062 validation; radio (single-select) and checkbox (multi-select) groups.
+- Preview field deferred to b.8; normal completion returns AskUserQuestion response shape.
+
+## Hard Dependencies
+
+- b.6 markdown complete (shared chrome, markdown for option descriptions if needed)
+
+## Exact Targets
+
+- `crates/wyvern-schema/src/command.rs` — `Command::Question { questions: Vec<QuestionCard> }`
+- `crates/wyvern-schema/src/validate.rs` — question contract rules
+- `crates/wyvern-schema/src/result.rs` — `QuestionResult`, `CommandResult::Question`
+- `crates/wyvern-schema/tests/validation_question.rs`
+- `crates/wyvern-window/src/question/` — template, render, IPC submit handler
+- `crates/wyvern-window/src/run.rs` — dispatch `Command::Question`
+
+## Deliverables
+
+- Questions render as cards with `header` (≤12 chars) and `question` prompt
+- `multiSelect: false` → radio buttons; `true` → checkboxes
+- `description` below each `options[].label`
+- `options[].preview` present → validation pass but **ignored** until b.8 (or render placeholder text — document in tests)
+- Submit returns `{ "questions": [...], "answers": { "<question>": "<label>" }, "response": "" }` per [question-contract-examples.md](question-contract-examples.md)
+- Multi-select answers comma-join labels (REQ-0062)
+- Force close shape deferred to b.8 acceptance tests (REQ-0068)
+- `question` executable for render+submit; preview compliance in b.8
+
+## Required Work — question render behavior (authoritative)
+
+### Validation (REQ-0062)
+
+| Rule | Constraint |
+|------|------------|
+| `questions` length | 1–4 entries |
+| `questions[].options` | 2–4 entries each |
+| `questions[].header` | max 12 characters |
+| `questions[].question` | required non-empty string |
+| `multiSelect` | boolean, required per card |
+| `preview` on option | allowed in schema; rendering optional at b.7 |
+
+### Render
+
+- One card per `questions[]` entry
+- Radio/checkbox `name` scoped per card
+- Submit button (not preset button bar labels) — maps to normal completion without `button` field
+- `questions` array echoed verbatim in stdout response
+
+### IPC
+
+- Submit action sends collected answers to host
+- Host builds `answers` map keyed by `question` string text
+- Multi-select: join selected `options[].label` with `", "` (REQ-0062)
+
+### ADR-0007
+
+- Wyvern envelope: `type: "question"` at top level
+- Inner fields match public AskUserQuestion names (`question`, `header`, `options`, `multiSelect`, `description`)
+
+## Explicit Code Samples
+
+```rust
+#[derive(Serialize)]
+pub struct QuestionResult {
+    pub questions: Vec<serde_json::Value>, // verbatim passthrough
+    pub answers: std::collections::HashMap<String, String>,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub response: String,
+}
+```
+
+See [question-contract-examples.md](question-contract-examples.md) for minimal single-select and multi-select stdout shapes.
+
+## This Sprint Does Not Close
+
+- `preview` HTML rendering (b.8)
+- Full AskUserQuestion compliance audit (b.8)
+- REQ-0068 force-close `button: dismissed` extension tests (b.8)
+- `wizard` type
+
+## Acceptance Criteria
+
+- 1–4 question cards render with correct controls
+- `multiSelect: false` → exactly one answer per card in `answers` map
+- `multiSelect: true` → comma-joined labels in `answers`
+- `header` and `description` render correctly
+- `questions` array in stdout matches input verbatim
+- `response` field present as empty string on normal completion
+- Validation rejects 0 or 5 questions, 1 option, header > 12 chars
+- `preview` field does not break layout (ignored or stub)
+
+## Required Validation
+
+- `cargo test --workspace -- --test-threads=1`
+- `cargo test -p wyvern-schema -- validation_question`
+- Unit tests: answer map keys, comma-join multi-select
+- Compare stdout against examples in question-contract-examples.md (minus preview case)

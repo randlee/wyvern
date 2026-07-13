@@ -34,7 +34,13 @@
 
 **REQ-0058** — `markdown` requires exactly one of `file` or `content`. *Phase B+.*
 
-**REQ-0059** — `input` cross-field validation rules. *Phase B+.*
+**REQ-0059** — `input` cross-field validation rules. *Phase B+ (b.3 text subset; b.4 complete).*
+
+- **`filter` or `multiple`** — only valid when `mode` is `file`. With `mode: text` (or omitted, which defaults to text) or `mode: folder` → explicit validation error on the offending field.
+- **`placeholder` or `default`** — only valid when `mode` is `text` or omitted (omitted `mode` defaults to text). With `mode: file` or `mode: folder` → explicit validation error.
+- **`start_path`** — only valid when `mode` is `file` or `mode` is `folder`. With `mode: text` or omitted → explicit validation error.
+
+**Related:** **REQ-0057** — `mode: file` or `mode: folder` combined with `multiline: true` → explicit error (independent of REQ-0059; enforced when file/folder modes ship in b.4).
 
 **REQ-0060** — `show`, `hide`, and `exit` are invalid outside `--interactive`; using them elsewhere produces a structured state error. Enforced from Phase A even though lifecycle actions ship in Phase E.
 

@@ -52,113 +52,24 @@ Phase A sprint PRs target `integrate/phase-A`. Sprint authority: `docs/plans/pha
 
 **Phase goal:** All four dialog types (`message`, `input`, `markdown`, `question`) work end-to-end from the CLI. This is the first genuinely useful version of Wyvern.
 
-**Phase acceptance criteria:** A developer can replace any `zenity`/`osascript` dialog call with a `wyvern` command and get a richer, JSON-returning equivalent.
+**Phase acceptance criteria:** A developer can replace any `zenity`/`osascript` dialog call with a `wyvern` command and get a richer, JSON-returning equivalent. Numbered smoke checks: [docs/plans/phase-B/README.md](phase-B/README.md#phase-acceptance-criteria-smoke).
 
 *sc-lint-boundary applied at sprint planning from this phase forward.*
 
----
+Phase B sprint PRs target `integrate/phase-B`. Sprint authority: `docs/plans/phase-B/` (sprints **b.1–b.8**, sequential — not parallel sub-sprints).
 
-### b.1a — `message` type: structure and buttons
+**Sprints:** eight active (**b.1–b.8**). See [docs/plans/phase-B/README.md](phase-B/README.md).
 
-Render `title`, `message`, `status` in the chrome frame. Wire all button presets to return the correct JSON.
-
-**Acceptance criteria:**
-- All button presets render and return: `ok`, `ok_cancel`, `yes_no`, `yes_no_cancel`, `retry_cancel`
-- `custom_buttons` array renders correctly
-- `default_button` index is focused on open
-- Returns `{"button":"<label>"}` to stdout on press
-- Returns `{"button":"dismissed"}` on OS close
-
----
-
-### b.1b — `message` type: icons, images, markdown
-
-Add `level` icon rendering, `icon` field, decorative `image` field, and `markdown` flag.
-
-**Acceptance criteria:**
-- `level` values (`info`, `warning`, `error`, `question`) render distinct placeholder icons
-- `icon` field accepts named icon, file path, and base64 data URI
-- `image` field renders a decorative body image
-- `markdown: true` renders the `message` field as formatted markdown
-- All combinations of fields render without layout breakage
-
----
-
-### b.2a — `input` type: text mode
-
-Render a single-line or multiline text input with placeholder and default value.
-
-**Acceptance criteria:**
-- Single-line input renders and returns value on `ok`
-- `multiline: true` renders a textarea
-- `placeholder` displays as hint text
-- `default` pre-fills the field
-- Returns `{"button":"ok","input":"<value>"}` or `{"button":"cancel"}`
-
----
-
-### b.2b — `input` type: file and folder picker
-
-Trigger the OS native file/folder chooser from the input dialog.
-
-**Acceptance criteria:**
-- `mode: file` opens the OS file picker; returns selected path
-- `mode: folder` opens the OS folder picker; returns selected path
-- `filter` restricts file picker to matching extensions
-- `multiple: true` enables multi-file selection; returns JSON array of paths
-- `start_path` sets the initial picker directory
-- `multiline: true` with file/folder mode → validation error (REQ-0057)
-
----
-
-### b.3a — `markdown` type: file rendering
-
-Load and render a `.md` file in a styled HTML viewer within the chrome frame.
-
-**Acceptance criteria:**
-- `wyvern my-doc.md` shorthand opens the viewer
-- `{"type":"markdown","file":"path.md"}` JSON form works identically
-- Markdown renders with headings, code blocks, tables, lists
-- `title` defaults to filename when not provided
-- `buttons: "ok"` default; returns `{"button":"ok"}` or `{"button":"dismissed"}`
-
----
-
-### b.3b — `markdown` type: inline content and styling
-
-Support inline `content` field and apply a polished default stylesheet.
-
-**Acceptance criteria:**
-- `content` field renders inline markdown string (no file required)
-- Stylesheet: readable typography, code highlighting, responsive to window width
-- `status` bar renders below content when provided
-- Content area scrolls for long documents without resizing the window
-
----
-
-### b.4a — `question` type: option rendering
-
-Render question cards with radio (single-select) and checkbox (multi-select) option groups.
-
-**Acceptance criteria:**
-- All questions in the `questions` array render as cards
-- `multiSelect: false` → radio buttons; `multiSelect: true` → checkboxes
-- `header` renders as card label; `question` as card prompt
-- `description` renders below each option label
-- Returns correct `answers` map keyed by `question` text
-
----
-
-### b.4b — `question` type: preview and schema compliance
-
-Add `preview` field rendering and schema compliance within Wyvern's `type: "question"` command envelope.
-
-**Acceptance criteria:**
-- `preview` HTML/markdown fragment renders alongside option when present
-- Public AskUserQuestion field set and constraints are documented and enforced
-- `response` field behavior matches the public AskUserQuestion contract
-- `questions` array passed through verbatim in response
-- Tested against sample AskUserQuestion payloads from Claude Agent SDK docs
+| Sprint | Title | Doc |
+|--------|-------|-----|
+| b.1 | Message structure + buttons | [b1-message-structure.md](phase-B/b1-message-structure.md) |
+| b.2 | Message icons + markdown body | [b2-message-icons.md](phase-B/b2-message-icons.md) |
+| b.3 | Input text mode | [b3-input-text.md](phase-B/b3-input-text.md) |
+| b.4 | Input file/folder picker | [b4-input-picker.md](phase-B/b4-input-picker.md) |
+| b.5 | Markdown file + `.md` shorthand | [b5-markdown-file.md](phase-B/b5-markdown-file.md) |
+| b.6 | Markdown inline + stylesheet | [b6-markdown-inline.md](phase-B/b6-markdown-inline.md) |
+| b.7 | Question cards (radio/checkbox) | [b7-question-render.md](phase-B/b7-question-render.md) |
+| b.8 | Question preview + compliance | [b8-question-preview.md](phase-B/b8-question-preview.md) |
 
 ---
 
