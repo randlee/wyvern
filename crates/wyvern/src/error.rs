@@ -1,6 +1,6 @@
 //! Load/validation/run-stage errors and JSON emission helpers.
 
-use wyvern_schema::{ErrorCode, FieldName, StderrError, ValidationError};
+use wyvern_schema::{ErrorCode, FieldName, SerializeError, StderrError, ValidationError};
 use wyvern_window::RunError;
 
 /// Failure while loading command input from argv or stdin.
@@ -37,33 +37,85 @@ impl LoadError {
     }
 }
 
-/// Serialize a parse/io load error as stderr JSON.
-///
-/// # Panics
-///
-/// Panics if `err` is [`LoadError::Usage`], which must be handled in `main`.
-pub fn emit_load_error(err: &LoadError) -> String {
-    match err {
-        LoadError::Parse { message } => StderrError::new(ErrorCode::ParseError, message.clone())
-            .cause("Input was not valid JSON")
-            .recovery("Ensure input is valid JSON")
-            .recovery("Check for trailing commas, unquoted keys, or truncated input")
-            .docs("docs/wyvern-schema/requirements.md (REQ-0069)")
-            .to_json_string(),
-        LoadError::Io { field, message } => StderrError::new(ErrorCode::IoError, message.clone())
-            .field(field.clone())
-            .cause(format!("Failed to read input from '{}'", field.as_str()))
-            .recovery("Verify the file path exists and is readable")
-            .recovery("Pass JSON inline as an argv string or via stdin")
-            .docs("docs/wyvern-schema/requirements.md (REQ-0071)")
-            .to_json_string(),
-        LoadError::Usage { .. } => unreachable!("Usage handled in main"),
+/// Failure serializing stdout or structured stderr JSON at the CLI emit boundary.
+#[derive(Debug)]
+pub enum EmitError {
+    /// `serde_json` could not serialize the envelope or result.
+    Serialize(SerializeError),
+}
+
+impl std::fmt::Display for EmitError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Serialize(e) => write!(f, "{e}"),
+        }
     }
 }
 
+impl std::error::Error for EmitError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Serialize(e) => Some(e),
+        }
+    }
+}
+
+#[cfg(test)]
+static FORCE_EMIT_STDOUT_FAIL: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
+/// Serialize a parse load error as stderr JSON.
+///
+/// # Errors
+///
+/// Returns [`EmitError::Serialize`] when the envelope cannot be serialized, or
+/// when `err` is not [`LoadError::Parse`] (miswire).
+pub fn emit_parse_error(err: &LoadError) -> Result<String, EmitError> {
+    let LoadError::Parse { message } = err else {
+        debug_assert!(matches!(err, LoadError::Parse { .. }));
+        return Err(EmitError::Serialize(SerializeError {
+            message: "emit_parse_error: expected Parse".into(),
+        }));
+    };
+    StderrError::new(ErrorCode::ParseError, message.clone())
+        .cause("Input was not valid JSON")
+        .recovery("Ensure input is valid JSON")
+        .recovery("Check for trailing commas, unquoted keys, or truncated input")
+        .docs("docs/wyvern-schema/requirements.md (REQ-0069)")
+        .to_json_string()
+        .map_err(EmitError::Serialize)
+}
+
+/// Serialize an I/O load error as stderr JSON.
+///
+/// # Errors
+///
+/// Returns [`EmitError::Serialize`] when the envelope cannot be serialized, or
+/// when `err` is not [`LoadError::Io`] (miswire).
+pub fn emit_io_error(err: &LoadError) -> Result<String, EmitError> {
+    let LoadError::Io { field, message } = err else {
+        debug_assert!(matches!(err, LoadError::Io { .. }));
+        return Err(EmitError::Serialize(SerializeError {
+            message: "emit_io_error: expected Io".into(),
+        }));
+    };
+    StderrError::new(ErrorCode::IoError, message.clone())
+        .field(field.clone())
+        .cause(format!("Failed to read input from '{}'", field.as_str()))
+        .recovery("Verify the file path exists and is readable")
+        .recovery("Pass JSON inline as an argv string or via stdin")
+        .docs("docs/wyvern-schema/requirements.md (REQ-0071)")
+        .to_json_string()
+        .map_err(EmitError::Serialize)
+}
+
 /// Serialize a validation/state error as stderr JSON.
-pub fn emit_validation_error(err: &ValidationError) -> String {
-    match err {
+///
+/// # Errors
+///
+/// Returns [`EmitError::Serialize`] when the envelope cannot be serialized.
+pub fn emit_validation_error(err: &ValidationError) -> Result<String, EmitError> {
+    let envelope = match err {
         ValidationError::Validation { field, message } => {
             let mut envelope = StderrError::new(ErrorCode::ValidationError, message.clone())
                 .field(field.clone())
@@ -72,7 +124,7 @@ pub fn emit_validation_error(err: &ValidationError) -> String {
             for step in validation_recovery(field.as_str(), message) {
                 envelope = envelope.recovery(step);
             }
-            envelope.to_json_string()
+            envelope
         }
         ValidationError::State { field, message } => {
             StderrError::new(ErrorCode::StateError, message.clone())
@@ -81,9 +133,9 @@ pub fn emit_validation_error(err: &ValidationError) -> String {
                 .recovery("Run with --interactive to use lifecycle actions (show/hide/exit)")
                 .recovery("Omit the action field for one-shot chrome commands")
                 .docs("docs/wyvern-schema/requirements.md (REQ-0072)")
-                .to_json_string()
         }
-    }
+    };
+    envelope.to_json_string().map_err(EmitError::Serialize)
 }
 
 fn validation_recovery(field: &str, message: &str) -> Vec<String> {
@@ -153,15 +205,18 @@ fn validation_recovery(field: &str, message: &str) -> Vec<String> {
 }
 
 /// Serialize a window/run error as stderr JSON (`window_create` | `event_loop`).
-pub fn emit_run_error(err: &RunError) -> String {
-    match err {
+///
+/// # Errors
+///
+/// Returns [`EmitError::Serialize`] when the envelope cannot be serialized.
+pub fn emit_run_error(err: &RunError) -> Result<String, EmitError> {
+    let envelope = match err {
         RunError::WindowCreate { message } => {
             StderrError::new(ErrorCode::WindowCreateError, message.clone())
                 .cause("Native window or webview construction failed")
                 .recovery("Ensure a display server / desktop session is available")
                 .recovery("Check platform windowing dependencies (WebKit/WebView2/WebKitGTK)")
                 .docs("docs/wyvern-schema/requirements.md (REQ-0073)")
-                .to_json_string()
         }
         RunError::EventLoop { message } => {
             StderrError::new(ErrorCode::EventLoopError, message.clone())
@@ -169,40 +224,53 @@ pub fn emit_run_error(err: &RunError) -> String {
                 .recovery("Retry the command")
                 .recovery("Check OS graphics / windowing subsystem health")
                 .docs("docs/wyvern-schema/requirements.md (REQ-0073)")
-                .to_json_string()
         }
-    }
+    };
+    envelope.to_json_string().map_err(EmitError::Serialize)
 }
 
 /// Serialize a successful [`wyvern_schema::CommandResult`] for stdout.
 ///
-/// # Panics
+/// # Errors
 ///
-/// Panics if `result` fails to serialize (should be impossible for schema types).
-pub fn emit_stdout(result: &wyvern_schema::CommandResult) -> String {
-    serde_json::to_string(result).expect("CommandResult serializes")
+/// Returns [`EmitError::Serialize`] when `result` cannot be serialized.
+pub fn emit_stdout(result: &wyvern_schema::CommandResult) -> Result<String, EmitError> {
+    #[cfg(test)]
+    if FORCE_EMIT_STDOUT_FAIL.load(std::sync::atomic::Ordering::Relaxed) {
+        return Err(EmitError::Serialize(SerializeError {
+            message: "forced".into(),
+        }));
+    }
+    serde_json::to_string(result).map_err(|e| {
+        EmitError::Serialize(SerializeError {
+            message: e.to_string(),
+        })
+    })
 }
 
-/// Map a run failure to stderr JSON plus a category-specific non-zero exit code.
-pub fn handle_run_failure(err: &RunError) -> (String, i32) {
-    let code = match err {
-        RunError::WindowCreate { .. } => ErrorCode::WindowCreateError.exit_code(),
-        RunError::EventLoop { .. } => ErrorCode::EventLoopError.exit_code(),
-    };
-    (emit_run_error(err), code)
+/// Emit static internal stderr JSON and exit with code 8 (REQ-0078).
+///
+/// Uses a hand-built JSON string so a serialize failure cannot recurse.
+pub fn emit_fatal_internal(err: &EmitError) -> ! {
+    let EmitError::Serialize(e) = err;
+    let msg_json =
+        serde_json::to_string(&e.message).unwrap_or_else(|_| "\"serialization failed\"".into());
+    eprintln!(r#"{{"error":"internal","code":"INTERNAL_ERROR","message":{msg_json}}}"#);
+    std::process::exit(ErrorCode::InternalError.exit_code());
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::Ordering;
     use wyvern_schema::{ButtonLabel, ChromeResult, CommandResult, FieldName, MessageResult};
 
     #[test]
-    fn emit_load_error_parse_with_quotes_is_valid_json() {
+    fn emit_parse_error_with_quotes_is_valid_json() {
         let err = LoadError::Parse {
             message: r#"expected value at line 1: "bad""#.to_string(),
         };
-        let out = emit_load_error(&err);
+        let out = emit_parse_error(&err).expect("emit");
         let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
         assert_eq!(value["error"], "parse");
         assert_eq!(value["code"], "PARSE_ERROR");
@@ -212,12 +280,12 @@ mod tests {
     }
 
     #[test]
-    fn emit_load_error_io_with_quotes_is_valid_json() {
+    fn emit_io_error_with_quotes_is_valid_json() {
         let err = LoadError::Io {
             field: FieldName::new("file"),
             message: r#"could not read path 'say "hi".json'"#.to_string(),
         };
-        let out = emit_load_error(&err);
+        let out = emit_io_error(&err).expect("emit");
         let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
         assert_eq!(value["error"], "io");
         assert_eq!(value["code"], "IO_ERROR");
@@ -232,7 +300,7 @@ mod tests {
             field: FieldName::new("title"),
             message: r#"field 'title' expected string, got "oops""#.to_string(),
         };
-        let out = emit_validation_error(&err);
+        let out = emit_validation_error(&err).expect("emit");
         let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
         assert_eq!(value["error"], "validation");
         assert_eq!(value["code"], "VALIDATION_ERROR");
@@ -247,7 +315,7 @@ mod tests {
             field: FieldName::new("title"),
             message: "missing required field 'title'".to_string(),
         };
-        let out = emit_validation_error(&err);
+        let out = emit_validation_error(&err).expect("emit");
         let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
         let recovery = value["recovery"].as_array().unwrap();
         assert!(recovery
@@ -261,7 +329,7 @@ mod tests {
             field: FieldName::new("action"),
             message: "show is only valid in --interactive mode".to_string(),
         };
-        let out = emit_validation_error(&err);
+        let out = emit_validation_error(&err).expect("emit");
         let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
         assert_eq!(value["error"], "state");
         assert_eq!(value["code"], "STATE_ERROR");
@@ -274,7 +342,10 @@ mod tests {
         let result = CommandResult::Chrome(ChromeResult {
             button: ButtonLabel::dismissed(),
         });
-        assert_eq!(emit_stdout(&result), r#"{"button":"dismissed"}"#);
+        assert_eq!(
+            emit_stdout(&result).expect("emit"),
+            r#"{"button":"dismissed"}"#
+        );
     }
 
     #[test]
@@ -282,7 +353,17 @@ mod tests {
         let result = CommandResult::Message(MessageResult {
             button: ButtonLabel::new("ok"),
         });
-        assert_eq!(emit_stdout(&result), r#"{"button":"ok"}"#);
+        assert_eq!(emit_stdout(&result).expect("emit"), r#"{"button":"ok"}"#);
+    }
+
+    #[test]
+    fn emit_stdout_forced_fail() {
+        FORCE_EMIT_STDOUT_FAIL.store(true, Ordering::Relaxed);
+        let result = CommandResult::Message(MessageResult {
+            button: ButtonLabel::new("ok"),
+        });
+        assert!(emit_stdout(&result).is_err());
+        FORCE_EMIT_STDOUT_FAIL.store(false, Ordering::Relaxed);
     }
 
     #[test]
@@ -290,7 +371,7 @@ mod tests {
         let err = RunError::WindowCreate {
             message: r#"create failed: "boom""#.into(),
         };
-        let out = emit_run_error(&err);
+        let out = emit_run_error(&err).expect("emit");
         let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
         assert_eq!(value["error"], "window_create");
         assert_eq!(value["code"], "WINDOW_CREATE_ERROR");
@@ -303,7 +384,7 @@ mod tests {
         let err = RunError::EventLoop {
             message: "loop failed".into(),
         };
-        let out = emit_run_error(&err);
+        let out = emit_run_error(&err).expect("emit");
         let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
         assert_eq!(value["error"], "event_loop");
         assert_eq!(value["code"], "EVENT_LOOP_ERROR");
@@ -358,39 +439,24 @@ mod tests {
     }
 
     #[test]
-    fn handle_run_failure_uses_category_exit_codes() {
-        let (json, code) = handle_run_failure(&RunError::WindowCreate {
-            message: "no display".into(),
-        });
-        assert_eq!(code, 6);
-        let value: serde_json::Value = serde_json::from_str(&json).expect("valid JSON");
-        assert_eq!(value["error"], "window_create");
-
-        let (_, code) = handle_run_failure(&RunError::EventLoop {
-            message: "os error".into(),
-        });
-        assert_eq!(code, 7);
-    }
-
-    #[test]
-    fn handle_run_failure_maps_stderr_json_and_nonzero_exit() {
+    fn emit_run_error_maps_window_create_category() {
         let err = RunError::WindowCreate {
             message: "no display".into(),
         };
-        let (json, code) = handle_run_failure(&err);
-        assert_ne!(code, 0);
+        let json = emit_run_error(&err).expect("emit");
+        assert_eq!(ErrorCode::WindowCreateError.exit_code(), 6);
         let value: serde_json::Value = serde_json::from_str(&json).expect("valid JSON");
         assert_eq!(value["error"], "window_create");
         assert_eq!(value["message"], "no display");
     }
 
     #[test]
-    fn handle_run_failure_event_loop() {
+    fn emit_run_error_maps_event_loop_category() {
         let err = RunError::EventLoop {
             message: "os error".into(),
         };
-        let (json, code) = handle_run_failure(&err);
-        assert_eq!(code, 7);
+        let json = emit_run_error(&err).expect("emit");
+        assert_eq!(ErrorCode::EventLoopError.exit_code(), 7);
         let value: serde_json::Value = serde_json::from_str(&json).expect("valid JSON");
         assert_eq!(value["error"], "event_loop");
         assert_eq!(value["message"], "os error");

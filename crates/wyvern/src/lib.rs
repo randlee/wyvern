@@ -9,10 +9,10 @@ mod pipeline;
 
 #[doc(inline)]
 pub use error::{
-    emit_load_error, emit_run_error, emit_stdout, emit_validation_error, handle_run_failure,
-    LoadError,
+    emit_fatal_internal, emit_io_error, emit_parse_error, emit_run_error, emit_stdout,
+    emit_validation_error, EmitError, LoadError,
 };
 #[doc(inline)]
 pub use input::{load_command_input, usage_message};
 #[doc(inline)]
-pub use pipeline::run_from_loaded;
+pub use pipeline::{run_from_loaded, PipelineError};

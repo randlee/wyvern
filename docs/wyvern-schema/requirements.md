@@ -85,3 +85,5 @@
 **REQ-0072** — Mode/state failures: `ValidationError::State` → stderr `{ "error": "state", "field": "...", "message": "..." }`, exit non-zero.
 
 **REQ-0073** — Window/run failures: `RunError` in `wyvern-window` → stderr `{ "error": "window_create" | "event_loop", "message": "..." }` via `emit_run_error` in `crates/wyvern`, exit non-zero.
+
+**REQ-0078** — Emit-stage failures: when stdout or stderr JSON serialization fails at the CLI boundary (`EmitError::Serialize`), Wyvern emits `{ "error": "internal", "code": "INTERNAL_ERROR", "message": "..." }` and exits `8`. Applies only to emit helpers in `crates/wyvern`; does not change load/validate/run slugs. (Distinct from MCP **REQ-0074** in `docs/wyvern-mcp/requirements.md`.)

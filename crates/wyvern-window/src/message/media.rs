@@ -16,11 +16,15 @@ pub type IconHtml = String;
 pub type ImageSrc = String;
 
 /// Production SVG markup for a message level (variant 1).
-pub fn icon_html_for_level(level: MessageLevel) -> IconHtml {
-    let role = level.as_str();
-    icons::svg_markup(role, 1)
-        .expect("c.1 bundles variant 1 for every level role")
-        .to_string()
+///
+/// # Errors
+///
+/// Returns [`RunError::WindowCreate`] when the level icon embed is missing.
+pub fn icon_html_for_level(level: MessageLevel) -> Result<IconHtml, RunError> {
+    let markup = icons::svg_markup(level.as_str(), 1).ok_or_else(|| RunError::WindowCreate {
+        message: format!("missing level icon embed for {}", level.as_str()),
+    })?;
+    Ok(markup.to_string())
 }
 
 #[cfg(test)]
@@ -57,7 +61,7 @@ pub fn resolve_level_icon_html(
         return Ok(Some(resolve_media_as_icon_html(spec)?));
     }
     if let Some(level) = level {
-        return Ok(Some(icon_html_for_level(level)));
+        return Ok(Some(icon_html_for_level(level)?));
     }
     Ok(None)
 }
@@ -88,8 +92,8 @@ fn resolve_media_as_icon_html(spec: &str) -> Result<IconHtml, RunError> {
             escape_attr(&src)
         ));
     }
-    // Named icon (optional `:variant`) — schema already validated role + bounds.
-    Ok(resolve_named_icon_svg(spec).to_string())
+    // Named icon (optional `:variant`) — defense-in-depth if validation was bypassed.
+    Ok(resolve_named_icon_svg(spec)?.to_string())
 }
 
 fn resolve_media_as_src(spec: &str) -> Result<ImageSrc, RunError> {
@@ -100,18 +104,23 @@ fn resolve_media_as_src(spec: &str) -> Result<ImageSrc, RunError> {
         return load_path_as_data_uri(spec);
     }
     // Named → embed production SVG as data URI for <img>.
-    Ok(svg_to_data_uri(resolve_named_icon_svg(spec)))
+    Ok(svg_to_data_uri(resolve_named_icon_svg(spec)?))
 }
 
-/// Resolve a schema-validated named icon spec to production SVG markup.
+/// Resolve a named icon spec to production SVG markup.
 ///
-/// # Panics
+/// # Errors
 ///
-/// Panics if `spec` was not validated by `wyvern-schema` (unknown role, bad
-/// variant suffix, or out-of-range index).
-fn resolve_named_icon_svg(spec: &str) -> &'static str {
-    let (role, index) = schema_icons::parse_icon_spec(spec).expect("schema validated spec");
-    icons::svg_markup(&role, index).expect("schema validated variant exists")
+/// Returns [`RunError::WindowCreate`] for an invalid spec or missing embed
+/// (defense-in-depth after schema validation).
+fn resolve_named_icon_svg(spec: &str) -> Result<&'static str, RunError> {
+    let (role, index) =
+        schema_icons::parse_icon_spec(spec).map_err(|()| RunError::WindowCreate {
+            message: format!("invalid icon spec '{spec}'"),
+        })?;
+    icons::svg_markup(&role, index).ok_or_else(|| RunError::WindowCreate {
+        message: format!("missing embed for {role}:{index}"),
+    })
 }
 
 fn looks_like_path(spec: &str) -> bool {
@@ -214,10 +223,10 @@ mod tests {
 
     #[test]
     fn production_level_svgs_are_distinct() {
-        let info = icon_html_for_level(MessageLevel::Info);
-        let warning = icon_html_for_level(MessageLevel::Warning);
-        let error = icon_html_for_level(MessageLevel::Error);
-        let question = icon_html_for_level(MessageLevel::Question);
+        let info = icon_html_for_level(MessageLevel::Info).expect("info");
+        let warning = icon_html_for_level(MessageLevel::Warning).expect("warning");
+        let error = icon_html_for_level(MessageLevel::Error).expect("error");
+        let question = icon_html_for_level(MessageLevel::Question).expect("question");
         assert!(info.contains(r#"data-icon-role="info""#));
         assert!(info.contains(r#"data-icon-variant="1""#));
         assert!(warning.contains(r#"data-icon-role="warning""#));
@@ -301,5 +310,16 @@ mod tests {
         let err = resolve_level_icon_html(None, Some("/nonexistent/wyvern-icon-missing.svg"))
             .expect_err("io");
         assert!(matches!(err, RunError::WindowCreate { .. }));
+    }
+
+    #[test]
+    fn bad_named_icon_spec_returns_window_create() {
+        let err = resolve_named_icon_svg("bad:role:99").expect_err("invalid");
+        assert!(matches!(err, RunError::WindowCreate { .. }));
+        let msg = match err {
+            RunError::WindowCreate { message } => message,
+            other => panic!("expected WindowCreate, got {other:?}"),
+        };
+        assert!(msg.contains("invalid icon spec") || msg.contains("missing embed"));
     }
 }

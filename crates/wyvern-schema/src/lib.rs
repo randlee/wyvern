@@ -35,6 +35,6 @@ pub use result::{
     QuestionResult,
 };
 #[doc(inline)]
-pub use stderr::StderrError;
+pub use stderr::{SerializeError, StderrError};
 #[doc(inline)]
 pub use validate::validate;

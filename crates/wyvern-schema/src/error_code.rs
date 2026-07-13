@@ -28,6 +28,8 @@ pub enum ErrorCode {
     WindowCreateError,
     /// Event loop creation or run failed.
     EventLoopError,
+    /// Stdout/stderr JSON serialization failed at the CLI emit boundary (REQ-0078).
+    InternalError,
 }
 
 impl ErrorCode {
@@ -40,10 +42,11 @@ impl ErrorCode {
             Self::StateError => 5,
             Self::WindowCreateError => 6,
             Self::EventLoopError => 7,
+            Self::InternalError => 8,
         }
     }
 
-    /// Wire slug historically emitted in the `error` field (REQ-0051–0073).
+    /// Wire slug historically emitted in the `error` field (REQ-0051–0073, REQ-0078).
     pub fn error_slug(self) -> &'static str {
         match self {
             Self::ParseError => "parse",
@@ -52,6 +55,7 @@ impl ErrorCode {
             Self::StateError => "state",
             Self::WindowCreateError => "window_create",
             Self::EventLoopError => "event_loop",
+            Self::InternalError => "internal",
         }
     }
 }
@@ -69,6 +73,7 @@ mod tests {
             (ErrorCode::StateError, "STATE_ERROR"),
             (ErrorCode::WindowCreateError, "WINDOW_CREATE_ERROR"),
             (ErrorCode::EventLoopError, "EVENT_LOOP_ERROR"),
+            (ErrorCode::InternalError, "INTERNAL_ERROR"),
         ];
         for (code, expected) in cases {
             let json = serde_json::to_string(&code).expect("serialize");
