@@ -18,15 +18,25 @@ pub enum ValidationError {
     State { field: String, message: String },
 }
 
+#[derive(Serialize)]
+#[serde(untagged)]
 pub enum CommandResult {
-    Chrome { button: String },
-    // Phase B+: Input { button, value }, Wizard { button, data, stack }, etc.
+    Chrome(ChromeResult),
+    // Phase B+: Input(InputResult), Wizard(WizardResult), etc.
 }
+
+#[derive(Serialize)]
+pub struct ChromeResult {
+    pub button: String,
+}
+
+// Phase A wire: {"button":"dismissed"} via #[serde(untagged)] + ChromeResult fields
+// Later variants must use distinct field sets to stay unambiguous under untagged
 
 pub fn validate(value: &serde_json::Value) -> Result<Command, ValidationError>;
 ```
 
-`CommandResult` is an extensible protocol enum in `wyvern-schema`. Phase A adds only `Chrome`; later phases add variants without changing the chrome wire shape (`{"button":"dismissed"}`).
+`CommandResult` is an extensible protocol enum in `wyvern-schema`. Phase A adds only `Chrome(ChromeResult)`; later phases add variants without changing the chrome wire shape.
 
 Parse/io errors are **not** `ValidationError` — they are `LoadError` in `crates/wyvern` (see `docs/plans/phase-A/README.md`).
 

@@ -43,13 +43,14 @@ root = "."
 sc-lint check --config .sc-lint.toml
 ```
 
-Sibling checkout (same layout as observability):
+Sibling checkout (same layout as [a6](a6-sc-observability.md)):
 
 ```
-github/
-  wyvern/              # or wyvern-worktrees/<branch>
+{REPO_ROOT}/
+  Cargo.toml
   sc-lint/
   sc-observability/
+  crates/wyvern/
 ```
 
 ## This Sprint Does Not Close

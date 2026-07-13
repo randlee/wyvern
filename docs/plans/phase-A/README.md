@@ -50,7 +50,7 @@ Success on OS close:
 { "button": "dismissed" }
 ```
 
-(`CommandResult::Chrome { button: "dismissed" }` in schema — extensible enum for later command out-types.)
+(`CommandResult::Chrome(ChromeResult { button: "dismissed" })` — see a.4 serde contract.)
 
 ## Sprint index (7 active: a.1–a.7)
 
@@ -66,6 +66,16 @@ Success on OS close:
 
 Win/Linux chrome deferred to Phase C — not counted in Phase A completion.
 
-## External sibling deps (worktree layout)
+## External sibling deps (repository root layout)
 
-From `crates/wyvern/Cargo.toml`, path deps use **`../../sc-observability`** and **`../../sc-lint`** (repo root is parent of `wyvern-worktrees/`, siblings sit beside `wyvern` and `wyvern-worktrees`).
+Siblings live at **clone/worktree root** — same directory as `Cargo.toml` and `crates/`:
+
+```
+{REPO_ROOT}/
+  Cargo.toml
+  crates/wyvern/
+  sc-observability/    ← path ../../sc-observability from crates/wyvern/Cargo.toml
+  sc-lint/             ← path ../../sc-lint
+```
+
+Local worktrees: clone or symlink `sc-observability` and `sc-lint` into the worktree root before `cargo build -p wyvern`. CI checks out siblings to `$GITHUB_WORKSPACE/sc-*` (see a.6).

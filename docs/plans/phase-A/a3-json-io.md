@@ -61,13 +61,12 @@ pub fn load_command_input(args: &[String], stdin: impl Read) -> Result<Value, Lo
 pub fn emit_load_error(err: &LoadError) -> String {
     match err {
         LoadError::Parse { message } => {
-            format!(r#"{{"error":"parse","message":"{message}"}}"#)
+            serde_json::json!({ "error": "parse", "message": message }).to_string()
         }
         LoadError::Io { field, message } => {
-            format!(r#"{{"error":"io","field":"{field}","message":"{message}"}}"#)
+            serde_json::json!({ "error": "io", "field": field, "message": message }).to_string()
         }
         LoadError::Usage { .. } => {
-            // Usage: main prints plain stderr usage text + exit ≠ 0 — no JSON
             unreachable!("Usage handled in main, not emit_load_error")
         }
     }
@@ -96,5 +95,6 @@ pub fn emit_load_error(err: &LoadError) -> String {
 ## Required Validation
 
 - `cargo test -p wyvern -- input`
+- Unit test: message containing `"` in parse/io paths still yields valid JSON stderr
 - `cargo build --workspace`
 - `cargo clippy --workspace -- -D warnings`

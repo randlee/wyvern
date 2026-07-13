@@ -60,12 +60,7 @@ a.7 lint step runs on **all** legs after sibling checkout.
           repository: ${{ github.repository_owner }}/sc-lint
           path: sc-lint
 
-      # Repo root is $GITHUB_WORKSPACE; siblings sit beside it:
-      #   $GITHUB_WORKSPACE/../sc-observability  → ../../sc-observability from crates/wyvern
-      - name: Link siblings for path deps
-        run: |
-          ln -sf "$GITHUB_WORKSPACE/../sc-observability" "${{ github.workspace }}/../sc-observability" || true
-          ln -sf "$GITHUB_WORKSPACE/../sc-lint" "${{ github.workspace }}/../sc-lint" || true
+      # Siblings at $GITHUB_WORKSPACE/sc-* match ../../sc-observability from crates/wyvern/Cargo.toml
 
       # ... Rust toolchain, build, clippy ...
 
@@ -79,7 +74,7 @@ a.7 lint step runs on **all** legs after sibling checkout.
         # wyvern-window macOS tests are #[cfg]-gated; non-macOS legs pass via a.2 no-op test
 ```
 
-Adjust checkout `repository` to the actual org/name; layout must resolve `../../sc-observability` from `crates/wyvern/Cargo.toml`.
+Adjust checkout `repository` to the actual org/name. Siblings must land at repository root (`path: sc-observability`), not beside the parent of the clone.
 
 ## Explicit Code Samples
 

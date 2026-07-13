@@ -61,21 +61,31 @@ pub enum ValidationError {
     State { field: String, message: String },
 }
 
+#[derive(Serialize)]
+#[serde(untagged)]
 pub enum CommandResult {
-    Chrome { button: String },
-    // Phase B+ variants added here (e.g. Input, Wizard) without changing Chrome wire shape
+    Chrome(ChromeResult),
+    // Phase B+: Input(InputResult), Wizard(WizardResult), etc.
 }
+
+#[derive(Serialize)]
+pub struct ChromeResult {
+    pub button: String,
+}
+
+// Phase A wire: {"button":"dismissed"} — untagged wraps ChromeResult fields at top level
+// Later variants must use distinct field sets to remain unambiguous under untagged
 
 pub fn validate(value: &serde_json::Value) -> Result<Command, ValidationError>;
 
-// crates/wyvern — CLI boundary (mirrors a.3 LoadError pattern)
+// crates/wyvern — CLI boundary
 pub fn emit_validation_error(err: &ValidationError) -> String {
     match err {
         ValidationError::Validation { field, message } => {
-            format!(r#"{{"error":"validation","field":"{field}","message":"{message}"}}"#)
+            serde_json::json!({ "error": "validation", "field": field, "message": message }).to_string()
         }
         ValidationError::State { field, message } => {
-            format!(r#"{{"error":"state","field":"{field}","message":"{message}"}}"#)
+            serde_json::json!({ "error": "state", "field": field, "message": message }).to_string()
         }
     }
 }
@@ -105,5 +115,6 @@ pub fn emit_validation_error(err: &ValidationError) -> String {
 ## Required Validation
 
 - `cargo test -p wyvern-schema`
+- Unit test: validation stderr with `message` containing `"` is valid JSON
 - `cargo test -p wyvern` (CLI validation integration)
 - `cargo clippy --workspace -- -D warnings`
