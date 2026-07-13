@@ -1,8 +1,9 @@
 ---
 id: a.3
 title: CLI arg detection and JSON loading
-status: planned
+status: complete
 branch: feature/phase-A-a3-json-io
+worktree: /Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-A-a3-json-io
 target: integrate/phase-A
 ---
 
