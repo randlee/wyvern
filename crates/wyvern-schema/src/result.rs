@@ -1,5 +1,7 @@
 //! Protocol result types written to stdout on success.
 
+use std::collections::HashMap;
+
 use serde::Serialize;
 
 use crate::button::ButtonLabel;
@@ -8,7 +10,8 @@ use crate::button::ButtonLabel;
 ///
 /// Overlapping `{button}` shapes across chrome/message/markdown/input are intentional:
 /// `#[serde(untagged)]` keeps the wire shape `{ "button": "<label>" }` (and
-/// optional `input` for text/file results per REQ-0065).
+/// optional `input` for text/file results per REQ-0065). Question results use the
+/// AskUserQuestion shape (REQ-0067 / REQ-0068).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(untagged)]
 pub enum CommandResult {
@@ -20,6 +23,8 @@ pub enum CommandResult {
     Markdown(MarkdownResult),
     /// Input dialog result (Phase B / REQ-0065).
     Input(InputResult),
+    /// Question dialog result (Phase B / REQ-0067 / REQ-0068).
+    Question(QuestionResult),
 }
 
 /// Chrome command result payload.
@@ -61,6 +66,42 @@ pub struct InputResult {
     /// Submitted value; omitted on cancel / dismiss.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub input: Option<InputValue>,
+}
+
+/// Question dialog result payload (REQ-0067 / REQ-0068).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct QuestionResult {
+    /// Present only on force-close / fail-safe (REQ-0068); omitted on normal submit.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub button: Option<ButtonLabel>,
+    /// Verbatim input `questions` array.
+    pub questions: Vec<serde_json::Value>,
+    /// Map of question prompt → selected label(s); comma-joined when multi-select.
+    pub answers: HashMap<String, String>,
+    /// Always present; empty string on normal completion and dismiss.
+    pub response: String,
+}
+
+impl QuestionResult {
+    /// Normal submit result (no `button` field).
+    pub fn submitted(questions: Vec<serde_json::Value>, answers: HashMap<String, String>) -> Self {
+        Self {
+            button: None,
+            questions,
+            answers,
+            response: String::new(),
+        }
+    }
+
+    /// REQ-0068 dismissed / fail-safe shape.
+    pub fn dismissed(questions: Vec<serde_json::Value>) -> Self {
+        Self {
+            button: Some(ButtonLabel::dismissed()),
+            questions,
+            answers: HashMap::new(),
+            response: String::new(),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -138,5 +179,38 @@ mod tests {
             json,
             r#"{"button":"ok","input":["/tmp/a.json","/tmp/b.json"]}"#
         );
+    }
+
+    #[test]
+    fn command_result_question_submitted_omits_button() {
+        let mut answers = HashMap::new();
+        answers.insert("Output format?".into(), "JSON".into());
+        let questions = vec![serde_json::json!({
+            "question": "Output format?",
+            "header": "Format",
+            "options": [
+                { "label": "JSON", "description": "Structured" },
+                { "label": "Plain", "description": "Text only" }
+            ],
+            "multiSelect": false
+        })];
+        let result = CommandResult::Question(QuestionResult::submitted(questions, answers));
+        let value: serde_json::Value =
+            serde_json::from_str(&serde_json::to_string(&result).unwrap()).unwrap();
+        assert!(value.get("button").is_none());
+        assert_eq!(value["answers"]["Output format?"], "JSON");
+        assert_eq!(value["response"], "");
+        assert!(value["questions"].is_array());
+    }
+
+    #[test]
+    fn command_result_question_dismissed_includes_button() {
+        let questions = vec![serde_json::json!({"question": "Q?", "header": "H"})];
+        let result = CommandResult::Question(QuestionResult::dismissed(questions));
+        let value: serde_json::Value =
+            serde_json::from_str(&serde_json::to_string(&result).unwrap()).unwrap();
+        assert_eq!(value["button"], "dismissed");
+        assert_eq!(value["answers"], serde_json::json!({}));
+        assert_eq!(value["response"], "");
     }
 }
