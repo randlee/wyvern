@@ -32,8 +32,7 @@ fn main() {
 fn chrome_ipc_window_minimize_no_stdout_then_auto_dismiss() {
     // window_minimize must not complete the run by itself; auto-dismiss finishes
     // the harness with the normal dismissed chrome result (no early/malformed path).
-    let result =
-        support::open_chrome_inject_then_auto_dismiss(r#"{"kind":"window_minimize"}"#)
-            .expect("chrome window_minimize + auto-dismiss should complete");
+    let result = support::open_chrome_inject_then_auto_dismiss(r#"{"kind":"window_minimize"}"#)
+        .expect("chrome window_minimize + auto-dismiss should complete");
     support::assert_dismissed(&result);
 }
