@@ -16,6 +16,9 @@ pub fn variant_count(role: &str) -> u32 {
 
 /// Parse `"role"` or `"role:N"` where `N` is a 1-based variant index.
 ///
+/// Does **not** check that `role` is a known catalog name or that `N` is in
+/// range — use [`NamedIconSpec::parse`] for full validation.
+///
 /// # Errors
 ///
 /// Returns `Err(())` when the suffix after `:` is present but not a valid `u32`
@@ -30,6 +33,50 @@ pub fn parse_icon_spec(spec: &str) -> Result<(String, u32), ()> {
         Some((b, v)) => (b, v.parse::<u32>().map_err(|_| ())?),
     };
     Ok((base.to_string(), variant))
+}
+
+/// Validated named icon reference (`role` or `role:N`) against the catalog.
+///
+/// Construct via [`NamedIconSpec::parse`] so window-layer defense-in-depth and
+/// schema validation share one typed boundary (RBP-F002).
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct NamedIconSpec {
+    role: String,
+    variant: u32,
+}
+
+impl NamedIconSpec {
+    /// Parse and validate a named icon spec against [`ROLES`] / [`variant_count`].
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err(())` when the spec is malformed, the role is unknown, or
+    /// the variant is out of range (including `0`).
+    #[expect(
+        clippy::result_unit_err,
+        reason = "shared with parse_icon_spec; callers map to ValidationError / RunError"
+    )]
+    pub fn parse(spec: &str) -> Result<Self, ()> {
+        let (role, variant) = parse_icon_spec(spec)?;
+        if !ROLES.contains(&role.as_str()) {
+            return Err(());
+        }
+        let max = variant_count(&role);
+        if variant == 0 || variant > max {
+            return Err(());
+        }
+        Ok(Self { role, variant })
+    }
+
+    /// Semantic role name (`info`, `warning`, …).
+    pub fn role(&self) -> &str {
+        &self.role
+    }
+
+    /// 1-based variant index.
+    pub fn variant(&self) -> u32 {
+        self.variant
+    }
 }
 
 #[cfg(test)]
@@ -58,5 +105,21 @@ mod tests {
     #[test]
     fn parse_icon_spec_rejects_non_numeric_suffix() {
         assert_eq!(parse_icon_spec("warning:abc"), Err(()));
+    }
+
+    #[test]
+    fn named_icon_spec_accepts_catalog_entries() {
+        let spec = NamedIconSpec::parse("warning:2").expect("ok");
+        assert_eq!(spec.role(), "warning");
+        assert_eq!(spec.variant(), 2);
+        assert!(NamedIconSpec::parse("success").is_ok());
+    }
+
+    #[test]
+    fn named_icon_spec_rejects_unknown_or_oor() {
+        assert!(NamedIconSpec::parse("nope").is_err());
+        assert!(NamedIconSpec::parse("warning:99").is_err());
+        assert!(NamedIconSpec::parse("warning:0").is_err());
+        assert!(NamedIconSpec::parse("warning:abc").is_err());
     }
 }

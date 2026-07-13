@@ -9,9 +9,57 @@ use wyvern_schema::{
 };
 use wyvern_window::RunError;
 
+/// macOS-only cross-process lock so parallel `[[test]]` harness binaries do not
+/// race AppKit/winit focus (SIGABRT in `window_did_resign_key`).
+#[cfg(target_os = "macos")]
+struct MacOsGuiTestLock {
+    file: std::fs::File,
+}
+
+#[cfg(target_os = "macos")]
+impl MacOsGuiTestLock {
+    fn acquire() -> Self {
+        let path = std::env::temp_dir().join("wyvern-macos-gui-test.lock");
+        let file = std::fs::OpenOptions::new()
+            .create(true)
+            .truncate(false)
+            .read(true)
+            .write(true)
+            .open(&path)
+            .expect("create macOS GUI test lock file");
+        // SAFETY: `file` is open for the lifetime of this guard; flock is advisory.
+        let rc = unsafe { libc::flock(std::os::fd::AsRawFd::as_raw_fd(&file), libc::LOCK_EX) };
+        assert_eq!(
+            rc,
+            0,
+            "flock LOCK_EX failed: {}",
+            std::io::Error::last_os_error()
+        );
+        Self { file }
+    }
+}
+
+#[cfg(target_os = "macos")]
+impl Drop for MacOsGuiTestLock {
+    fn drop(&mut self) {
+        // SAFETY: unlocks the fd held by `self.file`.
+        let _ = unsafe { libc::flock(std::os::fd::AsRawFd::as_raw_fd(&self.file), libc::LOCK_UN) };
+    }
+}
+
+/// Acquires the macOS GUI cross-process lock (no-op elsewhere).
+#[cfg(target_os = "macos")]
+fn acquire_gui_test_lock() -> MacOsGuiTestLock {
+    MacOsGuiTestLock::acquire()
+}
+
+#[cfg(not(target_os = "macos"))]
+fn acquire_gui_test_lock() -> () {}
+
 /// Opens chrome via [`wyvern_window::run`], auto-dismisses, and returns the
 /// dismissed protocol result — the same outcome as an OS chrome close.
 pub fn open_blank_window_for_test() -> Result<CommandResult, RunError> {
+    let _gui_lock = acquire_gui_test_lock();
     // SAFETY: integration test harness runs single-threaded before other work.
     unsafe { std::env::set_var("WYVERN_AUTO_DISMISS", "1") };
     unsafe { std::env::remove_var("WYVERN_INJECT_IPC") };
@@ -23,6 +71,7 @@ pub fn open_blank_window_for_test() -> Result<CommandResult, RunError> {
 
 /// Opens chrome via [`wyvern_window::run`], injects IPC, and returns the result.
 pub fn open_chrome_with_injected_ipc(ipc_json: &str) -> Result<CommandResult, RunError> {
+    let _gui_lock = acquire_gui_test_lock();
     // SAFETY: integration test harness runs single-threaded before other work.
     unsafe {
         std::env::remove_var("WYVERN_AUTO_DISMISS");
@@ -38,6 +87,7 @@ pub fn open_chrome_with_injected_ipc(ipc_json: &str) -> Result<CommandResult, Ru
 
 /// Opens chrome, injects IPC, then auto-dismisses (for non-completing IPC like minimize).
 pub fn open_chrome_inject_then_auto_dismiss(ipc_json: &str) -> Result<CommandResult, RunError> {
+    let _gui_lock = acquire_gui_test_lock();
     // SAFETY: integration test harness runs single-threaded before other work.
     unsafe {
         std::env::set_var("WYVERN_AUTO_DISMISS", "1");
@@ -56,6 +106,7 @@ pub fn open_chrome_inject_then_auto_dismiss(ipc_json: &str) -> Result<CommandRes
 
 /// Opens a message dialog, injects IPC, then auto-dismisses (non-completing IPC).
 pub fn open_message_inject_then_auto_dismiss(ipc_json: &str) -> Result<CommandResult, RunError> {
+    let _gui_lock = acquire_gui_test_lock();
     // SAFETY: integration test harness runs single-threaded before other work.
     unsafe {
         std::env::set_var("WYVERN_AUTO_DISMISS", "1");
@@ -82,6 +133,7 @@ pub fn open_message_inject_then_auto_dismiss(ipc_json: &str) -> Result<CommandRe
 
 /// Opens an input dialog, injects IPC, then auto-dismisses (non-completing IPC).
 pub fn open_input_inject_then_auto_dismiss(ipc_json: &str) -> Result<CommandResult, RunError> {
+    let _gui_lock = acquire_gui_test_lock();
     // SAFETY: integration test harness runs single-threaded before other work.
     unsafe {
         std::env::set_var("WYVERN_AUTO_DISMISS", "1");
@@ -111,6 +163,7 @@ pub fn open_input_inject_then_auto_dismiss(ipc_json: &str) -> Result<CommandResu
 
 /// Opens a markdown dialog, injects IPC, then auto-dismisses (non-completing IPC).
 pub fn open_markdown_inject_then_auto_dismiss(ipc_json: &str) -> Result<CommandResult, RunError> {
+    let _gui_lock = acquire_gui_test_lock();
     // SAFETY: integration test harness runs single-threaded before other work.
     unsafe {
         std::env::set_var("WYVERN_AUTO_DISMISS", "1");
@@ -132,6 +185,7 @@ pub fn open_markdown_inject_then_auto_dismiss(ipc_json: &str) -> Result<CommandR
 
 /// Opens a question dialog, injects IPC, then auto-dismisses (non-completing IPC).
 pub fn open_question_inject_then_auto_dismiss(ipc_json: &str) -> Result<CommandResult, RunError> {
+    let _gui_lock = acquire_gui_test_lock();
     // SAFETY: integration test harness runs single-threaded before other work.
     unsafe {
         std::env::set_var("WYVERN_AUTO_DISMISS", "1");
@@ -174,6 +228,7 @@ pub fn open_question_inject_then_auto_dismiss(ipc_json: &str) -> Result<CommandR
 
 /// Opens a message dialog and injects IPC JSON (test harness hook).
 pub fn open_message_with_injected_ipc(ipc_json: &str) -> Result<CommandResult, RunError> {
+    let _gui_lock = acquire_gui_test_lock();
     // SAFETY: integration test harness runs single-threaded before other work.
     unsafe {
         std::env::remove_var("WYVERN_AUTO_DISMISS");
@@ -197,6 +252,7 @@ pub fn open_message_with_injected_ipc(ipc_json: &str) -> Result<CommandResult, R
 
 /// Opens an input dialog and injects IPC JSON (test harness hook).
 pub fn open_input_with_injected_ipc(ipc_json: &str) -> Result<CommandResult, RunError> {
+    let _gui_lock = acquire_gui_test_lock();
     // SAFETY: integration test harness runs single-threaded before other work.
     unsafe {
         std::env::remove_var("WYVERN_AUTO_DISMISS");
@@ -226,6 +282,7 @@ pub fn open_file_picker_with_mock(
     mock_path: &str,
     multiple: bool,
 ) -> Result<CommandResult, RunError> {
+    let _gui_lock = acquire_gui_test_lock();
     // SAFETY: integration test harness runs single-threaded before other work.
     unsafe {
         std::env::remove_var("WYVERN_AUTO_DISMISS");
@@ -259,6 +316,7 @@ pub fn open_file_picker_with_mock(
 
 /// Opens a folder-mode input dialog, mocks the picker path, and injects OK IPC.
 pub fn open_folder_picker_with_mock(mock_path: &str) -> Result<CommandResult, RunError> {
+    let _gui_lock = acquire_gui_test_lock();
     // SAFETY: integration test harness runs single-threaded before other work.
     unsafe {
         std::env::remove_var("WYVERN_AUTO_DISMISS");
@@ -363,6 +421,7 @@ fn open_question_cards_with_injected_ipc(
     questions_raw: Vec<serde_json::Value>,
     ipc_json: &str,
 ) -> Result<CommandResult, RunError> {
+    let _gui_lock = acquire_gui_test_lock();
     // SAFETY: integration test harness runs single-threaded before other work.
     unsafe {
         std::env::remove_var("WYVERN_AUTO_DISMISS");
@@ -485,6 +544,7 @@ pub fn assert_question_dismissed(result: &CommandResult) {
 
 /// Opens a question dialog and auto-dismisses (OS-close / REQ-0068 path).
 pub fn open_question_auto_dismiss() -> Result<CommandResult, RunError> {
+    let _gui_lock = acquire_gui_test_lock();
     // SAFETY: integration test harness runs single-threaded before other work.
     unsafe {
         std::env::remove_var("WYVERN_INJECT_IPC");

@@ -96,3 +96,7 @@ name = "question_dismiss_ipc"
 path = "tests/question_dismiss_ipc.rs"
 harness = false
 
+[dev-dependencies]
+serial_test = "3"
+libc = "0.2"
+

@@ -1,26 +1,97 @@
 //! Resolve message `icon` / `image` specs and level production SVGs.
 
+use std::fmt;
 use std::fs;
+use std::ops::Deref;
 use std::path::Path;
 
-use wyvern_schema::icons as schema_icons;
-use wyvern_schema::MessageLevel;
+use wyvern_schema::{MessageLevel, NamedIconSpec};
 
 use crate::error::RunError;
 use crate::icons;
 
 /// HTML snippet for the `#level-icon` slot (inline SVG or `<img>`).
-pub type IconHtml = String;
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IconHtml(String);
+
+impl IconHtml {
+    /// Wrap already-built icon HTML.
+    pub fn new(value: impl Into<String>) -> Self {
+        Self(value.into())
+    }
+
+    /// Borrow the HTML as a string slice.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl Deref for IconHtml {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        self.as_str()
+    }
+}
+
+impl AsRef<str> for IconHtml {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl fmt::Display for IconHtml {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
 
 /// `src` attribute value for `#decorative-image`.
-pub type ImageSrc = String;
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImageSrc(String);
+
+impl ImageSrc {
+    /// Wrap an image `src` value (path data-URI or remote-style URI).
+    pub fn new(value: impl Into<String>) -> Self {
+        Self(value.into())
+    }
+
+    /// Borrow the `src` as a string slice.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl Deref for ImageSrc {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        self.as_str()
+    }
+}
+
+impl AsRef<str> for ImageSrc {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl fmt::Display for ImageSrc {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
 
 /// Production SVG markup for a message level (variant 1).
-pub fn icon_html_for_level(level: MessageLevel) -> IconHtml {
-    let role = level.as_str();
-    icons::svg_markup(role, 1)
-        .expect("c.1 bundles variant 1 for every level role")
-        .to_string()
+///
+/// # Errors
+///
+/// Returns [`RunError::WindowCreate`] when the level icon embed is missing.
+pub fn icon_html_for_level(level: MessageLevel) -> Result<IconHtml, RunError> {
+    let markup = icons::svg_markup(level.as_str(), 1).ok_or_else(|| RunError::WindowCreate {
+        message: format!("missing level icon embed for {}", level.as_str()),
+    })?;
+    Ok(IconHtml::new(markup))
 }
 
 #[cfg(test)]
@@ -57,7 +128,7 @@ pub fn resolve_level_icon_html(
         return Ok(Some(resolve_media_as_icon_html(spec)?));
     }
     if let Some(level) = level {
-        return Ok(Some(icon_html_for_level(level)));
+        return Ok(Some(icon_html_for_level(level)?));
     }
     Ok(None)
 }
@@ -76,42 +147,51 @@ pub fn resolve_image_src(image: Option<&str>) -> Result<Option<ImageSrc>, RunErr
 
 fn resolve_media_as_icon_html(spec: &str) -> Result<IconHtml, RunError> {
     if spec.starts_with("data:") {
-        return Ok(format!(
+        return Ok(IconHtml::new(format!(
             r#"<img class="resolved-icon" src="{}" alt="" />"#,
             escape_attr(spec)
-        ));
+        )));
     }
     if looks_like_path(spec) {
         let src = load_path_as_data_uri(spec)?;
-        return Ok(format!(
+        return Ok(IconHtml::new(format!(
             r#"<img class="resolved-icon" src="{}" alt="" />"#,
             escape_attr(&src)
-        ));
+        )));
     }
-    // Named icon (optional `:variant`) — schema already validated role + bounds.
-    Ok(resolve_named_icon_svg(spec).to_string())
+    // Named icon (optional `:variant`) — defense-in-depth if validation was bypassed.
+    Ok(IconHtml::new(resolve_named_icon_svg(spec)?))
 }
 
 fn resolve_media_as_src(spec: &str) -> Result<ImageSrc, RunError> {
     if spec.starts_with("data:") {
-        return Ok(spec.to_string());
+        return Ok(ImageSrc::new(spec));
     }
     if looks_like_path(spec) {
-        return load_path_as_data_uri(spec);
+        return Ok(ImageSrc::new(load_path_as_data_uri(spec)?));
     }
     // Named → embed production SVG as data URI for <img>.
-    Ok(svg_to_data_uri(resolve_named_icon_svg(spec)))
+    Ok(ImageSrc::new(svg_to_data_uri(resolve_named_icon_svg(
+        spec,
+    )?)))
 }
 
-/// Resolve a schema-validated named icon spec to production SVG markup.
+/// Resolve a named icon spec to production SVG markup.
 ///
-/// # Panics
+/// Uses [`NamedIconSpec`] so re-validation shares the schema catalog type
+/// (RBP-F002) instead of a raw `&str` parse.
 ///
-/// Panics if `spec` was not validated by `wyvern-schema` (unknown role, bad
-/// variant suffix, or out-of-range index).
-fn resolve_named_icon_svg(spec: &str) -> &'static str {
-    let (role, index) = schema_icons::parse_icon_spec(spec).expect("schema validated spec");
-    icons::svg_markup(&role, index).expect("schema validated variant exists")
+/// # Errors
+///
+/// Returns [`RunError::WindowCreate`] for an invalid spec or missing embed
+/// (defense-in-depth after schema validation).
+fn resolve_named_icon_svg(spec: &str) -> Result<&'static str, RunError> {
+    let named = NamedIconSpec::parse(spec).map_err(|()| RunError::WindowCreate {
+        message: format!("invalid icon spec '{spec}'"),
+    })?;
+    icons::svg_markup(named.role(), named.variant()).ok_or_else(|| RunError::WindowCreate {
+        message: format!("missing embed for {}:{}", named.role(), named.variant()),
+    })
 }
 
 fn looks_like_path(spec: &str) -> bool {
@@ -214,10 +294,10 @@ mod tests {
 
     #[test]
     fn production_level_svgs_are_distinct() {
-        let info = icon_html_for_level(MessageLevel::Info);
-        let warning = icon_html_for_level(MessageLevel::Warning);
-        let error = icon_html_for_level(MessageLevel::Error);
-        let question = icon_html_for_level(MessageLevel::Question);
+        let info = icon_html_for_level(MessageLevel::Info).expect("info");
+        let warning = icon_html_for_level(MessageLevel::Warning).expect("warning");
+        let error = icon_html_for_level(MessageLevel::Error).expect("error");
+        let question = icon_html_for_level(MessageLevel::Question).expect("question");
         assert!(info.contains(r#"data-icon-role="info""#));
         assert!(info.contains(r#"data-icon-variant="1""#));
         assert!(warning.contains(r#"data-icon-role="warning""#));
@@ -301,5 +381,24 @@ mod tests {
         let err = resolve_level_icon_html(None, Some("/nonexistent/wyvern-icon-missing.svg"))
             .expect_err("io");
         assert!(matches!(err, RunError::WindowCreate { .. }));
+    }
+
+    #[test]
+    fn bad_named_icon_spec_returns_window_create() {
+        let err = resolve_named_icon_svg("bad:role:99").expect_err("invalid");
+        assert!(matches!(err, RunError::WindowCreate { .. }));
+        let msg = match err {
+            RunError::WindowCreate { message } => message,
+            other => panic!("expected WindowCreate, got {other:?}"),
+        };
+        assert!(msg.contains("invalid icon spec") || msg.contains("missing embed"));
+    }
+
+    #[test]
+    fn named_icon_spec_newtype_drives_resolution() {
+        let named = NamedIconSpec::parse("error:2").expect("catalog");
+        let svg = icons::svg_markup(named.role(), named.variant()).expect("embed");
+        assert!(svg.contains(r#"data-icon-role="error""#));
+        assert!(svg.contains(r#"data-icon-variant="2""#));
     }
 }

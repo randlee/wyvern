@@ -97,6 +97,28 @@ fn try_mock_paths() -> Option<Option<Vec<PathBuf>>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
+    use std::ffi::OsStr;
+
+    /// RAII guard: sets [`MOCK_PICKER_ENV`] and removes it on drop.
+    ///
+    /// Tests that use this guard must be `#[serial]` — env vars are process-global.
+    struct MockPickerEnvGuard;
+
+    impl MockPickerEnvGuard {
+        fn set(value: impl AsRef<OsStr>) -> Self {
+            // SAFETY: callers are `#[serial]` so no concurrent env mutation.
+            unsafe { std::env::set_var(MOCK_PICKER_ENV, value) };
+            Self
+        }
+    }
+
+    impl Drop for MockPickerEnvGuard {
+        fn drop(&mut self) {
+            // SAFETY: paired with `set`; still under `#[serial]`.
+            unsafe { std::env::remove_var(MOCK_PICKER_ENV) };
+        }
+    }
 
     #[test]
     fn filter_extensions_strips_glob_prefix() {
@@ -106,28 +128,29 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn mock_env_returns_path_without_rfd() {
-        // SAFETY: unit tests in this module run single-threaded within the crate.
-        unsafe { std::env::set_var(MOCK_PICKER_ENV, "/tmp/fixture.txt") };
+        let fixture = std::env::temp_dir().join("fixture.txt");
+        let _guard = MockPickerEnvGuard::set(&fixture);
         let picked = pick_file(&[], false, None);
-        unsafe { std::env::remove_var(MOCK_PICKER_ENV) };
-        assert_eq!(picked, Some(vec![PathBuf::from("/tmp/fixture.txt")]));
+        assert_eq!(picked, Some(vec![fixture]));
     }
 
     #[test]
+    #[serial]
     fn mock_env_empty_simulates_cancel() {
-        unsafe { std::env::set_var(MOCK_PICKER_ENV, "") };
+        let _guard = MockPickerEnvGuard::set("");
         let picked = pick_file(&[], false, None);
-        unsafe { std::env::remove_var(MOCK_PICKER_ENV) };
         assert_eq!(picked, None);
     }
 
     #[test]
+    #[serial]
     fn mock_folder_returns_last_path_component() {
-        unsafe { std::env::set_var(MOCK_PICKER_ENV, "/tmp/picked-dir") };
+        let picked_dir = std::env::temp_dir().join("picked-dir");
+        let _guard = MockPickerEnvGuard::set(&picked_dir);
         let picked = pick_folder(None);
-        unsafe { std::env::remove_var(MOCK_PICKER_ENV) };
-        assert_eq!(picked, Some(PathBuf::from("/tmp/picked-dir")));
+        assert_eq!(picked, Some(picked_dir));
     }
 
     #[test]

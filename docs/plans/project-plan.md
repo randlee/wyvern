@@ -79,30 +79,34 @@ Phase B sprint PRs target `integrate/phase-B`. Sprint authority: `docs/plans/pha
 
 **Phase acceptance criteria:** Install from GitHub release (or equivalent) works; a developer can run all Phase B dialog types on macOS, Windows, and Linux from a released binary. See [docs/plans/phase-C/README.md](phase-C/README.md#phase-acceptance-criteria-smoke).
 
-Phase C sprint PRs target `integrate/phase-C`. Sprint authority: `docs/plans/phase-C/` (sprints **c.1–c.5**). Dependency graph:
+Phase C release sprint PRs (**c.1–c.5**) target `integrate/phase-C`. Post-release error-handling fix sprints (**c.6–c.8**) target `integrate/phase-C-fixes`. Sprint authority: `docs/plans/phase-C/`. Dependency graph:
 
 ```
 Phase B ──┬──► c.1 ──► c.2 ──┐
-          │                   ├──► c.4 ──► c.5
-          └──► c.3 ───────────┘
+          │                   ├──► c.4 ──► c.5 ──► c.6 ──► c.7
+          └──► c.3 ───────────┘                      └──► c.8
 ```
 
 - **c.1 → c.2:** icon asset bundle, then named-icon validation and resolution
 - **c.3:** independent after Phase B (Win/Linux chrome does not block on c.1–c.2)
 - **c.4:** depends on c.1, c.2, and c.3
 - **c.5:** depends on c.4
+- **c.6 → c.7 / c.8:** post-release Result propagation, then CLI test hardening and clippy deny gate (parallel after c.6)
 
 **Inherited from Phase B:** Dialog auto-size **min 320×200** / **max 800×600**; Win/Linux native OS decorations until c.3; b.2 placeholder icons at `assets/icons/placeholder/` until c.1 production bundle.
 
-**Sprints:** five active (**c.1–c.5**). See [docs/plans/phase-C/README.md](phase-C/README.md).
+**Sprints:** five release (**c.1–c.5**) plus three post-release fixes (**c.6–c.8**). See [docs/plans/phase-C/README.md](phase-C/README.md).
 
-| Sprint | Title | Doc |
-|--------|-------|-----|
-| c.1 | Production icon asset bundle | [c1-icon-set.md](phase-C/c1-icon-set.md) |
-| c.2 | Full icon field resolution | [c2-icon-resolution.md](phase-C/c2-icon-resolution.md) |
-| c.3 | Windows and Linux platform chrome | [c3-win-linux-chrome.md](phase-C/c3-win-linux-chrome.md) |
-| c.4 | Cross-platform validation and NFR pass | [c4-nfr-validation.md](phase-C/c4-nfr-validation.md) |
-| c.5 | Release tooling and v0.1.0 | [c5-release.md](phase-C/c5-release.md) |
+| Sprint | Title | Doc | Target branch |
+|--------|-------|-----|---------------|
+| c.1 | Production icon asset bundle | [c1-icon-set.md](phase-C/c1-icon-set.md) | `integrate/phase-C` |
+| c.2 | Full icon field resolution | [c2-icon-resolution.md](phase-C/c2-icon-resolution.md) | `integrate/phase-C` |
+| c.3 | Windows and Linux platform chrome | [c3-win-linux-chrome.md](phase-C/c3-win-linux-chrome.md) | `integrate/phase-C` |
+| c.4 | Cross-platform validation and NFR pass | [c4-nfr-validation.md](phase-C/c4-nfr-validation.md) | `integrate/phase-C` |
+| c.5 | Release tooling and v0.1.0 | [c5-release.md](phase-C/c5-release.md) | `integrate/phase-C` |
+| c.6 | Result propagation (no production panics) | [c6-result-propagation.md](phase-C/c6-result-propagation.md) | `integrate/phase-C-fixes` |
+| c.7 | CLI integration test hardening | [c7-cli-test-hardening.md](phase-C/c7-cli-test-hardening.md) | `integrate/phase-C-fixes` |
+| c.8 | Clippy deny unauthorized panics | [c8-clippy-deny-unwrap.md](phase-C/c8-clippy-deny-unwrap.md) | `integrate/phase-C-fixes` |
 
 ---
 
@@ -152,7 +156,7 @@ Phase E sprint PRs target `integrate/phase-E`. Sprint authority: `docs/plans/pha
 |-------|---------|-------|
 | Phase A — Foundation | 7 | Working binary, `chrome` command |
 | Phase B — Core Dialogs | 8 | **MVP — all dialog types usable** |
-| Phase C — Release v0.1.0 | 5 | **v0.1.0 on mac/win/linux** |
+| Phase C — Release v0.1.0 | 5 + 3 fixes | **v0.1.0 on mac/win/linux** (+ c.6–c.8 error-handling hardening) |
 | Phase D — Wizard | 6 | Multi-page wizard with branching |
 | Phase E — Interactive & MCP | 4 | Agent-driveable status viewer + MCP |
 

@@ -9,6 +9,21 @@ use serde::Serialize;
 use crate::error_code::ErrorCode;
 use crate::field_name::FieldName;
 
+/// Failure serializing a [`StderrError`] (or similar) to JSON.
+#[derive(Debug)]
+pub struct SerializeError {
+    /// Human-readable serialization failure detail.
+    pub message: String,
+}
+
+impl std::fmt::Display for SerializeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "serialize error: {}", self.message)
+    }
+}
+
+impl std::error::Error for SerializeError {}
+
 /// Structured stderr JSON payload emitted by the CLI on failure.
 ///
 /// # Wire shape
@@ -46,6 +61,32 @@ pub struct StderrError {
     /// Repo-relative docs or requirements reference.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub docs: Option<String>,
+}
+
+#[cfg(test)]
+thread_local! {
+    /// Scoped test seam: only the arming thread sees forced serialize failures.
+    static FORCE_SERIALIZE_FAIL: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// RAII guard that forces [`StderrError::to_json_string`] to fail on this thread.
+#[cfg(test)]
+pub struct ForceSerializeFailGuard;
+
+#[cfg(test)]
+impl ForceSerializeFailGuard {
+    /// Arm the thread-local force-fail flag until this guard is dropped.
+    pub fn arm() -> Self {
+        FORCE_SERIALIZE_FAIL.with(|f| f.set(true));
+        Self
+    }
+}
+
+#[cfg(test)]
+impl Drop for ForceSerializeFailGuard {
+    fn drop(&mut self) {
+        FORCE_SERIALIZE_FAIL.with(|f| f.set(false));
+    }
 }
 
 impl StderrError {
@@ -88,17 +129,28 @@ impl StderrError {
 
     /// Serialize to a JSON string for stderr.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics if serialization fails (should be impossible for this type).
-    pub fn to_json_string(&self) -> String {
-        serde_json::to_string(self).expect("StderrError serializes")
+    /// Returns [`SerializeError`] when `serde_json` cannot serialize this envelope.
+    pub fn to_json_string(&self) -> Result<String, SerializeError> {
+        #[cfg(test)]
+        {
+            if FORCE_SERIALIZE_FAIL.with(std::cell::Cell::get) {
+                return Err(SerializeError {
+                    message: "forced".into(),
+                });
+            }
+        }
+        serde_json::to_string(self).map_err(|e| SerializeError {
+            message: e.to_string(),
+        })
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
 
     #[test]
     fn omits_empty_optional_fields() {
@@ -106,7 +158,7 @@ mod tests {
             .cause("trailing comma")
             .recovery("Ensure input is valid JSON");
         let value: serde_json::Value =
-            serde_json::from_str(&err.to_json_string()).expect("valid JSON");
+            serde_json::from_str(&err.to_json_string().expect("serialize")).expect("valid JSON");
         assert_eq!(value["error"], "parse");
         assert_eq!(value["code"], "PARSE_ERROR");
         assert!(value.get("field").is_none());
@@ -116,5 +168,13 @@ mod tests {
             value["recovery"],
             serde_json::json!(["Ensure input is valid JSON"])
         );
+    }
+
+    #[test]
+    #[serial]
+    fn serialize_error_forced_fail() {
+        let _guard = ForceSerializeFailGuard::arm();
+        let err = StderrError::new(ErrorCode::ParseError, "x");
+        assert!(err.to_json_string().is_err());
     }
 }

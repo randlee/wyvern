@@ -90,7 +90,7 @@ fn parse_json(text: &str) -> Result<Value, LoadError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::error::emit_load_error;
+    use crate::error::{emit_io_error, emit_parse_error};
     use std::io::Cursor;
 
     fn args(items: &[&str]) -> Vec<String> {
@@ -189,7 +189,7 @@ mod tests {
     fn input_parse_error_with_quotes_emits_valid_json() {
         let err =
             load_command_input(&args(&[r#"{ "bad": }"#]), Cursor::new("")).expect_err("parse");
-        let out = emit_load_error(&err);
+        let out = emit_parse_error(&err).expect("emit");
         let value: Value = serde_json::from_str(&out).expect("valid JSON stderr");
         assert_eq!(value["error"], "parse");
         assert!(value["message"].is_string());
@@ -203,7 +203,7 @@ mod tests {
         let path = dir.join(r#"say "hi".json"#);
         let err = load_command_input(&args(&[path.to_str().unwrap()]), Cursor::new(""))
             .expect_err("missing quoted path");
-        let out = emit_load_error(&err);
+        let out = emit_io_error(&err).expect("emit");
         let value: Value = serde_json::from_str(&out).expect("valid JSON stderr");
         assert_eq!(value["error"], "io");
         assert_eq!(value["field"], "file");
