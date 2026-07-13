@@ -4,8 +4,6 @@ Phase C implementation PRs target **`integrate/phase-C`**. This directory is the
 
 Sprints are **sequentially numbered** `c.1` → `c.5` (strict dependency order — not parallel sub-sprints).
 
-> **Note:** Sprint docs are being fully hardened in workstream (b/c). This README and c.1–c.5 sprint docs may land incrementally before hardening completes.
-
 ## What Phase C closes
 
 - Full shipped icon bundle (REQ-0030, REQ-0031) replacing Phase B **placeholder** SVGs at `assets/icons/placeholder/`
@@ -63,9 +61,9 @@ Modal types (`message`, `input`, `markdown`, `question`) keep REQ-0083: minimize
 | Sprint | Doc | Branch (pattern) |
 |--------|-----|------------------|
 | c.1 | [c1-icon-set.md](c1-icon-set.md) | `feature/phase-C-c1-icon-set` |
-| c.2 | [c2-icon-variants.md](c2-icon-variants.md) | `feature/phase-C-c2-icon-variants` |
+| c.2 | [c2-icon-resolution.md](c2-icon-resolution.md) | `feature/phase-C-c2-icon-resolution` |
 | c.3 | [c3-win-linux-chrome.md](c3-win-linux-chrome.md) | `feature/phase-C-c3-win-linux-chrome` |
-| c.4 | [c4-cross-platform-validation.md](c4-cross-platform-validation.md) | `feature/phase-C-c4-cross-platform-validation` |
+| c.4 | [c4-nfr-validation.md](c4-nfr-validation.md) | `feature/phase-C-c4-nfr-validation` |
 | c.5 | [c5-release.md](c5-release.md) | `feature/phase-C-c5-release` |
 
 ## Cross-cutting contracts

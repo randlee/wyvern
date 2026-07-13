@@ -2,7 +2,7 @@
 id: c.2
 title: Full icon field resolution and validation
 status: pending
-branch: feature/phase-C-c2-icon-variants
+branch: feature/phase-C-c2-icon-resolution
 target: integrate/phase-C
 ---
 

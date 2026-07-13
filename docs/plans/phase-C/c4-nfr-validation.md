@@ -2,7 +2,7 @@
 id: c.4
 title: Cross-platform validation and NFR pass
 status: pending
-branch: feature/phase-C-c4-cross-platform-validation
+branch: feature/phase-C-c4-nfr-validation
 target: integrate/phase-C
 ---
 

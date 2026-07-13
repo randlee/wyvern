@@ -88,9 +88,9 @@ Phase C sprint PRs target `integrate/phase-C`. Sprint authority: `docs/plans/pha
 | Sprint | Title | Doc |
 |--------|-------|-----|
 | c.1 | Production icon asset bundle | [c1-icon-set.md](phase-C/c1-icon-set.md) |
-| c.2 | Full icon field resolution | [c2-icon-variants.md](phase-C/c2-icon-variants.md) |
+| c.2 | Full icon field resolution | [c2-icon-resolution.md](phase-C/c2-icon-resolution.md) |
 | c.3 | Windows and Linux platform chrome | [c3-win-linux-chrome.md](phase-C/c3-win-linux-chrome.md) |
-| c.4 | Cross-platform validation and NFR pass | [c4-cross-platform-validation.md](phase-C/c4-cross-platform-validation.md) |
+| c.4 | Cross-platform validation and NFR pass | [c4-nfr-validation.md](phase-C/c4-nfr-validation.md) |
 | c.5 | Release tooling and v0.1.0 | [c5-release.md](phase-C/c5-release.md) |
 
 ---
