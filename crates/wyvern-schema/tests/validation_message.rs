@@ -4,7 +4,7 @@ use serde_json::json;
 use wyvern_schema::{validate, ButtonsPreset, Command, ValidationError};
 
 #[test]
-fn message_ok_preset_passes() {
+fn validation_message_ok_preset_passes() {
     let cmd = validate(&json!({
         "type": "message",
         "title": "T",
@@ -33,7 +33,7 @@ fn message_ok_preset_passes() {
 }
 
 #[test]
-fn message_all_presets_accepted() {
+fn validation_message_all_presets_accepted() {
     for preset in ["ok", "ok_cancel", "yes_no", "yes_no_cancel", "retry_cancel"] {
         let cmd = validate(&json!({
             "type": "message",
@@ -47,7 +47,7 @@ fn message_all_presets_accepted() {
 }
 
 #[test]
-fn message_custom_buttons_pass() {
+fn validation_message_custom_buttons_pass() {
     let cmd = validate(&json!({
         "type": "message",
         "title": "T",
@@ -76,7 +76,7 @@ fn message_custom_buttons_pass() {
 }
 
 #[test]
-fn message_missing_title_fails() {
+fn validation_message_missing_title_fails() {
     let err = validate(&json!({
         "type": "message",
         "message": "Hi",
@@ -90,7 +90,7 @@ fn message_missing_title_fails() {
 }
 
 #[test]
-fn message_missing_message_fails() {
+fn validation_message_missing_message_fails() {
     let err = validate(&json!({
         "type": "message",
         "title": "T",
@@ -104,7 +104,7 @@ fn message_missing_message_fails() {
 }
 
 #[test]
-fn message_custom_without_custom_buttons_fails() {
+fn validation_message_custom_without_custom_buttons_fails() {
     let err = validate(&json!({
         "type": "message",
         "title": "T",
@@ -122,7 +122,7 @@ fn message_custom_without_custom_buttons_fails() {
 }
 
 #[test]
-fn message_custom_buttons_with_non_custom_fails() {
+fn validation_message_custom_buttons_with_non_custom_fails() {
     let err = validate(&json!({
         "type": "message",
         "title": "T",
@@ -141,7 +141,7 @@ fn message_custom_buttons_with_non_custom_fails() {
 }
 
 #[test]
-fn message_default_button_out_of_range_fails() {
+fn validation_message_default_button_out_of_range_fails() {
     let err = validate(&json!({
         "type": "message",
         "title": "T",
@@ -160,7 +160,7 @@ fn message_default_button_out_of_range_fails() {
 }
 
 #[test]
-fn message_unknown_field_fails() {
+fn validation_message_unknown_field_fails() {
     let err = validate(&json!({
         "type": "message",
         "title": "T",
@@ -179,7 +179,7 @@ fn message_unknown_field_fails() {
 }
 
 #[test]
-fn message_deferred_level_fails() {
+fn validation_message_deferred_level_fails() {
     let err = validate(&json!({
         "type": "message",
         "title": "T",
@@ -198,7 +198,7 @@ fn message_deferred_level_fails() {
 }
 
 #[test]
-fn message_deferred_icon_fails() {
+fn validation_message_deferred_icon_fails() {
     let err = validate(&json!({
         "type": "message",
         "title": "T",
@@ -214,7 +214,7 @@ fn message_deferred_icon_fails() {
 }
 
 #[test]
-fn message_deferred_image_fails() {
+fn validation_message_deferred_image_fails() {
     let err = validate(&json!({
         "type": "message",
         "title": "T",
@@ -230,7 +230,7 @@ fn message_deferred_image_fails() {
 }
 
 #[test]
-fn message_deferred_markdown_fails() {
+fn validation_message_deferred_markdown_fails() {
     let err = validate(&json!({
         "type": "message",
         "title": "T",
@@ -249,7 +249,7 @@ fn message_deferred_markdown_fails() {
 }
 
 #[test]
-fn message_buttons_near_miss_suggests() {
+fn validation_message_buttons_near_miss_suggests() {
     let err = validate(&json!({
         "type": "message",
         "title": "T",
