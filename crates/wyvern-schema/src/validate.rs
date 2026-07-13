@@ -551,7 +551,7 @@ mod tests {
             "title":"T",
             "message":"Hi",
             "buttons":"ok",
-            "level":"warn"
+            "level":"warnin"
         }))
         .expect_err("bad level");
         match err {

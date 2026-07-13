@@ -313,7 +313,11 @@ mod tests {
         .expect("render");
         assert!(html.contains("<strong>Low</strong>"), "html={html}");
         assert!(html.contains(r#"id="body" class="markdown-body""#));
-        assert!(!html.contains("**Low**"));
+        let body_start = html.find(r#"id="body""#).expect("body");
+        let body_end = html.find(r#"id="button-bar""#).expect("buttons");
+        let body = &html[body_start..body_end];
+        assert!(body.contains("<strong>Low</strong>"));
+        assert!(!body.contains("**Low**"), "raw markdown leaked into body");
     }
 
     #[test]
