@@ -836,7 +836,7 @@ fn validate_question(obj: &Map<String, Value>) -> Result<Command, ValidationErro
                 }
             };
 
-            // preview accepted but not required; not rendered at b.7.
+            // preview accepted; rendered (sanitized) in b.8.
             let preview = match opt_obj.get("preview") {
                 None => None,
                 Some(Value::String(s)) => Some(s.clone()),

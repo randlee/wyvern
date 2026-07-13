@@ -221,7 +221,7 @@ pub struct QuestionOption {
     pub label: String,
     /// Secondary text under the label.
     pub description: String,
-    /// Optional HTML/markdown preview fragment (accepted; rendered in b.8).
+    /// Optional HTML/markdown preview fragment (rendered sanitized in b.8).
     pub preview: Option<String>,
 }
 

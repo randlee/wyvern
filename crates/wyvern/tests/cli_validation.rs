@@ -259,3 +259,33 @@ fn cli_wrong_title_type_expected_got() {
     assert!(message.contains("expected string"));
     assert!(message.contains("number"));
 }
+
+/// README Phase B acceptance #4 — question opens; OS close → REQ-0068 shape.
+#[test]
+fn cli_question_auto_dismiss_emits_req_0068() {
+    let (code, stdout, stderr) = run_json(
+        r#"{"type":"question","questions":[{"question":"Output format?","header":"Format","options":[{"label":"JSON","description":"Structured","preview":"<pre>{\"ok\":true}</pre>"},{"label":"Plain","description":"Text only"}],"multiSelect":false}]}"#,
+    );
+    assert_eq!(code, 0, "stderr={stderr}");
+    assert!(stderr.trim().is_empty(), "stderr={stderr}");
+    let value: serde_json::Value = serde_json::from_str(stdout.trim()).expect("stdout json");
+    assert_eq!(value["button"], "dismissed");
+    assert_eq!(value["answers"], serde_json::json!({}));
+    assert_eq!(value["response"], "");
+    assert_eq!(value["questions"][0]["question"], "Output format?");
+    assert_eq!(
+        value["questions"][0]["options"][0]["preview"],
+        r#"<pre>{"ok":true}</pre>"#
+    );
+}
+
+/// README Phase B acceptance #5 — wizard still Phase D validation error.
+#[test]
+fn cli_wizard_still_validation_error() {
+    let (code, stdout, stderr) = run_json(r#"{"type":"wizard","title":"T"}"#);
+    assert_ne!(code, 0);
+    assert!(stdout.trim().is_empty(), "stdout={stdout}");
+    let value = stderr_json(&stderr);
+    assert_eq!(value["error"], "validation");
+    assert_eq!(value["field"], "type");
+}

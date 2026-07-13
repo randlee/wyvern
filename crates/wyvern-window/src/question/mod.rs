@@ -2,6 +2,7 @@
 
 mod handler;
 mod render;
+mod sanitize;
 
 pub(crate) use handler::run_question;
 pub use render::{
