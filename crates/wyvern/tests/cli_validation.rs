@@ -1,9 +1,12 @@
-//! CLI integration: load → validate → exit (no window until a.5).
+//! CLI integration: load → validate → run → emit.
 
 use std::process::Command;
 
 fn wyvern() -> Command {
-    Command::new(env!("CARGO_BIN_EXE_wyvern"))
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_wyvern"));
+    // Auto-dismiss so chrome GUI paths do not block the test harness.
+    cmd.env("WYVERN_AUTO_DISMISS", "1");
+    cmd
 }
 
 fn run_json(json: &str) -> (i32, String, String) {
@@ -21,13 +24,10 @@ fn stderr_json(stderr: &str) -> serde_json::Value {
 }
 
 #[test]
-fn cli_valid_chrome_exits_zero_no_stdout() {
+fn cli_valid_chrome_emits_dismissed() {
     let (code, stdout, stderr) = run_json(r#"{"type":"chrome","title":"T"}"#);
     assert_eq!(code, 0, "stderr={stderr}");
-    assert!(
-        stdout.trim().is_empty(),
-        "no window emit until a.5: {stdout}"
-    );
+    assert_eq!(stdout.trim(), r#"{"button":"dismissed"}"#);
     assert!(stderr.trim().is_empty(), "stderr={stderr}");
 }
 

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    #title-bar {
+      -webkit-app-region: drag;
+      padding-left: 72px;
+      padding-right: 12px;
+      height: 36px;
+      line-height: 36px;
+      font-size: 13px;
+      font-weight: 600;
+      user-select: none;
+      flex-shrink: 0;
+    }
+    #status-bar {
+      padding: 4px 12px;
+      font-size: 12px;
+      opacity: 0.75;
+      flex-shrink: 0;
+    }
+    #status-bar:empty { display: none; }
+    #content {
+      flex: 1;
+      min-height: 0;
+    }
+    #button-bar[hidden] { display: none; }
+  </style>
+</head>
+<body>
+  <div id="title-bar">{{TITLE}}</div>
+  {{STATUS_BLOCK}}
+  <div id="content"></div>
+  <div id="button-bar" hidden></div>
+</body>
+</html>

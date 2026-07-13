@@ -1,4 +1,4 @@
-//! Integration: blank winit+wry window opens and dismisses cleanly.
+//! Integration: chrome winit+wry window opens and dismisses cleanly.
 //!
 //! Custom harness (`harness = false`) so `main` runs on the process main
 //! thread — required by winit on macOS (and safest cross-platform).
@@ -29,8 +29,6 @@ fn main() {
 
 fn blank_window_dismisses() {
     let result = support::open_blank_window_for_test();
-    assert!(
-        result.is_ok(),
-        "blank window should dismiss with Ok(()), got {result:?}"
-    );
+    let result = result.expect("chrome window should dismiss with Ok(CommandResult)");
+    support::assert_dismissed(&result);
 }

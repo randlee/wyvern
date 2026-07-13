@@ -1,14 +1,9 @@
-//! Wyvern CLI — load → validate (window execution arrives in a.5).
+//! Wyvern CLI — thin wrapper around load → pipeline (validate → run → emit).
 
-mod error;
-mod input;
-
-use std::io::{self, IsTerminal};
+use std::io::{self, IsTerminal, Write};
 use std::process::ExitCode;
 
-use error::{emit_load_error, emit_validation_error, LoadError};
-use input::{load_command_input, usage_message};
-use wyvern_schema::validate;
+use wyvern::{emit_load_error, load_command_input, run_from_loaded, usage_message, LoadError};
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -31,15 +26,15 @@ fn main() -> ExitCode {
         }
     };
 
-    match validate(&value) {
-        Ok(_command) => {
-            // a.4 interim: valid chrome exits 0 without opening a window.
-            // a.5 wires wyvern_window::run and stdout emission.
+    match run_from_loaded(value) {
+        Ok(stdout) => {
+            let mut out = io::stdout().lock();
+            let _ = writeln!(out, "{stdout}");
             ExitCode::SUCCESS
         }
-        Err(err) => {
-            eprintln!("{}", emit_validation_error(&err));
-            ExitCode::from(1)
+        Err((stderr_json, code)) => {
+            eprintln!("{stderr_json}");
+            ExitCode::from(u8::try_from(code).unwrap_or(1))
         }
     }
 }
