@@ -3,6 +3,7 @@
 use serde_json::{json, Value};
 use wyvern_schema::{ButtonsPreset, MessageLevel};
 
+use crate::chrome::{platform_chrome_for, title_bar_style, window_controls_block, CommandKind};
 use crate::error::RunError;
 use crate::markdown::markdown_to_html;
 use crate::message::media::{resolve_image_src, resolve_level_icon_html};
@@ -149,9 +150,12 @@ pub fn render_message_html(input: &MessageRenderInput<'_>) -> Result<String, Run
         "markdown": markdown,
     });
     let context_json = context.to_string();
+    let chrome = platform_chrome_for(CommandKind::Message);
 
     Ok(MESSAGE_HTML
         .replace("{{TITLE}}", &safe_title)
+        .replace("{{TITLE_BAR_STYLE}}", title_bar_style(&chrome))
+        .replace("{{WINDOW_CONTROLS_BLOCK}}", &window_controls_block(&chrome))
         .replace("{{STATUS_BLOCK}}", &status_block)
         .replace("{{LEVEL_ICON}}", &level_icon_block)
         .replace("{{BODY_CLASS}}", body_class)
@@ -268,7 +272,7 @@ mod tests {
             None,
             Some(0),
         );
-        assert!(html.contains(r#"id="title-bar">Title"#));
+        assert!(html.contains(r#"id="title-text">Title</span>"#));
         assert!(html.contains("Hello body"));
         assert!(!html.contains(r#"id="status-bar""#));
         assert!(html.contains(r#"data-wire="ok""#));
@@ -278,6 +282,19 @@ mod tests {
         assert!(!html.contains(r#"id="button-bar" hidden"#));
         assert!(!html.contains(r#"id="level-icon""#));
         assert!(!html.contains(r#"id="decorative-image""#));
+        assert!(html.contains(r#"getElementById("window-controls")"#));
+        assert!(!html.contains("data-action=\"minimize\""));
+        #[cfg(target_os = "macos")]
+        {
+            assert!(html.contains("padding-left: 72px"));
+            assert!(!html.contains(r#"id="window-controls""#));
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            assert!(!html.contains("padding-left: 72px"));
+            assert!(html.contains(r#"id="window-controls""#));
+            assert!(html.contains(r#"data-action="close""#));
+        }
     }
 
     #[test]

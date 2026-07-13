@@ -8,6 +8,7 @@ use wry::WebViewBuilder;
 
 use wyvern_schema::{CommandResult, QuestionCard, QuestionResult};
 
+use crate::chrome::{parse_chrome_ipc, ChromeIpc};
 use crate::error::RunError;
 use crate::window::{init_platform, modal_window_attributes, pump_gtk_events};
 
@@ -133,6 +134,15 @@ impl QuestionApp {
     }
 
     fn handle_ipc(&mut self, event_loop: &ActiveEventLoop, raw: &str) {
+        if let Some(msg) = parse_chrome_ipc(raw) {
+            match msg {
+                ChromeIpc::WindowMinimize => return, // modal: no-op — must NOT dismiss
+                ChromeIpc::WindowClose => {
+                    self.dismiss(event_loop);
+                    return;
+                }
+            }
+        }
         match parse_question_page_ipc(raw) {
             Some(QuestionPageIpc::QuestionSubmitted { answers }) => {
                 if answers.is_empty() {

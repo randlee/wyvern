@@ -3,6 +3,7 @@
 use serde_json::{json, Value};
 use wyvern_schema::{ButtonsPreset, InputMode};
 
+use crate::chrome::{platform_chrome_for, title_bar_style, window_controls_block, CommandKind};
 use crate::error::RunError;
 use crate::markdown::markdown_to_html;
 use crate::message::media::resolve_level_icon_html;
@@ -162,9 +163,12 @@ pub fn render_input_html(input: &InputRenderInput<'_>) -> Result<String, RunErro
         "picker": picker_mode,
     });
     let context_json = context.to_string();
+    let chrome = platform_chrome_for(CommandKind::Input);
 
     Ok(INPUT_HTML
         .replace("{{TITLE}}", &safe_title)
+        .replace("{{TITLE_BAR_STYLE}}", title_bar_style(&chrome))
+        .replace("{{WINDOW_CONTROLS_BLOCK}}", &window_controls_block(&chrome))
         .replace("{{STATUS_BLOCK}}", &status_block)
         .replace("{{LEVEL_ICON}}", &level_icon_block)
         .replace("{{BODY_CLASS}}", body_class)
@@ -286,7 +290,7 @@ mod tests {
     #[test]
     fn render_single_line_includes_input_and_buttons() {
         let html = render_basic("Name", "Enter name", false, Some("hint"), Some("Ada"));
-        assert!(html.contains(r#"id="title-bar">Name"#));
+        assert!(html.contains(r#"id="title-text">Name</span>"#));
         assert!(html.contains("Enter name"));
         assert!(html.contains(r#"id="input-field""#));
         assert!(html.contains(r#"class="single-line""#));

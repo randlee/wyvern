@@ -27,6 +27,11 @@ path = "tests/blank_window.rs"
 harness = false
 
 [[test]]
+name = "chrome_ipc"
+path = "tests/chrome_ipc.rs"
+harness = false
+
+[[test]]
 name = "message_ipc"
 path = "tests/message_ipc.rs"
 harness = false

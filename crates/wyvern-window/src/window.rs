@@ -55,9 +55,9 @@ fn set_env_if_unset(key: &str, value: &str) {
     }
 }
 
-/// Phase A platform interim policy (see phase-A README):
-/// - macOS: transparent title bar + full-size content (ADR-0010)
-/// - Windows/Linux: native OS decorations (custom chrome deferred to Phase C)
+/// Platform chrome window attributes (ADR-0010 / ADR-0010a):
+/// - macOS: transparent title bar + full-size content
+/// - Windows/Linux: `decorations: false` + HTML window controls
 pub(crate) fn chrome_window_attributes(title: &str) -> WindowAttributes {
     let attrs = Window::default_attributes()
         .with_title(title)
@@ -99,7 +99,7 @@ fn apply_platform_chrome(attrs: WindowAttributes) -> WindowAttributes {
     };
 
     #[cfg(not(target_os = "macos"))]
-    let attrs = attrs.with_decorations(true);
+    let attrs = attrs.with_decorations(false);
 
     attrs
 }

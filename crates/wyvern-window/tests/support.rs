@@ -21,6 +21,39 @@ pub fn open_blank_window_for_test() -> Result<CommandResult, RunError> {
     })
 }
 
+/// Opens chrome via [`wyvern_window::run`], injects IPC, and returns the result.
+pub fn open_chrome_with_injected_ipc(ipc_json: &str) -> Result<CommandResult, RunError> {
+    // SAFETY: integration test harness runs single-threaded before other work.
+    unsafe {
+        std::env::remove_var("WYVERN_AUTO_DISMISS");
+        std::env::set_var("WYVERN_INJECT_IPC", ipc_json);
+    }
+    let result = wyvern_window::run(Command::Chrome {
+        title: ChromeTitle::new("wyvern-chrome-ipc-test"),
+        status: None,
+    });
+    unsafe { std::env::remove_var("WYVERN_INJECT_IPC") };
+    result
+}
+
+/// Opens chrome, injects IPC, then auto-dismisses (for non-completing IPC like minimize).
+pub fn open_chrome_inject_then_auto_dismiss(ipc_json: &str) -> Result<CommandResult, RunError> {
+    // SAFETY: integration test harness runs single-threaded before other work.
+    unsafe {
+        std::env::set_var("WYVERN_AUTO_DISMISS", "1");
+        std::env::set_var("WYVERN_INJECT_IPC", ipc_json);
+    }
+    let result = wyvern_window::run(Command::Chrome {
+        title: ChromeTitle::new("wyvern-chrome-minimize-test"),
+        status: None,
+    });
+    unsafe {
+        std::env::remove_var("WYVERN_INJECT_IPC");
+        std::env::remove_var("WYVERN_AUTO_DISMISS");
+    }
+    result
+}
+
 /// Opens a message dialog and injects IPC JSON (test harness hook).
 pub fn open_message_with_injected_ipc(ipc_json: &str) -> Result<CommandResult, RunError> {
     // SAFETY: integration test harness runs single-threaded before other work.
