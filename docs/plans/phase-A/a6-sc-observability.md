@@ -29,7 +29,57 @@ target: integrate/phase-A
 - Path dep: `sc-observability = { path = "../../sc-observability" }` in `crates/wyvern/Cargo.toml`
 - Log events: `process_start`, `command_received`, `validation_result`, `window_open`, `window_close`, `result_emitted`, `error`
 - `WYVERN_LOG` env var documented
-- CI clones `sc-observability` beside repo root (required)
+- CI clones siblings beside repo; Phase A CI policy below (authoritative until Phase C)
+
+## Phase A CI policy (authoritative)
+
+Phase A window/chrome work is **macOS-only**. CI keeps the cross-platform matrix but gates window-dependent steps:
+
+| Leg | `cargo build` / `clippy` | `cargo test --workspace` | Sibling checkout |
+|-----|--------------------------|--------------------------|------------------|
+| `macos-latest` | full workspace | full workspace (incl. window tests) | `sc-observability`, `sc-lint` |
+| `ubuntu-latest`, `windows-latest` | full workspace | **skip** `wyvern-window` macOS integration tests via `#[cfg(target_os = "macos")]` no-op pattern (a.2) | `sc-observability`, `sc-lint` |
+
+a.7 lint step runs on **all** legs after sibling checkout.
+
+### CI YAML sample (append to `.github/workflows/ci.yml`)
+
+```yaml
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout sc-observability sibling
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/sc-observability
+          path: sc-observability
+
+      - name: Checkout sc-lint sibling
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/sc-lint
+          path: sc-lint
+
+      # Repo root is $GITHUB_WORKSPACE; siblings sit beside it:
+      #   $GITHUB_WORKSPACE/../sc-observability  → ../../sc-observability from crates/wyvern
+      - name: Link siblings for path deps
+        run: |
+          ln -sf "$GITHUB_WORKSPACE/../sc-observability" "${{ github.workspace }}/../sc-observability" || true
+          ln -sf "$GITHUB_WORKSPACE/../sc-lint" "${{ github.workspace }}/../sc-lint" || true
+
+      # ... Rust toolchain, build, clippy ...
+
+      - name: cargo test (macOS full)
+        if: runner.os == 'macOS'
+        run: cargo test --workspace
+
+      - name: cargo test (non-macOS — window tests no-op)
+        if: runner.os != 'macOS'
+        run: cargo test --workspace
+        # wyvern-window macOS tests are #[cfg]-gated; non-macOS legs pass via a.2 no-op test
+```
+
+Adjust checkout `repository` to the actual org/name; layout must resolve `../../sc-observability` from `crates/wyvern/Cargo.toml`.
 
 ## Explicit Code Samples
 
@@ -66,7 +116,7 @@ pub fn log_error(stage: &str, detail: &str) {
 }
 ```
 
-Adjust names to match the actual `sc-observability` API when wiring; event keys above are the required contract.
+Event keys above are normative; wrapper may rename `sc-observability` call symbols only if event keys and `WYVERN_LOG` behavior remain identical.
 
 ## This Sprint Does Not Close
 
@@ -78,7 +128,7 @@ Adjust names to match the actual `sc-observability` API when wiring; event keys 
 - With `../../sc-observability` present, `cargo build -p wyvern` succeeds
 - `WYVERN_LOG=debug` emits structured events on chrome E2E path
 - `rg 'sc_observability' crates/wyvern-schema crates/wyvern-window crates/wyvern-wizard crates/wyvern-mcp` → empty
-- CI workflow checks out `sc-observability` sibling (required — no feature-flag skip)
+- CI workflow implements Phase A CI policy (sibling checkout + macOS/full test gate per a.6)
 - `docs/observability.md` documents path layout and event list
 
 ## Required Validation

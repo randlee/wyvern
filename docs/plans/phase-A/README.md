@@ -13,6 +13,7 @@ Phase A implementation PRs target **`integrate/phase-A`**. This directory is the
 ## What Phase A does not close
 
 - Dialog types (`message`, `input`, `markdown`, `question`, `wizard`) — Phase B+
+- Chrome **button bar** (empty placeholder in a.5; interactive buttons in Phase B)
 - Windows/Linux platform chrome — Phase C (`integrate/phase-C`)
 - `--interactive` / MCP — later phase
 - Per-type validation beyond `chrome` — added as each type ships
@@ -20,8 +21,10 @@ Phase A implementation PRs target **`integrate/phase-A`**. This directory is the
 ## Direct-path execution model
 
 ```
-argv/stdin → load (LoadError) → validate (ValidationError) → Command → match type → run (RunError) → CommandResult → stdout JSON
+argv/stdin → load (LoadError) → validate (ValidationError) → Command → run (RunError) → CommandResult → stdout JSON
 ```
+
+Dispatch (`match` on `Command`) is **internal** to `wyvern_window::run` — not a separate public stage.
 
 One `type` → one handler. **No** `--window-demo`, **no** stub handlers, **no** mode flags on the product CLI.
 
@@ -46,6 +49,8 @@ Success on OS close:
 ```json
 { "button": "dismissed" }
 ```
+
+(`CommandResult::Chrome { button: "dismissed" }` in schema — extensible enum for later command out-types.)
 
 ## Sprint index (7 active: a.1–a.7)
 

@@ -18,14 +18,15 @@ pub enum ValidationError {
     State { field: String, message: String },
 }
 
-pub struct CommandResult {
-    pub button: String,
+pub enum CommandResult {
+    Chrome { button: String },
+    // Phase B+: Input { button, value }, Wizard { button, data, stack }, etc.
 }
 
 pub fn validate(value: &serde_json::Value) -> Result<Command, ValidationError>;
 ```
 
-`CommandResult` lives in `wyvern-schema` (protocol out-type). `wyvern-window::run` returns it.
+`CommandResult` is an extensible protocol enum in `wyvern-schema`. Phase A adds only `Chrome`; later phases add variants without changing the chrome wire shape (`{"button":"dismissed"}`).
 
 Parse/io errors are **not** `ValidationError` — they are `LoadError` in `crates/wyvern` (see `docs/plans/phase-A/README.md`).
 

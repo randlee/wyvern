@@ -60,7 +60,7 @@ github/
 ## Acceptance Criteria
 
 - `sc-lint check --config .sc-lint.toml` passes with zero warnings
-- CI includes lint step; fails on violations
+- CI lint step runs on all matrix legs per [a6-sc-observability.md](a6-sc-observability.md) Phase A CI policy
 - `docs/linting.md` documents sibling clone + canonical command
 - Phase A acceptance criteria #1–#3 pass after a.1–a.7 integrated
 

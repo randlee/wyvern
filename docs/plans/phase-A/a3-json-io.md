@@ -36,6 +36,17 @@ target: integrate/phase-A
 - **No arg → read stdin** (REQ-0004)
 - Missing/ambiguous args → usage on stderr, exit ≠ 0 (`LoadError::Usage`)
 
+**Usage argv shapes (authoritative):**
+
+| Args | Result |
+|------|--------|
+| `wyvern` (no args, empty stdin) | `LoadError::Usage` |
+| `wyvern arg1 arg2` (two+ positional args) | `LoadError::Usage` |
+| `wyvern --unknown-flag` | `LoadError::Usage` |
+| `wyvern file.json other.json` (two file paths) | `LoadError::Usage` |
+
+Single arg (inline JSON, `.json`, or `.md`) and stdin-with-no-args remain valid loaders.
+
 ## Explicit Code Samples
 
 ```rust
@@ -47,7 +58,20 @@ pub enum LoadError {
 
 pub fn load_command_input(args: &[String], stdin: impl Read) -> Result<Value, LoadError>;
 
-pub fn emit_load_error(err: &LoadError) -> String; // JSON for Parse/Io; Usage uses plain stderr in main
+pub fn emit_load_error(err: &LoadError) -> String {
+    match err {
+        LoadError::Parse { message } => {
+            format!(r#"{{"error":"parse","message":"{message}"}}"#)
+        }
+        LoadError::Io { field, message } => {
+            format!(r#"{{"error":"io","field":"{field}","message":"{message}"}}"#)
+        }
+        LoadError::Usage { .. } => {
+            // Usage: main prints plain stderr usage text + exit ≠ 0 — no JSON
+            unreachable!("Usage handled in main, not emit_load_error")
+        }
+    }
+}
 ```
 
 ## This Sprint Does Not Close
@@ -64,6 +88,9 @@ pub fn emit_load_error(err: &LoadError) -> String; // JSON for Parse/Io; Usage u
 - Stdin (no args): reads and parses JSON
 - Missing file: stderr `{ "error": "io", "field": "...", "message": "..." }`, exit ≠ 0
 - Invalid JSON: stderr `{ "error": "parse", "message": "..." }`, exit ≠ 0
+- Usage cases (table above): plain stderr usage text, exit ≠ 0, **no** JSON on stderr
+- `wyvern` with no args and empty stdin → usage, exit ≠ 0
+- `wyvern arg1 arg2` → usage, exit ≠ 0
 - Loaders testable without opening a window
 
 ## Required Validation

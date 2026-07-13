@@ -85,8 +85,10 @@ After validation, each command becomes a typed `Command` enum variant. Execution
 **Pipeline:**
 
 ```
-load → parse_json → validate(value) → Command → dispatch(type) → CommandResult → stdout
+load → validate(value) → Command → run(command) → CommandResult → stdout
 ```
+
+Parse is owned by `load`; there is no separate `parse_json` stage. Dispatch is internal to `run`.
 
 **Consequences:**
 - Phase A validates and executes only `chrome`

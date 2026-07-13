@@ -52,7 +52,7 @@
 
 **REQ-0063** — Every successful command writes exactly one JSON result line to stdout on completion.
 
-**REQ-0063a** — `chrome` (Phase A) → `{ "button": "dismissed" }` on OS close.
+**REQ-0063a** — `chrome` (Phase A) → `CommandResult::Chrome { button: "dismissed" }` serializes to `{ "button": "dismissed" }` on OS close.
 
 **REQ-0064** — `message` and `markdown` → `{ "button": "<label>" }`.
 

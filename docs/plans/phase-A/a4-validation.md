@@ -31,13 +31,17 @@ target: integrate/phase-A
 - `Command::Chrome { title, status }`
 - `validate(value) -> Result<Command, ValidationError>` (no `PhaseSurface` param — surface is the `Command` enum at compile time)
 - `ValidationError` enum: `Validation { field, message }`, `State { field, message }`
-- `CommandResult` for Phase A: `{ "button": "dismissed" }` shape defined in schema
+- `CommandResult` extensible enum; Phase A variant `Chrome { button }` serializes to `{ "button": "dismissed" }`
 - CLI: on validation failure → stderr JSON + exit ≠ 0; **no window**
 
 ## Required Work — validation rules (authoritative checklist)
 
 - `{"type":"chrome","title":"T"}` passes
 - `{"type":"chrome"}` fails: missing `title`
+- `{}` fails: missing `type` (field `type`)
+- `{"title":"T"}` fails: missing `type`
+- `{"type":null,"title":"T"}` fails: non-string `type`
+- `{"type":1,"title":"T"}` fails: wrong type on `type`
 - Unknown fields on `chrome` → validation error (REQ-0053)
 - Wrong JSON field types → explicit expected/got message
 - `{"type":"message",...}` → validation error on `type` (not implemented)
@@ -57,8 +61,9 @@ pub enum ValidationError {
     State { field: String, message: String },
 }
 
-pub struct CommandResult {
-    pub button: String,
+pub enum CommandResult {
+    Chrome { button: String },
+    // Phase B+ variants added here (e.g. Input, Wizard) without changing Chrome wire shape
 }
 
 pub fn validate(value: &serde_json::Value) -> Result<Command, ValidationError>;
@@ -93,6 +98,8 @@ pub fn emit_validation_error(err: &ValidationError) -> String {
 - CLI rejects invalid inputs with correct stderr `error` kind; no window
 - `wyvern '{"type":"message",...}'` → validation stderr, exit ≠ 0
 - `wyvern '{"type":"unknown"}'` → validation stderr, exit ≠ 0
+- `wyvern '{}'` → validation stderr on field `type`, exit ≠ 0
+- `wyvern '{"title":"T"}'` → validation stderr on field `type`, exit ≠ 0
 - Valid chrome JSON → exit 0, no stdout result yet (until a.5)
 
 ## Required Validation

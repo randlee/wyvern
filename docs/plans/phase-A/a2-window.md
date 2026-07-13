@@ -20,29 +20,49 @@ target: integrate/phase-A
 
 - `crates/wyvern-window/src/lib.rs`
 - `crates/wyvern-window/src/window.rs`
+- `crates/wyvern-window/src/error.rs` (`RunError` — production type from a.2)
 - `crates/wyvern-window/tests/blank_window.rs` (or `#[cfg(test)]` module)
 
 ## Deliverables
 
-- `#[cfg(test)]` helper `open_blank_window_for_test() -> Result<CloseReason, RunError>` in `crates/wyvern-window/tests/support.rs` (or `src/test_support.rs`) — **not** exported from `lib.rs`
+- Production `RunError` in `crates/wyvern-window/src/error.rs` (re-exported from `lib.rs` for a.5 CLI matching)
+- `#[cfg(test)]` helper `open_blank_window_for_test() -> Result<(), RunError>` in `crates/wyvern-window/tests/support.rs` — **not** exported from `lib.rs`
 - macOS transparent title bar + full-size content view (ADR-0010)
-- Integration test opens window, closes via API/event, asserts `CloseReason::Dismissed`
+- Integration test opens window, closes via API/event, asserts `Ok(())` (dismissed)
 
 ## Explicit Code Samples
 
 ```rust
-// crates/wyvern-window/tests/support.rs — test-only, not pub in lib.rs
-pub enum CloseReason {
-    Dismissed,
-}
-
+// crates/wyvern-window/src/error.rs — production type (a.2); a.5 extends usage, does not redefine
 pub enum RunError {
     WindowCreate { message: String },
     EventLoop { message: String },
 }
 
+// crates/wyvern-window/tests/support.rs — test-only, not pub in lib.rs
 #[cfg(test)]
-pub fn open_blank_window_for_test() -> Result<CloseReason, RunError>;
+pub fn open_blank_window_for_test() -> Result<(), RunError>;
+```
+
+a.5 absorbs this `RunError` and maps OS close → `CommandResult::Chrome { button: "dismissed" }`. No second `RunError` or `CloseReason` in a.5.
+
+## Phase A CI policy (window tests)
+
+Window integration tests are **macOS-only** until Phase C. Non-macOS CI legs skip them (see a.6 CI sample). Local validation on Linux/Windows uses the cfg gate below.
+
+## Explicit Code Samples (test gate)
+
+```rust
+// crates/wyvern-window/tests/blank_window.rs
+#[cfg(target_os = "macos")]
+#[test]
+fn blank_window_dismisses() { /* ... */ }
+
+#[cfg(not(target_os = "macos"))]
+#[test]
+fn blank_window_skipped_on_non_macos() {
+    // intentional no-op — CI ubuntu/windows legs pass without webview
+}
 ```
 
 ## This Sprint Does Not Close
@@ -54,11 +74,13 @@ pub fn open_blank_window_for_test() -> Result<CloseReason, RunError>;
 ## Acceptance Criteria
 
 - `cargo test -p wyvern-window -- blank_window` (or named test) passes on macOS
-- `CloseReason::Dismissed` returned on OS close
+- `Ok(())` from test helper on OS close (maps to `CommandResult` in a.5)
 - No `wyvern` CLI subcommand added for window testing
 
 ## Required Validation
 
-- `cargo test -p wyvern-window`
+- **macOS:** `cargo test -p wyvern-window -- blank_window`
+- **Linux/Windows:** `cargo test -p wyvern-window` passes via `#[cfg(not(target_os = "macos"))]` no-op test (see Explicit Code Samples)
+- CI: follow Phase A CI policy in [a6-sc-observability.md](a6-sc-observability.md) — window tests run only on `macos-latest`
 - `cargo build --workspace`
 - `cargo clippy --workspace -- -D warnings`
