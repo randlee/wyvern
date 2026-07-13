@@ -64,8 +64,30 @@ pub struct StderrError {
 }
 
 #[cfg(test)]
-static FORCE_SERIALIZE_FAIL: std::sync::atomic::AtomicBool =
-    std::sync::atomic::AtomicBool::new(false);
+thread_local! {
+    /// Scoped test seam: only the arming thread sees forced serialize failures.
+    static FORCE_SERIALIZE_FAIL: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// RAII guard that forces [`StderrError::to_json_string`] to fail on this thread.
+#[cfg(test)]
+pub struct ForceSerializeFailGuard;
+
+#[cfg(test)]
+impl ForceSerializeFailGuard {
+    /// Arm the thread-local force-fail flag until this guard is dropped.
+    pub fn arm() -> Self {
+        FORCE_SERIALIZE_FAIL.with(|f| f.set(true));
+        Self
+    }
+}
+
+#[cfg(test)]
+impl Drop for ForceSerializeFailGuard {
+    fn drop(&mut self) {
+        FORCE_SERIALIZE_FAIL.with(|f| f.set(false));
+    }
+}
 
 impl StderrError {
     /// Start a stderr envelope for `code` with the historical slug and message.
@@ -112,10 +134,12 @@ impl StderrError {
     /// Returns [`SerializeError`] when `serde_json` cannot serialize this envelope.
     pub fn to_json_string(&self) -> Result<String, SerializeError> {
         #[cfg(test)]
-        if FORCE_SERIALIZE_FAIL.load(std::sync::atomic::Ordering::Relaxed) {
-            return Err(SerializeError {
-                message: "forced".into(),
-            });
+        {
+            if FORCE_SERIALIZE_FAIL.with(std::cell::Cell::get) {
+                return Err(SerializeError {
+                    message: "forced".into(),
+                });
+            }
         }
         serde_json::to_string(self).map_err(|e| SerializeError {
             message: e.to_string(),
@@ -126,7 +150,7 @@ impl StderrError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::atomic::Ordering;
+    use serial_test::serial;
 
     #[test]
     fn omits_empty_optional_fields() {
@@ -147,10 +171,10 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn serialize_error_forced_fail() {
-        FORCE_SERIALIZE_FAIL.store(true, Ordering::Relaxed);
+        let _guard = ForceSerializeFailGuard::arm();
         let err = StderrError::new(ErrorCode::ParseError, "x");
         assert!(err.to_json_string().is_err());
-        FORCE_SERIALIZE_FAIL.store(false, Ordering::Relaxed);
     }
 }

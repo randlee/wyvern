@@ -30,6 +30,8 @@ pub use error_code::ErrorCode;
 #[doc(inline)]
 pub use field_name::FieldName;
 #[doc(inline)]
+pub use icons::NamedIconSpec;
+#[doc(inline)]
 pub use result::{
     ChromeResult, CommandResult, InputResult, InputValue, MarkdownResult, MessageResult,
     QuestionResult,

@@ -474,7 +474,13 @@ impl ChromeApp {
                 }
                 ChromeIpc::WindowMinimize => {
                     if let Some(window) = &self.window {
-                        window.set_minimized(true);
+                        // macOS CI: set_minimized + immediate harness teardown races
+                        // objc2 WeakId (null deref / SIGABRT). When auto-dismiss will
+                        // finish the run, skip the OS minimize — the test asserts that
+                        // minimize IPC does not complete stdout by itself (CI-001).
+                        if !self.auto_dismiss {
+                            window.set_minimized(true);
+                        }
                     }
                     // Non-modal: minimize only — no CommandResult / stdout yet.
                 }

@@ -61,8 +61,29 @@ impl std::error::Error for EmitError {
 }
 
 #[cfg(test)]
-static FORCE_EMIT_STDOUT_FAIL: std::sync::atomic::AtomicBool =
-    std::sync::atomic::AtomicBool::new(false);
+thread_local! {
+    /// Scoped test seam: only the arming thread sees forced stdout emit failures.
+    static FORCE_EMIT_STDOUT_FAIL: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// RAII guard that forces [`emit_stdout`] to fail on this thread.
+#[cfg(test)]
+struct ForceEmitStdoutFailGuard;
+
+#[cfg(test)]
+impl ForceEmitStdoutFailGuard {
+    fn arm() -> Self {
+        FORCE_EMIT_STDOUT_FAIL.with(|f| f.set(true));
+        Self
+    }
+}
+
+#[cfg(test)]
+impl Drop for ForceEmitStdoutFailGuard {
+    fn drop(&mut self) {
+        FORCE_EMIT_STDOUT_FAIL.with(|f| f.set(false));
+    }
+}
 
 /// Serialize a parse load error as stderr JSON.
 ///
@@ -211,6 +232,16 @@ fn validation_recovery(field: &str, message: &str) -> Vec<String> {
 /// Returns [`EmitError::Serialize`] when the envelope cannot be serialized.
 pub fn emit_run_error(err: &RunError) -> Result<String, EmitError> {
     let envelope = match err {
+        RunError::WindowCreate { message } if is_media_window_create(message) => {
+            StderrError::new(ErrorCode::WindowCreateError, message.clone())
+                .cause("Icon or decorative media could not be resolved at run time")
+                .recovery(
+                    "Use a known named icon (info, warning, error, question, success, loading) \
+                     with an in-range variant index",
+                )
+                .recovery("Verify icon/image file paths exist and data URIs are well-formed")
+                .docs("docs/wyvern-schema/requirements.md (REQ-0073, REQ-0031)")
+        }
         RunError::WindowCreate { message } => {
             StderrError::new(ErrorCode::WindowCreateError, message.clone())
                 .cause("Native window or webview construction failed")
@@ -229,6 +260,14 @@ pub fn emit_run_error(err: &RunError) -> Result<String, EmitError> {
     envelope.to_json_string().map_err(EmitError::Serialize)
 }
 
+/// True when `WindowCreate` came from icon/media defense-in-depth (not OS windowing).
+fn is_media_window_create(message: &str) -> bool {
+    message.starts_with("missing level icon embed")
+        || message.starts_with("invalid icon spec")
+        || message.starts_with("missing embed for")
+        || message.starts_with("failed to load media path")
+}
+
 /// Serialize a successful [`wyvern_schema::CommandResult`] for stdout.
 ///
 /// # Errors
@@ -236,10 +275,12 @@ pub fn emit_run_error(err: &RunError) -> Result<String, EmitError> {
 /// Returns [`EmitError::Serialize`] when `result` cannot be serialized.
 pub fn emit_stdout(result: &wyvern_schema::CommandResult) -> Result<String, EmitError> {
     #[cfg(test)]
-    if FORCE_EMIT_STDOUT_FAIL.load(std::sync::atomic::Ordering::Relaxed) {
-        return Err(EmitError::Serialize(SerializeError {
-            message: "forced".into(),
-        }));
+    {
+        if FORCE_EMIT_STDOUT_FAIL.with(std::cell::Cell::get) {
+            return Err(EmitError::Serialize(SerializeError {
+                message: "forced".into(),
+            }));
+        }
     }
     serde_json::to_string(result).map_err(|e| {
         EmitError::Serialize(SerializeError {
@@ -251,18 +292,21 @@ pub fn emit_stdout(result: &wyvern_schema::CommandResult) -> Result<String, Emit
 /// Emit static internal stderr JSON and exit with code 8 (REQ-0078).
 ///
 /// Uses a hand-built JSON string so a serialize failure cannot recurse.
+/// Includes `cause` / `recovery` / `docs` per the stderr contract (RBP-F004).
 pub fn emit_fatal_internal(err: &EmitError) -> ! {
     let EmitError::Serialize(e) = err;
     let msg_json =
         serde_json::to_string(&e.message).unwrap_or_else(|_| "\"serialization failed\"".into());
-    eprintln!(r#"{{"error":"internal","code":"INTERNAL_ERROR","message":{msg_json}}}"#);
+    eprintln!(
+        r#"{{"error":"internal","code":"INTERNAL_ERROR","message":{msg_json},"cause":"Stdout or stderr JSON serialization failed at the CLI emit boundary","recovery":["Retry the command","Report a bug if the payload is valid JSON but emit still fails"],"docs":"docs/wyvern-schema/requirements.md (REQ-0078)"}}"#
+    );
     std::process::exit(ErrorCode::InternalError.exit_code());
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::atomic::Ordering;
+    use serial_test::serial;
     use wyvern_schema::{ButtonLabel, ChromeResult, CommandResult, FieldName, MessageResult};
 
     #[test]
@@ -357,13 +401,32 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn emit_stdout_forced_fail() {
-        FORCE_EMIT_STDOUT_FAIL.store(true, Ordering::Relaxed);
+        let _guard = ForceEmitStdoutFailGuard::arm();
         let result = CommandResult::Message(MessageResult {
             button: ButtonLabel::new("ok"),
         });
         assert!(emit_stdout(&result).is_err());
-        FORCE_EMIT_STDOUT_FAIL.store(false, Ordering::Relaxed);
+    }
+
+    #[test]
+    fn emit_run_error_media_window_create_has_media_recovery() {
+        let err = RunError::WindowCreate {
+            message: "invalid icon spec 'bad:role:99'".into(),
+        };
+        let out = emit_run_error(&err).expect("emit");
+        let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
+        assert_eq!(value["error"], "window_create");
+        assert_eq!(value["code"], "WINDOW_CREATE_ERROR");
+        assert!(value["cause"]
+            .as_str()
+            .unwrap()
+            .contains("Icon or decorative media"));
+        let recovery = value["recovery"].as_array().unwrap();
+        assert!(recovery
+            .iter()
+            .any(|s| s.as_str().unwrap().contains("named icon")));
     }
 
     #[test]
