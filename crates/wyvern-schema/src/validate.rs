@@ -513,37 +513,28 @@ fn validate_markdown(obj: &Map<String, Value>) -> Result<Command, ValidationErro
     let file = optional_string_field(obj, "file")?;
     let content = optional_string_field(obj, "content")?;
 
-    // REQ-0058 — exactly one of file or content; b.5 rejects content until b.6.
+    // REQ-0058 — exactly one of file or content.
     match (file.as_ref(), content.as_ref()) {
-        (None, None) => {
+        (None, None) | (Some(_), Some(_)) => {
             return Err(ValidationError::validation(
                 "file",
                 "markdown requires exactly one of 'file' or 'content'",
             ));
         }
-        (Some(_), Some(_)) => {
-            return Err(ValidationError::validation(
-                "file",
-                "markdown requires exactly one of 'file' or 'content'",
-            ));
-        }
-        (None, Some(_)) => {
-            return Err(ValidationError::validation(
-                "content",
-                "content is not supported until inline markdown ships (b.6)",
-            ));
-        }
-        (Some(_), None) => {}
+        (Some(_), None) | (None, Some(_)) => {}
     }
 
     let title = match optional_string_field(obj, "title")? {
         Some(t) => Some(ChromeTitle::new(t)),
-        None => file.as_ref().map(|path| {
-            let name = Path::new(path)
-                .file_name()
-                .map(|n| n.to_string_lossy().into_owned())
-                .unwrap_or_else(|| path.clone());
-            ChromeTitle::new(name)
+        None => Some(match file.as_ref() {
+            Some(path) => {
+                let name = Path::new(path)
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| path.clone());
+                ChromeTitle::new(name)
+            }
+            None => ChromeTitle::new("Markdown"),
         }),
     };
     let status = optional_string_field(obj, "status")?;
@@ -575,14 +566,14 @@ fn validate_markdown(obj: &Map<String, Value>) -> Result<Command, ValidationErro
     if buttons == ButtonsPreset::Custom {
         return Err(ValidationError::validation(
             "buttons",
-            "buttons: custom is not supported for markdown in sprint b.5",
+            "buttons: custom is not supported for markdown",
         ));
     }
 
     Ok(Command::Markdown {
         title,
         file,
-        content: None,
+        content,
         status: status.map(ChromeStatus::new),
         buttons,
     })

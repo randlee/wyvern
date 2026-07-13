@@ -7,6 +7,7 @@ use crate::markdown::markdown_to_html;
 use crate::{DIALOG_MAX_HEIGHT, DIALOG_MAX_WIDTH, DIALOG_MIN_HEIGHT, DIALOG_MIN_WIDTH};
 
 const MARKDOWN_HTML: &str = include_str!("template.html");
+const MARKDOWN_CSS: &str = include_str!("styles.css");
 
 /// Inputs for [`render_markdown_html`].
 #[derive(Debug, Clone)]
@@ -94,6 +95,7 @@ pub fn render_markdown_html(input: &MarkdownRenderInput<'_>) -> String {
     let context_json = context.to_string();
 
     MARKDOWN_HTML
+        .replace("{{STYLESHEET}}", MARKDOWN_CSS)
         .replace("{{TITLE}}", &safe_title)
         .replace("{{STATUS_BLOCK}}", &status_block)
         .replace("{{BODY}}", &body_html)
@@ -207,6 +209,35 @@ fn main() {}
         assert!(html.contains(r#"data-wire="ok""#));
         assert!(html.contains(">OK</button>"));
         assert!(!html.contains(r#"id="status-bar""#));
+        assert!(
+            html.contains("#markdown-body") && html.contains("max-width: 720px"),
+            "default stylesheet should be inlined"
+        );
+        assert!(
+            html.contains("overflow-y: auto"),
+            "content region must scroll vertically"
+        );
+        assert!(html.contains(r#"href="styles.css""#));
+    }
+
+    #[test]
+    fn render_inline_content_includes_status_and_body() {
+        let html = render_markdown_html(&MarkdownRenderInput {
+            title: "Markdown",
+            source: "## Notes\n\n- item one\n- item two",
+            status: Some("Read-only"),
+            buttons: ButtonsPreset::Ok,
+        });
+        assert!(html.contains(r#"id="title-bar">Markdown"#));
+        assert!(html.contains(r#"id="status-bar">Read-only"#));
+        assert!(
+            html.contains("<h2>Notes</h2>") || html.contains("<h2>"),
+            "html={html}"
+        );
+        assert!(
+            html.contains("<li>") && html.contains("item one"),
+            "html={html}"
+        );
     }
 
     #[test]

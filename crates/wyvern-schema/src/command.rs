@@ -193,13 +193,13 @@ pub enum Command {
         start_path: Option<String>,
         buttons: ButtonsPreset,
     },
-    /// Markdown viewer — file path in b.5; inline `content` arrives in b.6 (REQ-0016).
+    /// Markdown viewer — exactly one of `file` or `content` (REQ-0016 / REQ-0058).
     Markdown {
-        /// Window title; omitted → filename default at validate/load.
+        /// Window title; omitted → filename (file) or `"Markdown"` (inline).
         title: Option<ChromeTitle>,
-        /// Path to a `.md` file (required in b.5).
+        /// Path to a `.md` file (mutually exclusive with `content`).
         file: Option<String>,
-        /// Inline markdown source — rejected at validation until b.6.
+        /// Inline markdown source (mutually exclusive with `file`).
         content: Option<String>,
         status: Option<ChromeStatus>,
         /// Defaults to [`ButtonsPreset::Ok`] when omitted.

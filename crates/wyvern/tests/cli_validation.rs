@@ -217,13 +217,26 @@ fn cli_markdown_missing_file_is_io() {
 }
 
 #[test]
-fn cli_markdown_content_validation_error() {
+fn cli_markdown_content_inline_emits_dismissed() {
     let (code, stdout, stderr) = run_json(r##"{"type":"markdown","content":"# Hi"}"##);
+    assert_eq!(code, 0, "stderr={stderr}");
+    assert_eq!(stdout.trim(), r#"{"button":"dismissed"}"#);
+    assert!(stderr.trim().is_empty(), "stderr={stderr}");
+}
+
+#[test]
+fn cli_markdown_both_file_and_content_validation_error() {
+    let (code, stdout, stderr) =
+        run_json(r##"{"type":"markdown","file":"doc.md","content":"# Hi"}"##);
     assert_ne!(code, 0);
     assert!(stdout.trim().is_empty(), "stdout={stdout}");
     let value = stderr_json(&stderr);
     assert_eq!(value["error"], "validation");
-    assert_eq!(value["field"], "content");
+    assert_eq!(value["field"], "file");
+    assert!(value["message"]
+        .as_str()
+        .unwrap()
+        .contains("exactly one of"));
 }
 
 #[test]

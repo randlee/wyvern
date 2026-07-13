@@ -132,4 +132,26 @@ mod tests {
 
         let _ = std::fs::remove_dir_all(&dir);
     }
+
+    #[test]
+    fn load_markdown_inline_content_passthrough() {
+        let cmd = Command::Markdown {
+            title: Some(ChromeTitle::new("Markdown")),
+            file: None,
+            content: Some("# Inline\n".into()),
+            status: None,
+            buttons: ButtonsPreset::Ok,
+        };
+        let loaded = load_markdown_file(cmd).expect("passthrough");
+        match loaded {
+            Command::Markdown {
+                file: None,
+                content: Some(body),
+                ..
+            } => {
+                assert_eq!(body, "# Inline\n");
+            }
+            other => panic!("expected inline Markdown, got {other:?}"),
+        }
+    }
 }
