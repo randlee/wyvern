@@ -48,27 +48,36 @@ fn run_json(json: &str) -> (i32, String, String) {
 }
 
 fn assert_child_ok(output: &std::process::Output) {
-    assert!(child_failed(
-        &String::from_utf8_lossy(&output.stderr),
-        output.status.code(),
-    ));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let code = output.status.code().unwrap_or(-1);
+    assert!(
+        !child_failed(&stderr, code),
+        "wyvern child panicked/aborted (use --test-threads=1 on macOS):\n\
+         code={code:?}\nstderr={stderr}"
+    );
 }
 
 /// Pure predicate — unit-testable without synthesizing `ExitStatus`.
-fn child_failed(stderr: &str, code: Option<i32>) -> bool {
+/// `code == -1` covers Unix signal exits where `status.code()` is `None`.
+fn child_failed(stderr: &str, code: i32) -> bool {
     stderr.contains("panicked at")
         || stderr.contains("misaligned pointer")
         || stderr.contains("cannot unwind")
         || stderr.contains("abort")
-        || code == Some(-1)
+        || code == -1
 }
 ```
 
 ```rust
 #[test]
 fn child_failed_detects_panic_marker() {
-    assert!(child_failed("thread 'main' panicked at winit\n", Some(0)));
-    assert!(!child_failed("", Some(0)));
+    assert!(child_failed("thread 'main' panicked at winit\n", 0));
+    assert!(!child_failed("", 0));
+}
+
+#[test]
+fn child_failed_detects_signal_exit() {
+    assert!(child_failed("", -1)); // None mapped via unwrap_or(-1)
 }
 ```
 
@@ -120,7 +129,7 @@ Expected signature: `uninitialized instance variable`, `misaligned pointer deref
 
 - All nine GUI tests above carry `#[serial]`
 - `cli_markdown_md_shorthand_emits_dismissed` uses `run_wyvern` (not raw `.output()`)
-- `child_failed_detects_panic_marker` unit test passes
+- `child_failed_detects_panic_marker` and `child_failed_detects_signal_exit` unit tests pass
 - `cargo test -p wyvern -- --test-threads=1` passes on macOS
 - `docs/linting.md` contains local `--test-threads=1` policy
 

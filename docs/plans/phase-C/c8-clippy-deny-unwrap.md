@@ -10,7 +10,7 @@ target: integrate/phase-C-fixes
 
 ## Goal
 
-- Deny production `unwrap()`, `expect()`, `panic!()`, `unreachable!()`, `todo!()`, `unimplemented!()` in **`wyvern`**, **`wyvern-schema`**, **`wyvern-window`** library `src/`.
+- Deny production `unwrap`/`expect`/`panic`/`unreachable` in **`wyvern`**, **`wyvern-schema`**, **`wyvern-window`** library roots **and** `crates/wyvern/src/main.rs` (binary root; policy includes main)
 - Document panic policy in `docs/linting.md` (Clippy denies — not `.sc-lint.toml`).
 
 ## Hard Dependencies
@@ -24,6 +24,7 @@ target: integrate/phase-C-fixes
 ## Exact Targets
 
 - `crates/wyvern/src/lib.rs`
+- `crates/wyvern/src/main.rs` — same deny block as lib roots (binary is production code)
 - `crates/wyvern-schema/src/lib.rs`
 - `crates/wyvern-window/src/lib.rs`
 - `docs/linting.md`
@@ -31,7 +32,7 @@ target: integrate/phase-C-fixes
 ## Deliverables
 
 ```rust
-// Each of the three lib.rs roots
+// Each of wyvern lib.rs, wyvern main.rs, wyvern-schema lib.rs, wyvern-window lib.rs
 #![cfg_attr(
     not(test),
     deny(
@@ -56,7 +57,7 @@ target: integrate/phase-C-fixes
 
 ## Acceptance Criteria
 
-- `cargo clippy --workspace -- -D warnings` clean with denies on three lib roots
+- `cargo clippy --workspace -- -D warnings` clean with denies on **four** roots (three lib + `main.rs`)
 - `sc-lint check native --config .sc-lint.toml` still passes
 - `cargo test --workspace -- --test-threads=1` passes; test modules compile
 

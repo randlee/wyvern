@@ -106,6 +106,12 @@ pub enum EmitError {
 }
 
 pub fn emit_stdout(result: &CommandResult) -> Result<String, EmitError> {
+    #[cfg(test)]
+    if FORCE_EMIT_STDOUT_FAIL.load(std::sync::atomic::Ordering::Relaxed) {
+        return Err(EmitError::Serialize(SerializeError {
+            message: "forced".into(),
+        }));
+    }
     serde_json::to_string(result)
         .map_err(|e| EmitError::Serialize(SerializeError { message: e.to_string() }))
 }
@@ -253,10 +259,6 @@ fn main() -> ExitCode {
         }
         Err(err) => match &err {
             LoadError::Parse { .. } | LoadError::Io { .. } => return emit_load_stage_failure(&err),
-            LoadError::Usage { message } => {
-                eprintln!("{message}");
-                return ExitCode::from(1);
-            }
         },
     };
 
@@ -347,7 +349,17 @@ fn serialize_error_forced_fail() {
     assert!(err.to_json_string().is_err());
     FORCE_SERIALIZE_FAIL.store(false, Ordering::Relaxed);
 }
+
+#[test]
+fn emit_stdout_forced_fail() {
+    FORCE_EMIT_STDOUT_FAIL.store(true, Ordering::Relaxed);
+    let result = CommandResult::Message { button: "ok".into() };
+    assert!(emit_stdout(&result).is_err());
+    FORCE_EMIT_STDOUT_FAIL.store(false, Ordering::Relaxed);
+}
 ```
+
+`FORCE_EMIT_STDOUT_FAIL` — `#[cfg(test)]` atomic in `error.rs`, same pattern as `FORCE_SERIALIZE_FAIL`.
 
 ### Error mapping table (emit at CLI)
 
@@ -368,7 +380,7 @@ fn serialize_error_forced_fail() {
 
 - §1 checklist rows 1–5 **FIXED** in code
 - Unit test: `resolve_named_icon_svg("bad:role:99")` or unbundled variant → `RunError::WindowCreate` (implementable without mocking compile-time embeds)
-- Unit test `serialize_error_round_trip`: `StderrError` with `#[serde(skip_serializing)]` test-only field forced via `cfg(test)` hook in `to_json_string` returns `Err(SerializeError)`; `emit_stdout` test mirrors via same pattern
+- Unit test `serialize_error_forced_fail` + `emit_stdout_forced_fail` (see samples)
 - Zero production `unreachable!` in `crates/wyvern/src/**/*.rs` outside `#[cfg(test)]` (includes `main.rs`)
 - `cargo test --workspace -- --test-threads=1` passes
 - `cargo clippy --workspace -- -D warnings` clean (c.8 adds denies; c.6 must not introduce new production panics)
