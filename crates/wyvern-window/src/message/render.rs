@@ -321,7 +321,7 @@ mod tests {
     }
 
     #[test]
-    fn render_level_embeds_placeholder_svg() {
+    fn render_level_embeds_production_svg() {
         for level in [
             MessageLevel::Info,
             MessageLevel::Warning,
@@ -341,11 +341,13 @@ mod tests {
                 markdown: false,
             })
             .expect("render");
-            let marker = format!(r#"data-placeholder-level="{}""#, level.as_str());
+            let role_marker = format!(r#"data-icon-role="{}""#, level.as_str());
             assert!(
-                html.contains(&marker),
-                "missing {marker} in html for {level:?}"
+                html.contains(&role_marker),
+                "missing {role_marker} in html for {level:?}"
             );
+            assert!(html.contains(r#"data-icon-variant="1""#));
+            assert!(!html.contains("data-placeholder-level"));
             assert!(html.contains(r#"id="level-icon""#));
         }
     }
@@ -365,8 +367,9 @@ mod tests {
             markdown: false,
         })
         .expect("render");
-        assert!(html.contains(r#"data-placeholder-level="warning""#));
-        assert!(!html.contains(r#"data-placeholder-level="info""#));
+        assert!(html.contains(r#"data-icon-role="warning""#));
+        assert!(!html.contains(r#"data-icon-role="info""#));
+        assert!(!html.contains("data-placeholder-level"));
     }
 
     #[test]
@@ -406,7 +409,8 @@ mod tests {
             markdown: true,
         })
         .expect("render");
-        assert!(html.contains(r#"data-placeholder-level="error""#));
+        assert!(html.contains(r#"data-icon-role="error""#));
+        assert!(!html.contains("data-placeholder-level"));
         assert!(html.contains("<h2>Hello</h2>") || html.contains("<strong>world</strong>"));
         assert!(html.contains(r#"id="decorative-image""#));
         assert!(html.contains(r#"id="button-bar""#));

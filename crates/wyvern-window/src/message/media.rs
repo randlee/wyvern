@@ -1,16 +1,13 @@
-//! Resolve message `icon` / `image` specs and level placeholder SVGs.
+//! Resolve message `icon` / `image` specs and level production SVGs.
 
 use std::fs;
 use std::path::Path;
 
+use wyvern_schema::icons as schema_icons;
 use wyvern_schema::MessageLevel;
 
 use crate::error::RunError;
-
-const PLACEHOLDER_INFO: &str = include_str!("../../assets/icons/placeholder/info.svg");
-const PLACEHOLDER_WARNING: &str = include_str!("../../assets/icons/placeholder/warning.svg");
-const PLACEHOLDER_ERROR: &str = include_str!("../../assets/icons/placeholder/error.svg");
-const PLACEHOLDER_QUESTION: &str = include_str!("../../assets/icons/placeholder/question.svg");
+use crate::icons;
 
 /// HTML snippet for the `#level-icon` slot (inline SVG or `<img>`).
 pub type IconHtml = String;
@@ -18,13 +15,32 @@ pub type IconHtml = String;
 /// `src` attribute value for `#decorative-image`.
 pub type ImageSrc = String;
 
-/// Placeholder SVG markup for a message level (REQ-0012).
-pub fn placeholder_svg_for_level(level: MessageLevel) -> &'static str {
-    match level {
-        MessageLevel::Info => PLACEHOLDER_INFO,
-        MessageLevel::Warning => PLACEHOLDER_WARNING,
-        MessageLevel::Error => PLACEHOLDER_ERROR,
-        MessageLevel::Question => PLACEHOLDER_QUESTION,
+/// Production SVG markup for a message level (variant 1).
+pub fn icon_html_for_level(level: MessageLevel) -> IconHtml {
+    let role = level.as_str();
+    icons::svg_markup(role, 1)
+        .expect("c.1 bundles variant 1 for every level role")
+        .to_string()
+}
+
+#[cfg(test)]
+mod placeholder_assets {
+    //! Phase B placeholder SVGs — regression tests only (c.1+).
+    use wyvern_schema::MessageLevel;
+
+    const PLACEHOLDER_INFO: &str = include_str!("../../assets/icons/placeholder/info.svg");
+    const PLACEHOLDER_WARNING: &str = include_str!("../../assets/icons/placeholder/warning.svg");
+    const PLACEHOLDER_ERROR: &str = include_str!("../../assets/icons/placeholder/error.svg");
+    const PLACEHOLDER_QUESTION: &str = include_str!("../../assets/icons/placeholder/question.svg");
+
+    /// Phase B placeholder SVG for `level` — test / regression use only.
+    pub fn placeholder_svg_for_level(level: MessageLevel) -> &'static str {
+        match level {
+            MessageLevel::Info => PLACEHOLDER_INFO,
+            MessageLevel::Warning => PLACEHOLDER_WARNING,
+            MessageLevel::Error => PLACEHOLDER_ERROR,
+            MessageLevel::Question => PLACEHOLDER_QUESTION,
+        }
     }
 }
 
@@ -41,7 +57,7 @@ pub fn resolve_level_icon_html(
         return Ok(Some(resolve_media_as_icon_html(spec)?));
     }
     if let Some(level) = level {
-        return Ok(Some(placeholder_svg_for_level(level).to_string()));
+        return Ok(Some(icon_html_for_level(level)));
     }
     Ok(None)
 }
@@ -72,13 +88,8 @@ fn resolve_media_as_icon_html(spec: &str) -> Result<IconHtml, RunError> {
             escape_attr(&src)
         ));
     }
-    // Named icon (optional `:variant`) → placeholder set in b.2.
-    let name = named_icon_base(spec);
-    if let Some(level) = MessageLevel::parse(name) {
-        return Ok(placeholder_svg_for_level(level).to_string());
-    }
-    // Unknown named icon: still show a generic info placeholder so layout holds.
-    Ok(placeholder_svg_for_level(MessageLevel::Info).to_string())
+    // Named icon (optional `:variant`). c.1 always renders variant 1; c.2 selects index.
+    Ok(named_role_svg_markup(spec).to_string())
 }
 
 fn resolve_media_as_src(spec: &str) -> Result<ImageSrc, RunError> {
@@ -88,11 +99,24 @@ fn resolve_media_as_src(spec: &str) -> Result<ImageSrc, RunError> {
     if looks_like_path(spec) {
         return load_path_as_data_uri(spec);
     }
-    // Named → embed placeholder as SVG data URI for <img>.
-    let name = named_icon_base(spec);
-    let level = MessageLevel::parse(name).unwrap_or(MessageLevel::Info);
-    let svg = placeholder_svg_for_level(level);
-    Ok(svg_to_data_uri(svg))
+    // Named → embed production SVG as data URI for <img>.
+    Ok(svg_to_data_uri(named_role_svg_markup(spec)))
+}
+
+/// Resolve a named role to production SVG markup (variant 1 in c.1).
+///
+/// Unknown names fall back to `info` until c.2 validation errors land.
+fn named_role_svg_markup(spec: &str) -> &'static str {
+    let base = match schema_icons::parse_icon_spec(spec) {
+        Ok((base, _)) => base,
+        Err(()) => named_icon_base(spec).to_string(),
+    };
+    let role = if schema_icons::variant_count(&base) > 0 {
+        base.as_str()
+    } else {
+        "info"
+    };
+    icons::svg_markup(role, 1).expect("c.1 bundles variant 1 for every catalog role")
 }
 
 fn named_icon_base(spec: &str) -> &str {
@@ -135,7 +159,7 @@ fn mime_for_path(path: &str) -> &'static str {
 }
 
 fn svg_to_data_uri(svg: &str) -> String {
-    // Prefer URL-encoding for SVG so we avoid base64 dependency for placeholders.
+    // Prefer URL-encoding for SVG so we avoid base64 dependency for icons.
     let encoded = urlencoding_minimal(svg);
     format!("data:image/svg+xml;charset=utf-8,{encoded}")
 }
@@ -198,7 +222,25 @@ mod tests {
     use super::*;
 
     #[test]
-    fn placeholder_svgs_are_distinct_per_level() {
+    fn production_level_svgs_are_distinct() {
+        let info = icon_html_for_level(MessageLevel::Info);
+        let warning = icon_html_for_level(MessageLevel::Warning);
+        let error = icon_html_for_level(MessageLevel::Error);
+        let question = icon_html_for_level(MessageLevel::Question);
+        assert!(info.contains(r#"data-icon-role="info""#));
+        assert!(info.contains(r#"data-icon-variant="1""#));
+        assert!(warning.contains(r#"data-icon-role="warning""#));
+        assert!(error.contains(r#"data-icon-role="error""#));
+        assert!(question.contains(r#"data-icon-role="question""#));
+        assert!(!info.contains("data-placeholder-level"));
+        assert_ne!(info, warning);
+        assert_ne!(warning, error);
+        assert_ne!(error, question);
+    }
+
+    #[test]
+    fn placeholder_assets_retained_for_regression() {
+        use placeholder_assets::placeholder_svg_for_level;
         let info = placeholder_svg_for_level(MessageLevel::Info);
         let warning = placeholder_svg_for_level(MessageLevel::Warning);
         let error = placeholder_svg_for_level(MessageLevel::Error);
@@ -208,16 +250,28 @@ mod tests {
         assert!(error.contains(r#"data-placeholder-level="error""#));
         assert!(question.contains(r#"data-placeholder-level="question""#));
         assert_ne!(info, warning);
-        assert_ne!(warning, error);
-        assert_ne!(error, question);
     }
 
     #[test]
-    fn named_icon_with_variant_maps_to_placeholder() {
+    fn named_icon_with_variant_maps_to_production_variant_one() {
         let html = resolve_level_icon_html(None, Some("warning:2"))
             .expect("named")
             .expect("some");
-        assert!(html.contains(r#"data-placeholder-level="warning""#));
+        assert!(html.contains(r#"data-icon-role="warning""#));
+        assert!(html.contains(r#"data-icon-variant="1""#));
+        assert!(!html.contains("data-placeholder-level"));
+    }
+
+    #[test]
+    fn named_success_and_loading_roles_resolve() {
+        let success = resolve_level_icon_html(None, Some("success"))
+            .expect("ok")
+            .expect("some");
+        let loading = resolve_level_icon_html(None, Some("loading"))
+            .expect("ok")
+            .expect("some");
+        assert!(success.contains(r#"data-icon-role="success""#));
+        assert!(loading.contains(r#"data-icon-role="loading""#));
     }
 
     #[test]
@@ -233,8 +287,8 @@ mod tests {
         let html = resolve_level_icon_html(Some(MessageLevel::Info), Some("error"))
             .expect("ok")
             .expect("some");
-        assert!(html.contains(r#"data-placeholder-level="error""#));
-        assert!(!html.contains(r#"data-placeholder-level="info""#));
+        assert!(html.contains(r#"data-icon-role="error""#));
+        assert!(!html.contains(r#"data-icon-role="info""#));
     }
 
     #[test]

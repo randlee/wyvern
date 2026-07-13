@@ -1,8 +1,9 @@
 ---
 id: c.1
 title: Production icon asset bundle
-status: pending
+status: complete
 branch: feature/phase-C-c1-icon-set
+worktree: /Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-C-c1-icon-set
 target: integrate/phase-C
 ---
 
