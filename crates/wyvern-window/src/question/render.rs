@@ -417,5 +417,12 @@ mod tests {
         let (w, h) = estimate_question_window_size(&[sample_card(false)]);
         assert!((DIALOG_MIN_WIDTH..=DIALOG_MAX_WIDTH).contains(&w));
         assert!((DIALOG_MIN_HEIGHT..=DIALOG_MAX_HEIGHT).contains(&h));
+
+        // Many cards must still clamp to dialog max (M11).
+        let many: Vec<_> = (0..20).map(|_| sample_card(true)).collect();
+        let (w2, h2) = estimate_question_window_size(&many);
+        assert!((DIALOG_MIN_WIDTH..=DIALOG_MAX_WIDTH).contains(&w2));
+        assert!((DIALOG_MIN_HEIGHT..=DIALOG_MAX_HEIGHT).contains(&h2));
+        assert!(h2 <= DIALOG_MAX_HEIGHT);
     }
 }
