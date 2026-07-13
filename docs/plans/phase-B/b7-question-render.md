@@ -49,7 +49,7 @@ target: integrate/phase-B
 | `questions[].header` | max 12 characters |
 | `questions[].question` | required non-empty string |
 | `multiSelect` | boolean, required per card |
-| `preview` on option | allowed in schema; rendering optional at b.7 |
+| `preview` on option | allowed in schema; **not rendered** at b.7 (no template slot) |
 
 ### Render
 

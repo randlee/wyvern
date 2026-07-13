@@ -37,7 +37,7 @@ target: integrate/phase-B
 - Validation unlocks `message` for execution; `level`, `icon`, `image`, `markdown` on message → validation error until b.2
 - HTML message page: title bar, status bar (hidden when absent), text body, populated button bar
 - IPC: `button_pressed` closes with mapped label; OS close → `ButtonLabel::dismissed()` per contract
-- Window auto-size to content with max bounds (replace Phase A fixed 480×360 for dialog types)
+- Window auto-size to content with **min 320×200** / **max 800×600** (replace Phase A fixed 480×360 for dialog types)
 - Modal types: minimize and maximize disabled (REQ-0083)
 
 ## Required Work — message behavior (authoritative)
@@ -64,12 +64,21 @@ target: integrate/phase-B
 
 - macOS: transparent title bar + HTML chrome (ADR-0010); 72px safe zone (REQ-0081)
 - Win/Linux Phase B: **native OS decorations** (see [README.md](README.md) platform policy); ADR-0010a deferred to Phase C
-- Auto-size: measure content, apply sensible min/max; word-wrap body text (REQ-0041 start)
+- Auto-size (REQ-0041 start): measure content with word-wrap; **min 320×200**, **max 800×600** (carry Phase A max; replace fixed 480×360 open size for dialog types)
 
 ## Explicit Code Samples
 
 ```rust
 // crates/wyvern-schema/src/command.rs
+pub enum ButtonsPreset {
+    Ok,
+    OkCancel,
+    YesNo,
+    YesNoCancel,
+    RetryCancel,
+    Custom,
+}
+
 pub enum Command {
     Chrome { title: ChromeTitle, status: Option<ChromeStatus> },
     Message {
@@ -119,7 +128,7 @@ pub enum CommandResult {
 - OS close → `{"button":"dismissed"}`
 - `level`/`icon`/`image`/`markdown` on message → validation stderr, exit ≠ 0, no window
 - Modal attrs: minimize/maximize disabled on message window
-- Window sizes to content (not fixed 480×360)
+- Window sizes to content within **min 320×200** and **max 800×600** (not fixed 480×360)
 
 ## Required Validation
 

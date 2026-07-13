@@ -10,7 +10,7 @@ Sprints are **sequentially numbered** `b.1` → `b.8` (strict dependency order �
 - Dialog IPC contract ([ipc-dialog-contract.md](ipc-dialog-contract.md)) wired for button/input/dismiss events
 - Per-type validation in `wyvern-schema` (incremental unlock per sprint — see below)
 - `Command` / `CommandResult` enum extensions per ADR-0013
-- Window **auto-size to content** (REQ-0041) replacing Phase A fixed 480×360 chrome
+- Window **auto-size to content** (REQ-0041) replacing Phase A fixed 480×360 chrome — Phase B bounds **min 320×200**, **max 800×600**
 - HTML **button bar** populated (Phase A left `#button-bar` hidden)
 - sc-lint-boundary rules reviewed and enforced in CI from Phase B onward
 

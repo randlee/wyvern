@@ -72,6 +72,26 @@ Host→page live IPC is not used in Phase B; picker runs entirely in Rust on `in
 ## Explicit Code Samples
 
 ```rust
+// crates/wyvern-schema — b.4 unlocks picker fields on Input
+pub enum Command {
+    // ...
+    Input {
+        title: ChromeTitle,
+        message: String,
+        status: Option<ChromeStatus>,
+        icon: Option<String>,
+        markdown: bool,
+        multiline: bool,
+        placeholder: Option<String>,
+        default: Option<String>,
+        mode: InputMode,
+        filter: Option<Vec<String>>,      // file mode only
+        multiple: bool,                   // file mode only; default false
+        start_path: Option<String>,       // file|folder only
+        buttons: ButtonsPreset,
+    },
+}
+
 // wyvern-window only — not in schema
 use rfd::FileDialog;
 

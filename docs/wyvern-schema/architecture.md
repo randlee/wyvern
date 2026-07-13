@@ -45,10 +45,17 @@ pub struct MessageResult {
 }
 
 #[derive(Serialize)]
+#[serde(untagged)]
+pub enum InputValue {
+    Text(String),        // text mode and single file/folder path
+    Paths(Vec<String>), // multiple: true file mode only
+}
+
+#[derive(Serialize)]
 pub struct InputResult {
     pub button: ButtonLabel,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub input: Option<InputValue>, // string or path array for multiple
+    pub input: Option<InputValue>,
 }
 
 #[derive(Serialize)]

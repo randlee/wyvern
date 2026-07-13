@@ -31,6 +31,7 @@ target: integrate/phase-B
 
 - `Command::Input` with text-mode fields: `title`, `message`, optional `status`, optional `icon`, optional `markdown`, `multiline`, optional `placeholder`, optional `default`, `buttons`
 - `mode` omitted or `mode: text` → executable; `mode: file` / `mode: folder` → validation error until b.4
+- `buttons` omitted → defaults to `ok_cancel` (Cancel AC requires a cancel control)
 - `InputResult { button: ButtonLabel, input: Option<InputValue> }` → wire `{ "button": "ok", "input": "..." }` (REQ-0065); b.3 uses `InputValue::Text` only
 - HTML: prompt text, single-line `<input>` or multiline `<textarea>`, button bar
 - IPC `input_submitted` with `button` + `value`; cancel omits value
@@ -40,7 +41,7 @@ target: integrate/phase-B
 
 ### Validation
 
-- `{"type":"input","title":"Name","message":"Enter name"}` passes (`mode` defaults text)
+- `{"type":"input","title":"Name","message":"Enter name"}` passes (`mode` defaults to `text`; `buttons` defaults to `ok_cancel`)
 - `placeholder` and `default` allowed when `mode` omitted or `text`
 - `filter`, `multiple`, `start_path` with `mode: text` or omitted → validation error (REQ-0059)
 - `mode: file` or `mode: folder` → validation error: not implemented until b.4
@@ -66,29 +67,35 @@ target: integrate/phase-B
 
 ```rust
 // crates/wyvern-schema/src/command.rs
+pub enum InputMode {
+    Text,   // default when omitted
+    File,   // rejected until b.4
+    Folder, // rejected until b.4
+}
+
 pub enum Command {
     // ...
     Input {
         title: ChromeTitle,
         message: String,
         status: Option<ChromeStatus>,
-        mode: InputMode, // Text default; File/Folder rejected until b.4
-        // icon, markdown, multiline, placeholder, default, buttons — see deliverables
+        icon: Option<String>,
+        markdown: bool,              // default false
+        multiline: bool,             // default false
+        placeholder: Option<String>,
+        default: Option<String>,
+        mode: InputMode,             // Text default; File/Folder rejected until b.4
+        // filter / multiple / start_path: absent at b.3; added when modes unlock in b.4
+        buttons: ButtonsPreset,      // default OkCancel when omitted
     },
-}
-
-pub enum InputMode {
-    Text,
-    File,
-    Folder,
 }
 
 // crates/wyvern-schema/src/result.rs
 #[derive(Serialize)]
 #[serde(untagged)]
 pub enum InputValue {
-    Text(String),
-    Paths(Vec<String>), // b.4 multi-select; single path uses Text variant
+    Text(String),           // text mode and single path
+    Paths(Vec<String>),    // b.4 multi-select only
 }
 
 #[derive(Serialize)]

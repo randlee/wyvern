@@ -19,6 +19,7 @@ target: integrate/phase-B
 
 ## Exact Targets
 
+- `crates/wyvern-schema/src/command.rs` — extend `Command::Message` with `level`, `icon`, `image`, `markdown`
 - `crates/wyvern-schema/src/validate.rs` — unlock `level`, `icon`, `image`, `markdown` on message
 - `crates/wyvern-schema/tests/validation_message.rs` — extended rules
 - `crates/wyvern-window/src/message/render.rs` — icon/image/markdown body layout
@@ -27,11 +28,12 @@ target: integrate/phase-B
 
 ## Deliverables
 
+- `Command::Message` gains optional `level`, `icon`, `image`, and `markdown` fields (see code sample)
 - `level` renders distinct placeholder icon per value (REQ-0012)
 - `icon` field: named icon, file path, or base64 data URI (REQ-0031 subset — named resolves to placeholder set in b.2)
 - `image` decorative body image (REQ-0032)
 - `markdown: true` renders `message` via built-in HTML markdown renderer
-- All field combinations render without layout breakage; auto-size still applies (REQ-0041)
+- All field combinations render without layout breakage; auto-size still applies (REQ-0041; max 800×600)
 - `message` type fully executable per README incremental surface table
 
 ## Required Work — rendering rules (authoritative)
@@ -70,6 +72,32 @@ target: integrate/phase-B
 
 ## Explicit Code Samples
 
+```rust
+// crates/wyvern-schema/src/command.rs — b.2 extends Message
+pub enum MessageLevel {
+    Info,
+    Warning,
+    Error,
+    Question,
+}
+
+pub enum Command {
+    // ...
+    Message {
+        title: ChromeTitle,
+        message: String,
+        status: Option<ChromeStatus>,
+        buttons: ButtonsPreset,
+        custom_buttons: Option<Vec<String>>,
+        default_button: Option<u32>,
+        level: Option<MessageLevel>,
+        icon: Option<String>,   // named, path, or data URI
+        image: Option<String>,  // same resolution forms as icon
+        markdown: bool,         // default false
+    },
+}
+```
+
 ```json
 {
   "type": "message",
@@ -84,7 +112,7 @@ target: integrate/phase-B
 ```html
 <!-- message template content area (conceptual) -->
 <div id="content">
-  <div id="level-icon"><!-- placeholder SVG --></div>
+  <div id="level-icon"><!-- placeholder SVG or icon winner --></div>
   <div id="body"><!-- markdown HTML or plain text --></div>
   <img id="decorative-image" /><!-- when image set -->
 </div>
