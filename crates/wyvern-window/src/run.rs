@@ -8,12 +8,14 @@ use wry::WebViewBuilder;
 
 use wyvern_schema::{
     ButtonLabel, ButtonsPreset, ChromeResult, ChromeStatus, ChromeTitle, Command, CommandResult,
-    MessageResult,
+    MessageLevel, MessageResult,
 };
 
 use crate::chrome::render_chrome_html;
 use crate::error::RunError;
-use crate::message::{estimate_message_window_size, parse_page_ipc, render_message_html, PageIpc};
+use crate::message::{
+    estimate_message_window_size, parse_page_ipc, render_message_html, MessageRenderInput, PageIpc,
+};
 use crate::window::{
     chrome_window_attributes, init_platform, modal_window_attributes, pump_gtk_events,
 };
@@ -51,14 +53,22 @@ pub fn run(command: Command) -> Result<CommandResult, RunError> {
             buttons,
             custom_buttons,
             default_button,
-        } => run_message(
+            level,
+            icon,
+            image,
+            markdown,
+        } => run_message(MessageRunArgs {
             title,
             message,
             status,
             buttons,
             custom_buttons,
             default_button,
-        ),
+            level,
+            icon,
+            image,
+            markdown,
+        }),
     }
 }
 
@@ -95,27 +105,56 @@ fn run_chrome(title: ChromeTitle, status: Option<ChromeStatus>) -> Result<Comman
     })
 }
 
-fn run_message(
+struct MessageRunArgs {
     title: ChromeTitle,
     message: String,
     status: Option<ChromeStatus>,
     buttons: ButtonsPreset,
     custom_buttons: Option<Vec<String>>,
     default_button: Option<u32>,
-) -> Result<CommandResult, RunError> {
+    level: Option<MessageLevel>,
+    icon: Option<String>,
+    image: Option<String>,
+    markdown: bool,
+}
+
+fn run_message(args: MessageRunArgs) -> Result<CommandResult, RunError> {
     init_platform()?;
 
-    let custom_ref = custom_buttons.as_deref();
-    let html = render_message_html(
-        title.as_str(),
-        &message,
-        status.as_ref().map(|s| s.as_str()),
+    let MessageRunArgs {
+        title,
+        message,
+        status,
         buttons,
-        custom_ref,
+        custom_buttons,
         default_button,
-    );
+        level,
+        icon,
+        image,
+        markdown,
+    } = args;
+
+    let custom_ref = custom_buttons.as_deref();
+    let html = render_message_html(&MessageRenderInput {
+        title: title.as_str(),
+        message: &message,
+        status: status.as_ref().map(|s| s.as_str()),
+        buttons,
+        custom_buttons: custom_ref,
+        default_button,
+        level,
+        icon: icon.as_deref(),
+        image: image.as_deref(),
+        markdown,
+    })?;
     let button_count = buttons.button_count(custom_ref);
-    let (width, height) = estimate_message_window_size(&message, button_count, status.is_some());
+    let (width, height) = estimate_message_window_size(
+        &message,
+        button_count,
+        status.is_some(),
+        level.is_some() || icon.is_some(),
+        image.is_some(),
+    );
 
     let auto_dismiss = std::env::var_os(AUTO_DISMISS_ENV).is_some();
     let inject_ipc = std::env::var(INJECT_IPC_ENV).ok();

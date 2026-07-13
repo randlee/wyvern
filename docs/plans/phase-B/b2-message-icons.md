@@ -1,8 +1,9 @@
 ---
 id: b.2
 title: Message level icons, icon/image fields, markdown body
-status: pending
+status: complete
 branch: feature/phase-B-b2-message-icons
+worktree: /Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-B-b2-message-icons
 target: integrate/phase-B
 ---
 

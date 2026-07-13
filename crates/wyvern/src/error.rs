@@ -112,6 +112,9 @@ fn validation_recovery(field: &str, message: &str) -> Vec<String> {
                 .into(),
         ];
     }
+    if field == "level" {
+        return vec!["Set \"level\" to one of: info, warning, error, question".into()];
+    }
     if field == "custom_buttons" {
         return vec![
             "Provide \"custom_buttons\" as a string array only when \"buttons\" is \"custom\""
@@ -123,10 +126,8 @@ fn validation_recovery(field: &str, message: &str) -> Vec<String> {
             "Set \"default_button\" to a 0-based index within the active button list".into(),
         ];
     }
-    if message.contains("not supported on message until sprint b.2") {
-        return vec![format!(
-            "Remove field \"{field}\" until sprint b.2 ships level/icon/image/markdown"
-        )];
+    if field == "markdown" {
+        return vec!["Provide \"markdown\" as a JSON boolean (true or false)".into()];
     }
     if message.contains("expected string") {
         return vec![format!("Provide field \"{field}\" as a JSON string")];

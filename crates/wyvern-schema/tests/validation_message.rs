@@ -1,7 +1,7 @@
-//! Integration coverage for Phase B `message` validation rules (sprint b.1).
+//! Integration coverage for Phase B `message` validation rules (sprint b.2).
 
 use serde_json::json;
-use wyvern_schema::{validate, ButtonsPreset, Command, ValidationError};
+use wyvern_schema::{validate, ButtonsPreset, Command, MessageLevel, ValidationError};
 
 #[test]
 fn validation_message_ok_preset_passes() {
@@ -20,6 +20,10 @@ fn validation_message_ok_preset_passes() {
             buttons,
             custom_buttons,
             default_button,
+            level,
+            icon,
+            image,
+            markdown,
         } => {
             assert_eq!(title.as_str(), "T");
             assert_eq!(message, "Hi");
@@ -27,6 +31,10 @@ fn validation_message_ok_preset_passes() {
             assert_eq!(buttons, ButtonsPreset::Ok);
             assert!(custom_buttons.is_none());
             assert!(default_button.is_none());
+            assert!(level.is_none());
+            assert!(icon.is_none());
+            assert!(image.is_none());
+            assert!(!markdown);
         }
         other => panic!("expected Message, got {other:?}"),
     }
@@ -179,70 +187,148 @@ fn validation_message_unknown_field_fails() {
 }
 
 #[test]
-fn validation_message_deferred_level_fails() {
-    let err = validate(&json!({
+fn validation_message_level_info_passes() {
+    let cmd = validate(&json!({
         "type": "message",
         "title": "T",
         "message": "Hi",
         "buttons": "ok",
         "level": "info"
     }))
+    .expect("level unlocked");
+    match cmd {
+        Command::Message { level, .. } => assert_eq!(level, Some(MessageLevel::Info)),
+        other => panic!("expected Message, got {other:?}"),
+    }
+}
+
+#[test]
+fn validation_message_all_levels_accepted() {
+    for (name, expected) in [
+        ("info", MessageLevel::Info),
+        ("warning", MessageLevel::Warning),
+        ("error", MessageLevel::Error),
+        ("question", MessageLevel::Question),
+    ] {
+        let cmd = validate(&json!({
+            "type": "message",
+            "title": "T",
+            "message": "Hi",
+            "buttons": "ok",
+            "level": name
+        }))
+        .unwrap_or_else(|e| panic!("level {name} should pass: {e}"));
+        match cmd {
+            Command::Message { level, .. } => assert_eq!(level, Some(expected)),
+            other => panic!("expected Message, got {other:?}"),
+        }
+    }
+}
+
+#[test]
+fn validation_message_level_invalid_enum_fails() {
+    let err = validate(&json!({
+        "type": "message",
+        "title": "T",
+        "message": "Hi",
+        "buttons": "ok",
+        "level": "critical"
+    }))
     .unwrap_err();
     match err {
         ValidationError::Validation { field, message } => {
             assert_eq!(field, "level");
-            assert!(message.contains("b.2"));
+            assert!(message.contains("expected one of"));
+            assert!(message.contains("info"));
+            assert!(message.contains("warning"));
+            assert!(message.contains("error"));
+            assert!(message.contains("question"));
         }
         other => panic!("unexpected {other:?}"),
     }
 }
 
 #[test]
-fn validation_message_deferred_icon_fails() {
+fn validation_message_level_near_miss_suggests() {
     let err = validate(&json!({
         "type": "message",
         "title": "T",
         "message": "Hi",
         "buttons": "ok",
-        "icon": "warning"
+        "level": "warnin"
     }))
     .unwrap_err();
-    assert!(matches!(
-        err,
-        ValidationError::Validation { ref field, .. } if field == "icon"
-    ));
+    match err {
+        ValidationError::Validation { field, message } => {
+            assert_eq!(field, "level");
+            assert!(message.contains("did you mean 'warning'"));
+        }
+        other => panic!("unexpected {other:?}"),
+    }
 }
 
 #[test]
-fn validation_message_deferred_image_fails() {
-    let err = validate(&json!({
+fn validation_message_icon_field_passes() {
+    let cmd = validate(&json!({
         "type": "message",
         "title": "T",
         "message": "Hi",
         "buttons": "ok",
-        "image": "x.png"
+        "icon": "warning:2"
     }))
-    .unwrap_err();
-    assert!(matches!(
-        err,
-        ValidationError::Validation { ref field, .. } if field == "image"
-    ));
+    .expect("icon unlocked");
+    match cmd {
+        Command::Message { icon, .. } => assert_eq!(icon.as_deref(), Some("warning:2")),
+        other => panic!("expected Message, got {other:?}"),
+    }
 }
 
 #[test]
-fn validation_message_deferred_markdown_fails() {
-    let err = validate(&json!({
+fn validation_message_image_field_passes() {
+    let cmd = validate(&json!({
         "type": "message",
         "title": "T",
         "message": "Hi",
+        "buttons": "ok",
+        "image": "/tmp/deco.png"
+    }))
+    .expect("image unlocked");
+    match cmd {
+        Command::Message { image, .. } => assert_eq!(image.as_deref(), Some("/tmp/deco.png")),
+        other => panic!("expected Message, got {other:?}"),
+    }
+}
+
+#[test]
+fn validation_message_markdown_true_passes() {
+    let cmd = validate(&json!({
+        "type": "message",
+        "title": "T",
+        "message": "**Hi**",
         "buttons": "ok",
         "markdown": true
+    }))
+    .expect("markdown unlocked");
+    match cmd {
+        Command::Message { markdown, .. } => assert!(markdown),
+        other => panic!("expected Message, got {other:?}"),
+    }
+}
+
+#[test]
+fn validation_message_markdown_wrong_type_fails() {
+    let err = validate(&json!({
+        "type": "message",
+        "title": "T",
+        "message": "Hi",
+        "buttons": "ok",
+        "markdown": "yes"
     }))
     .unwrap_err();
     match err {
         ValidationError::Validation { field, message } => {
             assert_eq!(field, "markdown");
-            assert!(message.contains("b.2"));
+            assert!(message.contains("expected boolean"));
         }
         other => panic!("unexpected {other:?}"),
     }
