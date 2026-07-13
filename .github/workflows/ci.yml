@@ -21,8 +21,15 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          # webkit2gtk for wry; xkbcommon-x11 for winit X11; xvfb for headless GTK (phase-A README)
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libxkbcommon-x11-0 xvfb
+          # webkit2gtk for wry; xkbcommon-x11 for winit X11; mesa + xvfb for headless GL (phase-A README)
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libxkbcommon-x11-0 \
+            libgl1-mesa-dri \
+            mesa-utils \
+            at-spi2-core \
+            dbus-x11 \
+            xvfb
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -37,11 +44,15 @@ jobs:
         run: cargo test --workspace
 
       # GTK/winit need a display; ubuntu-latest is headless — use Xvfb (docs/plans/phase-A/README.md).
+      # WebKitGTK GPU compositing crashes under xvfb (GLXBadWindow) without software-GL flags.
       - name: cargo test (Linux / xvfb)
         if: runner.os == 'Linux'
         env:
           GDK_BACKEND: x11
-        run: xvfb-run -a cargo test --workspace
+          LIBGL_ALWAYS_SOFTWARE: "1"
+          WEBKIT_DISABLE_COMPOSITING_MODE: "1"
+          WEBKIT_DISABLE_DMABUF_RENDERER: "1"
+        run: dbus-run-session -- xvfb-run -a cargo test --workspace
 
       - name: cargo clippy
         run: cargo clippy --workspace -- -D warnings
