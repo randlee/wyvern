@@ -4,7 +4,8 @@
 //! thread — required by winit on macOS (and safest cross-platform).
 //!
 //! Only one EventLoop per process is possible on macOS; cancel omit-input is
-//! covered by `input::render` unit tests.
+//! covered by `input::render` unit tests. File/folder picker paths live in
+//! separate harness binaries (`input_file_ipc`, `input_folder_ipc`).
 
 mod support;
 

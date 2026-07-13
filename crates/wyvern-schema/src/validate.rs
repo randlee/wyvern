@@ -28,10 +28,7 @@ const MESSAGE_FIELDS: &[&str] = &[
     "markdown",
 ];
 
-/// Allowed fields on an `input` command object (b.3 text surface).
-///
-/// `filter` / `multiple` / `start_path` are recognized so REQ-0059 can reject
-/// them under text mode; they are not stored on [`Command::Input`] until b.4.
+/// Allowed fields on an `input` command object (b.4 full surface).
 const INPUT_FIELDS: &[&str] = &[
     "type",
     "title",
@@ -49,7 +46,7 @@ const INPUT_FIELDS: &[&str] = &[
     "buttons",
 ];
 
-/// Phase B executable `type` values (through b.3).
+/// Phase B executable `type` values (through b.4).
 const VALID_TYPES: &[&str] = &["chrome", "message", "input"];
 
 /// Validate `value` as a Phase B command.
@@ -349,36 +346,103 @@ fn validate_input(obj: &Map<String, Value>) -> Result<Command, ValidationError> 
         }
     };
 
-    // Sprint b.3: only text mode is executable; file/folder unlock in b.4.
-    if matches!(mode, InputMode::File | InputMode::Folder) {
+    // REQ-0057 — multiline is text-mode only.
+    if multiline && matches!(mode, InputMode::File | InputMode::Folder) {
         return Err(ValidationError::validation(
-            "mode",
-            format!(
-                "mode '{}' is not implemented until sprint b.4",
-                mode.as_str()
-            ),
+            "multiline",
+            "multiline is only valid when mode is 'text' (or omitted)",
         ));
     }
 
-    // REQ-0059 — text-mode cross-field rules (mode is Text here).
-    if obj.contains_key("filter") {
+    // REQ-0059 — placeholder / default only for text mode.
+    if placeholder.is_some() && matches!(mode, InputMode::File | InputMode::Folder) {
         return Err(ValidationError::validation(
-            "filter",
-            "filter is only valid when mode is 'file'",
+            "placeholder",
+            "placeholder is only valid when mode is 'text' (or omitted)",
         ));
     }
-    if obj.contains_key("multiple") {
+    if default.is_some() && matches!(mode, InputMode::File | InputMode::Folder) {
         return Err(ValidationError::validation(
-            "multiple",
-            "multiple is only valid when mode is 'file'",
+            "default",
+            "default is only valid when mode is 'text' (or omitted)",
         ));
     }
-    if obj.contains_key("start_path") {
-        return Err(ValidationError::validation(
-            "start_path",
-            "start_path is only valid when mode is 'file' or 'folder'",
-        ));
-    }
+
+    // REQ-0059 — filter / multiple only for file mode.
+    let filter = match obj.get("filter") {
+        None => None,
+        Some(_) if mode != InputMode::File => {
+            return Err(ValidationError::validation(
+                "filter",
+                "filter is only valid when mode is 'file'",
+            ));
+        }
+        Some(Value::Array(items)) => {
+            let mut patterns = Vec::with_capacity(items.len());
+            for (i, item) in items.iter().enumerate() {
+                match item {
+                    Value::String(s) => patterns.push(s.clone()),
+                    other => {
+                        return Err(ValidationError::validation(
+                            "filter",
+                            format!("filter[{i}] expected string, got {}", json_type_name(other)),
+                        ));
+                    }
+                }
+            }
+            Some(patterns)
+        }
+        Some(other) => {
+            return Err(ValidationError::validation(
+                "filter",
+                format!(
+                    "field 'filter' expected array, got {}",
+                    json_type_name(other)
+                ),
+            ));
+        }
+    };
+
+    let multiple = match obj.get("multiple") {
+        None => false,
+        Some(_) if mode != InputMode::File => {
+            return Err(ValidationError::validation(
+                "multiple",
+                "multiple is only valid when mode is 'file'",
+            ));
+        }
+        Some(Value::Bool(b)) => *b,
+        Some(other) => {
+            return Err(ValidationError::validation(
+                "multiple",
+                format!(
+                    "field 'multiple' expected boolean, got {}",
+                    json_type_name(other)
+                ),
+            ));
+        }
+    };
+
+    // REQ-0059 — start_path only for file or folder mode.
+    let start_path = match obj.get("start_path") {
+        None => None,
+        Some(_) if matches!(mode, InputMode::Text) => {
+            return Err(ValidationError::validation(
+                "start_path",
+                "start_path is only valid when mode is 'file' or 'folder'",
+            ));
+        }
+        Some(Value::String(s)) => Some(s.clone()),
+        Some(other) => {
+            return Err(ValidationError::validation(
+                "start_path",
+                format!(
+                    "field 'start_path' expected string, got {}",
+                    json_type_name(other)
+                ),
+            ));
+        }
+    };
 
     let buttons = match obj.get("buttons") {
         None => ButtonsPreset::OkCancel,
@@ -407,7 +471,7 @@ fn validate_input(obj: &Map<String, Value>) -> Result<Command, ValidationError> 
     if buttons == ButtonsPreset::Custom {
         return Err(ValidationError::validation(
             "buttons",
-            "buttons: custom is not supported for input in sprint b.3",
+            "buttons: custom is not supported for input in sprint b.4",
         ));
     }
 
@@ -421,6 +485,9 @@ fn validate_input(obj: &Map<String, Value>) -> Result<Command, ValidationError> 
         placeholder,
         default,
         mode,
+        filter,
+        multiple,
+        start_path,
         buttons,
     })
 }

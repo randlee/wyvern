@@ -122,18 +122,23 @@ fn cli_valid_input_emits_dismissed() {
 }
 
 #[test]
-fn cli_input_mode_file_validation_error() {
+fn cli_valid_input_file_mode_emits_dismissed() {
     let (code, stdout, stderr) =
         run_json(r#"{"type":"input","title":"T","message":"M","mode":"file"}"#);
+    assert_eq!(code, 0, "stderr={stderr}");
+    assert_eq!(stdout.trim(), r#"{"button":"dismissed"}"#);
+    assert!(stderr.trim().is_empty(), "stderr={stderr}");
+}
+
+#[test]
+fn cli_input_multiline_with_file_validation_error() {
+    let (code, stdout, stderr) =
+        run_json(r#"{"type":"input","title":"T","message":"M","mode":"file","multiline":true}"#);
     assert_ne!(code, 0);
     assert!(stdout.trim().is_empty(), "stdout={stdout}");
     let value = stderr_json(&stderr);
     assert_eq!(value["error"], "validation");
-    assert_eq!(value["field"], "mode");
-    assert!(value["message"]
-        .as_str()
-        .unwrap()
-        .contains("not implemented"));
+    assert_eq!(value["field"], "multiline");
 }
 
 #[test]

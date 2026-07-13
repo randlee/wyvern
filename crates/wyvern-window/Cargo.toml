@@ -10,6 +10,7 @@ wyvern-schema = { path = "../wyvern-schema" }
 wyvern-wizard = { path = "../wyvern-wizard" }
 wry           = { workspace = true }
 winit         = { workspace = true }
+rfd           = "0.15"
 serde_json    = { workspace = true }
 pulldown-cmark = { workspace = true }
 
@@ -32,5 +33,20 @@ harness = false
 [[test]]
 name = "input_ipc"
 path = "tests/input_ipc.rs"
+harness = false
+
+[[test]]
+name = "input_file_ipc"
+path = "tests/input_file_ipc.rs"
+harness = false
+
+[[test]]
+name = "input_file_multi_ipc"
+path = "tests/input_file_multi_ipc.rs"
+harness = false
+
+[[test]]
+name = "input_folder_ipc"
+path = "tests/input_folder_ipc.rs"
 harness = false
 
