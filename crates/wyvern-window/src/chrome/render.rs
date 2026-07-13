@@ -24,10 +24,12 @@ fn escape_html_text(s: &str) -> String {
 /// hidden. The button bar is always present and `hidden` until Phase B.
 pub fn render_chrome_html(title: &str, status: Option<&str>) -> String {
     let safe_title = escape_html_text(title);
-    let status_block = status.map(|s| {
-        let safe_status = escape_html_text(s);
-        format!(r#"<div id="status-bar">{safe_status}</div>"#)
-    }).unwrap_or_default();
+    let status_block = status
+        .map(|s| {
+            let safe_status = escape_html_text(s);
+            format!(r#"<div id="status-bar">{safe_status}</div>"#)
+        })
+        .unwrap_or_default();
     CHROME_HTML
         .replace("{{TITLE}}", &safe_title)
         .replace("{{STATUS_BLOCK}}", &status_block)
@@ -50,7 +52,9 @@ mod tests {
     #[test]
     fn render_escapes_html_in_title_and_status() {
         let html = render_chrome_html(r#"<script>"alert"</script>"#, Some(r#"a & b"#));
-        assert!(html.contains(r#"<div id="title-bar">&lt;script&gt;&quot;alert&quot;&lt;/script&gt;</div>"#));
+        assert!(html.contains(
+            r#"<div id="title-bar">&lt;script&gt;&quot;alert&quot;&lt;/script&gt;</div>"#
+        ));
         assert!(html.contains(r#"<div id="status-bar">a &amp; b</div>"#));
         assert!(!html.contains("<script>"));
     }
