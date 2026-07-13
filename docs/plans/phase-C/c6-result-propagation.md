@@ -24,10 +24,12 @@ target: integrate/phase-C-fixes
 - `crates/wyvern-window/src/run.rs` — bubble `RunError` from render/setup (already mostly `Result`)
 - `crates/wyvern-schema/src/stderr.rs` — `SerializeError`, `to_json_string`
 - `crates/wyvern-schema/src/error_code.rs` — `ErrorCode::InternalError`
-- `crates/wyvern/src/error.rs` — emit helpers, `EmitError`, load-error split
-- `crates/wyvern/src/pipeline.rs` — `PipelineError`, `run_from_loaded`
-- `crates/wyvern/src/lib.rs` — export `PipelineError`; **remove** `handle_run_failure` export
-- `crates/wyvern/src/main.rs` — load + pipeline `PipelineError` / `EmitError` handling
+- `crates/wyvern/src/error.rs` — emit helpers, `EmitError`, load-error split; rewrite `#[cfg(test)]` tests off `handle_run_failure` / `emit_load_error`
+- `crates/wyvern/src/input.rs` — `#[cfg(test)]` tests call `emit_parse_error` / `emit_io_error` instead of `emit_load_error`
+- `crates/wyvern/src/pipeline.rs` — `PipelineError`, `run_from_loaded` (retain all `observability::*` calls)
+- `crates/wyvern/src/lib.rs` — export `PipelineError`, `EmitError`, `emit_parse_error`, `emit_io_error`, `emit_fatal_internal`; remove `emit_load_error`, `handle_run_failure`
+- `crates/wyvern/src/main.rs` — load + pipeline `PipelineError` / `EmitError` handling (no `unreachable!`)
+- `crates/wyvern-schema/src/lib.rs` — `pub use stderr::SerializeError`
 - `docs/wyvern/architecture.md` — ADR-0013 amendment + pipeline error table
 - `docs/wyvern-schema/requirements.md` — **REQ-0074** emit-stage `internal` wire contract (mandatory)
 
@@ -47,6 +49,8 @@ target: integrate/phase-C-fixes
 - `ErrorCode::InternalError` — slug `internal`, exit `8` — for `EmitError` only
 - **`handle_run_failure` deleted** — pipeline inlines `emit_run_error(&e)?` + exit-code match (see samples)
 - **`emit_load_error` deleted** — replaced by `emit_parse_error` / `emit_io_error` only
+- **`wyvern-schema` exports `SerializeError`**; **`wyvern` `lib.rs`** exports new public emit/pipeline API (see Exact Targets)
+- All `emit_*` helpers return `Result<String, EmitError>`; pipeline propagates via `PipelineError`
 - Static stderr fallback when structured emit fails (no recursive `to_json_string`)
 - ADR-0013 amended: emit-stage failures + icon defense-in-depth documented
 - [UNWRAP-INVENTORY.md](UNWRAP-INVENTORY.md) §1 rows marked **FIXED** with commit SHA (audit trail only)
@@ -166,6 +170,9 @@ pub enum PipelineError {
 }
 
 pub fn run_from_loaded(value: Value) -> Result<String, PipelineError> {
+    // Retain all existing observability::* calls unchanged (log_command_received,
+    // log_validation_result, log_window_open/close, log_result_emitted, log_error).
+
     let command = match wyvern_schema::validate(&value) {
         Ok(cmd) => cmd,
         Err(e) => {
@@ -244,7 +251,13 @@ fn main() -> ExitCode {
             eprintln!("{message}");
             return ExitCode::from(1);
         }
-        Err(err) => return emit_load_stage_failure(&err),
+        Err(err) => match &err {
+            LoadError::Parse { .. } | LoadError::Io { .. } => return emit_load_stage_failure(&err),
+            LoadError::Usage { message } => {
+                eprintln!("{message}");
+                return ExitCode::from(1);
+            }
+        },
     };
 
     match run_from_loaded(value) {
@@ -262,10 +275,15 @@ fn main() -> ExitCode {
 }
 
 fn emit_load_stage_failure(err: &LoadError) -> ExitCode {
+    debug_assert!(matches!(err, LoadError::Parse { .. } | LoadError::Io { .. }));
     let emit_result = match err {
         LoadError::Parse { .. } => emit_parse_error(err),
         LoadError::Io { .. } => emit_io_error(err),
-        LoadError::Usage { .. } => unreachable!("Usage handled in main match above"),
+        LoadError::Usage { .. } => {
+            return emit_fatal_internal(&EmitError::Serialize(SerializeError {
+                message: "miswired Usage in emit_load_stage_failure".into(),
+            }));
+        }
     };
     match emit_result {
         Ok(stderr) => {
@@ -304,6 +322,33 @@ pub fn emit_fatal_internal(err: &EmitError) -> ! {
 `PipelineError::Emit` triggers `emit_fatal_internal` (static JSON, no recursive serialize).
 ```
 
+### Serialize failure test seam (authoritative)
+
+```rust
+// crates/wyvern-schema/src/stderr.rs — #[cfg(test)] only
+#[cfg(test)]
+static FORCE_SERIALIZE_FAIL: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
+impl StderrError {
+    pub fn to_json_string(&self) -> Result<String, SerializeError> {
+        #[cfg(test)]
+        if FORCE_SERIALIZE_FAIL.load(std::sync::atomic::Ordering::Relaxed) {
+            return Err(SerializeError { message: "forced".into() });
+        }
+        serde_json::to_string(self).map_err(|e| SerializeError { message: e.to_string() })
+    }
+}
+
+#[test]
+fn serialize_error_forced_fail() {
+    FORCE_SERIALIZE_FAIL.store(true, Ordering::Relaxed);
+    let err = StderrError::new(ErrorCode::ParseError, "x".into());
+    assert!(err.to_json_string().is_err());
+    FORCE_SERIALIZE_FAIL.store(false, Ordering::Relaxed);
+}
+```
+
 ### Error mapping table (emit at CLI)
 
 | Source | `error` slug | `code` | Exit |
@@ -322,13 +367,15 @@ pub fn emit_fatal_internal(err: &EmitError) -> ! {
 ## Acceptance Criteria
 
 - §1 checklist rows 1–5 **FIXED** in code
-- Unit test: missing level embed → `RunError::WindowCreate`
-- Unit test: `to_json_string` / `emit_stdout` serialize path returns `Err` on forced failure (test-only mock type or `#[cfg(test)]` hook)
+- Unit test: `resolve_named_icon_svg("bad:role:99")` or unbundled variant → `RunError::WindowCreate` (implementable without mocking compile-time embeds)
+- Unit test `serialize_error_round_trip`: `StderrError` with `#[serde(skip_serializing)]` test-only field forced via `cfg(test)` hook in `to_json_string` returns `Err(SerializeError)`; `emit_stdout` test mirrors via same pattern
+- Zero production `unreachable!` in `crates/wyvern/src/**/*.rs` outside `#[cfg(test)]` (includes `main.rs`)
 - `cargo test --workspace -- --test-threads=1` passes
 - `cargo clippy --workspace -- -D warnings` clean (c.8 adds denies; c.6 must not introduce new production panics)
 - `sc-lint check native --config .sc-lint.toml` clean
 - REQ-0074 present in `docs/wyvern-schema/requirements.md` with slug `internal` and exit `8`
-- `rg 'emit_load_error|handle_run_failure' crates/wyvern/src` returns **zero** matches (deleted)
+- ADR-0013 amendment present in `docs/wyvern/architecture.md` (`internal`, `PipelineError::Emit`, icon→`WindowCreate`)
+- `rg 'emit_load_error|handle_run_failure' crates/wyvern/src` returns **zero** matches (deleted; `input.rs` tests updated)
 - `rg 'unwrap\(|\.expect\(|panic!|unreachable!' crates/wyvern-window/src/input/render.rs` — zero matches outside `mod tests` (proves out-of-scope)
 
 ## Required Validation
@@ -338,4 +385,6 @@ pub fn emit_fatal_internal(err: &EmitError) -> ! {
 - `sc-lint check native --config .sc-lint.toml`
 - `rg 'unwrap\(|\.expect\(|panic!|unreachable!' crates/wyvern-window/src/input/render.rs` (must be test-only)
 - `rg 'REQ-0074' docs/wyvern-schema/requirements.md` (must match)
+- `rg 'INTERNAL_ERROR|PipelineError::Emit|internal' docs/wyvern/architecture.md` (ADR amendment gate)
+- `rg 'unreachable!' crates/wyvern/src --glob '!**/tests/**'` with manual `#[cfg(test)]` exclusion (zero in production)
 - `rg 'emit_load_error|handle_run_failure' crates/wyvern/src` (must be zero)

@@ -48,40 +48,33 @@ fn run_json(json: &str) -> (i32, String, String) {
 }
 
 fn assert_child_ok(output: &std::process::Output) {
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    let code = output.status.code();
-    let failed = stderr.contains("panicked at")
+    assert!(child_failed(
+        &String::from_utf8_lossy(&output.stderr),
+        output.status.code(),
+    ));
+}
+
+/// Pure predicate — unit-testable without synthesizing `ExitStatus`.
+fn child_failed(stderr: &str, code: Option<i32>) -> bool {
+    stderr.contains("panicked at")
         || stderr.contains("misaligned pointer")
         || stderr.contains("cannot unwind")
         || stderr.contains("abort")
-        || code == Some(-1);
-    if failed {
-        panic!(
-            "wyvern child failed (use --test-threads=1; macOS GUI tests are serial):\n\
-             code={code:?}\nstderr={stderr}"
-        );
-    }
+        || code == Some(-1)
 }
 ```
-
-**Every** spawn path (including markdown shorthand) goes through `run_wyvern` / `run_json`.
-
-### 1b. Unit test for `assert_child_ok` (no GUI spawn)
 
 ```rust
 #[test]
-fn assert_child_ok_panics_on_child_panic_marker() {
-    let output = std::process::Output {
-        status: std::process::ExitStatus::from_raw(256), // platform-specific; use exit -1 mock
-        stdout: Vec::new(),
-        stderr: b"thread 'main' panicked at 'winit'\n".to_vec(),
-    };
-    let result = std::panic::catch_unwind(|| assert_child_ok(&output));
-    assert!(result.is_err(), "assert_child_ok must panic on child panic stderr");
+fn child_failed_detects_panic_marker() {
+    assert!(child_failed("thread 'main' panicked at winit\n", Some(0)));
+    assert!(!child_failed("", Some(0)));
 }
 ```
 
-Extract `assert_child_ok` to a `mod child_assert` in `cli_validation.rs` (or `tests/support/child.rs`) so this test can call it without spawning wyvern.
+Extract `child_failed` / `assert_child_ok` to a `mod child_assert` in `cli_validation.rs` (or `tests/support/child.rs`).
+
+**Every** spawn path (including markdown shorthand) goes through `run_wyvern` / `run_json`.
 
 ### 2. GUI tests — exhaustive `#[serial]` list
 
@@ -127,7 +120,7 @@ Expected signature: `uninitialized instance variable`, `misaligned pointer deref
 
 - All nine GUI tests above carry `#[serial]`
 - `cli_markdown_md_shorthand_emits_dismissed` uses `run_wyvern` (not raw `.output()`)
-- `assert_child_ok_panics_on_child_panic_marker` unit test passes
+- `child_failed_detects_panic_marker` unit test passes
 - `cargo test -p wyvern -- --test-threads=1` passes on macOS
 - `docs/linting.md` contains local `--test-threads=1` policy
 
@@ -135,5 +128,5 @@ Expected signature: `uninitialized instance variable`, `misaligned pointer deref
 
 - `cargo test -p wyvern -- --test-threads=1`
 - `cargo test --workspace -- --test-threads=1`
-- `cargo test -p wyvern assert_child_ok_panics_on_child_panic_marker -- --test-threads=1`
+- `cargo test -p wyvern child_failed_detects_panic_marker -- --test-threads=1`
 - `cargo clippy --workspace -- -D warnings`

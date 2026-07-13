@@ -7,30 +7,26 @@ Base: `develop` @ post–Phase C merge (`41e3e24`)
 
 ## Architectural policy (decided)
 
-**Panics are forbidden in production paths except under extraordinary circumstances.**
+**Panics are forbidden in production paths** (including `main.rs`). Test code may panic.
 
-**All layers return discriminated unions** (`Result<T, E>` where `E` is a crate-appropriate error enum). Errors propagate upward; the CLI boundary maps each variant to structured stderr JSON and a non-zero exit code. No `unwrap()`, `expect()`, or `panic!()` in non-test `src/` unless explicitly documented as extraordinary (see below).
+**All layers return discriminated unions** (`Result<T, E>` where `E` is a crate-appropriate error enum). Errors propagate upward; the CLI boundary maps each variant to structured stderr JSON and a non-zero exit code. No `unwrap()`, `expect()`, `panic!()`, or `unreachable!()` in non-test production code.
 
 ### Layer model (existing + extensions)
 
-| Layer | Crate | Success | Error enum | Maps to stderr |
-|-------|-------|---------|------------|----------------|
-| Load | `wyvern` | `serde_json::Value` | `LoadError` (`Parse` \| `Io` \| `Usage`) | `parse` / `io` / `usage` |
+| Layer | Crate | Success | Error enum | Maps to stderr / exit |
+|-------|-------|---------|------------|------------------------|
+| Load | `wyvern` | `serde_json::Value` | `LoadError` (`Parse` \| `Io` \| `Usage`) | `parse` / `io` (JSON); **Usage → plain text, exit 1** (no JSON slug) |
 | Validate | `wyvern-schema` | `Command` | `ValidationError` (`Validation` \| `State`) | `validation` / `state` |
 | Run | `wyvern-window` | `CommandResult` | `RunError` (`WindowCreate` \| `EventLoop`) | `window_create` / `event_loop` |
 | Emit | `wyvern` | stdout JSON string | `EmitError` (`Serialize`) | `internal` (exit 8) |
 
 **Phase C gap:** `media.rs` and emit helpers bypass this model with `expect`. c.6 closes that gap.
 
-### Extraordinary circumstances (panic allowed)
+### Extraordinary circumstances
 
-Only when **all** apply:
+**Production `unreachable!` is not permitted** (c.6/c.8). Miswired internal paths map to `EmitError` → `internal` exit 8 or `debug_assert!` in debug builds only.
 
-1. Programmer invariant guaranteed by an earlier layer (e.g. schema-validated icon spec) — must be enforced by type/state machine, not a comment; if the invariant can break, use `Result`.
-2. Truly impossible state (e.g. enum exhaustiveness helper after match) — prefer `unreachable!` with `#[deny(unreachable_pub)]` review.
-3. Test-only code (`#[cfg(test)]`, integration harnesses).
-
-**Not extraordinary:** missing embedded icon bytes, JSON serialization of protocol types, winit teardown races, parallel GUI test isolation — these get `Result` or test harness fixes.
+Allowed panics: **`#[cfg(test)]` and integration test harnesses only.**
 
 ### Serialization
 
