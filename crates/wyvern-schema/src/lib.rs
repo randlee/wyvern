@@ -6,6 +6,18 @@
 //! [`Command::Question`] (card radio/checkbox). Call [`validate`] on
 //! loaded JSON before opening a window.
 
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::panic,
+        clippy::unreachable,
+        clippy::todo,
+        clippy::unimplemented
+    )
+)]
+
 mod button;
 mod chrome;
 mod command;
