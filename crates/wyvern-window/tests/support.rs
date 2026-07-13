@@ -54,6 +54,124 @@ pub fn open_chrome_inject_then_auto_dismiss(ipc_json: &str) -> Result<CommandRes
     result
 }
 
+/// Opens a message dialog, injects IPC, then auto-dismisses (non-completing IPC).
+pub fn open_message_inject_then_auto_dismiss(ipc_json: &str) -> Result<CommandResult, RunError> {
+    // SAFETY: integration test harness runs single-threaded before other work.
+    unsafe {
+        std::env::set_var("WYVERN_AUTO_DISMISS", "1");
+        std::env::set_var("WYVERN_INJECT_IPC", ipc_json);
+    }
+    let result = wyvern_window::run(Command::Message {
+        title: ChromeTitle::new("wyvern-message-minimize-test"),
+        message: "Test body".into(),
+        status: None,
+        buttons: ButtonsPreset::OkCancel,
+        custom_buttons: None,
+        default_button: Some(0),
+        level: None,
+        icon: None,
+        image: None,
+        markdown: false,
+    });
+    unsafe {
+        std::env::remove_var("WYVERN_INJECT_IPC");
+        std::env::remove_var("WYVERN_AUTO_DISMISS");
+    }
+    result
+}
+
+/// Opens an input dialog, injects IPC, then auto-dismisses (non-completing IPC).
+pub fn open_input_inject_then_auto_dismiss(ipc_json: &str) -> Result<CommandResult, RunError> {
+    // SAFETY: integration test harness runs single-threaded before other work.
+    unsafe {
+        std::env::set_var("WYVERN_AUTO_DISMISS", "1");
+        std::env::set_var("WYVERN_INJECT_IPC", ipc_json);
+    }
+    let result = wyvern_window::run(Command::Input {
+        title: ChromeTitle::new("wyvern-input-minimize-test"),
+        message: "Enter a value".into(),
+        status: None,
+        icon: None,
+        markdown: false,
+        multiline: false,
+        placeholder: Some("hint".into()),
+        default: Some("prefill".into()),
+        mode: InputMode::Text,
+        filter: None,
+        multiple: false,
+        start_path: None,
+        buttons: ButtonsPreset::OkCancel,
+    });
+    unsafe {
+        std::env::remove_var("WYVERN_INJECT_IPC");
+        std::env::remove_var("WYVERN_AUTO_DISMISS");
+    }
+    result
+}
+
+/// Opens a markdown dialog, injects IPC, then auto-dismisses (non-completing IPC).
+pub fn open_markdown_inject_then_auto_dismiss(ipc_json: &str) -> Result<CommandResult, RunError> {
+    // SAFETY: integration test harness runs single-threaded before other work.
+    unsafe {
+        std::env::set_var("WYVERN_AUTO_DISMISS", "1");
+        std::env::set_var("WYVERN_INJECT_IPC", ipc_json);
+    }
+    let result = wyvern_window::run(Command::Markdown {
+        title: Some(ChromeTitle::new("wyvern-markdown-minimize-test")),
+        file: None,
+        content: Some("# Hello\n\nMinimize no-op body.".into()),
+        status: None,
+        buttons: ButtonsPreset::Ok,
+    });
+    unsafe {
+        std::env::remove_var("WYVERN_INJECT_IPC");
+        std::env::remove_var("WYVERN_AUTO_DISMISS");
+    }
+    result
+}
+
+/// Opens a question dialog, injects IPC, then auto-dismisses (non-completing IPC).
+pub fn open_question_inject_then_auto_dismiss(ipc_json: &str) -> Result<CommandResult, RunError> {
+    // SAFETY: integration test harness runs single-threaded before other work.
+    unsafe {
+        std::env::set_var("WYVERN_AUTO_DISMISS", "1");
+        std::env::set_var("WYVERN_INJECT_IPC", ipc_json);
+    }
+    let result = wyvern_window::run(Command::Question {
+        questions: vec![QuestionCard {
+            question: "Output format?".into(),
+            header: "Format".into(),
+            options: vec![
+                QuestionOption {
+                    label: "JSON".into(),
+                    description: "Structured".into(),
+                    preview: None,
+                },
+                QuestionOption {
+                    label: "Plain".into(),
+                    description: "Text only".into(),
+                    preview: None,
+                },
+            ],
+            multi_select: false,
+        }],
+        questions_raw: vec![serde_json::json!({
+            "question": "Output format?",
+            "header": "Format",
+            "options": [
+                { "label": "JSON", "description": "Structured" },
+                { "label": "Plain", "description": "Text only" }
+            ],
+            "multiSelect": false
+        })],
+    });
+    unsafe {
+        std::env::remove_var("WYVERN_INJECT_IPC");
+        std::env::remove_var("WYVERN_AUTO_DISMISS");
+    }
+    result
+}
+
 /// Opens a message dialog and injects IPC JSON (test harness hook).
 pub fn open_message_with_injected_ipc(ipc_json: &str) -> Result<CommandResult, RunError> {
     // SAFETY: integration test harness runs single-threaded before other work.

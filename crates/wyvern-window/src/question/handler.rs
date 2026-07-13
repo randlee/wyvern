@@ -233,6 +233,11 @@ impl ApplicationHandler<DialogEvent> for QuestionApp {
             if let Some(raw) = self.inject_ipc.take() {
                 let _ = self.proxy.send_event(DialogEvent::Ipc(raw));
             }
+            // After a non-completing inject (e.g. modal window_minimize no-op),
+            // finish via auto-dismiss so integration tests can observe no early exit.
+            if self.auto_dismiss {
+                self.pending_auto = true;
+            }
             return;
         }
 

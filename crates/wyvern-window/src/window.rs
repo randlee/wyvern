@@ -119,3 +119,24 @@ pub(crate) fn pump_gtk_events() {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    //! ADR-0010a: Win/Linux use `decorations: false` (HTML chrome).
+
+    #[test]
+    #[cfg(not(target_os = "macos"))]
+    fn non_macos_chrome_and_modal_attrs_disable_decorations() {
+        let chrome = super::chrome_window_attributes("decorations-test");
+        assert!(
+            !chrome.decorations,
+            "Win/Linux chrome must use decorations(false) per ADR-0010a"
+        );
+
+        let modal = super::modal_window_attributes("decorations-modal", 400.0, 300.0);
+        assert!(
+            !modal.decorations,
+            "Win/Linux modal must use decorations(false) per ADR-0010a"
+        );
+    }
+}
