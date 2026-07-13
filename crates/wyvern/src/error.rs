@@ -1,4 +1,6 @@
-//! Load-stage errors and stderr JSON emission.
+//! Load/validation-stage errors and stderr JSON emission.
+
+use wyvern_schema::ValidationError;
 
 /// Failure while loading command input from argv or stdin.
 #[derive(Debug)]
@@ -40,6 +42,19 @@ pub fn emit_load_error(err: &LoadError) -> String {
     }
 }
 
+/// Serialize a validation/state error as stderr JSON.
+pub fn emit_validation_error(err: &ValidationError) -> String {
+    match err {
+        ValidationError::Validation { field, message } => {
+            serde_json::json!({ "error": "validation", "field": field, "message": message })
+                .to_string()
+        }
+        ValidationError::State { field, message } => {
+            serde_json::json!({ "error": "state", "field": field, "message": message }).to_string()
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -66,5 +81,30 @@ mod tests {
         assert_eq!(value["error"], "io");
         assert_eq!(value["field"], "file");
         assert!(value["message"].as_str().unwrap().contains('"'));
+    }
+
+    #[test]
+    fn emit_validation_error_message_with_quotes_is_valid_json() {
+        let err = ValidationError::Validation {
+            field: "title".to_string(),
+            message: r#"field 'title' expected string, got "oops""#.to_string(),
+        };
+        let out = emit_validation_error(&err);
+        let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
+        assert_eq!(value["error"], "validation");
+        assert_eq!(value["field"], "title");
+        assert!(value["message"].as_str().unwrap().contains('"'));
+    }
+
+    #[test]
+    fn emit_validation_error_state() {
+        let err = ValidationError::State {
+            field: "action".to_string(),
+            message: "show is only valid in --interactive mode".to_string(),
+        };
+        let out = emit_validation_error(&err);
+        let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
+        assert_eq!(value["error"], "state");
+        assert_eq!(value["field"], "action");
     }
 }
