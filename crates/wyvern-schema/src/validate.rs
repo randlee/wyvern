@@ -3,7 +3,7 @@
 use serde_json::{Map, Value};
 
 use crate::chrome::{ChromeStatus, ChromeTitle};
-use crate::command::{ButtonsPreset, Command};
+use crate::command::{ButtonsPreset, Command, MessageLevel};
 use crate::error::ValidationError;
 use crate::field_name::FieldName;
 
@@ -13,7 +13,7 @@ const LIFECYCLE_ACTIONS: &[&str] = &["show", "hide", "exit"];
 /// Allowed fields on a `chrome` command object.
 const CHROME_FIELDS: &[&str] = &["type", "title", "status"];
 
-/// Allowed fields on a `message` command object (b.1 subset).
+/// Allowed fields on a `message` command object (b.2 full surface).
 const MESSAGE_FIELDS: &[&str] = &[
     "type",
     "title",
@@ -22,12 +22,13 @@ const MESSAGE_FIELDS: &[&str] = &[
     "buttons",
     "custom_buttons",
     "default_button",
+    "level",
+    "icon",
+    "image",
+    "markdown",
 ];
 
-/// Fields deferred to sprint b.2 — present → explicit validation error.
-const MESSAGE_DEFERRED_FIELDS: &[&str] = &["level", "icon", "image", "markdown"];
-
-/// Phase B executable `type` values (through b.1).
+/// Phase B executable `type` values (through b.2).
 const VALID_TYPES: &[&str] = &["chrome", "message"];
 
 /// Validate `value` as a Phase B command.
@@ -114,12 +115,6 @@ fn validate_chrome(obj: &Map<String, Value>) -> Result<Command, ValidationError>
 fn validate_message(obj: &Map<String, Value>) -> Result<Command, ValidationError> {
     for key in obj.keys() {
         let key_str = key.as_str();
-        if MESSAGE_DEFERRED_FIELDS.contains(&key_str) {
-            return Err(ValidationError::validation(
-                FieldName::new(key_str),
-                format!("field '{key_str}' is not supported on message until sprint b.2"),
-            ));
-        }
         if !MESSAGE_FIELDS.contains(&key_str) {
             return Err(ValidationError::validation(
                 FieldName::new(key_str),
@@ -246,6 +241,34 @@ fn validate_message(obj: &Map<String, Value>) -> Result<Command, ValidationError
         }
     }
 
+    let level = match obj.get("level") {
+        None => None,
+        Some(Value::String(s)) => match MessageLevel::parse(s) {
+            Some(level) => Some(level),
+            None => {
+                let options = MessageLevel::all_names().join(", ");
+                let mut msg = format!("got '{s}', expected one of: {options}");
+                if let Some(suggestion) = closest_match(s, MessageLevel::all_names()) {
+                    msg.push_str(&format!("; did you mean '{suggestion}'?"));
+                }
+                return Err(ValidationError::validation("level", msg));
+            }
+        },
+        Some(other) => {
+            return Err(ValidationError::validation(
+                "level",
+                format!(
+                    "field 'level' expected string, got {}",
+                    json_type_name(other)
+                ),
+            ));
+        }
+    };
+
+    let icon = optional_string_field(obj, "icon")?;
+    let image = optional_string_field(obj, "image")?;
+    let markdown = optional_bool_field(obj, "markdown")?.unwrap_or(false);
+
     Ok(Command::Message {
         title: ChromeTitle::new(title),
         message,
@@ -253,6 +276,10 @@ fn validate_message(obj: &Map<String, Value>) -> Result<Command, ValidationError
         buttons,
         custom_buttons,
         default_button,
+        level,
+        icon,
+        image,
+        markdown,
     })
 }
 
@@ -290,6 +317,23 @@ fn optional_string_field(
     }
 }
 
+fn optional_bool_field(
+    obj: &Map<String, Value>,
+    field: &str,
+) -> Result<Option<bool>, ValidationError> {
+    match obj.get(field) {
+        None => Ok(None),
+        Some(Value::Bool(b)) => Ok(Some(*b)),
+        Some(other) => Err(ValidationError::validation(
+            field,
+            format!(
+                "field '{field}' expected boolean, got {}",
+                json_type_name(other)
+            ),
+        )),
+    }
+}
+
 fn unknown_type_error(got: &str) -> ValidationError {
     let options = VALID_TYPES.join(", ");
     let mut message = format!("got '{got}', expected one of: {options}");
@@ -321,7 +365,7 @@ fn json_type_name(value: &Value) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{ButtonsPreset, ChromeStatus, ChromeTitle};
+    use crate::{ButtonsPreset, ChromeStatus, ChromeTitle, MessageLevel};
     use serde_json::json;
 
     #[test]
@@ -461,9 +505,63 @@ mod tests {
             Command::Message {
                 buttons: ButtonsPreset::Ok,
                 default_button: None,
+                level: None,
+                icon: None,
+                image: None,
+                markdown: false,
                 ..
             }
         ));
+    }
+
+    #[test]
+    fn type_message_level_and_markdown_pass() {
+        let cmd = validate(&json!({
+            "type":"message",
+            "title":"T",
+            "message":"**Hi**",
+            "buttons":"ok",
+            "level":"warning",
+            "markdown": true,
+            "icon":"error",
+            "image":"data:image/png;base64,AA=="
+        }))
+        .expect("valid message extras");
+        match cmd {
+            Command::Message {
+                level,
+                markdown,
+                icon,
+                image,
+                ..
+            } => {
+                assert_eq!(level, Some(MessageLevel::Warning));
+                assert!(markdown);
+                assert_eq!(icon.as_deref(), Some("error"));
+                assert_eq!(image.as_deref(), Some("data:image/png;base64,AA=="));
+            }
+            other => panic!("expected Message, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn type_message_level_invalid_fails_req0054() {
+        let err = validate(&json!({
+            "type":"message",
+            "title":"T",
+            "message":"Hi",
+            "buttons":"ok",
+            "level":"warn"
+        }))
+        .expect_err("bad level");
+        match err {
+            ValidationError::Validation { field, message } => {
+                assert_eq!(field, "level");
+                assert!(message.contains("expected one of"));
+                assert!(message.contains("did you mean 'warning'"));
+            }
+            other => panic!("expected Validation, got {other:?}"),
+        }
     }
 
     #[test]

@@ -5,6 +5,7 @@
 
 mod chrome;
 mod error;
+mod markdown;
 mod message;
 mod run;
 mod window;
@@ -29,5 +30,7 @@ pub const DIALOG_MAX_HEIGHT: f64 = 600.0;
 
 #[doc(inline)]
 pub use error::RunError;
+#[doc(inline)]
+pub use markdown::markdown_to_html;
 #[doc(inline)]
 pub use run::run;

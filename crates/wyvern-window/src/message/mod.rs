@@ -1,5 +1,8 @@
 //! HTML message dialog template and rendering.
 
+mod media;
 mod render;
 
-pub use render::{estimate_message_window_size, parse_page_ipc, render_message_html, PageIpc};
+pub use render::{
+    estimate_message_window_size, parse_page_ipc, render_message_html, MessageRenderInput, PageIpc,
+};

@@ -75,6 +75,47 @@ impl ButtonsPreset {
     }
 }
 
+/// Semantic severity for a message dialog (REQ-0012).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MessageLevel {
+    /// Informational notice.
+    Info,
+    /// Caution / non-fatal problem.
+    Warning,
+    /// Error condition.
+    Error,
+    /// Prompt requiring a decision.
+    Question,
+}
+
+impl MessageLevel {
+    /// Parse a wire level name (`info`, `warning`, …).
+    pub fn parse(value: &str) -> Option<Self> {
+        match value {
+            "info" => Some(Self::Info),
+            "warning" => Some(Self::Warning),
+            "error" => Some(Self::Error),
+            "question" => Some(Self::Question),
+            _ => None,
+        }
+    }
+
+    /// All valid wire names (for error messages / suggestions).
+    pub fn all_names() -> &'static [&'static str] {
+        &["info", "warning", "error", "question"]
+    }
+
+    /// Wire / asset name for this level.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Info => "info",
+            Self::Warning => "warning",
+            Self::Error => "error",
+            Self::Question => "question",
+        }
+    }
+}
+
 /// Executable command after successful validation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
@@ -83,7 +124,7 @@ pub enum Command {
         title: ChromeTitle,
         status: Option<ChromeStatus>,
     },
-    /// Modal message dialog (Phase B sprint b.1).
+    /// Modal message dialog (Phase B sprint b.1 / b.2).
     Message {
         title: ChromeTitle,
         message: String,
@@ -91,6 +132,10 @@ pub enum Command {
         buttons: ButtonsPreset,
         custom_buttons: Option<Vec<String>>,
         default_button: Option<u32>,
+        level: Option<MessageLevel>,
+        icon: Option<String>,
+        image: Option<String>,
+        markdown: bool,
     },
 }
 

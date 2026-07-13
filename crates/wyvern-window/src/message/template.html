@@ -37,9 +37,57 @@
       padding: 12px 16px 8px;
       font-size: 13px;
       line-height: 1.45;
-      white-space: pre-wrap;
-      word-wrap: break-word;
       overflow: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    #content-row {
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 12px;
+      min-width: 0;
+    }
+    #level-icon {
+      flex-shrink: 0;
+      width: 32px;
+      height: 32px;
+      line-height: 0;
+    }
+    #level-icon svg,
+    #level-icon img.resolved-icon {
+      width: 32px;
+      height: 32px;
+      display: block;
+    }
+    #body {
+      flex: 1;
+      min-width: 0;
+      word-wrap: break-word;
+    }
+    #body.plain-body {
+      white-space: pre-wrap;
+    }
+    #body.markdown-body p { margin: 0 0 0.6em; }
+    #body.markdown-body p:last-child { margin-bottom: 0; }
+    #body.markdown-body h1,
+    #body.markdown-body h2,
+    #body.markdown-body h3 {
+      margin: 0 0 0.4em;
+      font-size: 1.1em;
+    }
+    #body.markdown-body ul,
+    #body.markdown-body ol {
+      margin: 0 0 0.6em;
+      padding-left: 1.4em;
+    }
+    #decorative-image {
+      max-width: 100%;
+      max-height: 180px;
+      object-fit: contain;
+      align-self: flex-start;
+      border-radius: 4px;
     }
     #button-bar {
       display: flex;
@@ -73,7 +121,13 @@
 <body>
   <div id="title-bar">{{TITLE}}</div>
   {{STATUS_BLOCK}}
-  <div id="content">{{MESSAGE}}</div>
+  <div id="content">
+    <div id="content-row">
+      {{LEVEL_ICON}}
+      <div id="body" class="{{BODY_CLASS}}">{{MESSAGE}}</div>
+    </div>
+    {{DECORATIVE_IMAGE}}
+  </div>
   <div id="button-bar">{{BUTTONS}}</div>
   <script>
     (function () {

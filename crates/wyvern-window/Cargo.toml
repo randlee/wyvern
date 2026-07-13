@@ -11,6 +11,7 @@ wyvern-wizard = { path = "../wyvern-wizard" }
 wry           = { workspace = true }
 winit         = { workspace = true }
 serde_json    = { workspace = true }
+pulldown-cmark = { workspace = true }
 
 # wry on Linux needs an initialized GTK main loop alongside winit.
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))'.dependencies]

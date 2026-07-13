@@ -33,6 +33,10 @@ pub fn open_message_with_injected_ipc(ipc_json: &str) -> Result<CommandResult, R
         buttons: ButtonsPreset::OkCancel,
         custom_buttons: None,
         default_button: Some(0),
+        level: None,
+        icon: None,
+        image: None,
+        markdown: false,
     });
     unsafe { std::env::remove_var("WYVERN_INJECT_IPC") };
     result
