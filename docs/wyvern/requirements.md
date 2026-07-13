@@ -16,14 +16,18 @@
 
 **REQ-0005** — Support `--interactive` (alias `--persistent`) to enter a readline loop on stdin, processing one JSON command per line until `{"action":"exit"}` or window close.
 
+**REQ-0006** — Support `--mcp` to start Wyvern as an MCP server using stdio transport.
+
+**REQ-0007** — `show`, `hide`, and `exit` are valid only inside the `--interactive` command loop. They are not valid as single-shot CLI commands.
+
 ---
 
 ## Interactive Mode
 
-**REQ-0070** — In `--interactive` mode, display commands (`message`, `markdown`, `image`) shall be fire-and-forget — the loop immediately awaits the next command.
+**REQ-0100** — In `--interactive` mode, commands are processed sequentially. Blocking dialog commands retain normal modal behavior inside the loop.
 
-**REQ-0071** — In `--interactive` mode, `question` commands shall block the loop until the user answers, then write the result to stdout before continuing.
+**REQ-0101** — In `--interactive` mode, a blocking dialog command writes its normal JSON result to stdout on completion, then the loop continues.
 
-**REQ-0072** — `{"action":"show"}` and `{"action":"hide"}` shall toggle window visibility without terminating the process.
+**REQ-0102** — `{"action":"show"}` and `{"action":"hide"}` toggle window visibility; return `{"action":"show|hide","ok":true}`.
 
-**REQ-0073** — `{"action":"exit"}` shall close the window and terminate the process cleanly.
+**REQ-0103** — `{"action":"exit"}` closes the window and terminates cleanly, returning `{"action":"exit","ok":true}` before shutdown.

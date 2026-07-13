@@ -156,6 +156,7 @@ Other phase-end reviewers stay on their YAML defaults.
 2. Assign plan QA to **`cursor-quality-mgr`** with `review_mode: plan` and the
    phase-plan path as `sprint_doc`.
 3. Never also assign ATM `quality-mgr` for the same plan review.
+4. Phase A plan QA must pass `reference_docs` excluding `docs/wyvern-mcp/requirements.md` unless verifying stub-only posture.
 
 ## QA coverage rule
 

@@ -32,7 +32,17 @@ Architecture decisions are recorded as ADRs. Cross-cutting ADRs live here. Crate
 
 JSON in (stdin, file, or inline arg), JSON out (stdout). Errors on stderr as structured JSON. One command per line in interactive mode.
 
-**Consequences:** Works from any shell, language, or agent. MCP tool parameters map 1:1 — no restructuring. Binary data passed by file path or base64.
+**Consequences:** Works from any shell, language, or agent. MCP tool parameters map 1:1 — no restructuring. Binary data passed by file path or base64. The protocol stays intentionally small: blocking dialog commands plus a few lifecycle actions in `--interactive`.
+
+---
+
+### ADR-0012: Prefer the smallest coherent API surface
+
+**Status:** Accepted
+
+Wyvern should solve the product with the fewest command shapes that preserve clear semantics. If an interaction starts to feel complicated, treat that as a documentation, scoping, or boundary problem first.
+
+**Consequences:** `message` remains a blocking modal. Persistent transports (`--interactive`, MCP) do not silently change dialog semantics. Modeless behavior belongs in a separate future `notification` command rather than overloading existing commands.
 
 ---
 
@@ -59,3 +69,30 @@ wyvern-mcp      →  wyvern-window, wyvern-schema
 Boundary rules are encoded as sc-lint-boundary constraints in `boundaries/` and enforced in CI from Phase 2.
 
 All five crate names confirmed available on crates.io.
+
+---
+
+### ADR-0013: Direct type dispatch — one handler per command
+
+**Status:** Accepted
+
+**Context:**
+Wyvern accepts many JSON command shapes over time. A common failure mode is accumulating mode flags, stub handlers, and nested routing that makes it hard to trace JSON input to stdout output.
+
+**Decision:**
+After validation, each command becomes a typed `Command` enum variant. Execution is a single `match` (or equivalent) on `type` with one handler function per variant. Handlers return a `CommandResult` serialized to stdout. Unimplemented types are rejected at validation time for the current phase — never at runtime with a stub handler.
+
+**Pipeline:**
+
+```
+load → validate(value) → Command → run(command) → CommandResult → stdout
+```
+
+Parse is owned by `load`; there is no separate `parse_json` stage. Dispatch is internal to `run`.
+
+**Consequences:**
+- Phase A validates and executes only `chrome`
+- Each later phase adds one enum variant, one validator module, one handler — not a routing table refactor
+- `--interactive` reuses the same `validate → dispatch` path inside the read loop; lifecycle `action` values are a separate small enum, not mixed into dialog `type` routing
+- If implementation needs complicated branching to pick a path, treat that as a design smell and simplify before merging
+- Each pipeline stage uses a **discriminated union** for errors; re-map to stderr JSON at scope boundaries only — do not merge unlike variants into one generic error type

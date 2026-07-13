@@ -40,7 +40,7 @@
 
 ## ADR-0010a: Full-size content view extended to all platforms
 
-**Status:** Accepted — supersedes NFR-0011
+**Status:** Accepted
 
 **Decision:** All platforms use full-size content view with no OS title bar.
 - **macOS** — transparent title bar + full-size content view; native traffic lights

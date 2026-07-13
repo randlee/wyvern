@@ -12,10 +12,10 @@
 As an MCP server, Wyvern could launch and kill a window per tool call, or keep a persistent process with show/hide semantics.
 
 **Decision:**
-Wyvern MCP server is a persistent background process. Window persists across tool calls. `show`/`hide` commands control visibility. Same JSON command vocabulary as `--interactive` mode used for MCP tool calls.
+Wyvern MCP server is a persistent background process. Window persists across tool calls. Blocking dialog tools keep the same modal semantics they have in the CLI. In MVP, the public MCP tool surface is the dialog commands only; lifecycle controls remain part of `--interactive`.
 
 **Consequences:**
 - Window state survives between tool calls
 - No per-call launch latency after first invocation
-- `question` tool calls block until answered, matching `canUseTool` callback pattern
+- Blocking dialog tool calls return their normal JSON result after the user completes the interaction
 - Single Wyvern MCP instance serves the full agent session

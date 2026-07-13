@@ -12,6 +12,12 @@
 
 Wyvern bridges the gap between CLI tools and rich user interaction. Pass it a JSON command, get back a JSON result. No Electron. No Chrome. Just the OS's built-in webview rendering your HTML.
 
+The MVP API stays intentionally small:
+- Blocking dialog commands: `message`, `input`, `markdown`, `question`, `wizard`
+- `--interactive` lifecycle actions: `show`, `hide`, `exit`
+
+If something feels complicated, it is usually a documentation or scope problem, not a signal to grow the API. Reviews and hardening should attack accidental complexity directly.
+
 ```bash
 # Show a dialog
 wyvern '{"type": "message", "title": "Deploy?", "message": "Push to production?", "buttons": "yes_no"}'
@@ -25,7 +31,7 @@ wyvern '{"type": "input", "title": "Branch name", "message": "Enter the branch t
 wyvern my-doc.md
 
 # Run a multi-page wizard
-wyvern '{"type": "wizard", "html": "wizards/setup.html", "config": {}}'
+wyvern '{"type": "wizard", "page": {"id": "start", "title": "Setup", "html": "wizards/setup.html"}, "config": {}}'
 ```
 
 ---
@@ -45,11 +51,11 @@ wyvern '{"type": "wizard", "html": "wizards/setup.html", "config": {}}'
 
 ## Dialog types
 
-- **`message`** — modal with title, body, icon, and standard button combos (`ok`, `yes_no`, `ok_cancel`, `yes_no_cancel`, `retry_cancel`, or custom)
+- **`message`** — blocking modal with title, body, icon, and standard button combos (`ok`, `yes_no`, `ok_cancel`, `yes_no_cancel`, `retry_cancel`, or custom)
 - **`input`** — text entry, multiline, or file/folder chooser
 - **`markdown`** — styled markdown viewer (`wyvern file.md` shorthand)
-- **`wizard`** — multi-page wizard with browser-history navigation, driven entirely by your HTML + JSON config
-- **`question`** — drop-in native renderer for Claude's `AskUserQuestion` API
+- **`wizard`** — multi-page wizard with browser-history navigation, driven by page descriptors plus your HTML + JSON config
+- **`question`** — blocking native renderer based on Claude's public `AskUserQuestion` API
 
 ---
 
@@ -61,7 +67,7 @@ Wyvern can run as a persistent process, accepting a stream of JSON commands over
 wyvern --interactive
 ```
 
-Feed it content over time, ask questions, display status updates — then exit when done. Perfect for AI agent status dashboards, live progress views, or anywhere you'd otherwise use an artifact panel.
+`--interactive` is still a sequential loop. Blocking dialog commands keep their normal modal behavior inside that loop; `show`, `hide`, and `exit` are the only non-dialog commands and are valid only inside that persistent stdin loop.
 
 Claude Code and other agents can drive it from a background shell process with no MCP required.
 
@@ -69,7 +75,11 @@ Claude Code and other agents can drive it from a background shell process with n
 
 ## MCP
 
-Wyvern's JSON schema maps 1:1 to MCP tool parameters. Run it as an MCP server and the same commands become tool calls — with a persistent window that survives across calls.
+Wyvern's JSON schema maps 1:1 to MCP tool parameters. Run it as an MCP server and the same blocking dialog commands become tool calls — with a persistent window that survives across calls. In MVP, lifecycle actions are part of `--interactive`, not public MCP tools.
+
+```bash
+wyvern --mcp
+```
 
 ---
 
@@ -86,6 +96,10 @@ Wyvern's JSON schema maps 1:1 to MCP tool parameters. Run it as an MCP server an
 ## Docs
 
 - [PRD](docs/prd/wyvern-prd.md) — full product requirements and JSON schema reference
+
+## Deferred
+
+- `notification` is intentionally deferred. It is the future fire-and-forget path for ephemeral updates; MVP keeps `message` strictly blocking.
 
 ---
 

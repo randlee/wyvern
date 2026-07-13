@@ -6,7 +6,9 @@
 
 ## Dialog Types (REQ-0010 – REQ-0018)
 
-**REQ-0010** — Support `message` type: `type`, `title`, `message`, `markdown`, `status`, `level`, `icon`, `image`, `buttons`, `custom_buttons`, `default_button`.
+**REQ-0009** — Support `chrome` type (Phase 1 foundation): `type`, `title`, optional `status`. Opens the HTML shell with no dialog-specific content binding.
+
+**REQ-0010** — Support `message` type. *Phase 2.*
 
 **REQ-0011** — `message` button presets: `ok`, `ok_cancel`, `yes_no`, `yes_no_cancel`, `retry_cancel`, `custom`.
 
@@ -18,11 +20,11 @@
 
 **REQ-0015** — `input` `mode: file` supports `filter` (extension patterns) and `multiple` (multi-file selection).
 
-**REQ-0016** — Support `markdown` type: renders `.md` file or inline markdown in a styled HTML viewer.
+**REQ-0016** — Support `markdown` type with fields: `type`, exactly one of `file` or `content`, optional `title`, optional `status`, and `buttons`.
 
-**REQ-0017** — Support `wizard` type: loads caller-supplied HTML, passes `config` object on load.
+**REQ-0017** — Support `wizard` type with fields: `type`, `page`, `config`, optional `width`, optional `height`. `page` contains `id`, `title`, and `html`.
 
-**REQ-0018** — Support `question` type: input and output schemas match Claude `AskUserQuestion` API exactly.
+**REQ-0018** — Support `question` type: Wyvern uses `type: "question"` plus the public Claude `AskUserQuestion` fields and behavior.
 
 ---
 

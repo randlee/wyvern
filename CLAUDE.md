@@ -9,13 +9,14 @@
 - **ALWAYS create worktrees FROM `develop`**
 - All sprint work happens in worktrees at `../wyvern-worktrees/<branch-name>`
 - All PRs target `integrate/phase-N` (not `develop` directly)
+- Phase A (Foundation) PRs target `integrate/phase-A` — see `docs/plans/phase-A/README.md`
 
 ```bash
 # ✅ CORRECT
-sc-git-worktree --create feature/p1-s1a-scaffold develop
+sc-git-worktree --create feature/phase-A-a1-scaffold develop
 
 # ❌ WRONG
-git checkout -b feature/p1-s1a-scaffold
+git checkout -b feature/phase-A-a1-scaffold
 ```
 
 ---
@@ -28,8 +29,8 @@ git checkout -b feature/p1-s1a-scaffold
 - All UI rendered as HTML/CSS/JS — no OS-native widgets
 - Five-crate workspace: `wyvern-schema`, `wyvern-window`, `wyvern-wizard`, `wyvern` (CLI), `wyvern-mcp`
 - Built on `wry` (Tauri) — wraps OS webviews (WebKit/WebView2/WebKitGTK)
-- Dialog types: `message`, `input`, `markdown`, `question` (AskUserQuestion-compatible), `wizard`
-- Interactive mode (`--interactive`): persistent stdin loop for agent status displays
+- Dialog types: `chrome` (Phase 1 foundation), then `message`, `input`, `markdown`, `question` (AskUserQuestion-compatible), `wizard` (Phase 2+)
+- Interactive mode (`--interactive`): persistent stdin loop for blocking dialog commands plus `show`/`hide`/`exit`
 - MCP mode: persistent background process, tool-call driven
 
 ---
@@ -41,7 +42,7 @@ git checkout -b feature/p1-s1a-scaffold
 | [`docs/prd/wyvern-prd.md`](docs/prd/wyvern-prd.md) | Full product requirements |
 | [`docs/requirements.md`](docs/requirements.md) | Numbered requirements (REQ/NFR) — links to crate docs |
 | [`docs/architecture.md`](docs/architecture.md) | ADRs — links to crate docs |
-| [`docs/plans/project-plan.md`](docs/plans/project-plan.md) | 5-phase, 33-sprint plan |
+| [`docs/plans/project-plan.md`](docs/plans/project-plan.md) | 5-phase, 31-sprint plan |
 
 **Per-crate docs** (referenced by principals above):
 
@@ -80,10 +81,11 @@ wyvern-mcp      →  wyvern-window, wyvern-schema
 ```
 main
   └── develop
-        └── integrate/phase-N          ← created at phase start
-              ├── feature/pN-sXa-...   ← sprint PR targets integrate/phase-N
-              └── feature/pN-sXb-...
-        After all sprints → integrate/phase-N → develop
+        ├── integrate/phase-A          ← Phase A Foundation
+        ├── integrate/phase-B          ← Phase B Core Dialogs
+        ├── integrate/phase-2 … phase-4
+        └── feature/pN-sXa-...         ← sprint PR targets integrate/phase-* for that phase
+        After all sprints in a phase → integrate/phase-* → develop
 ```
 
 ### Sprint execution
@@ -95,7 +97,7 @@ main
 
 ### Sprint naming convention
 `feature/p{phase}-s{sprint}-{short-description}`
-Example: `feature/p1-s1a-scaffold`, `feature/p2-s2a-message-type`
+Example: `feature/phase-A-a1-scaffold`, `feature/phase-B-b1-message`
 
 ---
 
@@ -109,6 +111,6 @@ Example: `feature/p1-s1a-scaffold`, `feature/p2-s2a-message-type`
 
 ## Environment
 
-- **External dependencies**: `sc-observability` at `../../sc-observability`, `sc-lint` at `../../sc-lint`
+- **External dependencies**: `sc-observability` and `sc-lint` from [crates.io](https://crates.io) (no local path deps)
 - **Worktrees**: `../wyvern-worktrees/<branch>`
 - **Platforms**: macOS (primary), Windows, Linux
