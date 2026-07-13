@@ -1,9 +1,9 @@
-//! Validate JSON input against the Phase B executable surface (`chrome`, `message`).
+//! Validate JSON input against the Phase B executable surface (`chrome`, `message`, `input`).
 
 use serde_json::{Map, Value};
 
 use crate::chrome::{ChromeStatus, ChromeTitle};
-use crate::command::{ButtonsPreset, Command, MessageLevel};
+use crate::command::{ButtonsPreset, Command, InputMode, MessageLevel};
 use crate::error::ValidationError;
 use crate::field_name::FieldName;
 
@@ -28,8 +28,29 @@ const MESSAGE_FIELDS: &[&str] = &[
     "markdown",
 ];
 
-/// Phase B executable `type` values (through b.2).
-const VALID_TYPES: &[&str] = &["chrome", "message"];
+/// Allowed fields on an `input` command object (b.3 text surface).
+///
+/// `filter` / `multiple` / `start_path` are recognized so REQ-0059 can reject
+/// them under text mode; they are not stored on [`Command::Input`] until b.4.
+const INPUT_FIELDS: &[&str] = &[
+    "type",
+    "title",
+    "message",
+    "status",
+    "icon",
+    "markdown",
+    "multiline",
+    "placeholder",
+    "default",
+    "mode",
+    "filter",
+    "multiple",
+    "start_path",
+    "buttons",
+];
+
+/// Phase B executable `type` values (through b.3).
+const VALID_TYPES: &[&str] = &["chrome", "message", "input"];
 
 /// Validate `value` as a Phase B command.
 ///
@@ -76,6 +97,7 @@ pub fn validate(value: &Value) -> Result<Command, ValidationError> {
     match type_str {
         "chrome" => validate_chrome(obj),
         "message" => validate_message(obj),
+        "input" => validate_input(obj),
         other => Err(unknown_type_error(other)),
     }
 }
@@ -280,6 +302,126 @@ fn validate_message(obj: &Map<String, Value>) -> Result<Command, ValidationError
         icon,
         image,
         markdown,
+    })
+}
+
+fn validate_input(obj: &Map<String, Value>) -> Result<Command, ValidationError> {
+    for key in obj.keys() {
+        let key_str = key.as_str();
+        if !INPUT_FIELDS.contains(&key_str) {
+            return Err(ValidationError::validation(
+                FieldName::new(key_str),
+                format!("unknown field '{key_str}'"),
+            ));
+        }
+    }
+
+    let title = require_string_field(obj, "title")?;
+    let message = require_string_field(obj, "message")?;
+    let status = optional_string_field(obj, "status")?;
+    let icon = optional_string_field(obj, "icon")?;
+    let markdown = optional_bool_field(obj, "markdown")?.unwrap_or(false);
+    let multiline = optional_bool_field(obj, "multiline")?.unwrap_or(false);
+    let placeholder = optional_string_field(obj, "placeholder")?;
+    let default = optional_string_field(obj, "default")?;
+
+    let mode = match obj.get("mode") {
+        None => InputMode::Text,
+        Some(Value::String(s)) => match InputMode::parse(s) {
+            Some(mode) => mode,
+            None => {
+                let options = InputMode::all_names().join(", ");
+                let mut msg = format!("got '{s}', expected one of: {options}");
+                if let Some(suggestion) = closest_match(s, InputMode::all_names()) {
+                    msg.push_str(&format!("; did you mean '{suggestion}'?"));
+                }
+                return Err(ValidationError::validation("mode", msg));
+            }
+        },
+        Some(other) => {
+            return Err(ValidationError::validation(
+                "mode",
+                format!(
+                    "field 'mode' expected string, got {}",
+                    json_type_name(other)
+                ),
+            ));
+        }
+    };
+
+    // Sprint b.3: only text mode is executable; file/folder unlock in b.4.
+    if matches!(mode, InputMode::File | InputMode::Folder) {
+        return Err(ValidationError::validation(
+            "mode",
+            format!(
+                "mode '{}' is not implemented until sprint b.4",
+                mode.as_str()
+            ),
+        ));
+    }
+
+    // REQ-0059 — text-mode cross-field rules (mode is Text here).
+    if obj.contains_key("filter") {
+        return Err(ValidationError::validation(
+            "filter",
+            "filter is only valid when mode is 'file'",
+        ));
+    }
+    if obj.contains_key("multiple") {
+        return Err(ValidationError::validation(
+            "multiple",
+            "multiple is only valid when mode is 'file'",
+        ));
+    }
+    if obj.contains_key("start_path") {
+        return Err(ValidationError::validation(
+            "start_path",
+            "start_path is only valid when mode is 'file' or 'folder'",
+        ));
+    }
+
+    let buttons = match obj.get("buttons") {
+        None => ButtonsPreset::OkCancel,
+        Some(Value::String(s)) => match ButtonsPreset::parse(s) {
+            Some(preset) => preset,
+            None => {
+                let options = ButtonsPreset::all_names().join(", ");
+                let mut msg = format!("got '{s}', expected one of: {options}");
+                if let Some(suggestion) = closest_match(s, ButtonsPreset::all_names()) {
+                    msg.push_str(&format!("; did you mean '{suggestion}'?"));
+                }
+                return Err(ValidationError::validation("buttons", msg));
+            }
+        },
+        Some(other) => {
+            return Err(ValidationError::validation(
+                "buttons",
+                format!(
+                    "field 'buttons' expected string, got {}",
+                    json_type_name(other)
+                ),
+            ));
+        }
+    };
+
+    if buttons == ButtonsPreset::Custom {
+        return Err(ValidationError::validation(
+            "buttons",
+            "buttons: custom is not supported for input in sprint b.3",
+        ));
+    }
+
+    Ok(Command::Input {
+        title: ChromeTitle::new(title),
+        message,
+        status: status.map(ChromeStatus::new),
+        icon,
+        markdown,
+        multiline,
+        placeholder,
+        default,
+        mode,
+        buttons,
     })
 }
 

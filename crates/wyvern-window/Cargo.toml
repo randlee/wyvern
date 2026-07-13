@@ -29,3 +29,8 @@ name = "message_ipc"
 path = "tests/message_ipc.rs"
 harness = false
 
+[[test]]
+name = "input_ipc"
+path = "tests/input_ipc.rs"
+harness = false
+

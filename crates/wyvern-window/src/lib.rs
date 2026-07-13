@@ -5,6 +5,7 @@
 
 mod chrome;
 mod error;
+mod input;
 mod markdown;
 mod message;
 mod run;

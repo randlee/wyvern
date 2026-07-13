@@ -1,7 +1,7 @@
 //! Wyvern JSON types, validation, and protocol results.
 //!
-//! Phase B executable surface (through b.2): [`Command::Chrome`] and
-//! [`Command::Message`] (including level/icon/image/markdown). Call [`validate`]
+//! Phase B executable surface (through b.3): [`Command::Chrome`],
+//! [`Command::Message`], and [`Command::Input`] (text mode). Call [`validate`]
 //! on loaded JSON before opening a window.
 
 mod button;
@@ -19,7 +19,7 @@ pub use button::ButtonLabel;
 #[doc(inline)]
 pub use chrome::{ChromeStatus, ChromeTitle};
 #[doc(inline)]
-pub use command::{ButtonsPreset, Command, MessageLevel};
+pub use command::{ButtonsPreset, Command, InputMode, MessageLevel};
 #[doc(inline)]
 pub use error::ValidationError;
 #[doc(inline)]
@@ -27,7 +27,7 @@ pub use error_code::ErrorCode;
 #[doc(inline)]
 pub use field_name::FieldName;
 #[doc(inline)]
-pub use result::{ChromeResult, CommandResult, MessageResult};
+pub use result::{ChromeResult, CommandResult, InputResult, InputValue, MessageResult};
 #[doc(inline)]
 pub use stderr::StderrError;
 #[doc(inline)]
