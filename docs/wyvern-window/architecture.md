@@ -40,7 +40,7 @@
 
 ## ADR-0010a: Full-size content view extended to all platforms
 
-**Status:** Accepted (implementation deferred)
+**Status:** Accepted (Win/Linux implementation in Phase C c.3; macOS implemented Phase A)
 
 **Decision:** All platforms use full-size content view with no OS title bar.
 - **macOS** — transparent title bar + full-size content view; native traffic lights
@@ -75,3 +75,23 @@ ADR-0010a describes the **target** cross-platform chrome. During **Phase B**, Wi
 **Picker UX (Phase B):** file/folder modes use picker-on-OK — page sends `input_submitted` without `value`; host opens `rfd` synchronously. See [ipc-dialog-contract.md](../plans/phase-B/ipc-dialog-contract.md).
 
 **Consequences:** Small dependency footprint; native look-and-feel per OS. Picker logic is not unit-testable in `wyvern-schema`; integration tests live in `wyvern-window` with mocks.
+
+---
+
+## ADR-0015: Built-in icon asset layout (Phase C)
+
+**Status:** Accepted (implementation in Phase C c.1–c.2)
+
+**Context:** Phase B ships four **placeholder** SVGs under `assets/icons/placeholder/` for `MessageLevel` values only (b.2). REQ-0030 requires a full curated bundle with multiple variants per semantic role. REQ-0031 requires named resolution with variant index.
+
+**Decision:**
+- Production icons live at `crates/wyvern-window/assets/icons/{role}/{index}.svg` (SVG primary; PNG/WebP allowed per REQ-0030).
+- Six roles: `info`, `warning`, `error`, `question`, `success`, `loading` — minimum two variants each.
+- Embed via `include_bytes!` in `wyvern-window/src/icons/` — no runtime filesystem access for built-in icons.
+- `MessageLevel` maps to the homonymous role's variant 1 at render time.
+- Named icon specs validated in `wyvern-schema` against the role catalog; unknown names → validation error (c.2).
+- Phase B `assets/icons/placeholder/` retained for regression tests only after c.1 — not used in production render paths.
+
+**Variant syntax:** `"warning"` → variant 1; `"warning:2"` → variant 2 (1-based index).
+
+**Consequences:** Binary size increases — monitor NFR-0003 (< 10MB macOS release). Level icons and free-form `icon` field share one catalog. Post-MVP AI-generated icons remain out of scope (PRD).

@@ -42,7 +42,7 @@ git checkout -b feature/phase-A-a1-scaffold
 | [`docs/prd/wyvern-prd.md`](docs/prd/wyvern-prd.md) | Full product requirements |
 | [`docs/requirements.md`](docs/requirements.md) | Numbered requirements (REQ/NFR) — links to crate docs |
 | [`docs/architecture.md`](docs/architecture.md) | ADRs — links to crate docs |
-| [`docs/plans/project-plan.md`](docs/plans/project-plan.md) | 5-phase, 31-sprint plan |
+| [`docs/plans/project-plan.md`](docs/plans/project-plan.md) | 5-phase, 30-sprint plan |
 
 **Per-crate docs** (referenced by principals above):
 
