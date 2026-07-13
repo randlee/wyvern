@@ -21,7 +21,9 @@ target: integrate/phase-C
 
 - `crates/wyvern-window/assets/icons/` — new production tree (see layout below)
 - `crates/wyvern-window/assets/icons/placeholder/` — retained for b.2 regression tests only; **not** used at runtime after c.1
-- `crates/wyvern-window/src/icons/mod.rs` — new module: role catalog, variant lookup, embed helpers
+- `crates/wyvern-schema/src/icons.rs` — new module: role catalog (`ROLES`), `variant_count`, `parse_icon_spec` (ADR-0011: schema stays pure — no window dep)
+- `crates/wyvern-schema/src/lib.rs` — export `icons` module
+- `crates/wyvern-window/src/icons/mod.rs` — new module: embed helpers (`variant_bytes`, `svg_markup`) consuming `wyvern_schema::icons` catalog
 - `crates/wyvern-window/src/message/media.rs` — switch `level` + named level-role resolution to production assets
 - `crates/wyvern-window/src/lib.rs` — export `icons` module if needed for tests
 - `docs/wyvern-window/architecture.md` — ADR-0015 icon asset layout (see cross-cutting doc)
@@ -73,10 +75,34 @@ crates/wyvern-window/assets/icons/
 ## Explicit Code Samples
 
 ```rust
-// crates/wyvern-window/src/icons/mod.rs
+// crates/wyvern-schema/src/icons.rs — role catalog (validation + render share this)
 pub const ROLES: &[&str] = &["info", "warning", "error", "question", "success", "loading"];
 
+/// Max 1-based variant index per role (c.1 ships 2 variants each).
+pub fn variant_count(role: &str) -> u32 {
+    match role {
+        "info" | "warning" | "error" | "question" | "success" | "loading" => 2,
+        _ => 0,
+    }
+}
+
+pub fn parse_icon_spec(spec: &str) -> (String, u32) {
+    let (base, variant) = spec
+        .split_once(':')
+        .map(|(b, v)| (b, v.parse().unwrap_or(1)))
+        .unwrap_or((spec, 1));
+    (base.to_string(), variant)
+}
+```
+
+```rust
+// crates/wyvern-window/src/icons/mod.rs — embed helpers consume schema catalog
+use wyvern_schema::icons;
+
 pub fn variant_bytes(role: &str, index: u32) -> Option<&'static [u8]> {
+    if index < 1 || index > icons::variant_count(role) {
+        return None;
+    }
     match (role, index) {
         ("info", 1) => Some(include_bytes!("../../assets/icons/info/1.svg")),
         ("info", 2) => Some(include_bytes!("../../assets/icons/info/2.svg")),

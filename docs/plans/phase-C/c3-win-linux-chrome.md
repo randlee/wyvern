@@ -16,14 +16,16 @@ target: integrate/phase-C
 ## Hard Dependencies
 
 - Phase B complete (all dialog types render in HTML shell)
-- c.1–c.2 optional for chrome sprint — **c.3 may merge after b.8**; icon work does not block window frame
+- Independent of c.1–c.2 — may merge in parallel after Phase B; icon work does not block window frame
 
 ## Exact Targets
 
 - `crates/wyvern-window/src/window.rs` — `apply_platform_chrome`: Win/Linux `with_decorations(false)`
 - `crates/wyvern-window/src/chrome/template.html` — Win/Linux window control buttons in title bar
 - `crates/wyvern-window/src/chrome/render.rs` — platform conditional control markup
-- `crates/wyvern-window/src/ipc/` or `run.rs` — handle [chrome-ipc-contract.md](chrome-ipc-contract.md) messages
+- `crates/wyvern-window/src/ipc/chrome.rs` — new module: `ChromePageIpc` enum, `parse_chrome_page_ipc` (Phase B has no `ipc/` tree; chrome IPC types live here)
+- `crates/wyvern-window/src/run.rs` — extend per-dialog `handle_ipc` to dispatch `window_close` / `window_minimize` via `ipc::chrome`
+- `crates/wyvern-window/src/lib.rs` — export `ipc` module
 - `crates/wyvern-window/tests/` — IPC tests for close/minimize
 - `docs/wyvern-window/architecture.md` — mark ADR-0010a implemented for Win/Linux
 
@@ -77,15 +79,35 @@ Malformed chrome IPC → same fail-safe as dialog contract (log + dismissed).
 ## Explicit Code Samples
 
 ```rust
-// ipc handler (conceptual)
-match msg.kind.as_str() {
-    "window_close" => complete_with_dismissed(),
-    "window_minimize" => {
-        window.set_minimized(true);
-        // no CommandResult yet
+// crates/wyvern-window/src/ipc/chrome.rs
+#[derive(Debug, PartialEq, Eq)]
+pub enum ChromePageIpc {
+    WindowClose,
+    WindowMinimize,
+}
+
+pub fn parse_chrome_page_ipc(raw: &str) -> Option<ChromePageIpc> { /* ... */ }
+```
+
+```rust
+// run.rs — extend handle_ipc (conceptual)
+use crate::ipc::chrome::{parse_chrome_page_ipc, ChromePageIpc};
+
+match parse_page_ipc(raw) {
+    // ... existing button_pressed, dismissed, etc.
+    None => {
+        if let Some(chrome) = parse_chrome_page_ipc(raw) {
+            match chrome {
+                ChromePageIpc::WindowClose => complete_with_dismissed(),
+                ChromePageIpc::WindowMinimize => {
+                    window.set_minimized(true);
+                    // no CommandResult yet
+                }
+            }
+        } else {
+            fail_safe_dismissed();
+        }
     }
-    // ... existing button_pressed, etc.
-    _ => fail_safe_dismissed(),
 }
 ```
 

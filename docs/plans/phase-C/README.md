@@ -2,7 +2,18 @@
 
 Phase C implementation PRs target **`integrate/phase-C`**. This directory is the **sole authority** for sprint-level deliverables, acceptance criteria, and validation. `docs/plans/project-plan.md` carries phase-level goals and acceptance criteria only.
 
-Sprints are **sequentially numbered** `c.1` → `c.5` (strict dependency order — not parallel sub-sprints).
+Sprints are **sequentially numbered** `c.1` → `c.5`. Dependency graph:
+
+```
+Phase B ──┬──► c.1 ──► c.2 ──┐
+          │                   ├──► c.4 ──► c.5
+          └──► c.3 ───────────┘
+```
+
+- **c.1 → c.2:** icon asset bundle, then named-icon validation and resolution
+- **c.3:** independent after Phase B (Win/Linux chrome does not block on c.1–c.2)
+- **c.4:** depends on c.1, c.2, and c.3
+- **c.5:** depends on c.4
 
 ## What Phase C closes
 
@@ -56,7 +67,7 @@ Modal types (`message`, `input`, `markdown`, `question`) keep REQ-0083: minimize
 4. All Phase B README smoke checks pass on **ubuntu, macos, and windows** CI legs (no manual Win/Linux E2E required)
 5. Tag `v0.1.0` produces attached macOS/Windows/Linux release binaries
 
-## Sprint index (sequential: c.1–c.5)
+## Sprint index (c.1–c.5)
 
 | Sprint | Doc | Branch (pattern) |
 |--------|-----|------------------|
@@ -92,7 +103,7 @@ After c.5: release workflow (see [c5-release.md](c5-release.md)) validates on ta
 
 | NFR | Target | Measurement |
 |-----|--------|-------------|
-| NFR-0001 | Window open < 500ms | macOS manual or scripted timing from process start to first paint hook |
+| NFR-0001 | Window open < 500ms | macOS manual measurement (product target); optional non-blocking CI job may use 2000ms smoke bound |
 | NFR-0002 | Resident memory < 80MB | macOS Activity Monitor or `ps` after dialog open |
 | NFR-0003 | Binary < 10MB | `ls -lh target/release/wyvern` on macOS release build |
 

@@ -87,9 +87,10 @@ ADR-0010a describes the **target** cross-platform chrome. During **Phase B**, Wi
 **Decision:**
 - Production icons live at `crates/wyvern-window/assets/icons/{role}/{index}.svg` (SVG primary; PNG/WebP allowed per REQ-0030).
 - Six roles: `info`, `warning`, `error`, `question`, `success`, `loading` — minimum two variants each.
-- Embed via `include_bytes!` in `wyvern-window/src/icons/` — no runtime filesystem access for built-in icons.
+- **Role catalog** (`ROLES`, `variant_count`, `parse_icon_spec`) lives in `wyvern-schema/src/icons.rs` — pure logic, no window dependency (ADR-0011).
+- **Embed helpers** (`variant_bytes`, `svg_markup`) live in `wyvern-window/src/icons/` via `include_bytes!` — no runtime filesystem access for built-in icons.
 - `MessageLevel` maps to the homonymous role's variant 1 at render time.
-- Named icon specs validated in `wyvern-schema` against the role catalog; unknown names → validation error (c.2).
+- Named icon specs validated in `wyvern-schema` against the schema-local role catalog; unknown names → validation error (c.2).
 - Phase B `assets/icons/placeholder/` retained for regression tests only after c.1 — not used in production render paths.
 
 **Variant syntax:** `"warning"` → variant 1; `"warning:2"` → variant 2 (1-based index).

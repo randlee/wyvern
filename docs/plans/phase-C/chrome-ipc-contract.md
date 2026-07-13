@@ -75,6 +75,8 @@ Same fail-safe as dialog contract:
 
 ## Testing
 
+See [Phase C README](README.md) CI validation section for matrix policy. Sprint-specific checks:
+
 - Unit-test mapping: `window_close` → `ButtonLabel::dismissed()` / question REQ-0068 shape
 - Integration test: inject `window_minimize`, assert window minimized flag without stdout
 - CI: run under xvfb single-threaded on Linux; Win/macOS matrix per Phase A README

@@ -28,7 +28,7 @@ target: integrate/phase-C
 
 ## Deliverables
 
-- NFR-0001: window opens **< 500ms** on macOS (measured once; documented in sprint PR or README note)
+- NFR-0001: window opens **< 500ms** on macOS (product target; measured manually or via optional non-blocking CI job — see below)
 - NFR-0002: resident memory **< 80MB** on macOS under normal single-dialog operation
 - NFR-0003: release binary **< 10MB** on macOS (`target/release/wyvern`); if over, document mitigation (asset compression, WebP) in PR — must not ship v0.1.0 over limit without explicit acceptance
 - No rendering regressions on Windows or Linux CI legs
@@ -39,11 +39,15 @@ target: integrate/phase-C
 
 ### NFR-0001 (latency)
 
+**Product target:** p95 < **500ms** on macOS release build (cold start to first paint hook).
+
 Measure on macOS release build:
 1. Cold start `wyvern '{"type":"message",...}'` — time from process start to IPC inject hook or test harness ready signal
-2. Target: p95 < 500ms over 5 runs
+2. Record p95 over 5 manual runs in the c.4 PR description
 
 If over target: profile wry init / asset embed size; optimize before c.5 tag.
+
+**CI policy:** Do not assert 500ms in blocking CI — use manual measurement for the product target. If an automated timing test lands, use a generous CI bound (e.g. **2000ms**) to avoid flaky matrix failures; document the 500ms target separately in the PR description.
 
 ### NFR-0002 (memory)
 
@@ -74,13 +78,14 @@ No manual Win/Linux E2E required — CI is authoritative per Phase A/B policy.
 ## Explicit Code Samples
 
 ```rust
-// Optional timing hook in test harness (non-flaky: generous bound in CI)
+// Optional timing hook in test harness (non-blocking CI job only — generous bound)
 #[test]
 #[cfg(target_os = "macos")]
-fn message_open_latency_under_nfr() {
+fn message_open_latency_smoke() {
     let start = std::time::Instant::now();
     // ... harness opens message without blocking on user ...
-    assert!(start.elapsed().as_millis() < 500, "NFR-0001");
+    // CI bound: avoid flaky matrix; product target is 500ms (see PR description)
+    assert!(start.elapsed().as_millis() < 2000, "NFR-0001 CI smoke");
 }
 ```
 
@@ -98,7 +103,7 @@ stat -f%z target/release/wyvern  # must be < 10_485_760
 
 ## Acceptance Criteria
 
-- NFR-0001–NFR-0003 measured and recorded (PR description or `docs/plans/phase-C/` note — not a new permanent doc unless values drift)
+- NFR-0001–NFR-0003 measured and recorded in the **c.4 PR description** (canonical location; not a new permanent doc unless values drift)
 - All three CI OS legs green on `integrate/phase-C` head
 - Phase B README smoke #1–#4 covered by passing tests or documented macOS manual run
 - No known Win/Linux rendering blockers for v0.1.0
@@ -110,4 +115,4 @@ stat -f%z target/release/wyvern  # must be < 10_485_760
 - `cargo clippy --workspace -- -D warnings`
 - `sc-lint check native --config .sc-lint.toml`
 - macOS release binary size check (NFR-0003)
-- macOS latency/memory spot-check (NFR-0001, NFR-0002) — manual acceptable if automated hook too flaky for CI
+- macOS latency/memory spot-check (NFR-0001, NFR-0002) — manual measurement preferred; optional non-blocking CI job with generous bounds

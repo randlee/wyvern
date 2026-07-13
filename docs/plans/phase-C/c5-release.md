@@ -113,7 +113,7 @@ jobs:
 ## Acceptance Criteria
 
 - Tag `v0.1.0` produces GitHub Release with three platform artifacts
-- Fresh download + quickstart commands succeed on macOS (authoritative); Win/Linux via CI-built artifact smoke or contributor verify
+- Fresh download + quickstart commands succeed on macOS (authoritative); Win/Linux via CI-built artifact smoke
 - `CHANGELOG.md` v0.1.0 section lists Phase B dialog types + Phase C icons/chrome
 - README install path documented without requiring repo clone
 - PR CI (`ci.yml`) still passes on release branch
@@ -124,3 +124,4 @@ jobs:
 - `cargo build --release -p wyvern` on all three platforms (or matrix job green)
 - Manual quickstart walkthrough on macOS
 - `cargo test --workspace -- --test-threads=1` on `integrate/phase-C` head before tag
+- `cargo clippy --workspace -- -D warnings`
