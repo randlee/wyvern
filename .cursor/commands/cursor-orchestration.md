@@ -48,9 +48,15 @@ sc-compose render \
   --var-file "$_VARS"
 ```
 
-5. On FAIL: triage → fix Task (with owning-branch `sprint_doc`, REQ/ADR ids,
-   triage `.ttl` paths) → re-QA via `cursor-quality-mgr`.
-6. On PASS + green CI: merge to sprint `pr_target`.
+5. **Dev–QA loop** (repeat until both gates pass):
+   - **QA gate:** PASS only with **0 Blocking + 0 Important + 0 Minor** open
+     findings (fix **every** finding, not just Important/Blocking) and 100%
+     deliverable completion.
+   - **CI gate:** all required PR checks green.
+   - On FAIL: triage → fix Task for **all** finding ids (with owning-branch
+     `sprint_doc`, REQ/ADR ids, triage `.ttl` paths) → push → re-QA via
+     `cursor-quality-mgr`. Do not merge with open findings.
+6. On PASS **and** green CI: merge to sprint `pr_target`; start next sprint.
 
 ```bash
 gh pr checks <PR> --watch
