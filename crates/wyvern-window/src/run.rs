@@ -14,8 +14,8 @@ use wyvern_schema::{
 use crate::chrome::render_chrome_html;
 use crate::error::RunError;
 use crate::input::{
-    estimate_input_window_size, parse_input_page_ipc, render_input_html, InputPageIpc,
-    InputRenderInput,
+    estimate_input_window_size, parse_input_page_ipc, pick_file, pick_folder, render_input_html,
+    InputPageIpc, InputRenderInput,
 };
 use crate::message::{
     estimate_message_window_size, parse_page_ipc, render_message_html, MessageRenderInput, PageIpc,
@@ -83,25 +83,25 @@ pub fn run(command: Command) -> Result<CommandResult, RunError> {
             placeholder,
             default,
             mode,
+            filter,
+            multiple,
+            start_path,
             buttons,
-        } => {
-            debug_assert_eq!(
-                mode,
-                InputMode::Text,
-                "file/folder modes must be rejected at validate()"
-            );
-            run_input(InputRunArgs {
-                title,
-                message,
-                status,
-                icon,
-                markdown,
-                multiline,
-                placeholder,
-                default,
-                buttons,
-            })
-        }
+        } => run_input(InputRunArgs {
+            title,
+            message,
+            status,
+            icon,
+            markdown,
+            multiline,
+            placeholder,
+            default,
+            mode,
+            filter,
+            multiple,
+            start_path,
+            buttons,
+        }),
     }
 }
 
@@ -236,6 +236,10 @@ struct InputRunArgs {
     multiline: bool,
     placeholder: Option<String>,
     default: Option<String>,
+    mode: InputMode,
+    filter: Option<Vec<String>>,
+    multiple: bool,
+    start_path: Option<String>,
     buttons: ButtonsPreset,
 }
 
@@ -251,6 +255,10 @@ fn run_input(args: InputRunArgs) -> Result<CommandResult, RunError> {
         multiline,
         placeholder,
         default,
+        mode,
+        filter,
+        multiple,
+        start_path,
         buttons,
     } = args;
 
@@ -263,15 +271,18 @@ fn run_input(args: InputRunArgs) -> Result<CommandResult, RunError> {
         multiline,
         placeholder: placeholder.as_deref(),
         default: default.as_deref(),
+        mode,
         buttons,
     })?;
     let button_count = buttons.button_count(None);
+    let picker_mode = matches!(mode, InputMode::File | InputMode::Folder);
     let (width, height) = estimate_input_window_size(
         &message,
         button_count,
         status.is_some(),
         icon.is_some(),
         multiline,
+        picker_mode,
     );
 
     let auto_dismiss = std::env::var_os(AUTO_DISMISS_ENV).is_some();
@@ -289,6 +300,10 @@ fn run_input(args: InputRunArgs) -> Result<CommandResult, RunError> {
         html,
         width,
         height,
+        mode,
+        filter: filter.unwrap_or_default(),
+        multiple,
+        start_path,
         proxy,
         window: None,
         webview: None,
@@ -534,6 +549,10 @@ struct InputApp {
     html: String,
     width: f64,
     height: f64,
+    mode: InputMode,
+    filter: Vec<String>,
+    multiple: bool,
+    start_path: Option<String>,
     proxy: EventLoopProxy<DialogEvent>,
     window: Option<Window>,
     webview: Option<wry::WebView>,
@@ -569,18 +588,57 @@ impl InputApp {
         event_loop.exit();
     }
 
+    fn open_picker(&self) -> Option<InputValue> {
+        let start = self.start_path.as_deref().map(std::path::Path::new);
+        match self.mode {
+            InputMode::File => {
+                let paths = pick_file(&self.filter, self.multiple, start)?;
+                let strings: Vec<String> = paths
+                    .into_iter()
+                    .map(|p| p.to_string_lossy().into_owned())
+                    .collect();
+                if self.multiple {
+                    Some(InputValue::Paths(strings))
+                } else {
+                    Some(InputValue::Text(
+                        strings.into_iter().next().unwrap_or_default(),
+                    ))
+                }
+            }
+            InputMode::Folder => {
+                let path = pick_folder(start)?;
+                Some(InputValue::Text(path.to_string_lossy().into_owned()))
+            }
+            InputMode::Text => None,
+        }
+    }
+
     fn handle_ipc(&mut self, event_loop: &ActiveEventLoop, raw: &str) {
         match parse_input_page_ipc(raw) {
             Some(InputPageIpc::InputSubmitted { button, value }) => {
                 let label = ButtonLabel::new(button);
-                // Cancel omits input; confirm buttons include the text value
-                // (empty string allowed when the field is blank).
-                let input = if label.as_str() == "cancel" {
-                    None
-                } else {
-                    Some(InputValue::Text(value.unwrap_or_default()))
-                };
-                self.finish(event_loop, label, input);
+                // Cancel omits input and never opens the picker.
+                if label.as_str() == "cancel" {
+                    self.finish(event_loop, label, None);
+                    return;
+                }
+
+                match self.mode {
+                    InputMode::Text => {
+                        // Confirm buttons include the text value (empty string allowed).
+                        let input = Some(InputValue::Text(value.unwrap_or_default()));
+                        self.finish(event_loop, label, input);
+                    }
+                    InputMode::File | InputMode::Folder => {
+                        // Picker-on-OK: open rfd synchronously; cancel leaves dialog open.
+                        match self.open_picker() {
+                            Some(input) => self.finish(event_loop, label, Some(input)),
+                            None => {
+                                // Picker cancelled — keep dialog open; no stdout yet.
+                            }
+                        }
+                    }
+                }
             }
             Some(InputPageIpc::Dismissed) => {
                 self.dismiss(event_loop);

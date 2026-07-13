@@ -1,4 +1,4 @@
-//! Integration coverage for Phase B `input` text-mode validation (sprint b.3).
+//! Integration coverage for Phase B `input` validation (sprint b.4).
 
 use serde_json::json;
 use wyvern_schema::{validate, ButtonsPreset, Command, InputMode, ValidationError};
@@ -22,6 +22,9 @@ fn validation_input_minimal_defaults_text_and_ok_cancel() {
             placeholder,
             default,
             mode,
+            filter,
+            multiple,
+            start_path,
             buttons,
         } => {
             assert_eq!(title.as_str(), "Name");
@@ -33,6 +36,9 @@ fn validation_input_minimal_defaults_text_and_ok_cancel() {
             assert!(placeholder.is_none());
             assert!(default.is_none());
             assert_eq!(mode, InputMode::Text);
+            assert!(filter.is_none());
+            assert!(!multiple);
+            assert!(start_path.is_none());
             assert_eq!(buttons, ButtonsPreset::OkCancel);
         }
         other => panic!("expected Input, got {other:?}"),
@@ -94,37 +100,132 @@ fn validation_input_placeholder_and_default_allowed() {
 }
 
 #[test]
-fn validation_input_mode_file_rejected_until_b4() {
+fn validation_input_mode_file_passes() {
+    let cmd = validate(&json!({
+        "type": "input",
+        "title": "T",
+        "message": "Pick a file",
+        "mode": "file",
+        "filter": ["*.json", "*.txt"],
+        "multiple": true,
+        "start_path": "/tmp"
+    }))
+    .expect("valid file mode");
+    match cmd {
+        Command::Input {
+            mode,
+            filter,
+            multiple,
+            start_path,
+            ..
+        } => {
+            assert_eq!(mode, InputMode::File);
+            assert_eq!(
+                filter.as_deref(),
+                Some(["*.json".to_string(), "*.txt".to_string()].as_slice())
+            );
+            assert!(multiple);
+            assert_eq!(start_path.as_deref(), Some("/tmp"));
+        }
+        other => panic!("expected Input, got {other:?}"),
+    }
+}
+
+#[test]
+fn validation_input_mode_folder_passes() {
+    let cmd = validate(&json!({
+        "type": "input",
+        "title": "T",
+        "message": "Pick a folder",
+        "mode": "folder",
+        "start_path": "/tmp"
+    }))
+    .expect("valid folder mode");
+    match cmd {
+        Command::Input {
+            mode,
+            filter,
+            multiple,
+            start_path,
+            ..
+        } => {
+            assert_eq!(mode, InputMode::Folder);
+            assert!(filter.is_none());
+            assert!(!multiple);
+            assert_eq!(start_path.as_deref(), Some("/tmp"));
+        }
+        other => panic!("expected Input, got {other:?}"),
+    }
+}
+
+#[test]
+fn validation_input_multiline_with_file_fails_req0057() {
     let err = validate(&json!({
         "type": "input",
         "title": "T",
         "message": "M",
-        "mode": "file"
+        "mode": "file",
+        "multiline": true
     }))
-    .expect_err("file mode");
+    .expect_err("REQ-0057");
     match err {
         ValidationError::Validation { field, message } => {
-            assert_eq!(field, "mode");
-            assert!(message.contains("not implemented"));
-            assert!(message.contains("b.4"));
+            assert_eq!(field, "multiline");
+            assert!(message.contains("only valid when mode is 'text'"));
         }
         other => panic!("expected Validation, got {other:?}"),
     }
 }
 
 #[test]
-fn validation_input_mode_folder_rejected_until_b4() {
+fn validation_input_multiline_with_folder_fails_req0057() {
     let err = validate(&json!({
         "type": "input",
         "title": "T",
         "message": "M",
-        "mode": "folder"
+        "mode": "folder",
+        "multiline": true
     }))
-    .expect_err("folder mode");
+    .expect_err("REQ-0057");
+    match err {
+        ValidationError::Validation { field, .. } => assert_eq!(field, "multiline"),
+        other => panic!("expected Validation, got {other:?}"),
+    }
+}
+
+#[test]
+fn validation_input_placeholder_with_file_fails_req0059() {
+    let err = validate(&json!({
+        "type": "input",
+        "title": "T",
+        "message": "M",
+        "mode": "file",
+        "placeholder": "hint"
+    }))
+    .expect_err("REQ-0059 placeholder");
     match err {
         ValidationError::Validation { field, message } => {
-            assert_eq!(field, "mode");
-            assert!(message.contains("not implemented"));
+            assert_eq!(field, "placeholder");
+            assert!(message.contains("only valid when mode is 'text'"));
+        }
+        other => panic!("expected Validation, got {other:?}"),
+    }
+}
+
+#[test]
+fn validation_input_default_with_folder_fails_req0059() {
+    let err = validate(&json!({
+        "type": "input",
+        "title": "T",
+        "message": "M",
+        "mode": "folder",
+        "default": "x"
+    }))
+    .expect_err("REQ-0059 default");
+    match err {
+        ValidationError::Validation { field, message } => {
+            assert_eq!(field, "default");
+            assert!(message.contains("only valid when mode is 'text'"));
         }
         other => panic!("expected Validation, got {other:?}"),
     }
@@ -149,6 +250,25 @@ fn validation_input_filter_with_text_mode_fails_req0059() {
 }
 
 #[test]
+fn validation_input_filter_with_folder_fails_req0059() {
+    let err = validate(&json!({
+        "type": "input",
+        "title": "T",
+        "message": "M",
+        "mode": "folder",
+        "filter": ["*.rs"]
+    }))
+    .expect_err("REQ-0059 filter+folder");
+    match err {
+        ValidationError::Validation { field, message } => {
+            assert_eq!(field, "filter");
+            assert!(message.contains("only valid when mode is 'file'"));
+        }
+        other => panic!("expected Validation, got {other:?}"),
+    }
+}
+
+#[test]
 fn validation_input_multiple_with_text_mode_fails_req0059() {
     let err = validate(&json!({
         "type": "input",
@@ -163,6 +283,22 @@ fn validation_input_multiple_with_text_mode_fails_req0059() {
             assert_eq!(field, "multiple");
             assert!(message.contains("only valid when mode is 'file'"));
         }
+        other => panic!("expected Validation, got {other:?}"),
+    }
+}
+
+#[test]
+fn validation_input_multiple_with_folder_fails_req0059() {
+    let err = validate(&json!({
+        "type": "input",
+        "title": "T",
+        "message": "M",
+        "mode": "folder",
+        "multiple": true
+    }))
+    .expect_err("REQ-0059 multiple+folder");
+    match err {
+        ValidationError::Validation { field, .. } => assert_eq!(field, "multiple"),
         other => panic!("expected Validation, got {other:?}"),
     }
 }

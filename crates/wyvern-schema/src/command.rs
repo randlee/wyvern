@@ -121,9 +121,9 @@ impl MessageLevel {
 pub enum InputMode {
     /// Free-text field (default when `mode` is omitted).
     Text,
-    /// Native file picker — rejected until sprint b.4.
+    /// Native file picker via `rfd` in `wyvern-window` (sprint b.4).
     File,
-    /// Native folder picker — rejected until sprint b.4.
+    /// Native folder picker via `rfd` in `wyvern-window` (sprint b.4).
     Folder,
 }
 
@@ -174,7 +174,7 @@ pub enum Command {
         image: Option<String>,
         markdown: bool,
     },
-    /// Modal input dialog — text mode in sprint b.3 (REQ-0013).
+    /// Modal input dialog — text / file / folder (REQ-0013 / REQ-0015).
     Input {
         title: ChromeTitle,
         message: String,
@@ -185,6 +185,12 @@ pub enum Command {
         placeholder: Option<String>,
         default: Option<String>,
         mode: InputMode,
+        /// Extension patterns (`*.json`, …); file mode only (REQ-0015 / REQ-0059).
+        filter: Option<Vec<String>>,
+        /// Multi-file selection; file mode only (REQ-0015 / REQ-0059).
+        multiple: bool,
+        /// Initial picker directory; file or folder mode only (REQ-0059).
+        start_path: Option<String>,
         buttons: ButtonsPreset,
     },
 }

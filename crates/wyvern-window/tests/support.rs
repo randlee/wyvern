@@ -60,9 +60,81 @@ pub fn open_input_with_injected_ipc(ipc_json: &str) -> Result<CommandResult, Run
         placeholder: Some("hint".into()),
         default: Some("prefill".into()),
         mode: InputMode::Text,
+        filter: None,
+        multiple: false,
+        start_path: None,
         buttons: ButtonsPreset::OkCancel,
     });
     unsafe { std::env::remove_var("WYVERN_INJECT_IPC") };
+    result
+}
+
+/// Opens a file-mode input dialog, mocks the picker path, and injects OK IPC.
+pub fn open_file_picker_with_mock(
+    mock_path: &str,
+    multiple: bool,
+) -> Result<CommandResult, RunError> {
+    // SAFETY: integration test harness runs single-threaded before other work.
+    unsafe {
+        std::env::remove_var("WYVERN_AUTO_DISMISS");
+        std::env::set_var("WYVERN_MOCK_PICKER_PATH", mock_path);
+        std::env::set_var(
+            "WYVERN_INJECT_IPC",
+            r#"{"kind":"input_submitted","button":"ok"}"#,
+        );
+    }
+    let result = wyvern_window::run(Command::Input {
+        title: ChromeTitle::new("wyvern-file-picker-test"),
+        message: "Choose a file".into(),
+        status: None,
+        icon: None,
+        markdown: false,
+        multiline: false,
+        placeholder: None,
+        default: None,
+        mode: InputMode::File,
+        filter: Some(vec!["*.txt".into()]),
+        multiple,
+        start_path: Some("/tmp".into()),
+        buttons: ButtonsPreset::OkCancel,
+    });
+    unsafe {
+        std::env::remove_var("WYVERN_INJECT_IPC");
+        std::env::remove_var("WYVERN_MOCK_PICKER_PATH");
+    }
+    result
+}
+
+/// Opens a folder-mode input dialog, mocks the picker path, and injects OK IPC.
+pub fn open_folder_picker_with_mock(mock_path: &str) -> Result<CommandResult, RunError> {
+    // SAFETY: integration test harness runs single-threaded before other work.
+    unsafe {
+        std::env::remove_var("WYVERN_AUTO_DISMISS");
+        std::env::set_var("WYVERN_MOCK_PICKER_PATH", mock_path);
+        std::env::set_var(
+            "WYVERN_INJECT_IPC",
+            r#"{"kind":"input_submitted","button":"ok"}"#,
+        );
+    }
+    let result = wyvern_window::run(Command::Input {
+        title: ChromeTitle::new("wyvern-folder-picker-test"),
+        message: "Choose a folder".into(),
+        status: None,
+        icon: None,
+        markdown: false,
+        multiline: false,
+        placeholder: None,
+        default: None,
+        mode: InputMode::Folder,
+        filter: None,
+        multiple: false,
+        start_path: Some("/tmp".into()),
+        buttons: ButtonsPreset::OkCancel,
+    });
+    unsafe {
+        std::env::remove_var("WYVERN_INJECT_IPC");
+        std::env::remove_var("WYVERN_MOCK_PICKER_PATH");
+    }
     result
 }
 
@@ -103,6 +175,23 @@ pub fn assert_input_result(
                 (None, None) => {}
                 (Some(InputValue::Text(got)), Some(want)) => assert_eq!(got, want),
                 (got, want) => panic!("input mismatch: got={got:?} want={want:?}"),
+            }
+        }
+        other => panic!("expected Input result, got {other:?}"),
+    }
+}
+
+/// Assert helper: multi-select file paths.
+#[allow(dead_code)]
+pub fn assert_input_paths(result: &CommandResult, expected_button: &str, expected: &[&str]) {
+    match result {
+        CommandResult::Input(InputResult { button, input }) => {
+            assert_eq!(button, &ButtonLabel::new(expected_button));
+            match input {
+                Some(InputValue::Paths(got)) => {
+                    assert_eq!(got.as_slice(), expected);
+                }
+                other => panic!("expected Paths, got {other:?}"),
             }
         }
         other => panic!("expected Input result, got {other:?}"),

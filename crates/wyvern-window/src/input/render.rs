@@ -1,7 +1,7 @@
 //! Render the input HTML shell and parse page → host IPC.
 
 use serde_json::{json, Value};
-use wyvern_schema::ButtonsPreset;
+use wyvern_schema::{ButtonsPreset, InputMode};
 
 use crate::error::RunError;
 use crate::markdown::markdown_to_html;
@@ -23,12 +23,14 @@ pub struct InputRenderInput<'a> {
     pub icon: Option<&'a str>,
     /// When true, render `message` as markdown HTML.
     pub markdown: bool,
-    /// When true, render a multiline textarea.
+    /// When true, render a multiline textarea (text mode only).
     pub multiline: bool,
-    /// Optional placeholder hint.
+    /// Optional placeholder hint (text mode only).
     pub placeholder: Option<&'a str>,
-    /// Optional pre-filled value.
+    /// Optional pre-filled value (text mode only).
     pub default: Option<&'a str>,
+    /// Input mode — file/folder omit the text field (picker-on-OK).
+    pub mode: InputMode,
     /// Button preset (defaults to ok_cancel at schema layer).
     pub buttons: ButtonsPreset,
 }
@@ -81,6 +83,7 @@ pub fn render_input_html(input: &InputRenderInput<'_>) -> Result<String, RunErro
         multiline,
         placeholder,
         default,
+        mode,
         buttons,
     } = input;
 
@@ -113,22 +116,28 @@ pub fn render_input_html(input: &InputRenderInput<'_>) -> Result<String, RunErro
         None => String::new(),
     };
 
-    let placeholder_attr = placeholder
-        .map(|p| format!(r#" placeholder="{}""#, escape_attr(p)))
-        .unwrap_or_default();
-    let default_value = default.unwrap_or("");
-    let input_control = if *multiline {
-        format!(
-            r#"<textarea id="input-field" class="multi-line"{placeholder_attr}>{value}</textarea>"#,
-            placeholder_attr = placeholder_attr,
-            value = escape_html_text(default_value),
-        )
+    let picker_mode = matches!(mode, InputMode::File | InputMode::Folder);
+    let input_control = if picker_mode {
+        // File/folder: message + button bar only (picker opens on OK in host).
+        String::new()
     } else {
-        format!(
-            r#"<input id="input-field" class="single-line" type="text"{placeholder_attr} value="{value}" />"#,
-            placeholder_attr = placeholder_attr,
-            value = escape_attr(default_value),
-        )
+        let placeholder_attr = placeholder
+            .map(|p| format!(r#" placeholder="{}""#, escape_attr(p)))
+            .unwrap_or_default();
+        let default_value = default.unwrap_or("");
+        if *multiline {
+            format!(
+                r#"<textarea id="input-field" class="multi-line"{placeholder_attr}>{value}</textarea>"#,
+                placeholder_attr = placeholder_attr,
+                value = escape_html_text(default_value),
+            )
+        } else {
+            format!(
+                r#"<input id="input-field" class="single-line" type="text"{placeholder_attr} value="{value}" />"#,
+                placeholder_attr = placeholder_attr,
+                value = escape_attr(default_value),
+            )
+        }
     };
 
     let mut button_html = String::new();
@@ -149,6 +158,8 @@ pub fn render_input_html(input: &InputRenderInput<'_>) -> Result<String, RunErro
         "buttons": display,
         "multiline": multiline,
         "markdown": markdown,
+        "mode": mode.as_str(),
+        "picker": picker_mode,
     });
     let context_json = context.to_string();
 
@@ -191,6 +202,7 @@ pub fn estimate_input_window_size(
     has_status: bool,
     has_icon: bool,
     multiline: bool,
+    picker_mode: bool,
 ) -> (f64, f64) {
     const CHAR_W: f64 = 7.2;
     const LINE_H: f64 = 18.0;
@@ -231,7 +243,9 @@ pub fn estimate_input_window_size(
         .clamp(DIALOG_MIN_WIDTH, DIALOG_MAX_WIDTH);
 
     let status_h = if has_status { STATUS_H } else { 0.0 };
-    let field_h = if multiline {
+    let field_h = if picker_mode {
+        0.0
+    } else if multiline {
         MULTI_FIELD_H
     } else {
         SINGLE_FIELD_H
@@ -263,6 +277,7 @@ mod tests {
             multiline,
             placeholder,
             default,
+            mode: InputMode::Text,
             buttons: ButtonsPreset::OkCancel,
         })
         .expect("render")
@@ -292,6 +307,48 @@ mod tests {
     }
 
     #[test]
+    fn render_file_mode_omits_text_field() {
+        let html = render_input_html(&InputRenderInput {
+            title: "Open",
+            message: "Choose a file",
+            status: None,
+            icon: None,
+            markdown: false,
+            multiline: false,
+            placeholder: None,
+            default: None,
+            mode: InputMode::File,
+            buttons: ButtonsPreset::OkCancel,
+        })
+        .expect("render");
+        assert!(html.contains("Choose a file"));
+        assert!(!html.contains(r#"id="input-field""#));
+        assert!(!html.contains("<textarea"));
+        assert!(html.contains(r#"data-wire="ok""#));
+        assert!(html.contains(r#""picker":true"#));
+        assert!(html.contains(r#""mode":"file""#));
+    }
+
+    #[test]
+    fn render_folder_mode_omits_text_field() {
+        let html = render_input_html(&InputRenderInput {
+            title: "Open",
+            message: "Choose a folder",
+            status: None,
+            icon: None,
+            markdown: false,
+            multiline: false,
+            placeholder: None,
+            default: None,
+            mode: InputMode::Folder,
+            buttons: ButtonsPreset::OkCancel,
+        })
+        .expect("render");
+        assert!(!html.contains(r#"id="input-field""#));
+        assert!(html.contains(r#""mode":"folder""#));
+    }
+
+    #[test]
     fn render_markdown_prompt() {
         let html = render_input_html(&InputRenderInput {
             title: "T",
@@ -302,6 +359,7 @@ mod tests {
             multiline: false,
             placeholder: None,
             default: None,
+            mode: InputMode::Text,
             buttons: ButtonsPreset::OkCancel,
         })
         .expect("render");
@@ -319,6 +377,18 @@ mod tests {
             InputPageIpc::InputSubmitted {
                 button: "ok".into(),
                 value: Some("hello".into()),
+            }
+        );
+    }
+
+    #[test]
+    fn parse_input_submitted_ok_without_value() {
+        let ipc = parse_input_page_ipc(r#"{"kind":"input_submitted","button":"ok"}"#).unwrap();
+        assert_eq!(
+            ipc,
+            InputPageIpc::InputSubmitted {
+                button: "ok".into(),
+                value: None,
             }
         );
     }
@@ -376,13 +446,17 @@ mod tests {
 
     #[test]
     fn estimate_size_clamped_to_bounds() {
-        let (w, h) = estimate_input_window_size("Hi", 2, false, false, false);
+        let (w, h) = estimate_input_window_size("Hi", 2, false, false, false, false);
         assert!((DIALOG_MIN_WIDTH..=DIALOG_MAX_WIDTH).contains(&w));
         assert!((DIALOG_MIN_HEIGHT..=DIALOG_MAX_HEIGHT).contains(&h));
 
-        let (w2, h2) = estimate_input_window_size("Hi", 2, true, true, true);
+        let (w2, h2) = estimate_input_window_size("Hi", 2, true, true, true, false);
         assert!(w2 >= DIALOG_MIN_WIDTH);
         assert!(h2 >= DIALOG_MIN_HEIGHT);
         assert!(h2 <= DIALOG_MAX_HEIGHT);
+
+        let (_, h3) = estimate_input_window_size("Hi", 2, false, false, false, true);
+        assert!(h3 >= DIALOG_MIN_HEIGHT);
+        assert!(h3 <= h2);
     }
 }
