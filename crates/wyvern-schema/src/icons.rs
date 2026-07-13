@@ -20,6 +20,10 @@ pub fn variant_count(role: &str) -> u32 {
 ///
 /// Returns `Err(())` when the suffix after `:` is present but not a valid `u32`
 /// (for example `"warning:abc"`). Callers map that to [`crate::ValidationError`].
+#[expect(
+    clippy::result_unit_err,
+    reason = "c.1 catalog API; validation maps Err(()) to ValidationError in c.2"
+)]
 pub fn parse_icon_spec(spec: &str) -> Result<(String, u32), ()> {
     let (base, variant) = match spec.split_once(':') {
         None => (spec, 1u32),

@@ -9,12 +9,6 @@ use wyvern_schema::MessageLevel;
 use crate::error::RunError;
 use crate::icons;
 
-/// Phase B placeholder SVGs — retained for regression tests only (c.1+).
-const PLACEHOLDER_INFO: &str = include_str!("../../assets/icons/placeholder/info.svg");
-const PLACEHOLDER_WARNING: &str = include_str!("../../assets/icons/placeholder/warning.svg");
-const PLACEHOLDER_ERROR: &str = include_str!("../../assets/icons/placeholder/error.svg");
-const PLACEHOLDER_QUESTION: &str = include_str!("../../assets/icons/placeholder/question.svg");
-
 /// HTML snippet for the `#level-icon` slot (inline SVG or `<img>`).
 pub type IconHtml = String;
 
@@ -29,13 +23,24 @@ pub fn icon_html_for_level(level: MessageLevel) -> IconHtml {
         .to_string()
 }
 
-/// Phase B placeholder SVG for `level` — test / regression use only.
-pub fn placeholder_svg_for_level(level: MessageLevel) -> &'static str {
-    match level {
-        MessageLevel::Info => PLACEHOLDER_INFO,
-        MessageLevel::Warning => PLACEHOLDER_WARNING,
-        MessageLevel::Error => PLACEHOLDER_ERROR,
-        MessageLevel::Question => PLACEHOLDER_QUESTION,
+#[cfg(test)]
+mod placeholder_assets {
+    //! Phase B placeholder SVGs — regression tests only (c.1+).
+    use wyvern_schema::MessageLevel;
+
+    const PLACEHOLDER_INFO: &str = include_str!("../../assets/icons/placeholder/info.svg");
+    const PLACEHOLDER_WARNING: &str = include_str!("../../assets/icons/placeholder/warning.svg");
+    const PLACEHOLDER_ERROR: &str = include_str!("../../assets/icons/placeholder/error.svg");
+    const PLACEHOLDER_QUESTION: &str = include_str!("../../assets/icons/placeholder/question.svg");
+
+    /// Phase B placeholder SVG for `level` — test / regression use only.
+    pub fn placeholder_svg_for_level(level: MessageLevel) -> &'static str {
+        match level {
+            MessageLevel::Info => PLACEHOLDER_INFO,
+            MessageLevel::Warning => PLACEHOLDER_WARNING,
+            MessageLevel::Error => PLACEHOLDER_ERROR,
+            MessageLevel::Question => PLACEHOLDER_QUESTION,
+        }
     }
 }
 
@@ -235,6 +240,7 @@ mod tests {
 
     #[test]
     fn placeholder_assets_retained_for_regression() {
+        use placeholder_assets::placeholder_svg_for_level;
         let info = placeholder_svg_for_level(MessageLevel::Info);
         let warning = placeholder_svg_for_level(MessageLevel::Warning);
         let error = placeholder_svg_for_level(MessageLevel::Error);
