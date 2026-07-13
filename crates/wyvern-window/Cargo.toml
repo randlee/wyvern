@@ -10,7 +10,10 @@ wyvern-schema = { path = "../wyvern-schema" }
 wyvern-wizard = { path = "../wyvern-wizard" }
 wry           = { workspace = true }
 winit         = { workspace = true }
+rfd           = "0.15"
 serde_json    = { workspace = true }
+pulldown-cmark = { workspace = true }
+ammonia = "4"
 
 # wry on Linux needs an initialized GTK main loop alongside winit.
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))'.dependencies]
@@ -21,5 +24,45 @@ gtk = "0.18"
 [[test]]
 name = "blank_window"
 path = "tests/blank_window.rs"
+harness = false
+
+[[test]]
+name = "message_ipc"
+path = "tests/message_ipc.rs"
+harness = false
+
+[[test]]
+name = "input_ipc"
+path = "tests/input_ipc.rs"
+harness = false
+
+[[test]]
+name = "input_file_ipc"
+path = "tests/input_file_ipc.rs"
+harness = false
+
+[[test]]
+name = "input_file_multi_ipc"
+path = "tests/input_file_multi_ipc.rs"
+harness = false
+
+[[test]]
+name = "input_folder_ipc"
+path = "tests/input_folder_ipc.rs"
+harness = false
+
+[[test]]
+name = "question_ipc"
+path = "tests/question_ipc.rs"
+harness = false
+
+[[test]]
+name = "question_multi_ipc"
+path = "tests/question_multi_ipc.rs"
+harness = false
+
+[[test]]
+name = "question_dismiss_ipc"
+path = "tests/question_dismiss_ipc.rs"
 harness = false
 
