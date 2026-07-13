@@ -31,7 +31,7 @@ target: integrate/phase-C-fixes
 - `crates/wyvern/src/main.rs` — load + pipeline `PipelineError` / `EmitError` handling (no `unreachable!`)
 - `crates/wyvern-schema/src/lib.rs` — `pub use stderr::SerializeError`
 - `docs/wyvern/architecture.md` — ADR-0013 amendment + pipeline error table
-- `docs/wyvern-schema/requirements.md` — **REQ-0074** emit-stage `internal` wire contract (mandatory)
+- `docs/wyvern-schema/requirements.md` — **REQ-0078** emit-stage `internal` wire contract (mandatory)
 
 ## Deliverables
 
@@ -65,11 +65,11 @@ target: integrate/phase-C-fixes
 | `LoadError::Usage` | Never reaches load emit helpers — handled only in `main` before pipeline |
 | `handle_run_failure` | **Removed** — stage exit codes live in `PipelineError::Stage` |
 
-### REQ-0074 (mandatory — wyvern-schema requirements)
+### REQ-0078 (mandatory — wyvern-schema requirements)
 
 Add after REQ-0073:
 
-> **REQ-0074** — Emit-stage failures: when stdout or stderr JSON serialization fails at the CLI boundary (`EmitError::Serialize`), Wyvern emits `{ "error": "internal", "code": "INTERNAL_ERROR", "message": "..." }` and exits `8`. Applies only to emit helpers in `crates/wyvern`; does not change load/validate/run slugs.
+> **REQ-0078** — Emit-stage failures: when stdout or stderr JSON serialization fails at the CLI boundary (`EmitError::Serialize`), Wyvern emits `{ "error": "internal", "code": "INTERNAL_ERROR", "message": "..." }` and exits `8`. Applies only to emit helpers in `crates/wyvern`; does not change load/validate/run slugs. (Distinct from MCP **REQ-0074** in `docs/wyvern-mcp/requirements.md`.)
 
 ### `SerializeError` + `to_json_string` (wyvern-schema)
 
@@ -257,9 +257,7 @@ fn main() -> ExitCode {
             eprintln!("{message}");
             return ExitCode::from(1);
         }
-        Err(err) => match &err {
-            LoadError::Parse { .. } | LoadError::Io { .. } => return emit_load_stage_failure(&err),
-        },
+        Err(err) => return emit_load_stage_failure(&err),
     };
 
     match run_from_loaded(value) {
@@ -349,6 +347,13 @@ fn serialize_error_forced_fail() {
     assert!(err.to_json_string().is_err());
     FORCE_SERIALIZE_FAIL.store(false, Ordering::Relaxed);
 }
+```
+
+```rust
+// crates/wyvern/src/error.rs — #[cfg(test)] only
+#[cfg(test)]
+static FORCE_EMIT_STDOUT_FAIL: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
 
 #[test]
 fn emit_stdout_forced_fail() {
@@ -358,8 +363,6 @@ fn emit_stdout_forced_fail() {
     FORCE_EMIT_STDOUT_FAIL.store(false, Ordering::Relaxed);
 }
 ```
-
-`FORCE_EMIT_STDOUT_FAIL` — `#[cfg(test)]` atomic in `error.rs`, same pattern as `FORCE_SERIALIZE_FAIL`.
 
 ### Error mapping table (emit at CLI)
 
@@ -380,12 +383,12 @@ fn emit_stdout_forced_fail() {
 
 - §1 checklist rows 1–5 **FIXED** in code
 - Unit test: `resolve_named_icon_svg("bad:role:99")` or unbundled variant → `RunError::WindowCreate` (implementable without mocking compile-time embeds)
-- Unit test `serialize_error_forced_fail` + `emit_stdout_forced_fail` (see samples)
+- Unit test `serialize_error_forced_fail` in `wyvern-schema/src/stderr.rs`; `emit_stdout_forced_fail` in `wyvern/src/error.rs` (see samples)
 - Zero production `unreachable!` in `crates/wyvern/src/**/*.rs` outside `#[cfg(test)]` (includes `main.rs`)
 - `cargo test --workspace -- --test-threads=1` passes
 - `cargo clippy --workspace -- -D warnings` clean (c.8 adds denies; c.6 must not introduce new production panics)
 - `sc-lint check native --config .sc-lint.toml` clean
-- REQ-0074 present in `docs/wyvern-schema/requirements.md` with slug `internal` and exit `8`
+- REQ-0078 present in `docs/wyvern-schema/requirements.md` with slug `internal` and exit `8`
 - ADR-0013 amendment present in `docs/wyvern/architecture.md` (`internal`, `PipelineError::Emit`, icon→`WindowCreate`)
 - `rg 'emit_load_error|handle_run_failure' crates/wyvern/src` returns **zero** matches (deleted; `input.rs` tests updated)
 - `rg 'unwrap\(|\.expect\(|panic!|unreachable!' crates/wyvern-window/src/input/render.rs` — zero matches outside `mod tests` (proves out-of-scope)
@@ -396,7 +399,7 @@ fn emit_stdout_forced_fail() {
 - `cargo clippy --workspace -- -D warnings`
 - `sc-lint check native --config .sc-lint.toml`
 - `rg 'unwrap\(|\.expect\(|panic!|unreachable!' crates/wyvern-window/src/input/render.rs` (must be test-only)
-- `rg 'REQ-0074' docs/wyvern-schema/requirements.md` (must match)
+- `rg 'REQ-0078' docs/wyvern-schema/requirements.md` (must match)
 - `rg 'INTERNAL_ERROR|PipelineError::Emit|internal' docs/wyvern/architecture.md` (ADR amendment gate)
 - `rg 'unreachable!' crates/wyvern/src --glob '!**/tests/**'` with manual `#[cfg(test)]` exclusion (zero in production)
 - `rg 'emit_load_error|handle_run_failure' crates/wyvern/src` (must be zero)

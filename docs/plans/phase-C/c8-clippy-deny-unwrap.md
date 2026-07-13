@@ -51,7 +51,7 @@ target: integrate/phase-C-fixes
 
 ## This Sprint Does Not Close
 
-- `wyvern-wizard` / `wyvern-mcp` — pure-logic / thin crates with no production panic violations today; extend denies in a future sprint if lib `src/` grows
+- `wyvern-wizard` / `wyvern-mcp` — no lib-root deny in c.8 (no violations today); MCP REQ-0074 unchanged
 - New `sc-lint` source-scan panic rule (future sc-lint feature)
 - `sc-lint check native` scope change (compile-only; unchanged)
 

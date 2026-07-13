@@ -111,7 +111,7 @@ develop ──► integrate/phase-C-fixes ──► c.6 ──► c.7 ──► 
 |--------|-----|-------|
 | c.6 | [c6-result-propagation.md](c6-result-propagation.md) | Eliminate production panics; `Result` through media + emit |
 | c.7 | [c7-cli-test-hardening.md](c7-cli-test-hardening.md) | `serial_test` on nine GUI CLI tests; shared spawn helper |
-| c.8 | [c8-clippy-deny-unwrap.md](c8-clippy-deny-unwrap.md) | Clippy deny on three lib roots |
+| c.8 | [c8-clippy-deny-unwrap.md](c8-clippy-deny-unwrap.md) | Clippy deny on four roots (three lib + `main.rs`) |
 
 **Sole authority** for deliverables, acceptance criteria, and validation: **c.6, c.7, c.8 sprint docs above.**
 

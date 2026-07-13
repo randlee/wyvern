@@ -77,7 +77,7 @@ develop ──► integrate/phase-C-fixes ──► c.6 ──► c.7 ──► 
 |--------|--------|-------|
 | **c.6** | `feature/phase-C-c6-result-propagation` | `Result` propagation; `WindowCreate` for icon misses; `InternalError` for emit; ADR-0013 amendment |
 | **c.7** | `feature/phase-C-c7-cli-test-hardening` | `serial_test` on nine GUI CLI tests; shared `run_wyvern` helper |
-| **c.8** | `feature/phase-C-c8-clippy-deny-unwrap` | Clippy deny on three lib roots; `docs/linting.md` panic policy |
+| **c.8** | `feature/phase-C-c8-clippy-deny-unwrap` | Clippy deny on four roots (three lib + `main.rs`); `docs/linting.md` panic policy |
 
 c.6 and c.8 are **separate sprints** — c.8 owns clippy deny only.
 
@@ -120,7 +120,7 @@ c.8 also updates [`docs/linting.md`](../../../../docs/linting.md) to document th
 | Error model | **Discriminated unions through all layers** — no `expect` on recoverable paths |
 | Serialize | **`Result` from emit helpers** — map at CLI boundary |
 | Integrate branch | **`integrate/phase-C-fixes`** off `develop` (Phase C already merged) |
-| Panic regression gate | **Clippy `deny` on three lib roots** (c.8) — not sc-lint.toml |
+| Panic regression gate | **Clippy `deny` on four roots** (three lib + `main.rs`) — not sc-lint.toml |
 | Icon/embed failures | **`RunError::WindowCreate`** — no new REQ-0073 slug |
 | Emit serialize failures | **`ErrorCode::InternalError`** — slug `internal`, exit `8` |
 | Sprint split | **c.6 / c.7 / c.8 separate** — no merge |
