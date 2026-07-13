@@ -20,14 +20,17 @@ target: integrate/phase-C
 
 ## Exact Targets
 
-- `crates/wyvern-window/src/window.rs` — `apply_platform_chrome`: Win/Linux `with_decorations(false)` (orthogonal to `.with_enabled_buttons(WindowButtons::CLOSE)` on modal types — decorations control OS frame; enabled_buttons control winit chrome buttons)
+- `crates/wyvern-window/src/window.rs` — `apply_platform_chrome`: Win/Linux `with_decorations(false)`; modal types may retain `.with_enabled_buttons(WindowButtons::CLOSE)` for API consistency but it is **inert** when `decorations: false` (no native title bar to expose)
 - `crates/wyvern-window/src/chrome/platform.rs` — new: `PlatformChrome` struct (`macos_safe_zone`, `show_minimize`, `show_window_controls`)
+- `crates/wyvern-window/src/chrome/ipc.rs` — new: `pub(crate) enum ChromeIpc`, `pub(crate) fn parse_chrome_ipc` (shared by `run.rs` dialog apps and `question/handler.rs` — avoids QuestionApp ↔ run module cycle)
 - `crates/wyvern-window/src/chrome/render.rs` — accept `PlatformChrome`; inject `{{WINDOW_CONTROLS_BLOCK}}` and `{{TITLE_BAR_STYLE}}`
-- `crates/wyvern-window/src/chrome/template.html` — Win/Linux window control buttons; platform placeholders
-- `crates/wyvern-window/src/message/template.html`, `input/template.html`, `markdown/template.html`, `question/template.html` — same placeholders; remove hard-coded `padding-left: 72px` from static CSS
+- `crates/wyvern-window/src/chrome/template.html` — Win/Linux window control buttons; `<script>` block wiring `#window-controls` clicks → `window.ipc.postMessage`
+- `crates/wyvern-window/src/message/template.html`, `input/template.html`, `markdown/template.html`, `question/template.html` — same placeholders; remove hard-coded `padding-left: 72px` from inline `<style>`; add or extend `<script>` for `#window-controls` IPC (same pattern as chrome template)
+- `crates/wyvern-window/src/markdown/styles.css` — remove hard-coded `#title-bar { padding-left: 72px; }`; title-bar padding driven only via `{{TITLE_BAR_STYLE}}` injected at render time
 - `crates/wyvern-window/src/message/render.rs`, `input/render.rs`, `markdown/render.rs`, `question/render.rs`, `chrome/render.rs` — pass `PlatformChrome` from `platform_chrome_for(command_type)`
-- `crates/wyvern-window/src/run.rs` — **ChromeApp upgrade** (see below); extend all dialog `handle_ipc` for `window_close` / `window_minimize`
-- `crates/wyvern-window/tests/` — IPC tests for close/minimize; modal minimize no-op; ChromeApp `WYVERN_INJECT_IPC` integration test
+- `crates/wyvern-window/src/run.rs` — **ChromeApp upgrade** (see below); import `parse_chrome_ipc` from `chrome::ipc`; extend MessageApp/InputApp/MarkdownApp `handle_ipc` for `window_close` / `window_minimize`
+- `crates/wyvern-window/src/question/handler.rs` — import `parse_chrome_ipc` from `chrome::ipc`; extend `QuestionApp::handle_ipc` (QuestionApp lives here, not in `run.rs`, to break the module cycle)
+- `crates/wyvern-window/tests/` — IPC tests for close/minimize; modal minimize no-op; ChromeApp `WYVERN_INJECT_IPC` integration test; render/fixture tests assert `#window-controls` click wiring and title-bar style per platform cfg
 - `docs/wyvern-window/architecture.md` — mark ADR-0010a implemented for Win/Linux
 
 ## Deliverables
@@ -49,10 +52,11 @@ target: integrate/phase-C
 ```rust
 #[cfg(not(target_os = "macos"))]
 let attrs = attrs.with_decorations(false);
-// Modal types still use .with_enabled_buttons(WindowButtons::CLOSE) — independent of decorations:false
+// Modal types may retain .with_enabled_buttons(WindowButtons::CLOSE) for parity with macOS cfg —
+// inert on Win/Linux when decorations: false (no native title bar to expose).
 ```
 
-Modal types retain `.with_enabled_buttons(WindowButtons::CLOSE)` — no minimize at winit layer. `decorations: false` removes the OS title bar; `enabled_buttons` restricts which native chrome buttons winit exposes when decorations are on — both apply on Win/Linux borderless windows.
+Modal types may retain `.with_enabled_buttons(WindowButtons::CLOSE)` for API parity with macOS. On Win/Linux with `decorations: false`, `enabled_buttons` is **inert** — there is no native title bar. Minimize is blocked at the HTML layer (`show_minimize = false`) and host layer (`window_minimize` no-op).
 
 ### PlatformChrome render API
 
@@ -111,6 +115,33 @@ Win/Linux controls block:
 - `#window-controls` and buttons use `-webkit-app-region: no-drag`
 - Render layer omits `#btn-minimize` when `show_minimize` is false
 
+### Window control JS wiring (authoritative)
+
+Each template that renders `#window-controls` must include a `<script>` block (alongside existing button-bar / input handlers) that posts chrome IPC via the same `window.ipc.postMessage` bridge as dialog buttons:
+
+```html
+<script>
+  (function () {
+    var controls = document.getElementById("window-controls");
+    if (!controls) return;
+    controls.addEventListener("click", function (ev) {
+      var btn = ev.target.closest("button[data-action]");
+      if (!btn) return;
+      var action = btn.getAttribute("data-action");
+      if (action === "close") {
+        window.ipc.postMessage(JSON.stringify({ kind: "window_close" }));
+      } else if (action === "minimize") {
+        window.ipc.postMessage(JSON.stringify({ kind: "window_minimize" }));
+      }
+    });
+  })();
+</script>
+```
+
+Apply to: `chrome/template.html` (always on Win/Linux), and dialog templates when `{{WINDOW_CONTROLS_BLOCK}}` is non-empty. macOS renders empty `{{WINDOW_CONTROLS_BLOCK}}` — script is harmless no-op.
+
+**Render/fixture tests:** assert rendered HTML for Win/Linux cfg includes `#window-controls`, `data-action="close"`, and (non-modal only) `data-action="minimize"`; assert macOS fixture has no `#window-controls`. Extend markdown render test to confirm `styles.css` title bar has **no** hard-coded `padding-left: 72px` and receives macOS padding only via `{{TITLE_BAR_STYLE}}`.
+
 ### IPC (see chrome-ipc-contract.md)
 
 | User action | Page → host | Host behavior |
@@ -168,11 +199,11 @@ impl ChromeApp {
 }
 ```
 
-`parse_chrome_ipc` lives in `run.rs` (no separate `ipc/` module — extend `handle_ipc` only).
+`parse_chrome_ipc` lives in `chrome/ipc.rs` (`pub(crate)`) — shared import for `run.rs` dialog apps and `question/handler.rs`. No top-level `src/ipc/` module tree; chrome IPC types stay under `chrome/`.
 
 ### Modal minimize no-op (all dialog apps)
 
-Every modal `handle_ipc` (MessageApp, InputApp, MarkdownApp, QuestionApp) must handle `window_minimize` as an explicit **no-op** before the malformed-IPC fail-safe:
+Every modal `handle_ipc` (MessageApp, InputApp, MarkdownApp in `run.rs`; QuestionApp in `question/handler.rs`) must handle `window_minimize` as an explicit **no-op** before the malformed-IPC fail-safe:
 
 ```rust
 fn handle_ipc(&mut self, event_loop: &ActiveEventLoop, raw: &str) {
@@ -207,10 +238,10 @@ pub fn render_chrome_html(title: &str, status: Option<&str>, chrome: PlatformChr
 ```
 
 ```rust
-// run.rs — parse helper (inline, not ipc/ module)
-enum ChromeIpc { WindowClose, WindowMinimize }
+// chrome/ipc.rs — shared parse helper (pub(crate), under chrome/)
+pub(crate) enum ChromeIpc { WindowClose, WindowMinimize }
 
-fn parse_chrome_ipc(raw: &str) -> Option<ChromeIpc> {
+pub(crate) fn parse_chrome_ipc(raw: &str) -> Option<ChromeIpc> {
     let v: serde_json::Value = serde_json::from_str(raw).ok()?;
     match v.get("kind")?.as_str()? {
         "window_close" => Some(ChromeIpc::WindowClose),
@@ -218,6 +249,9 @@ fn parse_chrome_ipc(raw: &str) -> Option<ChromeIpc> {
         _ => None,
     }
 }
+
+// run.rs / question/handler.rs — import and use in handle_ipc:
+use crate::chrome::ipc::{parse_chrome_ipc, ChromeIpc};
 ```
 
 ## This Sprint Does Not Close
@@ -236,8 +270,9 @@ fn parse_chrome_ipc(raw: &str) -> Option<ChromeIpc> {
 - HTML minimize on `chrome` → window minimizes without stdout
 - **ChromeApp:** `WYVERN_INJECT_IPC='{"kind":"window_close"}'` integration test completes with `{"button":"dismissed"}`
 - Modal types: `window_minimize` IPC → no stdout, no dismiss; minimize button absent in HTML
-- Win/Linux render tests: title bar has **no** `padding-left: 72px`; `#window-controls` present on right
-- macOS render tests: `padding-left: 72px` preserved; no `#window-controls`
+- Win/Linux render tests: title bar has **no** `padding-left: 72px` (including markdown `styles.css` fixture); `#window-controls` present on right with `data-action` attributes
+- macOS render tests: `padding-left: 72px` preserved via `{{TITLE_BAR_STYLE}}` only; no `#window-controls`
+- Render/fixture test: `#window-controls` click wiring present in template HTML for Win/Linux cfg
 - Title bar draggable on Win/Linux
 - No regression to macOS ADR-0010 behavior
 
@@ -246,6 +281,7 @@ fn parse_chrome_ipc(raw: &str) -> Option<ChromeIpc> {
 - `cargo test --workspace -- --test-threads=1` on all three CI OS legs
 - Unit tests: IPC `window_close` / `window_minimize` mapping; modal `window_minimize` no-op
 - Integration test: ChromeApp + `WYVERN_INJECT_IPC` for `window_close`
-- Render tests: `PlatformChrome` title-bar style and controls block per platform cfg
+- Render tests: `PlatformChrome` title-bar style and controls block per platform cfg; markdown `styles.css` has no hard-coded 72px title-bar padding
+- Render/fixture tests: `#window-controls` IPC wiring in template `<script>` blocks
 - `sc-lint check native --config .sc-lint.toml`
 - Grep gate: `with_decorations(true)` absent from non-test Win/Linux production paths in `window.rs`

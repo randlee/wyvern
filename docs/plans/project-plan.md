@@ -79,7 +79,18 @@ Phase B sprint PRs target `integrate/phase-B`. Sprint authority: `docs/plans/pha
 
 **Phase acceptance criteria:** Install from GitHub release (or equivalent) works; a developer can run all Phase B dialog types on macOS, Windows, and Linux from a released binary. See [docs/plans/phase-C/README.md](phase-C/README.md#phase-acceptance-criteria-smoke).
 
-Phase C sprint PRs target `integrate/phase-C`. Sprint authority: `docs/plans/phase-C/` (sprints **c.1–c.5**, sequential — not parallel sub-sprints).
+Phase C sprint PRs target `integrate/phase-C`. Sprint authority: `docs/plans/phase-C/` (sprints **c.1–c.5**). Dependency graph:
+
+```
+Phase B ──┬──► c.1 ──► c.2 ──┐
+          │                   ├──► c.4 ──► c.5
+          └──► c.3 ───────────┘
+```
+
+- **c.1 → c.2:** icon asset bundle, then named-icon validation and resolution
+- **c.3:** independent after Phase B (Win/Linux chrome does not block on c.1–c.2)
+- **c.4:** depends on c.1, c.2, and c.3
+- **c.5:** depends on c.4
 
 **Inherited from Phase B:** Dialog auto-size **min 320×200** / **max 800×600**; Win/Linux native OS decorations until c.3; b.2 placeholder icons at `assets/icons/placeholder/` until c.1 production bundle.
 
