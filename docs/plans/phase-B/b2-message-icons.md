@@ -124,7 +124,7 @@ pub enum Command {
 
 ## This Sprint Does Not Close
 
-- Full shipped icon bundle with variants (Phase C c.1, REQ-0030)
+- Full shipped icon bundle with variants (Phase C [c1-icon-set.md](../phase-C/c1-icon-set.md) + [c2-icon-variants.md](../phase-C/c2-icon-variants.md), REQ-0030)
 - `input`, `markdown`, `question` types
 - AI-generated icons (post-MVP)
 

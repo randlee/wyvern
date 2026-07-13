@@ -40,14 +40,20 @@
 
 ## ADR-0010a: Full-size content view extended to all platforms
 
-**Status:** Accepted (implementation deferred)
+**Status:** Accepted (Win/Linux implementation in Phase C c.3; macOS implemented Phase A)
 
 **Decision:** All platforms use full-size content view with no OS title bar.
-- **macOS** — transparent title bar + full-size content view; native traffic lights
-- **Windows** — `decorations: false` + HTML close/minimize buttons via IPC
-- **Linux** — `decorations: false` + HTML close/minimize buttons via IPC
+- **macOS** — transparent title bar + full-size content view; native traffic lights; HTML title bar reserves **72px left safe zone** (ADR-0010)
+- **Windows** — `decorations: false` + HTML close/minimize buttons via IPC; **no** 72px left padding; controls on the right
+- **Linux** — `decorations: false` + HTML close/minimize buttons via IPC; same title-bar layout as Windows
 
-**Consequences:** Consistent immersive look across platforms. HTML-rendered close/minimize on Windows/Linux wired to IPC.
+**Consequences:** Consistent immersive look across platforms. Chrome IPC parsed in `chrome/ipc.rs` (`parse_chrome_ipc`); dispatched in `run.rs` (MessageApp, InputApp, MarkdownApp, ChromeApp) and `question/handler.rs` (QuestionApp). `decorations: false` is orthogonal to modal `.with_enabled_buttons(WindowButtons::CLOSE)` — the former removes the OS frame; the latter restricts winit chrome buttons when decorations are enabled.
+
+**Modal minimize policy:** HTML minimize button hidden on modal types; host `handle_ipc` must **no-op** `window_minimize` (not dismiss) as defense-in-depth.
+
+**Render API:** `PlatformChrome` struct (`macos_safe_zone`, `show_minimize`, `show_window_controls`) drives template placeholders `{{TITLE_BAR_STYLE}}` and `{{WINDOW_CONTROLS_BLOCK}}` across all dialog and chrome templates.
+
+**ChromeApp IPC gap (Phase B):** `chrome` command currently has no `with_ipc_handler` — c.3 upgrades `ChromeApp` to the same `DialogEvent` + IPC pattern as dialog apps.
 
 ### Phase B platform policy (resolves ADR-0010a vs interim)
 
@@ -75,3 +81,24 @@ ADR-0010a describes the **target** cross-platform chrome. During **Phase B**, Wi
 **Picker UX (Phase B):** file/folder modes use picker-on-OK — page sends `input_submitted` without `value`; host opens `rfd` synchronously. See [ipc-dialog-contract.md](../plans/phase-B/ipc-dialog-contract.md).
 
 **Consequences:** Small dependency footprint; native look-and-feel per OS. Picker logic is not unit-testable in `wyvern-schema`; integration tests live in `wyvern-window` with mocks.
+
+---
+
+## ADR-0015: Built-in icon asset layout (Phase C)
+
+**Status:** Accepted (implementation in Phase C c.1–c.2)
+
+**Context:** Phase B ships four **placeholder** SVGs under `assets/icons/placeholder/` for `MessageLevel` values only (b.2). REQ-0030 requires a full curated bundle with multiple variants per semantic role. REQ-0031 requires named resolution with variant index.
+
+**Decision:**
+- Production icons live at `crates/wyvern-window/assets/icons/{role}/{index}.svg` (SVG primary; PNG/WebP allowed per REQ-0030).
+- Six roles: `info`, `warning`, `error`, `question`, `success`, `loading` — minimum two variants each.
+- **Role catalog** (`ROLES`, `variant_count`, `parse_icon_spec`) lives in `wyvern-schema/src/icons.rs` — pure logic, no window dependency (ADR-0011).
+- **Embed helpers** (`variant_bytes`, `svg_markup`) live in `wyvern-window/src/icons/` via `include_bytes!` — no runtime filesystem access for built-in icons.
+- `MessageLevel` maps to the homonymous role's variant 1 at render time.
+- Named icon specs validated in `wyvern-schema` against the schema-local role catalog; unknown names → validation error (c.2).
+- Phase B `assets/icons/placeholder/` retained for regression tests only after c.1 — not used in production render paths.
+
+**Variant syntax:** `"warning"` → variant 1; `"warning:2"` → variant 2 (1-based index).
+
+**Consequences:** Binary size increases — monitor NFR-0003 (< 10MB macOS release). Level icons and free-form `icon` field share one catalog. Post-MVP AI-generated icons remain out of scope (PRD).
