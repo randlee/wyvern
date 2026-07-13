@@ -29,7 +29,7 @@ target: integrate/phase-A
 
 - Workspace members: all five crates under `crates/`
 - Pinned workspace deps: `wry`, `winit`, `serde`, `serde_json`, `strsim`
-- Stub `wyvern-wizard` and `wyvern-mcp` as **library-only** crates (`lib.rs` only; **no** `[[bin]]` — MCP binary ships in Phase E)
+- Stub `wyvern-wizard` and `wyvern-mcp` as **library-only** crates (`lib.rs` only; **no** `[[bin]]`, no MCP server or interactive loop — those ship in Phase E)
 - `wyvern` binary prints usage and exits 0
 
 ## Explicit Code Samples

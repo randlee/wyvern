@@ -32,7 +32,7 @@ target: integrate/phase-A
 - Sole public window **entry point**: `wyvern_window::run(command) -> Result<CommandResult, RunError>`
 - Public re-exports: `run`, `RunError`, `CHROME_DEFAULT_*` / `CHROME_MAX_*` — no other window-open helpers
 - `pipeline.rs` owns load → validate → run → emit; each stage failure exits ≠ 0
-- Phase A AC #2 wiring (see README manual gates)
+- Phase A AC #2 wiring (see README phase acceptance)
 
 ## Required Work — chrome behavior (authoritative)
 
@@ -123,6 +123,6 @@ fn emit_stdout_chrome_wire_shape() {
 
 ## Required Validation
 
-- `cargo test --workspace` (automated; see README CI validation)
+- `cargo test --workspace` (CI matrix on ubuntu, macos, windows — see README CI validation)
 - Unit tests: `emit_run_error`, `emit_stdout`, `handle_run_failure`
-- **Manual** (per README): chrome open/close gates #1–#3 on macOS, Linux, Windows before phase merge
+- Optional macOS manual smoke: README phase acceptance gates #1–#3 (not required on Win/Linux)

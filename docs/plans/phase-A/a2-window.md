@@ -61,7 +61,8 @@ a.5 absorbs this `RunError` and maps OS close → `CommandResult::Chrome(ChromeR
 
 ## Acceptance Criteria
 
-- `cargo test -p wyvern-window -- blank_window` passes locally on macOS, Linux, and Windows
+- `cargo test -p wyvern-window -- blank_window` passes on CI matrix (ubuntu, macos, windows)
+- Code follows cross-platform patterns; local dev may use xwin for cross-target work — no manual Win/Linux E2E in Phase A
 - `Ok(())` from test helper on OS close
 - No `wyvern` CLI subcommand added for window testing
 

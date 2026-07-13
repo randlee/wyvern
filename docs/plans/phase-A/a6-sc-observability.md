@@ -72,15 +72,15 @@ Event keys are normative; `sc-observability` symbol names may differ if behavior
 
 ## This Sprint Does Not Close
 
-- Logging inside `wyvern-schema`, `wyvern-window`, or other libs
-- MCP/interactive logging
+- Logging inside `wyvern-schema`, `wyvern-window`, or other libs (rg gate: no observability in non-binary crates)
+- `--interactive` / MCP logging (Phase E)
 - Phase CI matrix definition (owned by [README.md](README.md#ci-validation-authoritative))
 
 ## Acceptance Criteria
 
 - `cargo build -p wyvern` with crates.io dep only
 - `WYVERN_LOG=debug` emits events on chrome path
-- `rg 'sc_observability' crates/wyvern-schema crates/wyvern-window crates/wyvern-wizard crates/wyvern-mcp` → empty
+- **No observability in non-binary crates:** `rg 'sc_observability' crates/wyvern-schema crates/wyvern-window crates/wyvern-wizard crates/wyvern-mcp` → empty (`wyvern-mcp` listed as a lib crate boundary check, not MCP server work)
 - Linux CI uses `xvfb-run` per README CI section
 - `docs/observability.md` documents version pin + event list + pipeline hook map
 
@@ -88,6 +88,6 @@ Event keys are normative; `sc-observability` symbol names may differ if behavior
 
 - `cargo build -p wyvern`
 - `rg 'path.*sc-observability' Cargo.toml crates/` → empty
-- `rg 'sc_observability' crates/wyvern-schema crates/wyvern-window crates/wyvern-wizard crates/wyvern-mcp` → empty
+- `rg 'sc_observability' crates/wyvern-schema crates/wyvern-window crates/wyvern-wizard crates/wyvern-mcp` → empty (non-binary crate boundary gate)
 - CI matrix: [README.md — CI validation](README.md#ci-validation-authoritative)
 - `cargo clippy --workspace -- -D warnings`

@@ -63,5 +63,5 @@ sc-lint check --config .sc-lint.toml
 
 - `cargo install sc-lint --version 0.4 --locked && sc-lint check --config .sc-lint.toml`
 - CI matrix: [README.md — CI validation](README.md#ci-validation-authoritative)
-- Manual phase gates: [README.md — Phase acceptance](README.md#phase-acceptance-manual--not-ci-automated)
+- Optional macOS manual smoke: [README.md — Phase acceptance](README.md#phase-acceptance)
 - `cargo clippy --workspace -- -D warnings`

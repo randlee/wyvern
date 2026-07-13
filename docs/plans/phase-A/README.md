@@ -15,8 +15,29 @@ Phase A implementation PRs target **`integrate/phase-A`**. This directory is the
 - Dialog types (`message`, `input`, `markdown`, `question`, `wizard`) — Phase B+
 - Chrome **button bar** (empty placeholder in a.5; interactive buttons in Phase B)
 - Windows/Linux **platform chrome polish** (custom decorations, HTML close/minimize) — Phase C (`integrate/phase-C`)
-- `--interactive` / MCP — later phase
+- `--interactive` — Phase E (`integrate/phase-E`)
+- MCP server (`wyvern --mcp`, REQ-0074+) — Phase E only; Phase A has stub `wyvern-mcp` crate per ADR-0011
 - Per-type validation beyond `chrome` — added as each type ships
+
+## Phase A MCP posture
+
+- `wyvern-mcp` is a **library stub only** (`lib.rs`; no `[[bin]]`, no stdio transport, no tool mapping).
+- REQ-0074+ and `wyvern --mcp` are **N/A until Phase E**.
+- Boundary greps or lint rules mentioning `wyvern-mcp` validate scaffold placement and ADR-0011 edges — not MCP server behavior.
+
+## Plan review scope exclusions
+
+**Out of scope** for Phase A plan review:
+
+- MCP server implementation (REQ-0074+), `wyvern --mcp`, `docs/wyvern-mcp/requirements.md` deliverables
+- `--interactive` mode and lifecycle actions
+- Manual Win/Linux E2E (chrome open/close on Windows or Linux)
+
+**In scope** for Phase A plan review:
+
+- Stub `wyvern-mcp` crate (library-only `lib.rs`)
+- ADR-0011 dependency edges across all five crates
+- CI `cargo test --workspace` on ubuntu, macos, and windows
 
 ## Direct-path execution model
 
@@ -64,7 +85,7 @@ Success on OS close:
 | a.6 | [a6-sc-observability.md](a6-sc-observability.md) | `feature/phase-A-a6-sc-observability` |
 | a.7 | [a7-sc-lint.md](a7-sc-lint.md) | `feature/phase-A-a7-sc-lint` |
 
-Win/Linux decoration polish deferred to Phase C — window tests and `chrome` E2E run on all CI platforms in Phase A.
+Win/Linux decoration polish deferred to Phase C. Cross-platform window and `chrome` behavior is validated by **CI `cargo test --workspace`** on ubuntu, macos, and windows — not manual E2E on Win/Linux.
 
 ## External dependencies (crates.io)
 
@@ -82,6 +103,8 @@ No path deps or sibling repo checkouts for either package.
 | macOS | Transparent title bar (ADR-0010), HTML chrome shell | — |
 | Windows/Linux | **Native OS decorations** on blank-window + chrome tests | `decorations: false` + HTML close/minimize (ADR-0010a, REQ-0085) |
 
+**Cross-platform development:** Code is written with cross-platform patterns from day one. Local dev may use **xwin** Rust tooling for cross-target builds; Win/Linux validation is **automated tests in CI only** — no manual E2E on Windows or Linux in Phase A. macOS may keep optional manual chrome E2E during development.
+
 ## CI validation (authoritative)
 
 All sprint docs reference this section for matrix closure — do not defer to `project-plan.md`.
@@ -96,12 +119,12 @@ Every leg also runs: `cargo build --workspace`, `cargo clippy --workspace -- -D 
 
 After a.7: `cargo install sc-lint --version 0.4 --locked && sc-lint check --config .sc-lint.toml`.
 
-### Phase acceptance (manual — not CI-automated)
+### Phase acceptance
 
-Run interactively on each platform before phase merge:
+**CI gate (authoritative — all platforms):** `cargo test --workspace` passes on ubuntu, macos, and windows (see matrix above). This proves cross-platform window tests, validation, and chrome wiring without manual Win/Linux E2E.
+
+**Optional macOS manual smoke (dev only — not a Win/Linux gate):**
 
 1. `wyvern '{"type":"message","title":"T"}'` → validation stderr, exit ≠ 0, no window
 2. `wyvern '{"type":"chrome","title":"Foundation"}'` → chrome opens; OS close → `{"button":"dismissed"}`
 3. `wyvern '{"type":"unknown"}'` → validation stderr on `type`, exit ≠ 0, no window
-
-Automated CI proves unit/integration tests; manual gates above prove interactive chrome E2E.
