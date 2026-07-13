@@ -1,4 +1,3 @@
-
 use super::*;
 use crate::{ButtonsPreset, ChromeStatus, ChromeTitle, MessageLevel};
 use serde_json::json;

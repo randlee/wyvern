@@ -108,10 +108,11 @@ mod tests {
     #[test]
     fn mock_env_returns_path_without_rfd() {
         // SAFETY: unit tests in this module run single-threaded within the crate.
-        unsafe { std::env::set_var(MOCK_PICKER_ENV, "/tmp/fixture.txt") };
+        let fixture = std::env::temp_dir().join("fixture.txt");
+        unsafe { std::env::set_var(MOCK_PICKER_ENV, &fixture) };
         let picked = pick_file(&[], false, None);
         unsafe { std::env::remove_var(MOCK_PICKER_ENV) };
-        assert_eq!(picked, Some(vec![PathBuf::from("/tmp/fixture.txt")]));
+        assert_eq!(picked, Some(vec![fixture]));
     }
 
     #[test]
@@ -124,10 +125,11 @@ mod tests {
 
     #[test]
     fn mock_folder_returns_last_path_component() {
-        unsafe { std::env::set_var(MOCK_PICKER_ENV, "/tmp/picked-dir") };
+        let picked_dir = std::env::temp_dir().join("picked-dir");
+        unsafe { std::env::set_var(MOCK_PICKER_ENV, &picked_dir) };
         let picked = pick_folder(None);
         unsafe { std::env::remove_var(MOCK_PICKER_ENV) };
-        assert_eq!(picked, Some(PathBuf::from("/tmp/picked-dir")));
+        assert_eq!(picked, Some(picked_dir));
     }
 
     #[test]
