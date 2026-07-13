@@ -28,7 +28,7 @@ target: integrate/phase-C
 
 ## Deliverables
 
-- Push tag `v0.1.0` triggers matrix build: **macOS (aarch64 + x86_64 or universal)**, **Windows x86_64**, **Linux x86_64**
+- Push tag `v0.1.0` triggers matrix build: **macOS aarch64 + x86_64** (dual matrix jobs), **Windows x86_64**, **Linux x86_64**
 - Release artifacts attached to GitHub Release automatically (`.tar.gz` / `.zip` with `wyvern` binary)
 - README quickstart: install from release + **3 example commands** runnable in < 5 minutes:
   1. `message` with level icon
@@ -50,13 +50,16 @@ on:
 
 ### Matrix (minimum)
 
-| OS | Artifact |
-|----|----------|
-| `macos-latest` | `wyvern-macos.tar.gz` |
-| `windows-latest` | `wyvern-windows.zip` |
-| `ubuntu-latest` | `wyvern-linux.tar.gz` |
+**macOS approach:** dual matrix jobs (one per architecture) — not a universal binary via `lipo`. Produces separate artifacts consumers download for their arch.
 
-Build: `cargo build --release -p wyvern`
+| OS | Target | Artifact |
+|----|--------|----------|
+| `macos-latest` | `aarch64-apple-darwin` | `wyvern-macos-aarch64.tar.gz` |
+| `macos-latest` | `x86_64-apple-darwin` | `wyvern-macos-x86_64.tar.gz` |
+| `windows-latest` | `x86_64-pc-windows-msvc` | `wyvern-windows.zip` |
+| `ubuntu-latest` | `x86_64-unknown-linux-gnu` | `wyvern-linux.tar.gz` |
+
+Build: `cargo build --release -p wyvern --target ${{ matrix.target }}`
 
 Linux release build uses same webview deps as CI (`libwebkit2gtk-4.1-dev`).
 
@@ -88,17 +91,25 @@ jobs:
       matrix:
         include:
           - os: macos-latest
-            artifact: wyvern-macos
+            target: aarch64-apple-darwin
+            artifact: wyvern-macos-aarch64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact: wyvern-macos-x86_64
           - os: windows-latest
+            target: x86_64-pc-windows-msvc
             artifact: wyvern-windows
           - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
             artifact: wyvern-linux
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
       # Linux: install webkit deps (same as ci.yml)
-      - run: cargo build --release -p wyvern
+      - run: cargo build --release -p wyvern --target ${{ matrix.target }}
       - uses: softprops/action-gh-release@v2
         with:
           files: packaged artifact path
@@ -112,7 +123,7 @@ jobs:
 
 ## Acceptance Criteria
 
-- Tag `v0.1.0` produces GitHub Release with three platform artifacts
+- Tag `v0.1.0` produces GitHub Release with **four** platform artifacts (macOS aarch64, macOS x86_64, Windows, Linux)
 - Fresh download + quickstart commands succeed on macOS (authoritative); Win/Linux via CI-built artifact smoke
 - `CHANGELOG.md` v0.1.0 section lists Phase B dialog types + Phase C icons/chrome
 - README install path documented without requiring repo clone

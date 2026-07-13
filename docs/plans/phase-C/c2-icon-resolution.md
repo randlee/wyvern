@@ -23,7 +23,7 @@ target: integrate/phase-C
 - `crates/wyvern-schema/src/icons.rs` — role catalog (`ROLES`, `variant_count`, `parse_icon_spec`) from c.1; shared by validation and render
 - `crates/wyvern-window/src/icons/mod.rs` — `svg_markup(role, variant)` embed lookup (consumes schema catalog bounds)
 - `crates/wyvern-window/src/message/media.rs` — remove unknown-name fallback; delegate named resolution to `icons`
-- `crates/wyvern-schema/src/validate.rs` — validate `icon` and `image` fields on `message` when value is a named spec (not path/data URI); input `icon` field parity
+- `crates/wyvern-schema/src/validate.rs` — validate `icon` on `message` and `input`; validate `image` on **`message` only** (`Command::Message` has `image`; `Command::Input` does not) when value is a named spec (not path/data URI)
 - `crates/wyvern-schema/tests/validation_message.rs` — unknown icon, variant bounds, `image` named-icon cases
 - `crates/wyvern-schema/tests/validation_input.rs` — icon field parity
 - `crates/wyvern-window/src/input/render.rs` — uses shared named resolution (input supports `icon` field per REQ-0013)
@@ -35,7 +35,7 @@ target: integrate/phase-C
 - `"data:image/..."` → inline `<img>` (unchanged)
 - Unknown named icon (e.g. `"nonexistent"`) → `ValidationError` before window open, stderr lists `ROLES` from schema catalog
 - Variant out of range (e.g. `"info:99"`) → validation error with valid range for that role
-- `image` field decorative resolution: named icons use same catalog; unknown named → validation error
+- **`message` only:** `image` field decorative resolution — named icons use same catalog; unknown named → validation error (input has no `image` field)
 - Remove b.2 behavior: unknown named icon must **not** silently render info placeholder
 
 ## Required Work — resolution rules (authoritative)
@@ -85,12 +85,13 @@ fn validate_named_icon(field: &str, spec: &str) -> Result<(String, u32), Validat
     Ok((role, variant))
 }
 
-// message validation — apply to both `icon` and `image` when named spec
+// message validation — `icon` on message + input; `image` on message only
 if let Some(spec) = icon.as_deref() {
     if is_named_icon_spec(spec) {
         validate_named_icon("icon", spec)?;
     }
 }
+// validate_message only:
 if let Some(spec) = image.as_deref() {
     if is_named_icon_spec(spec) {
         validate_named_icon("image", spec)?;

@@ -43,11 +43,17 @@
 **Status:** Accepted (Win/Linux implementation in Phase C c.3; macOS implemented Phase A)
 
 **Decision:** All platforms use full-size content view with no OS title bar.
-- **macOS** — transparent title bar + full-size content view; native traffic lights
-- **Windows** — `decorations: false` + HTML close/minimize buttons via IPC
-- **Linux** — `decorations: false` + HTML close/minimize buttons via IPC
+- **macOS** — transparent title bar + full-size content view; native traffic lights; HTML title bar reserves **72px left safe zone** (ADR-0010)
+- **Windows** — `decorations: false` + HTML close/minimize buttons via IPC; **no** 72px left padding; controls on the right
+- **Linux** — `decorations: false` + HTML close/minimize buttons via IPC; same title-bar layout as Windows
 
-**Consequences:** Consistent immersive look across platforms. HTML-rendered close/minimize on Windows/Linux wired to IPC.
+**Consequences:** Consistent immersive look across platforms. HTML-rendered close/minimize on Windows/Linux wired to IPC in `run.rs`. `decorations: false` is orthogonal to modal `.with_enabled_buttons(WindowButtons::CLOSE)` — the former removes the OS frame; the latter restricts winit chrome buttons when decorations are enabled.
+
+**Modal minimize policy:** HTML minimize button hidden on modal types; host `handle_ipc` must **no-op** `window_minimize` (not dismiss) as defense-in-depth.
+
+**Render API:** `PlatformChrome` struct (`macos_safe_zone`, `show_minimize`, `show_window_controls`) drives template placeholders `{{TITLE_BAR_STYLE}}` and `{{WINDOW_CONTROLS_BLOCK}}` across all dialog and chrome templates.
+
+**ChromeApp IPC gap (Phase B):** `chrome` command currently has no `with_ipc_handler` — c.3 upgrades `ChromeApp` to the same `DialogEvent` + IPC pattern as dialog apps.
 
 ### Phase B platform policy (resolves ADR-0010a vs interim)
 

@@ -8,6 +8,8 @@ macOS does **not** use this contract — native traffic lights handle close/mini
 
 Same as dialog IPC: `wry` custom protocol, JSON strings, page → host only for user-initiated window actions.
 
+IPC parsing and dispatch live in `run.rs` `handle_ipc` methods — no separate `ipc/` module tree.
+
 ## Page → host messages
 
 All messages include `"kind"`.
@@ -40,9 +42,10 @@ User clicked HTML minimize button (non-modal types only).
 
 **Host behavior:**
 
-- Call winit minimize on the window handle
-- **Do not** complete `run()` or write stdout
-- Ignored (no-op) when window attributes disallow minimize (modal types per REQ-0083)
+- **Non-modal** (`chrome`): call winit minimize on the window handle; **do not** complete `run()` or write stdout
+- **Modal** (`message`, `input`, `markdown`, `question`): explicit **no-op** in `handle_ipc` — return immediately without dismiss, stdout, or error. Must not fall through to malformed-IPC fail-safe (which would incorrectly dismiss)
+
+Modal types also omit or hide the minimize button in HTML (`PlatformChrome.show_minimize = false`); the host no-op is defense-in-depth if IPC is injected anyway.
 
 ## HTML integration
 
@@ -51,6 +54,7 @@ Window control buttons live in `#window-controls` inside `#title-bar`:
 - `-webkit-app-region: no-drag` on controls container and buttons
 - `-webkit-app-region: drag` on `#title-bar` / title text (REQ-0087)
 - `#btn-minimize` omitted or `hidden` for modal dialog renders
+- Win/Linux: no 72px left padding on `#title-bar`; controls aligned **right** (see c.3 `PlatformChrome`)
 
 Button click handlers post JSON via the same IPC bridge as `button_pressed`.
 
@@ -72,13 +76,16 @@ Same fail-safe as dialog contract:
 - Malformed JSON → log + treat as `window_close` / dismissed
 - Unknown `kind` → log + dismissed
 - Host never panics on IPC
+- **`window_minimize` on modal types is not an error** — silent no-op (distinct from unknown kind)
 
 ## Testing
 
 See [Phase C README](README.md) CI validation section for matrix policy. Sprint-specific checks:
 
 - Unit-test mapping: `window_close` → `ButtonLabel::dismissed()` / question REQ-0068 shape
-- Integration test: inject `window_minimize`, assert window minimized flag without stdout
+- Unit-test: modal `window_minimize` → no stdout, no dismiss (MessageApp, InputApp, MarkdownApp, QuestionApp)
+- Integration test: ChromeApp + `WYVERN_INJECT_IPC='{"kind":"window_close"}'` → `{"button":"dismissed"}`
+- Integration test: inject `window_minimize` on chrome, assert window minimized flag without stdout
 - CI: run under xvfb single-threaded on Linux; Win/macOS matrix per Phase A README
 - Modal render test: minimize button not present in HTML for `message` type
 

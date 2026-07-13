@@ -65,7 +65,7 @@ Modal types (`message`, `input`, `markdown`, `question`) keep REQ-0083: minimize
 2. `wyvern '{"type":"message","title":"T","message":"Hi","icon":"success:2","buttons":"ok"}'` → second success variant
 3. `wyvern '{"type":"message","title":"T","message":"Hi","icon":"nonexistent","buttons":"ok"}'` → validation stderr listing valid icon names, exit ≠ 0, no window
 4. All Phase B README smoke checks pass on **ubuntu, macos, and windows** CI legs (no manual Win/Linux E2E required)
-5. Tag `v0.1.0` produces attached macOS/Windows/Linux release binaries
+5. Tag `v0.1.0` produces attached macOS (aarch64 + x86_64), Windows, and Linux release binaries
 
 ## Sprint index (c.1–c.5)
 
@@ -103,12 +103,12 @@ After c.5: release workflow (see [c5-release.md](c5-release.md)) validates on ta
 
 | NFR | Target | Measurement |
 |-----|--------|-------------|
-| NFR-0001 | Window open < 500ms | macOS manual measurement (product target); optional non-blocking CI job may use 2000ms smoke bound |
-| NFR-0002 | Resident memory < 80MB | macOS Activity Monitor or `ps` after dialog open |
+| NFR-0001 | Window open < 500ms | macOS manual measurement or `load_finished` hook (product target); **not** auto-dismiss timing; optional non-blocking CI job may use 2000ms smoke bound |
+| NFR-0002 | Resident memory < 80MB | `ps -o rss= -p $(pgrep -x wyvern)` after dialog open (RSS KB ÷ 1024); Activity Monitor acceptable |
 | NFR-0003 | Binary < 10MB | `ls -lh target/release/wyvern` on macOS release build |
 
 NFR-0004–NFR-0007 remain satisfied by existing architecture; c.4 confirms no regression.
 
 ## sc-lint-boundary
 
-Review `boundaries/*.toml` at sprint planning for c.1 (new asset module paths) and c.3 (IPC handler surface). No new crate deps expected.
+Review `boundaries/*.toml` at sprint planning for c.1 (new asset module paths) and c.3 (`PlatformChrome` + `run.rs` IPC handler surface). No new crate deps expected.

@@ -28,7 +28,7 @@ target: integrate/phase-C
 
 ## Deliverables
 
-- NFR-0001: window opens **< 500ms** on macOS (product target; measured manually or via optional non-blocking CI job — see below)
+- NFR-0001: window opens **< 500ms** on macOS (product target; **manual measurement only** — see below)
 - NFR-0002: resident memory **< 80MB** on macOS under normal single-dialog operation
 - NFR-0003: release binary **< 10MB** on macOS (`target/release/wyvern`); if over, document mitigation (asset compression, WebP) in PR — must not ship v0.1.0 over limit without explicit acceptance
 - No rendering regressions on Windows or Linux CI legs
@@ -39,19 +39,35 @@ target: integrate/phase-C
 
 ### NFR-0001 (latency)
 
-**Product target:** p95 < **500ms** on macOS release build (cold start to first paint hook).
+**Product target:** p95 < **500ms** on macOS release build (cold start to first visible content).
 
-Measure on macOS release build:
-1. Cold start `wyvern '{"type":"message",...}'` — time from process start to IPC inject hook or test harness ready signal
-2. Record p95 over 5 manual runs in the c.4 PR description
+**Measurement method (authoritative — not auto-dismiss):**
+
+1. Build release: `cargo build --release -p wyvern`
+2. Run cold start with a real message dialog (user or scripted wait for window visible)
+3. Time from process start to **first paint** — use one of:
+   - Manual stopwatch / screen observation (preferred)
+   - WebView `load_finished` callback timestamp logged in a dev-only harness
+   - `WYVERN_INJECT_IPC` after page load (measures post-load IPC round-trip only — **not** sufficient alone)
+4. Record p95 over 5 manual runs in the c.4 PR description
+
+**Do not use** `WYVERN_AUTO_DISMISS` timing as NFR-0001 authority — auto-dismiss fires on a fixed timer unrelated to paint readiness and produces false pass/fail.
 
 If over target: profile wry init / asset embed size; optimize before c.5 tag.
 
-**CI policy:** Do not assert 500ms in blocking CI — use manual measurement for the product target. If an automated timing test lands, use a generous CI bound (e.g. **2000ms**) to avoid flaky matrix failures; document the 500ms target separately in the PR description.
+**CI policy:** Do not assert 500ms in blocking CI. Optional non-blocking macOS job may include a generous smoke bound (e.g. **2000ms**) using `load_finished` hook — document the 500ms product target separately in the PR description.
 
 ### NFR-0002 (memory)
 
 With one message dialog open on macOS: resident size < 80MB. WebKit baseline dominates — icon bundle should not materially change this vs Phase B.
+
+```bash
+# After opening a message dialog (manual or test harness holding window open):
+ps -o rss= -p $(pgrep -x wyvern | head -1)   # RSS in KB; divide by 1024 for MB
+# Target: RSS < 81920 KB (80 MB)
+```
+
+Activity Monitor is an acceptable alternative for manual verification.
 
 ### NFR-0003 (binary size)
 
@@ -78,13 +94,13 @@ No manual Win/Linux E2E required — CI is authoritative per Phase A/B policy.
 ## Explicit Code Samples
 
 ```rust
-// Optional timing hook in test harness (non-blocking CI job only — generous bound)
+// Optional non-blocking CI smoke only — uses load_finished, NOT auto-dismiss
 #[test]
 #[cfg(target_os = "macos")]
 fn message_open_latency_smoke() {
     let start = std::time::Instant::now();
-    // ... harness opens message without blocking on user ...
-    // CI bound: avoid flaky matrix; product target is 500ms (see PR description)
+    // harness: record Instant in WebView load_finished callback
+    // CI bound: generous; product target is 500ms (see PR description)
     assert!(start.elapsed().as_millis() < 2000, "NFR-0001 CI smoke");
 }
 ```
@@ -104,6 +120,7 @@ stat -f%z target/release/wyvern  # must be < 10_485_760
 ## Acceptance Criteria
 
 - NFR-0001–NFR-0003 measured and recorded in the **c.4 PR description** (canonical location; not a new permanent doc unless values drift)
+- NFR-0001 measured via manual timing or `load_finished` hook — **not** auto-dismiss
 - All three CI OS legs green on `integrate/phase-C` head
 - Phase B README smoke #1–#4 covered by passing tests or documented macOS manual run
 - No known Win/Linux rendering blockers for v0.1.0
