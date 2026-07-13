@@ -99,6 +99,24 @@ All legs: `cargo build --workspace`, `cargo clippy --workspace -- -D warnings`, 
 
 After c.5: release workflow (see [c5-release.md](c5-release.md)) validates on tag push — not on every PR.
 
+## Post–Phase C follow-up (error handling)
+
+Phase C merged with production `expect`/`unreachable!` in hot paths. Follow-up sprints target **`integrate/phase-C-fixes`** off `develop`:
+
+```
+develop ──► integrate/phase-C-fixes ──► c.6 ──► c.7 ──► c.8
+```
+
+| Sprint | Doc | Focus |
+|--------|-----|-------|
+| c.6 | [c6-result-propagation.md](c6-result-propagation.md) | Eliminate production panics; `Result` through media + emit |
+| c.7 | [c7-cli-test-hardening.md](c7-cli-test-hardening.md) | `serial_test` on nine GUI CLI tests; shared spawn helper |
+| c.8 | [c8-clippy-deny-unwrap.md](c8-clippy-deny-unwrap.md) | Clippy deny on three lib roots |
+
+**Sole authority** for deliverables, acceptance criteria, and validation: **c.6, c.7, c.8 sprint docs above.**
+
+Reference only: [ERROR-HANDLING-PLAN.md](ERROR-HANDLING-PLAN.md) (policy + context), [UNWRAP-INVENTORY.md](UNWRAP-INVENTORY.md) (audit trail).
+
 ### NFR measurement (c.4 — macOS dev/CI optional job)
 
 | NFR | Target | Measurement |
