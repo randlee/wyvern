@@ -4,6 +4,7 @@
 
 mod error;
 mod input;
+pub mod observability;
 mod pipeline;
 
 #[doc(inline)]
