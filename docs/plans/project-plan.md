@@ -58,7 +58,7 @@ Phase A sprint PRs target `integrate/phase-A`. Sprint authority: `docs/plans/pha
 
 ---
 
-### S2.1a — `message` type: structure and buttons
+### b.1a — `message` type: structure and buttons
 
 Render `title`, `message`, `status` in the chrome frame. Wire all button presets to return the correct JSON.
 
@@ -71,7 +71,7 @@ Render `title`, `message`, `status` in the chrome frame. Wire all button presets
 
 ---
 
-### S2.1b — `message` type: icons, images, markdown
+### b.1b — `message` type: icons, images, markdown
 
 Add `level` icon rendering, `icon` field, decorative `image` field, and `markdown` flag.
 
@@ -84,7 +84,7 @@ Add `level` icon rendering, `icon` field, decorative `image` field, and `markdow
 
 ---
 
-### S2.2a — `input` type: text mode
+### b.2a — `input` type: text mode
 
 Render a single-line or multiline text input with placeholder and default value.
 
@@ -97,7 +97,7 @@ Render a single-line or multiline text input with placeholder and default value.
 
 ---
 
-### S2.2b — `input` type: file and folder picker
+### b.2b — `input` type: file and folder picker
 
 Trigger the OS native file/folder chooser from the input dialog.
 
@@ -111,7 +111,7 @@ Trigger the OS native file/folder chooser from the input dialog.
 
 ---
 
-### S2.3a — `markdown` type: file rendering
+### b.3a — `markdown` type: file rendering
 
 Load and render a `.md` file in a styled HTML viewer within the chrome frame.
 
@@ -124,7 +124,7 @@ Load and render a `.md` file in a styled HTML viewer within the chrome frame.
 
 ---
 
-### S2.3b — `markdown` type: inline content and styling
+### b.3b — `markdown` type: inline content and styling
 
 Support inline `content` field and apply a polished default stylesheet.
 
@@ -136,7 +136,7 @@ Support inline `content` field and apply a polished default stylesheet.
 
 ---
 
-### S2.4a — `question` type: option rendering
+### b.4a — `question` type: option rendering
 
 Render question cards with radio (single-select) and checkbox (multi-select) option groups.
 
@@ -149,7 +149,7 @@ Render question cards with radio (single-select) and checkbox (multi-select) opt
 
 ---
 
-### S2.4b — `question` type: preview and schema compliance
+### b.4b — `question` type: preview and schema compliance
 
 Add `preview` field rendering and schema compliance within Wyvern's `type: "question"` command envelope.
 
@@ -170,7 +170,7 @@ Add `preview` field rendering and schema compliance within Wyvern's `type: "ques
 
 ---
 
-### S3.1a — Icon image set (semantic roles)
+### c.1a — Icon image set (semantic roles)
 
 Source or generate icons for all semantic roles in web-renderable formats.
 
@@ -182,7 +182,7 @@ Source or generate icons for all semantic roles in web-renderable formats.
 
 ---
 
-### S3.1b — Icon variant selection
+### c.1b — Icon variant selection
 
 Implement full icon field resolution: named, indexed variant, file path, base64.
 
@@ -195,7 +195,7 @@ Implement full icon field resolution: named, indexed variant, file path, base64.
 
 ---
 
-### S3.2a — Windows and Linux platform chrome
+### c.2a — Windows and Linux platform chrome
 
 Implement `decorations: false` + HTML close/minimize buttons on Windows and Linux. Deferred from Phase A (was never in a.1–a.7 scope).
 
@@ -208,7 +208,7 @@ Implement `decorations: false` + HTML close/minimize buttons on Windows and Linu
 
 ---
 
-### S3.2b — Cross-platform validation and NFR pass
+### c.2b — Cross-platform validation and NFR pass
 
 Verify performance targets and fix cross-platform rendering issues.
 
@@ -221,7 +221,7 @@ Verify performance targets and fix cross-platform rendering issues.
 
 ---
 
-### S3.3 — Release tooling and v0.1.0
+### c.3 — Release tooling and v0.1.0
 
 GitHub Actions builds and publishes binaries. README quickstart complete.
 
@@ -242,7 +242,7 @@ GitHub Actions builds and publishes binaries. README quickstart complete.
 
 ---
 
-### S4.1a — Wizard host: HTML load and config injection
+### d.1a — Wizard host: HTML load and config injection
 
 Load caller-supplied HTML into the webview and inject the initial page descriptor plus `config` on load.
 
@@ -254,7 +254,7 @@ Load caller-supplied HTML into the webview and inject the initial page descripto
 
 ---
 
-### S4.1b — Wizard IPC contract
+### d.1b — Wizard IPC contract
 
 Implement bidirectional IPC between wizard pages and the Rust host using explicit page descriptors.
 
@@ -267,7 +267,7 @@ Implement bidirectional IPC between wizard pages and the Rust host using explici
 
 ---
 
-### S4.2a — Browser-history navigation model
+### d.2a — Browser-history navigation model
 
 Implement the cursor-over-array history (ADR-0005).
 
@@ -280,7 +280,7 @@ Implement the cursor-over-array history (ADR-0005).
 
 ---
 
-### S4.2b — Stack injection and data restoration
+### d.2b — Stack injection and data restoration
 
 Inject full history stack into each page on load; restore page data on back-navigation.
 
@@ -292,7 +292,7 @@ Inject full history stack into each page on load; restore page data on back-navi
 
 ---
 
-### S4.3a — Example DAG layout-picker wizard
+### d.3a — Example DAG layout-picker wizard
 
 Build a working demo wizard: layout selection → N agent configuration pages.
 
@@ -305,7 +305,7 @@ Build a working demo wizard: layout selection → N agent configuration pages.
 
 ---
 
-### S4.3b — Wizard polish and edge cases
+### d.3b — Wizard polish and edge cases
 
 Handle edge cases and improve wizard UX.
 
@@ -326,7 +326,7 @@ Handle edge cases and improve wizard UX.
 
 ---
 
-### S5.1a — `--interactive` stdin loop and lifecycle actions
+### e.1a — `--interactive` stdin loop and lifecycle actions
 
 Implement the `--interactive` readline loop and persistent-process lifecycle actions.
 
@@ -338,7 +338,7 @@ Implement the `--interactive` readline loop and persistent-process lifecycle act
 
 ---
 
-### S5.1b — Blocking dialogs and `exit` in interactive mode
+### e.1b — Blocking dialogs and `exit` in interactive mode
 
 Implement blocking dialog handling and `exit` in the interactive loop.
 
@@ -350,7 +350,7 @@ Implement blocking dialog handling and `exit` in the interactive loop.
 
 ---
 
-### S5.2a — MCP server wrapper and tool mapping
+### e.2a — MCP server wrapper and tool mapping
 
 Implement Wyvern as an MCP server (stdio transport). Map each dialog type to an MCP tool.
 
@@ -362,7 +362,7 @@ Implement Wyvern as an MCP server (stdio transport). Map each dialog type to an 
 
 ---
 
-### S5.2b — MCP persistent window and integration testing
+### e.2b — MCP persistent window and integration testing
 
 Implement persistent window lifecycle for MCP mode; test with Claude Code.
 

@@ -20,7 +20,7 @@ Functional requirements are prefixed **REQ**, non-functional **NFR**. Crate-spec
 
 | Command | Return |
 |------|--------|
-| `chrome` (Phase 1) | `{ "button": "dismissed" }` on OS close |
+| `chrome` (Phase A) | `{ "button": "dismissed" }` on OS close |
 | `message` | `{ "button": "..." }` |
 | `input` | `{ "button": "...", "input": "..." }` |
 | `markdown` | `{ "button": "..." }` |

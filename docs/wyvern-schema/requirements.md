@@ -12,7 +12,7 @@
 
 ## Validation (REQ-0050 – REQ-0057)
 
-**REQ-0050** — Validate all input JSON before opening any window. Validation scope matches the current phase's executable surface (Phase 1: `chrome` only).
+**REQ-0050** — Validate all input JSON before opening any window. Validation scope matches the current phase's executable surface (Phase A: `chrome` only).
 
 **REQ-0051** — Write validation errors to stderr as structured JSON: `{ "error": "validation", "field": "...", "message": "..." }`.
 
@@ -20,7 +20,7 @@
 
 **REQ-0053** — Unknown fields → error (not silently ignored).
 
-**REQ-0054** — Wrong enum value → error listing all valid options; suggest closest match (Levenshtein distance ≤ 2). *Phase 1: applies when enum fields are introduced per type.*
+**REQ-0054** — Wrong enum value → error listing all valid options; suggest closest match (Levenshtein distance ≤ 2). *Phase A: applies when enum fields are introduced per type.*
 
 **REQ-0055** — `buttons: custom` without `custom_buttons` array → explicit error. *Phase B+ when `message` ships.*
 
