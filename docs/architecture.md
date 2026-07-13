@@ -66,7 +66,7 @@ wyvern-mcp      →  wyvern-window, wyvern-schema
 - `wyvern-mcp` accesses the window only through `wyvern-window`'s public API
 - `wyvern` binary is a thin entry point — logic belongs in library crates
 
-Boundary rules are encoded as sc-lint-boundary constraints in `boundaries/` and enforced in CI from Phase 2.
+Boundary rules are encoded as sc-lint-boundary constraints in `boundaries/` and enforced in CI from Phase B.
 
 All five crate names confirmed available on crates.io.
 

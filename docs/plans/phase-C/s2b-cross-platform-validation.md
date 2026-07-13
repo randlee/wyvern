@@ -1,4 +1,4 @@
-# Phase 4 / s3b-wizard-polish
+# Phase C / s2b-cross-platform-validation
 
 ## Status
 pending

@@ -1,4 +1,4 @@
-# Phase 5 / s2b-mcp-persistent
+# Phase B / s3b-markdown-inline
 
 ## Status
 pending

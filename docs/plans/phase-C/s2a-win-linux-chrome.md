@@ -1,4 +1,4 @@
-# Phase 2 / s3b-markdown-inline
+# Phase C / s2a-win-linux-chrome
 
 ## Status
 pending

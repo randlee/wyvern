@@ -1,4 +1,4 @@
-# Phase 3 / s1b-icon-variants
+# Phase D / s3a-dag-example
 
 ## Status
 pending

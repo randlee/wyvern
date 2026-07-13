@@ -1,4 +1,4 @@
-# Phase 2 / s4b-question-preview
+# Phase C / s1b-icon-variants
 
 ## Status
 pending

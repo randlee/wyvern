@@ -1,4 +1,4 @@
-# Phase 4 / s1b-wizard-ipc
+# Phase C / s1a-icon-set
 
 ## Status
 pending

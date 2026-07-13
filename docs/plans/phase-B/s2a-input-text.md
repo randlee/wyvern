@@ -1,4 +1,4 @@
-# Phase 4 / s2a-history-nav
+# Phase B / s2a-input-text
 
 ## Status
 pending

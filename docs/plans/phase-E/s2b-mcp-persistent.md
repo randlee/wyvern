@@ -1,4 +1,4 @@
-# Phase 2 / s2a-input-text
+# Phase E / s2b-mcp-persistent
 
 ## Status
 pending

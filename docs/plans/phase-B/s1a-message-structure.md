@@ -1,4 +1,4 @@
-# Phase 5 / s2a-mcp-server
+# Phase B / s1a-message-structure
 
 ## Status
 pending

@@ -1,4 +1,4 @@
-# Phase 3 / s1a-icon-set
+# Phase D / s3b-wizard-polish
 
 ## Status
 pending

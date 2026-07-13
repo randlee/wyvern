@@ -11,10 +11,10 @@ A sprint is a single testable deliverable that fits within one AI context window
 | Integration branch | Project plan phase | Sprint docs |
 |---|---|---|
 | `integrate/phase-A` | Phase A — Foundation | `docs/plans/phase-A/` |
-| `integrate/phase-B` | Phase B — Core Dialogs | `docs/plans/phase-2/` |
-| `integrate/phase-C` | Phase C — Polish & Icons | `docs/plans/phase-3/` |
-| `integrate/phase-D` | Phase D — Wizard | `docs/plans/phase-4/` |
-| `integrate/phase-E` | Phase E — Persistent & MCP | `docs/plans/phase-5/` |
+| `integrate/phase-B` | Phase B — Core Dialogs | `docs/plans/phase-B/` |
+| `integrate/phase-C` | Phase C — Polish & Icons | `docs/plans/phase-C/` |
+| `integrate/phase-D` | Phase D — Wizard | `docs/plans/phase-D/` |
+| `integrate/phase-E` | Phase E — Persistent & MCP | `docs/plans/phase-E/` |
 
 Phase A sprint PRs target `integrate/phase-A`. Sprint authority: `docs/plans/phase-A/` (sprints **a.1–a.7**).
 
@@ -48,7 +48,7 @@ Phase A sprint PRs target `integrate/phase-A`. Sprint authority: `docs/plans/pha
 
 ---
 
-## Phase 2 — Core Dialogs (MVP)
+## Phase B — Core Dialogs (MVP)
 
 **Phase goal:** All four dialog types (`message`, `input`, `markdown`, `question`) work end-to-end from the CLI. This is the first genuinely useful version of Wyvern.
 
@@ -162,11 +162,11 @@ Add `preview` field rendering and schema compliance within Wyvern's `type: "ques
 
 ---
 
-## Phase 3 — Release v0.1.0
+## Phase C — Release v0.1.0
 
 **Phase goal:** Wyvern ships as a usable, cross-platform CLI tool. Icon set complete. Binaries available for download.
 
-**Phase acceptance criteria:** `brew install wyvern` (or equivalent) works; a developer can run all Phase 2 dialog types on macOS, Windows, and Linux from a released binary.
+**Phase acceptance criteria:** `brew install wyvern` (or equivalent) works; a developer can run all Phase B dialog types on macOS, Windows, and Linux from a released binary.
 
 ---
 
@@ -203,7 +203,7 @@ Implement `decorations: false` + HTML close/minimize buttons on Windows and Linu
 - Windows: borderless window with HTML close + minimize buttons functional via IPC
 - Linux: borderless window with HTML close + minimize buttons functional via IPC
 - Window draggable on both platforms via `-webkit-app-region: drag`
-- All Phase 2 dialog types render correctly on Windows and Linux
+- All Phase B dialog types render correctly on Windows and Linux
 - `chrome` foundation command still returns `{"button":"dismissed"}` on OS close on all platforms
 
 ---
@@ -217,7 +217,7 @@ Verify performance targets and fix cross-platform rendering issues.
 - NFR-0002: resident memory < 80MB on macOS under normal operation
 - NFR-0003: binary < 10MB on macOS
 - No rendering regressions on Windows or Linux
-- All Phase 2 acceptance criteria pass on all three platforms
+- All Phase B acceptance criteria pass on all three platforms
 
 ---
 
@@ -234,7 +234,7 @@ GitHub Actions builds and publishes binaries. README quickstart complete.
 
 ---
 
-## Phase 4 — Wizard
+## Phase D — Wizard
 
 **Phase goal:** Multi-page wizards with branching navigation and data persistence across pages.
 
@@ -318,7 +318,7 @@ Handle edge cases and improve wizard UX.
 
 ---
 
-## Phase 5 — Interactive & MCP
+## Phase E — Interactive & MCP
 
 **Phase goal:** Wyvern runs as a persistent process, driveable by agents over stdin or as an MCP server.
 

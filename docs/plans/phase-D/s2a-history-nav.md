@@ -1,4 +1,4 @@
-# Phase 2 / s1b-message-icons
+# Phase D / s2a-history-nav
 
 ## Status
 pending

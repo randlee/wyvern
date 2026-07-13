@@ -1,4 +1,4 @@
-# Phase 3 / s2b-cross-platform-validation
+# Phase E / s2a-mcp-server
 
 ## Status
 pending

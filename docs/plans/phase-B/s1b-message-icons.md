@@ -1,4 +1,4 @@
-# Phase 4 / s1a-wizard-host
+# Phase B / s1b-message-icons
 
 ## Status
 pending

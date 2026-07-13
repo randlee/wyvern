@@ -33,11 +33,11 @@ Functional requirements are prefixed **REQ**, non-functional **NFR**. Crate-spec
 
 ## Command Surface Summary
 
-**Phase 1 executable** — `chrome` (Phase A foundation probe)
+**Phase A executable** — `chrome` (Phase A foundation probe)
 
-**Blocking dialog commands** — `message`, `input`, `markdown`, `question`, `wizard` (Phase 2+; validated incrementally as each type ships)
+**Blocking dialog commands** — `message`, `input`, `markdown`, `question`, `wizard` (Phase B+; validated incrementally as each type ships)
 
-**`--interactive` lifecycle actions** — `show`, `hide`, `exit` (Phase 5)
+**`--interactive` lifecycle actions** — `show`, `hide`, `exit` (Phase E)
 
 **Deferred** — `notification` is reserved as the future fire-and-forget path for ephemeral updates. MVP does not overload `message` with modeless semantics.
 

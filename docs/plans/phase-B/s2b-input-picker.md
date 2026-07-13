@@ -1,4 +1,4 @@
-# Phase 4 / s3a-dag-example
+# Phase B / s2b-input-picker
 
 ## Status
 pending
