@@ -141,39 +141,84 @@ pub fn open_folder_picker_with_mock(mock_path: &str) -> Result<CommandResult, Ru
 
 /// Opens a question dialog and injects IPC JSON (test harness hook).
 pub fn open_question_with_injected_ipc(ipc_json: &str) -> Result<CommandResult, RunError> {
+    open_question_cards_with_injected_ipc(
+        vec![QuestionCard {
+            question: "Output format?".into(),
+            header: "Format".into(),
+            options: vec![
+                QuestionOption {
+                    label: "JSON".into(),
+                    description: "Structured".into(),
+                    preview: None,
+                },
+                QuestionOption {
+                    label: "Plain".into(),
+                    description: "Text only".into(),
+                    preview: None,
+                },
+            ],
+            multi_select: false,
+        }],
+        vec![serde_json::json!({
+            "question": "Output format?",
+            "header": "Format",
+            "options": [
+                { "label": "JSON", "description": "Structured" },
+                { "label": "Plain", "description": "Text only" }
+            ],
+            "multiSelect": false
+        })],
+        ipc_json,
+    )
+}
+
+/// Opens a multi-select question dialog and injects IPC JSON (test harness hook).
+pub fn open_multi_select_question_with_injected_ipc(
+    ipc_json: &str,
+) -> Result<CommandResult, RunError> {
+    open_question_cards_with_injected_ipc(
+        vec![QuestionCard {
+            question: "Pick tools".into(),
+            header: "Tools".into(),
+            options: vec![
+                QuestionOption {
+                    label: "JSON".into(),
+                    description: "A".into(),
+                    preview: None,
+                },
+                QuestionOption {
+                    label: "Plain".into(),
+                    description: "B".into(),
+                    preview: None,
+                },
+            ],
+            multi_select: true,
+        }],
+        vec![serde_json::json!({
+            "question": "Pick tools",
+            "header": "Tools",
+            "options": [
+                { "label": "JSON", "description": "A" },
+                { "label": "Plain", "description": "B" }
+            ],
+            "multiSelect": true
+        })],
+        ipc_json,
+    )
+}
+
+fn open_question_cards_with_injected_ipc(
+    questions: Vec<QuestionCard>,
+    questions_raw: Vec<serde_json::Value>,
+    ipc_json: &str,
+) -> Result<CommandResult, RunError> {
     // SAFETY: integration test harness runs single-threaded before other work.
     unsafe {
         std::env::remove_var("WYVERN_AUTO_DISMISS");
         std::env::set_var("WYVERN_INJECT_IPC", ipc_json);
     }
-    let card = QuestionCard {
-        question: "Output format?".into(),
-        header: "Format".into(),
-        options: vec![
-            QuestionOption {
-                label: "JSON".into(),
-                description: "Structured".into(),
-                preview: None,
-            },
-            QuestionOption {
-                label: "Plain".into(),
-                description: "Text only".into(),
-                preview: None,
-            },
-        ],
-        multi_select: false,
-    };
-    let questions_raw = vec![serde_json::json!({
-        "question": "Output format?",
-        "header": "Format",
-        "options": [
-            { "label": "JSON", "description": "Structured" },
-            { "label": "Plain", "description": "Text only" }
-        ],
-        "multiSelect": false
-    })];
     let result = wyvern_window::run(Command::Question {
-        questions: vec![card],
+        questions,
         questions_raw,
     });
     unsafe { std::env::remove_var("WYVERN_INJECT_IPC") };
