@@ -1,8 +1,9 @@
 ---
 id: b.1
 title: Message structure, buttons, IPC, auto-size, modal attrs
-status: pending
+status: complete
 branch: feature/phase-B-b1-message-structure
+worktree: /Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-B-b1-message-structure
 target: integrate/phase-B
 ---
 

@@ -1,10 +1,13 @@
-//! Shared platform init and chrome window attributes.
+//! Shared platform init and window attributes (chrome + modal dialogs).
 
 use winit::dpi::LogicalSize;
-use winit::window::{Window, WindowAttributes};
+use winit::window::{Window, WindowAttributes, WindowButtons};
 
 use crate::error::RunError;
-use crate::{CHROME_DEFAULT_HEIGHT, CHROME_DEFAULT_WIDTH, CHROME_MAX_HEIGHT, CHROME_MAX_WIDTH};
+use crate::{
+    CHROME_DEFAULT_HEIGHT, CHROME_DEFAULT_WIDTH, CHROME_MAX_HEIGHT, CHROME_MAX_WIDTH,
+    DIALOG_MAX_HEIGHT, DIALOG_MAX_WIDTH, DIALOG_MIN_HEIGHT, DIALOG_MIN_WIDTH,
+};
 
 /// Initialize platform prerequisites (GTK on Linux; soft-GL under CI).
 pub(crate) fn init_platform() -> Result<(), RunError> {
@@ -64,6 +67,29 @@ pub(crate) fn chrome_window_attributes(title: &str) -> WindowAttributes {
         ))
         .with_max_inner_size(LogicalSize::new(CHROME_MAX_WIDTH, CHROME_MAX_HEIGHT));
 
+    apply_platform_chrome(attrs)
+}
+
+/// Modal dialog attributes (REQ-0083 + REQ-0041).
+///
+/// Minimize/maximize disabled; size clamped to Phase B min/max.
+pub(crate) fn modal_window_attributes(title: &str, width: f64, height: f64) -> WindowAttributes {
+    let width = width.clamp(DIALOG_MIN_WIDTH, DIALOG_MAX_WIDTH);
+    let height = height.clamp(DIALOG_MIN_HEIGHT, DIALOG_MAX_HEIGHT);
+
+    let attrs = Window::default_attributes()
+        .with_title(title)
+        .with_inner_size(LogicalSize::new(width, height))
+        .with_min_inner_size(LogicalSize::new(DIALOG_MIN_WIDTH, DIALOG_MIN_HEIGHT))
+        .with_max_inner_size(LogicalSize::new(DIALOG_MAX_WIDTH, DIALOG_MAX_HEIGHT))
+        .with_resizable(false)
+        // REQ-0083: modal types disable minimize and maximize/fullscreen.
+        .with_enabled_buttons(WindowButtons::CLOSE);
+
+    apply_platform_chrome(attrs)
+}
+
+fn apply_platform_chrome(attrs: WindowAttributes) -> WindowAttributes {
     #[cfg(target_os = "macos")]
     let attrs = {
         use winit::platform::macos::WindowAttributesExtMacOS;

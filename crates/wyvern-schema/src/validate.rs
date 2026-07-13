@@ -1,9 +1,9 @@
-//! Validate JSON input against the Phase A executable surface (`chrome` only).
+//! Validate JSON input against the Phase B executable surface (`chrome`, `message`).
 
 use serde_json::{Map, Value};
 
 use crate::chrome::{ChromeStatus, ChromeTitle};
-use crate::command::Command;
+use crate::command::{ButtonsPreset, Command};
 use crate::error::ValidationError;
 use crate::field_name::FieldName;
 
@@ -13,10 +13,24 @@ const LIFECYCLE_ACTIONS: &[&str] = &["show", "hide", "exit"];
 /// Allowed fields on a `chrome` command object.
 const CHROME_FIELDS: &[&str] = &["type", "title", "status"];
 
-/// Phase A executable `type` values.
-const VALID_TYPES: &[&str] = &["chrome"];
+/// Allowed fields on a `message` command object (b.1 subset).
+const MESSAGE_FIELDS: &[&str] = &[
+    "type",
+    "title",
+    "message",
+    "status",
+    "buttons",
+    "custom_buttons",
+    "default_button",
+];
 
-/// Validate `value` as a Phase A command.
+/// Fields deferred to sprint b.2 — present → explicit validation error.
+const MESSAGE_DEFERRED_FIELDS: &[&str] = &["level", "icon", "image", "markdown"];
+
+/// Phase B executable `type` values (through b.1).
+const VALID_TYPES: &[&str] = &["chrome", "message"];
+
+/// Validate `value` as a Phase B command.
 ///
 /// # Errors
 ///
@@ -60,6 +74,7 @@ pub fn validate(value: &Value) -> Result<Command, ValidationError> {
 
     match type_str {
         "chrome" => validate_chrome(obj),
+        "message" => validate_message(obj),
         other => Err(unknown_type_error(other)),
     }
 }
@@ -87,40 +102,192 @@ fn validate_chrome(obj: &Map<String, Value>) -> Result<Command, ValidationError>
         }
     }
 
-    let title = match obj.get("title") {
+    let title = require_string_field(obj, "title")?;
+    let status = optional_string_field(obj, "status")?;
+
+    Ok(Command::Chrome {
+        title: ChromeTitle::new(title),
+        status: status.map(ChromeStatus::new),
+    })
+}
+
+fn validate_message(obj: &Map<String, Value>) -> Result<Command, ValidationError> {
+    for key in obj.keys() {
+        let key_str = key.as_str();
+        if MESSAGE_DEFERRED_FIELDS.contains(&key_str) {
+            return Err(ValidationError::validation(
+                FieldName::new(key_str),
+                format!("field '{key_str}' is not supported on message until sprint b.2"),
+            ));
+        }
+        if !MESSAGE_FIELDS.contains(&key_str) {
+            return Err(ValidationError::validation(
+                FieldName::new(key_str),
+                format!("unknown field '{key_str}'"),
+            ));
+        }
+    }
+
+    let title = require_string_field(obj, "title")?;
+    let message = require_string_field(obj, "message")?;
+    let status = optional_string_field(obj, "status")?;
+
+    let buttons = match obj.get("buttons") {
         None => {
             return Err(ValidationError::validation(
-                "title",
-                "missing required field 'title'",
+                "buttons",
+                "missing required field 'buttons'",
             ));
         }
-        Some(Value::String(s)) => ChromeTitle::new(s.clone()),
+        Some(Value::String(s)) => match ButtonsPreset::parse(s) {
+            Some(preset) => preset,
+            None => {
+                let options = ButtonsPreset::all_names().join(", ");
+                let mut msg = format!("got '{s}', expected one of: {options}");
+                if let Some(suggestion) = closest_match(s, ButtonsPreset::all_names()) {
+                    msg.push_str(&format!("; did you mean '{suggestion}'?"));
+                }
+                return Err(ValidationError::validation("buttons", msg));
+            }
+        },
         Some(other) => {
             return Err(ValidationError::validation(
-                "title",
+                "buttons",
                 format!(
-                    "field 'title' expected string, got {}",
+                    "field 'buttons' expected string, got {}",
                     json_type_name(other)
                 ),
             ));
         }
     };
 
-    let status = match obj.get("status") {
+    let custom_buttons = match obj.get("custom_buttons") {
         None => None,
-        Some(Value::String(s)) => Some(ChromeStatus::new(s.clone())),
+        Some(Value::Array(items)) => {
+            let mut labels = Vec::with_capacity(items.len());
+            for (i, item) in items.iter().enumerate() {
+                match item {
+                    Value::String(s) => labels.push(s.clone()),
+                    other => {
+                        return Err(ValidationError::validation(
+                            "custom_buttons",
+                            format!(
+                                "custom_buttons[{i}] expected string, got {}",
+                                json_type_name(other)
+                            ),
+                        ));
+                    }
+                }
+            }
+            Some(labels)
+        }
         Some(other) => {
             return Err(ValidationError::validation(
-                "status",
+                "custom_buttons",
                 format!(
-                    "field 'status' expected string, got {}",
+                    "field 'custom_buttons' expected array, got {}",
                     json_type_name(other)
                 ),
             ));
         }
     };
 
-    Ok(Command::Chrome { title, status })
+    // REQ-0055: buttons: custom without custom_buttons → error
+    if buttons == ButtonsPreset::Custom && custom_buttons.is_none() {
+        return Err(ValidationError::validation(
+            "custom_buttons",
+            "buttons: custom requires a custom_buttons array",
+        ));
+    }
+
+    // REQ-0056: custom_buttons with non-custom buttons → error
+    if custom_buttons.is_some() && buttons != ButtonsPreset::Custom {
+        return Err(ValidationError::validation(
+            "custom_buttons",
+            "custom_buttons is only valid when buttons is 'custom'",
+        ));
+    }
+
+    let default_button = match obj.get("default_button") {
+        None => None,
+        Some(Value::Number(n)) => {
+            let Some(idx) = n.as_u64() else {
+                return Err(ValidationError::validation(
+                    "default_button",
+                    "field 'default_button' expected non-negative integer",
+                ));
+            };
+            if idx > u64::from(u32::MAX) {
+                return Err(ValidationError::validation(
+                    "default_button",
+                    "field 'default_button' exceeds u32 range",
+                ));
+            }
+            Some(idx as u32)
+        }
+        Some(other) => {
+            return Err(ValidationError::validation(
+                "default_button",
+                format!(
+                    "field 'default_button' expected number, got {}",
+                    json_type_name(other)
+                ),
+            ));
+        }
+    };
+
+    if let Some(idx) = default_button {
+        let count = buttons.button_count(custom_buttons.as_deref());
+        if count == 0 || (idx as usize) >= count {
+            return Err(ValidationError::validation(
+                "default_button",
+                format!("default_button index {idx} is out of range for {count} button(s)"),
+            ));
+        }
+    }
+
+    Ok(Command::Message {
+        title: ChromeTitle::new(title),
+        message,
+        status: status.map(ChromeStatus::new),
+        buttons,
+        custom_buttons,
+        default_button,
+    })
+}
+
+fn require_string_field(obj: &Map<String, Value>, field: &str) -> Result<String, ValidationError> {
+    match obj.get(field) {
+        None => Err(ValidationError::validation(
+            field,
+            format!("missing required field '{field}'"),
+        )),
+        Some(Value::String(s)) => Ok(s.clone()),
+        Some(other) => Err(ValidationError::validation(
+            field,
+            format!(
+                "field '{field}' expected string, got {}",
+                json_type_name(other)
+            ),
+        )),
+    }
+}
+
+fn optional_string_field(
+    obj: &Map<String, Value>,
+    field: &str,
+) -> Result<Option<String>, ValidationError> {
+    match obj.get(field) {
+        None => Ok(None),
+        Some(Value::String(s)) => Ok(Some(s.clone())),
+        Some(other) => Err(ValidationError::validation(
+            field,
+            format!(
+                "field '{field}' expected string, got {}",
+                json_type_name(other)
+            ),
+        )),
+    }
 }
 
 fn unknown_type_error(got: &str) -> ValidationError {
@@ -154,7 +321,7 @@ fn json_type_name(value: &Value) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{ChromeStatus, ChromeTitle};
+    use crate::{ButtonsPreset, ChromeStatus, ChromeTitle};
     use serde_json::json;
 
     #[test]
@@ -281,17 +448,22 @@ mod tests {
     }
 
     #[test]
-    fn type_message_not_implemented_fails() {
-        let err = validate(&json!({"type":"message","title":"T","message":"Hi"}))
-            .expect_err("message not in Phase A");
-        match err {
-            ValidationError::Validation { field, message } => {
-                assert_eq!(field, "type");
-                assert!(message.contains("message"));
-                assert!(message.contains("chrome"));
+    fn type_message_ok_passes() {
+        let cmd = validate(&json!({
+            "type":"message",
+            "title":"T",
+            "message":"Hi",
+            "buttons":"ok"
+        }))
+        .expect("valid message");
+        assert!(matches!(
+            cmd,
+            Command::Message {
+                buttons: ButtonsPreset::Ok,
+                default_button: None,
+                ..
             }
-            other => panic!("expected Validation, got {other:?}"),
-        }
+        ));
     }
 
     #[test]
@@ -351,6 +523,56 @@ mod tests {
                 assert_eq!(field, "type");
                 assert!(message.contains("expected JSON object"));
             }
+            other => panic!("expected Validation, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn default_button_out_of_range_fails() {
+        let err = validate(&json!({
+            "type":"message",
+            "title":"T",
+            "message":"Hi",
+            "buttons":"ok",
+            "default_button": 1
+        }))
+        .expect_err("oob");
+        match err {
+            ValidationError::Validation { field, message } => {
+                assert_eq!(field, "default_button");
+                assert!(message.contains("out of range"));
+            }
+            other => panic!("expected Validation, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn custom_without_custom_buttons_fails() {
+        let err = validate(&json!({
+            "type":"message",
+            "title":"T",
+            "message":"Hi",
+            "buttons":"custom"
+        }))
+        .expect_err("REQ-0055");
+        match err {
+            ValidationError::Validation { field, .. } => assert_eq!(field, "custom_buttons"),
+            other => panic!("expected Validation, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn custom_buttons_with_non_custom_preset_fails() {
+        let err = validate(&json!({
+            "type":"message",
+            "title":"T",
+            "message":"Hi",
+            "buttons":"ok",
+            "custom_buttons":["A"]
+        }))
+        .expect_err("REQ-0056");
+        match err {
+            ValidationError::Validation { field, .. } => assert_eq!(field, "custom_buttons"),
             other => panic!("expected Validation, got {other:?}"),
         }
     }
