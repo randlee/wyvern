@@ -10,7 +10,7 @@ target: integrate/phase-A
 
 ## Goal
 
-- Configure `sc-lint` from sibling repo; CI fails on lint violations.
+- Configure **`sc-lint` from crates.io**; CI fails on lint violations on all platforms.
 
 ## Hard Dependencies
 
@@ -19,15 +19,13 @@ target: integrate/phase-A
 ## Exact Targets
 
 - `.sc-lint.toml` (repo root)
-- `crates/wyvern/Cargo.toml` (if lint references workspace)
 - `.github/workflows/ci.yml`
 - `docs/linting.md`
 
 ## Deliverables
 
-- Sibling path documented: `../../sc-lint`
 - `.sc-lint.toml` at repo root with workspace scope
-- CI lint step runs canonical command
+- CI installs `sc-lint` from crates.io and runs canonical command on every matrix leg
 - Phase A complete when all **seven** sprint deliverables (a.1–a.7) merge to `integrate/phase-A`
 
 ## Explicit Code Samples
@@ -39,19 +37,23 @@ root = "."
 ```
 
 ```bash
-# Canonical local/CI invocation (from repo root, sc-lint on PATH)
+# Local: install once from crates.io
+cargo install sc-lint --version 0.4 --locked
+
+# Canonical invocation (from repo root)
 sc-lint check --config .sc-lint.toml
 ```
 
-Sibling checkout (same layout as [a6](a6-sc-observability.md)):
+```yaml
+# .github/workflows/ci.yml — lint job or step (all matrix legs)
+- name: Install sc-lint from crates.io
+  run: cargo install sc-lint --version 0.4 --locked
 
+- name: sc-lint check
+  run: sc-lint check --config .sc-lint.toml
 ```
-{REPO_ROOT}/
-  Cargo.toml
-  sc-lint/
-  sc-observability/
-  crates/wyvern/
-```
+
+**No** sibling checkout or path reference to a local `sc-lint` repo.
 
 ## This Sprint Does Not Close
 
@@ -60,14 +62,14 @@ Sibling checkout (same layout as [a6](a6-sc-observability.md)):
 
 ## Acceptance Criteria
 
-- `sc-lint check --config .sc-lint.toml` passes with zero warnings
-- CI lint step runs on all matrix legs per [a6-sc-observability.md](a6-sc-observability.md) Phase A CI policy
-- `docs/linting.md` documents sibling clone + canonical command
+- `sc-lint check --config .sc-lint.toml` passes with zero warnings (after `cargo install sc-lint`)
+- CI lint step runs on `ubuntu-latest`, `macos-latest`, and `windows-latest`
+- `docs/linting.md` documents crates.io install + canonical command
 - Phase A acceptance criteria #1–#3 pass after a.1–a.7 integrated
 
 ## Required Validation
 
-- `sc-lint check --config .sc-lint.toml`
-- `cargo test --workspace`
+- `cargo install sc-lint --version 0.4 --locked && sc-lint check --config .sc-lint.toml`
+- `cargo test --workspace` (all CI matrix legs)
 - `cargo clippy --workspace -- -D warnings`
-- Phase A E2E manual gate from `docs/plans/project-plan.md`
+- Phase A E2E gate from `docs/plans/project-plan.md`

@@ -10,7 +10,7 @@ target: integrate/phase-A
 
 ## Goal
 
-- Structured logging at `crates/wyvern/src/main.rs` only, using sibling `sc-observability`.
+- Structured logging at `crates/wyvern/src/main.rs` only, using **`sc-observability` from crates.io**.
 
 ## Hard Dependencies
 
@@ -18,69 +18,66 @@ target: integrate/phase-A
 
 ## Exact Targets
 
+- `Cargo.toml` (workspace dependency pin)
 - `crates/wyvern/Cargo.toml`
 - `crates/wyvern/src/main.rs`
 - `crates/wyvern/src/observability.rs` (thin wrapper)
 - `docs/observability.md`
-- `.github/workflows/ci.yml` (clone sibling before build)
+- `.github/workflows/ci.yml` (cross-platform test matrix)
 
 ## Deliverables
 
-- Path dep: `sc-observability = { path = "../../sc-observability" }` in `crates/wyvern/Cargo.toml`
+- Workspace + crate dep: `sc-observability = "1.2"` (crates.io — **no path/sibling checkout**)
 - Log events: `process_start`, `command_received`, `validation_result`, `window_open`, `window_close`, `result_emitted`, `error`
 - `WYVERN_LOG` env var documented
-- CI clones siblings beside repo; Phase A CI policy below (authoritative until Phase C)
+- CI runs full `cargo test --workspace` on all matrix legs (see policy below)
 
 ## Phase A CI policy (authoritative)
 
-Phase A window/chrome work is **macOS-only**. CI keeps the cross-platform matrix but gates window-dependent steps:
+| Leg | `cargo build` / `clippy` | `cargo test --workspace` |
+|-----|--------------------------|--------------------------|
+| `ubuntu-latest` | full workspace | full workspace (incl. window tests; install Linux webview deps) |
+| `macos-latest` | full workspace | full workspace |
+| `windows-latest` | full workspace | full workspace |
 
-| Leg | `cargo build` / `clippy` | `cargo test --workspace` | Sibling checkout |
-|-----|--------------------------|--------------------------|------------------|
-| `macos-latest` | full workspace | full workspace (incl. window tests) | `sc-observability`, `sc-lint` |
-| `ubuntu-latest`, `windows-latest` | full workspace | **skip** `wyvern-window` macOS integration tests via `#[cfg(target_os = "macos")]` no-op pattern (a.2) | `sc-observability`, `sc-lint` |
+No platform skips or `#[cfg]` no-op substitutes for window integration tests. a.7 `sc-lint` step runs on **all** legs.
 
-a.7 lint step runs on **all** legs after sibling checkout.
-
-### CI YAML sample (append to `.github/workflows/ci.yml`)
+### CI YAML sample (`.github/workflows/ci.yml` — no sibling checkouts)
 
 ```yaml
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Checkout sc-observability sibling
-        uses: actions/checkout@v4
+      - name: Install Linux webview deps
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev
+
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          repository: ${{ github.repository_owner }}/sc-observability
-          path: sc-observability
+          components: clippy, rustfmt
 
-      - name: Checkout sc-lint sibling
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ github.repository_owner }}/sc-lint
-          path: sc-lint
-
-      # Siblings at $GITHUB_WORKSPACE/sc-* match ../../sc-observability from crates/wyvern/Cargo.toml
-
-      # ... Rust toolchain, build, clippy ...
-
-      - name: cargo test (macOS full)
-        if: runner.os == 'macOS'
-        run: cargo test --workspace
-
-      - name: cargo test (non-macOS — window tests no-op)
-        if: runner.os != 'macOS'
-        run: cargo test --workspace
-        # wyvern-window macOS tests are #[cfg]-gated; non-macOS legs pass via a.2 no-op test
+      - run: cargo build --workspace
+      - run: cargo test --workspace
+      - run: cargo clippy --workspace -- -D warnings
 ```
-
-Adjust checkout `repository` to the actual org/name. Siblings must land at repository root (`path: sc-observability`), not beside the parent of the clone.
 
 ## Explicit Code Samples
 
 ```toml
+# Cargo.toml (workspace)
+[workspace.dependencies]
+sc-observability = "1.2"
+
 # crates/wyvern/Cargo.toml
-sc-observability = { path = "../../sc-observability" }
+sc-observability = { workspace = true }
 ```
 
 ```rust
@@ -120,14 +117,15 @@ Event keys above are normative; wrapper may rename `sc-observability` call symbo
 
 ## Acceptance Criteria
 
-- With `../../sc-observability` present, `cargo build -p wyvern` succeeds
+- `cargo build -p wyvern` succeeds with crates.io `sc-observability` only (no local path dep)
 - `WYVERN_LOG=debug` emits structured events on chrome E2E path
 - `rg 'sc_observability' crates/wyvern-schema crates/wyvern-window crates/wyvern-wizard crates/wyvern-mcp` → empty
-- CI workflow implements Phase A CI policy (sibling checkout + macOS/full test gate per a.6)
-- `docs/observability.md` documents path layout and event list
+- CI: `cargo test --workspace` passes on ubuntu, macOS, and Windows
+- `docs/observability.md` documents crates.io version pin and event list
 
 ## Required Validation
 
-- `cargo build -p wyvern` (sibling present)
+- `cargo build -p wyvern`
+- `rg 'path.*sc-observability' Cargo.toml crates/` → empty
 - `rg 'sc_observability' crates/wyvern-schema crates/wyvern-window crates/wyvern-wizard crates/wyvern-mcp` → empty
 - `cargo clippy --workspace -- -D warnings`

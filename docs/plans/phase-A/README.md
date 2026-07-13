@@ -5,16 +5,16 @@ Phase A implementation PRs target **`integrate/phase-A`**. This directory is the
 ## What Phase A closes
 
 - Five-crate workspace under `crates/` (ADR-0011) from sprint a.1
-- macOS window + HTML chrome shell
+- Native window + HTML chrome shell (all platforms; Win/Linux decoration polish → Phase C)
 - JSON load → validate → dispatch → run → emit on **one** command: `type: "chrome"`
 - Discriminated error enums per stage; CLI maps each variant to stderr JSON
-- `sc-observability` at binary entry; `sc-lint` configured
+- `sc-observability` (crates.io) at binary entry; `sc-lint` (crates.io) configured in CI
 
 ## What Phase A does not close
 
 - Dialog types (`message`, `input`, `markdown`, `question`, `wizard`) — Phase B+
 - Chrome **button bar** (empty placeholder in a.5; interactive buttons in Phase B)
-- Windows/Linux platform chrome — Phase C (`integrate/phase-C`)
+- Windows/Linux **platform chrome polish** (custom decorations, HTML close/minimize) — Phase C (`integrate/phase-C`)
 - `--interactive` / MCP — later phase
 - Per-type validation beyond `chrome` — added as each type ships
 
@@ -64,18 +64,13 @@ Success on OS close:
 | a.6 | [a6-sc-observability.md](a6-sc-observability.md) | `feature/phase-A-a6-sc-observability` |
 | a.7 | [a7-sc-lint.md](a7-sc-lint.md) | `feature/phase-A-a7-sc-lint` |
 
-Win/Linux chrome deferred to Phase C — not counted in Phase A completion.
+Win/Linux decoration polish deferred to Phase C — window tests and `chrome` E2E run on all CI platforms in Phase A.
 
-## External sibling deps (repository root layout)
+## External dependencies (crates.io)
 
-Siblings live at **clone/worktree root** — same directory as `Cargo.toml` and `crates/`:
+| Crate / tool | Source | Pin |
+|--------------|--------|-----|
+| `sc-observability` | [crates.io](https://crates.io/crates/sc-observability) | `"1.2"` in workspace `Cargo.toml` |
+| `sc-lint` | [crates.io](https://crates.io/crates/sc-lint) | `cargo install sc-lint --version 0.4` (CI + local) |
 
-```
-{REPO_ROOT}/
-  Cargo.toml
-  crates/wyvern/
-  sc-observability/    ← path ../../sc-observability from crates/wyvern/Cargo.toml
-  sc-lint/             ← path ../../sc-lint
-```
-
-Local worktrees: clone or symlink `sc-observability` and `sc-lint` into the worktree root before `cargo build -p wyvern`. CI checks out siblings to `$GITHUB_WORKSPACE/sc-*` (see a.6).
+No path deps or sibling repo checkouts for either package.

@@ -32,7 +32,7 @@ Phase A sprint PRs target `integrate/phase-A`. Sprint authority: `docs/plans/pha
 2. `wyvern '{"type":"chrome","title":"Foundation"}'` → chrome opens; OS close → `{"button":"dismissed"}`
 3. `wyvern '{"type":"unknown"}'` → validation stderr on `type`, exit ≠ 0, no window
 
-**Platform:** macOS only. Win/Linux chrome → Phase C.
+**Platform:** Window + `chrome` tests on macOS, Linux, and Windows. Win/Linux decoration polish → Phase C.
 
 **Sprints:** seven active (**a.1–a.7**). See [docs/plans/phase-A/README.md](phase-A/README.md).
 

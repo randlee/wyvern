@@ -111,6 +111,6 @@ Example: `feature/phase-A-a1-scaffold`, `feature/phase-B-b1-message`
 
 ## Environment
 
-- **External dependencies**: `sc-observability` at `../../sc-observability`, `sc-lint` at `../../sc-lint`
+- **External dependencies**: `sc-observability` and `sc-lint` from [crates.io](https://crates.io) (no local path deps)
 - **Worktrees**: `../wyvern-worktrees/<branch>`
 - **Platforms**: macOS (primary), Windows, Linux

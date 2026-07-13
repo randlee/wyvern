@@ -6,7 +6,7 @@ branch: feature/phase-A-a5-chrome-frame
 target: integrate/phase-A
 ---
 
-# Sprint a.5 — HTML chrome frame + `chrome` command E2E (macOS)
+# Sprint a.5 — HTML chrome frame + `chrome` command E2E
 
 ## Goal
 
@@ -160,5 +160,5 @@ fn emit_stdout_chrome_wire_shape() {
 - Unit test: `emit_run_error` JSON shapes for each `RunError` variant (incl. escaped `"` in message)
 - Unit test: `emit_stdout` asserts exact wire `{"button":"dismissed"}`
 - Unit test: `handle_run_failure` non-zero exit mapping
-- Manual E2E (macOS): Phase A acceptance criteria #1–#3 in `docs/plans/project-plan.md`
+- Manual E2E: Phase A acceptance criteria #1–#3 on macOS, Linux, and Windows (CI matrix)
 - `cargo clippy --workspace -- -D warnings`

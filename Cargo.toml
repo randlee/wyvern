@@ -23,8 +23,8 @@ strsim = "0.11"
 # Async (MCP server)
 tokio = { version = "1", features = ["full"] }
 
-# Logging (path dep — resolved at integration)
-# sc-observability = { path = "../../sc-observability" }
+# Logging (crates.io — see docs/plans/phase-A/a6-sc-observability.md)
+sc-observability = "1.2"
 
 [profile.release]
 opt-level     = "z"
