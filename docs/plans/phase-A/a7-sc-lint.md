@@ -1,8 +1,9 @@
 ---
 id: a.7
 title: sc-lint integration
-status: planned
+status: complete
 branch: feature/phase-A-a7-sc-lint
+worktree: /Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-A-a7-sc-lint
 target: integrate/phase-A
 ---
 

@@ -21,7 +21,15 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev
+          # webkit2gtk for wry; xkbcommon-x11 for winit X11; mesa + xvfb for headless GL (phase-A README)
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libxkbcommon-x11-0 \
+            libgl1-mesa-dri \
+            mesa-utils \
+            at-spi2-core \
+            dbus-x11 \
+            xvfb
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -32,10 +40,29 @@ jobs:
         run: cargo build --workspace
 
       - name: cargo test
-        run: cargo test --workspace
+        if: runner.os != 'Linux'
+        run: cargo test --workspace -- --test-threads=1
+
+      # GTK/winit need a display; ubuntu-latest is headless — use Xvfb (docs/plans/phase-A/README.md).
+      # WebKitGTK GPU compositing crashes under xvfb (GLXBadWindow) without software-GL flags.
+      # GUI integration tests run single-threaded to avoid parallel winit/WebKit races (FTQ-001).
+      - name: cargo test (Linux / xvfb)
+        if: runner.os == 'Linux'
+        env:
+          GDK_BACKEND: x11
+          LIBGL_ALWAYS_SOFTWARE: "1"
+          WEBKIT_DISABLE_COMPOSITING_MODE: "1"
+          WEBKIT_DISABLE_DMABUF_RENDERER: "1"
+        run: dbus-run-session -- xvfb-run -a cargo test --workspace -- --test-threads=1
 
       - name: cargo clippy
         run: cargo clippy --workspace -- -D warnings
+
+      - name: Install sc-lint from crates.io
+        run: cargo install sc-lint --version 0.4.0 --locked
+
+      - name: sc-lint check
+        run: sc-lint check native --config .sc-lint.toml
 
   fmt:
     name: Format check

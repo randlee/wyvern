@@ -1,8 +1,9 @@
 ---
 id: a.1
 title: Rust workspace scaffold (five crates)
-status: planned
+status: complete
 branch: feature/phase-A-a1-scaffold
+worktree: /Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-A-a1-scaffold
 target: integrate/phase-A
 ---
 
