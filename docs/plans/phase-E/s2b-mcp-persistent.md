@@ -1,4 +1,4 @@
-# Phase 5 / s1b-blocking-question
+# Phase E / s2b-mcp-persistent
 
 ## Status
 pending

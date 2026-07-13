@@ -1,4 +1,4 @@
-# Phase 2 / s1b-message-icons
+# Phase C / s2a-win-linux-chrome
 
 ## Status
 pending

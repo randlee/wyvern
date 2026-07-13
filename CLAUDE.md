@@ -29,7 +29,7 @@ git checkout -b feature/phase-A-a1-scaffold
 - All UI rendered as HTML/CSS/JS — no OS-native widgets
 - Five-crate workspace: `wyvern-schema`, `wyvern-window`, `wyvern-wizard`, `wyvern` (CLI), `wyvern-mcp`
 - Built on `wry` (Tauri) — wraps OS webviews (WebKit/WebView2/WebKitGTK)
-- Dialog types: `chrome` (Phase 1 foundation), then `message`, `input`, `markdown`, `question` (AskUserQuestion-compatible), `wizard` (Phase 2+)
+- Dialog types: `chrome` (Phase A foundation), then `message`, `input`, `markdown`, `question` (AskUserQuestion-compatible), `wizard` (Phase B+)
 - Interactive mode (`--interactive`): persistent stdin loop for blocking dialog commands plus `show`/`hide`/`exit`
 - MCP mode: persistent background process, tool-call driven
 
@@ -54,7 +54,7 @@ git checkout -b feature/phase-A-a1-scaffold
 | `wyvern-wizard` | [`docs/wyvern-wizard/requirements.md`](docs/wyvern-wizard/requirements.md) | [`docs/wyvern-wizard/architecture.md`](docs/wyvern-wizard/architecture.md) |
 | `wyvern-mcp` | [`docs/wyvern-mcp/requirements.md`](docs/wyvern-mcp/requirements.md) | [`docs/wyvern-mcp/architecture.md`](docs/wyvern-mcp/architecture.md) |
 
-**Boundary rules**: [`boundaries/`](boundaries/) — one TOML per crate, enforced in CI from Phase 2.
+**Boundary rules**: [`boundaries/`](boundaries/) — one TOML per crate, enforced in CI from Phase B.
 
 ---
 
@@ -83,7 +83,7 @@ main
   └── develop
         ├── integrate/phase-A          ← Phase A Foundation
         ├── integrate/phase-B          ← Phase B Core Dialogs
-        ├── integrate/phase-2 … phase-4
+        ├── integrate/phase-B … integrate/phase-E
         └── feature/pN-sXa-...         ← sprint PR targets integrate/phase-* for that phase
         After all sprints in a phase → integrate/phase-* → develop
 ```

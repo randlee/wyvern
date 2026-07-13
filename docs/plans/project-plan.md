@@ -11,10 +11,10 @@ A sprint is a single testable deliverable that fits within one AI context window
 | Integration branch | Project plan phase | Sprint docs |
 |---|---|---|
 | `integrate/phase-A` | Phase A — Foundation | `docs/plans/phase-A/` |
-| `integrate/phase-B` | Phase B — Core Dialogs | `docs/plans/phase-2/` |
-| `integrate/phase-C` | Phase C — Polish & Icons | `docs/plans/phase-3/` |
-| `integrate/phase-D` | Phase D — Wizard | `docs/plans/phase-4/` |
-| `integrate/phase-E` | Phase E — Persistent & MCP | `docs/plans/phase-5/` |
+| `integrate/phase-B` | Phase B — Core Dialogs | `docs/plans/phase-B/` |
+| `integrate/phase-C` | Phase C — Polish & Icons | `docs/plans/phase-C/` |
+| `integrate/phase-D` | Phase D — Wizard | `docs/plans/phase-D/` |
+| `integrate/phase-E` | Phase E — Persistent & MCP | `docs/plans/phase-E/` |
 
 Phase A sprint PRs target `integrate/phase-A`. Sprint authority: `docs/plans/phase-A/` (sprints **a.1–a.7**).
 
@@ -48,129 +48,40 @@ Phase A sprint PRs target `integrate/phase-A`. Sprint authority: `docs/plans/pha
 
 ---
 
-## Phase 2 — Core Dialogs (MVP)
+## Phase B — Core Dialogs (MVP)
 
 **Phase goal:** All four dialog types (`message`, `input`, `markdown`, `question`) work end-to-end from the CLI. This is the first genuinely useful version of Wyvern.
 
-**Phase acceptance criteria:** A developer can replace any `zenity`/`osascript` dialog call with a `wyvern` command and get a richer, JSON-returning equivalent.
+**Phase acceptance criteria:** A developer can replace any `zenity`/`osascript` dialog call with a `wyvern` command and get a richer, JSON-returning equivalent. Numbered smoke checks: [docs/plans/phase-B/README.md](phase-B/README.md#phase-acceptance-criteria-smoke).
 
 *sc-lint-boundary applied at sprint planning from this phase forward.*
 
----
+Phase B sprint PRs target `integrate/phase-B`. Sprint authority: `docs/plans/phase-B/` (sprints **b.1–b.8**, sequential — not parallel sub-sprints).
 
-### S2.1a — `message` type: structure and buttons
+**Sprints:** eight active (**b.1–b.8**). See [docs/plans/phase-B/README.md](phase-B/README.md).
 
-Render `title`, `message`, `status` in the chrome frame. Wire all button presets to return the correct JSON.
-
-**Acceptance criteria:**
-- All button presets render and return: `ok`, `ok_cancel`, `yes_no`, `yes_no_cancel`, `retry_cancel`
-- `custom_buttons` array renders correctly
-- `default_button` index is focused on open
-- Returns `{"button":"<label>"}` to stdout on press
-- Returns `{"button":"dismissed"}` on OS close
-
----
-
-### S2.1b — `message` type: icons, images, markdown
-
-Add `level` icon rendering, `icon` field, decorative `image` field, and `markdown` flag.
-
-**Acceptance criteria:**
-- `level` values (`info`, `warning`, `error`, `question`) render distinct placeholder icons
-- `icon` field accepts named icon, file path, and base64 data URI
-- `image` field renders a decorative body image
-- `markdown: true` renders the `message` field as formatted markdown
-- All combinations of fields render without layout breakage
+| Sprint | Title | Doc |
+|--------|-------|-----|
+| b.1 | Message structure + buttons | [b1-message-structure.md](phase-B/b1-message-structure.md) |
+| b.2 | Message icons + markdown body | [b2-message-icons.md](phase-B/b2-message-icons.md) |
+| b.3 | Input text mode | [b3-input-text.md](phase-B/b3-input-text.md) |
+| b.4 | Input file/folder picker | [b4-input-picker.md](phase-B/b4-input-picker.md) |
+| b.5 | Markdown file + `.md` shorthand | [b5-markdown-file.md](phase-B/b5-markdown-file.md) |
+| b.6 | Markdown inline + stylesheet | [b6-markdown-inline.md](phase-B/b6-markdown-inline.md) |
+| b.7 | Question cards (radio/checkbox) | [b7-question-render.md](phase-B/b7-question-render.md) |
+| b.8 | Question preview + compliance | [b8-question-preview.md](phase-B/b8-question-preview.md) |
 
 ---
 
-### S2.2a — `input` type: text mode
-
-Render a single-line or multiline text input with placeholder and default value.
-
-**Acceptance criteria:**
-- Single-line input renders and returns value on `ok`
-- `multiline: true` renders a textarea
-- `placeholder` displays as hint text
-- `default` pre-fills the field
-- Returns `{"button":"ok","input":"<value>"}` or `{"button":"cancel"}`
-
----
-
-### S2.2b — `input` type: file and folder picker
-
-Trigger the OS native file/folder chooser from the input dialog.
-
-**Acceptance criteria:**
-- `mode: file` opens the OS file picker; returns selected path
-- `mode: folder` opens the OS folder picker; returns selected path
-- `filter` restricts file picker to matching extensions
-- `multiple: true` enables multi-file selection; returns JSON array of paths
-- `start_path` sets the initial picker directory
-- `multiline: true` with file/folder mode → validation error (REQ-0057)
-
----
-
-### S2.3a — `markdown` type: file rendering
-
-Load and render a `.md` file in a styled HTML viewer within the chrome frame.
-
-**Acceptance criteria:**
-- `wyvern my-doc.md` shorthand opens the viewer
-- `{"type":"markdown","file":"path.md"}` JSON form works identically
-- Markdown renders with headings, code blocks, tables, lists
-- `title` defaults to filename when not provided
-- `buttons: "ok"` default; returns `{"button":"ok"}` or `{"button":"dismissed"}`
-
----
-
-### S2.3b — `markdown` type: inline content and styling
-
-Support inline `content` field and apply a polished default stylesheet.
-
-**Acceptance criteria:**
-- `content` field renders inline markdown string (no file required)
-- Stylesheet: readable typography, code highlighting, responsive to window width
-- `status` bar renders below content when provided
-- Content area scrolls for long documents without resizing the window
-
----
-
-### S2.4a — `question` type: option rendering
-
-Render question cards with radio (single-select) and checkbox (multi-select) option groups.
-
-**Acceptance criteria:**
-- All questions in the `questions` array render as cards
-- `multiSelect: false` → radio buttons; `multiSelect: true` → checkboxes
-- `header` renders as card label; `question` as card prompt
-- `description` renders below each option label
-- Returns correct `answers` map keyed by `question` text
-
----
-
-### S2.4b — `question` type: preview and schema compliance
-
-Add `preview` field rendering and schema compliance within Wyvern's `type: "question"` command envelope.
-
-**Acceptance criteria:**
-- `preview` HTML/markdown fragment renders alongside option when present
-- Public AskUserQuestion field set and constraints are documented and enforced
-- `response` field behavior matches the public AskUserQuestion contract
-- `questions` array passed through verbatim in response
-- Tested against sample AskUserQuestion payloads from Claude Agent SDK docs
-
----
-
-## Phase 3 — Release v0.1.0
+## Phase C — Release v0.1.0
 
 **Phase goal:** Wyvern ships as a usable, cross-platform CLI tool. Icon set complete. Binaries available for download.
 
-**Phase acceptance criteria:** `brew install wyvern` (or equivalent) works; a developer can run all Phase 2 dialog types on macOS, Windows, and Linux from a released binary.
+**Phase acceptance criteria:** `brew install wyvern` (or equivalent) works; a developer can run all Phase B dialog types on macOS, Windows, and Linux from a released binary.
 
 ---
 
-### S3.1a — Icon image set (semantic roles)
+### c.1a — Icon image set (semantic roles)
 
 Source or generate icons for all semantic roles in web-renderable formats.
 
@@ -182,7 +93,7 @@ Source or generate icons for all semantic roles in web-renderable formats.
 
 ---
 
-### S3.1b — Icon variant selection
+### c.1b — Icon variant selection
 
 Implement full icon field resolution: named, indexed variant, file path, base64.
 
@@ -195,7 +106,7 @@ Implement full icon field resolution: named, indexed variant, file path, base64.
 
 ---
 
-### S3.2a — Windows and Linux platform chrome
+### c.2a — Windows and Linux platform chrome
 
 Implement `decorations: false` + HTML close/minimize buttons on Windows and Linux. Deferred from Phase A (was never in a.1–a.7 scope).
 
@@ -203,12 +114,12 @@ Implement `decorations: false` + HTML close/minimize buttons on Windows and Linu
 - Windows: borderless window with HTML close + minimize buttons functional via IPC
 - Linux: borderless window with HTML close + minimize buttons functional via IPC
 - Window draggable on both platforms via `-webkit-app-region: drag`
-- All Phase 2 dialog types render correctly on Windows and Linux
+- All Phase B dialog types render correctly on Windows and Linux
 - `chrome` foundation command still returns `{"button":"dismissed"}` on OS close on all platforms
 
 ---
 
-### S3.2b — Cross-platform validation and NFR pass
+### c.2b — Cross-platform validation and NFR pass
 
 Verify performance targets and fix cross-platform rendering issues.
 
@@ -217,11 +128,11 @@ Verify performance targets and fix cross-platform rendering issues.
 - NFR-0002: resident memory < 80MB on macOS under normal operation
 - NFR-0003: binary < 10MB on macOS
 - No rendering regressions on Windows or Linux
-- All Phase 2 acceptance criteria pass on all three platforms
+- All Phase B acceptance criteria pass on all three platforms
 
 ---
 
-### S3.3 — Release tooling and v0.1.0
+### c.3 — Release tooling and v0.1.0
 
 GitHub Actions builds and publishes binaries. README quickstart complete.
 
@@ -234,7 +145,7 @@ GitHub Actions builds and publishes binaries. README quickstart complete.
 
 ---
 
-## Phase 4 — Wizard
+## Phase D — Wizard
 
 **Phase goal:** Multi-page wizards with branching navigation and data persistence across pages.
 
@@ -242,7 +153,7 @@ GitHub Actions builds and publishes binaries. README quickstart complete.
 
 ---
 
-### S4.1a — Wizard host: HTML load and config injection
+### d.1a — Wizard host: HTML load and config injection
 
 Load caller-supplied HTML into the webview and inject the initial page descriptor plus `config` on load.
 
@@ -254,7 +165,7 @@ Load caller-supplied HTML into the webview and inject the initial page descripto
 
 ---
 
-### S4.1b — Wizard IPC contract
+### d.1b — Wizard IPC contract
 
 Implement bidirectional IPC between wizard pages and the Rust host using explicit page descriptors.
 
@@ -267,7 +178,7 @@ Implement bidirectional IPC between wizard pages and the Rust host using explici
 
 ---
 
-### S4.2a — Browser-history navigation model
+### d.2a — Browser-history navigation model
 
 Implement the cursor-over-array history (ADR-0005).
 
@@ -280,7 +191,7 @@ Implement the cursor-over-array history (ADR-0005).
 
 ---
 
-### S4.2b — Stack injection and data restoration
+### d.2b — Stack injection and data restoration
 
 Inject full history stack into each page on load; restore page data on back-navigation.
 
@@ -292,7 +203,7 @@ Inject full history stack into each page on load; restore page data on back-navi
 
 ---
 
-### S4.3a — Example DAG layout-picker wizard
+### d.3a — Example DAG layout-picker wizard
 
 Build a working demo wizard: layout selection → N agent configuration pages.
 
@@ -305,7 +216,7 @@ Build a working demo wizard: layout selection → N agent configuration pages.
 
 ---
 
-### S4.3b — Wizard polish and edge cases
+### d.3b — Wizard polish and edge cases
 
 Handle edge cases and improve wizard UX.
 
@@ -318,7 +229,7 @@ Handle edge cases and improve wizard UX.
 
 ---
 
-## Phase 5 — Interactive & MCP
+## Phase E — Interactive & MCP
 
 **Phase goal:** Wyvern runs as a persistent process, driveable by agents over stdin or as an MCP server.
 
@@ -326,7 +237,7 @@ Handle edge cases and improve wizard UX.
 
 ---
 
-### S5.1a — `--interactive` stdin loop and lifecycle actions
+### e.1a — `--interactive` stdin loop and lifecycle actions
 
 Implement the `--interactive` readline loop and persistent-process lifecycle actions.
 
@@ -338,7 +249,7 @@ Implement the `--interactive` readline loop and persistent-process lifecycle act
 
 ---
 
-### S5.1b — Blocking dialogs and `exit` in interactive mode
+### e.1b — Blocking dialogs and `exit` in interactive mode
 
 Implement blocking dialog handling and `exit` in the interactive loop.
 
@@ -350,7 +261,7 @@ Implement blocking dialog handling and `exit` in the interactive loop.
 
 ---
 
-### S5.2a — MCP server wrapper and tool mapping
+### e.2a — MCP server wrapper and tool mapping
 
 Implement Wyvern as an MCP server (stdio transport). Map each dialog type to an MCP tool.
 
@@ -362,7 +273,7 @@ Implement Wyvern as an MCP server (stdio transport). Map each dialog type to an 
 
 ---
 
-### S5.2b — MCP persistent window and integration testing
+### e.2b — MCP persistent window and integration testing
 
 Implement persistent window lifecycle for MCP mode; test with Claude Code.
 

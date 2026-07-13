@@ -1,4 +1,4 @@
-# Phase 2 / s1a-message-structure
+# Phase C / s3-release
 
 ## Status
 pending

@@ -1,4 +1,4 @@
-# Phase 2 / s4a-question-render
+# Phase E / s1a-interactive-loop
 
 ## Status
 pending

@@ -1,4 +1,4 @@
-# Phase 4 / s2b-stack-inject
+# Phase C / s1b-icon-variants
 
 ## Status
 pending

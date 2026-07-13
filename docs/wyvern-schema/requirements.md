@@ -4,15 +4,15 @@
 
 ---
 
-## Phase 1 Executable Surface (REQ-0049)
+## Phase A Executable Surface (REQ-0049)
 
-**REQ-0049** — Phase 1 accepts exactly one executable command type: `chrome` with required `title` and optional `status`. All other `type` values are validation errors until their implementation phase ships.
+**REQ-0049** — Phase A accepts exactly one executable command type: `chrome` with required `title` and optional `status`. All other `type` values are validation errors until their implementation phase ships.
 
 ---
 
 ## Validation (REQ-0050 – REQ-0057)
 
-**REQ-0050** — Validate all input JSON before opening any window. Validation scope matches the current phase's executable surface (Phase 1: `chrome` only).
+**REQ-0050** — Validate all input JSON before opening any window. Validation scope matches the current phase's executable surface (Phase A: `chrome` only).
 
 **REQ-0051** — Write validation errors to stderr as structured JSON: `{ "error": "validation", "field": "...", "message": "..." }`.
 
@@ -20,23 +20,29 @@
 
 **REQ-0053** — Unknown fields → error (not silently ignored).
 
-**REQ-0054** — Wrong enum value → error listing all valid options; suggest closest match (Levenshtein distance ≤ 2). *Phase 1: applies when enum fields are introduced per type.*
+**REQ-0054** — Wrong enum value → error listing all valid options; suggest closest match (Levenshtein distance ≤ 2). *Phase A: applies when enum fields are introduced per type.*
 
-**REQ-0055** — `buttons: custom` without `custom_buttons` array → explicit error. *Phase 2+ when `message` ships.*
+**REQ-0055** — `buttons: custom` without `custom_buttons` array → explicit error. *Phase B+ when `message` ships.*
 
-**REQ-0056** — `custom_buttons` with non-`custom` `buttons` value → explicit error. *Phase 2+.*
+**REQ-0056** — `custom_buttons` with non-`custom` `buttons` value → explicit error. *Phase B+.*
 
-**REQ-0057** — `mode: file` or `mode: folder` combined with `multiline: true` → explicit error. *Phase 2+ when `input` ships.*
+**REQ-0057** — `mode: file` or `mode: folder` combined with `multiline: true` → explicit error. *Phase B+ when `input` ships.*
 
 ---
 
 ## Command & Field Validation (REQ-0058 – REQ-0060)
 
-**REQ-0058** — `markdown` requires exactly one of `file` or `content`. *Phase 2+.*
+**REQ-0058** — `markdown` requires exactly one of `file` or `content`. *Phase B+.*
 
-**REQ-0059** — `input` cross-field validation rules. *Phase 2+.*
+**REQ-0059** — `input` cross-field validation rules. *Phase B+ (b.3 text subset; b.4 complete).*
 
-**REQ-0060** — `show`, `hide`, and `exit` are invalid outside `--interactive`; using them elsewhere produces a structured state error. Enforced from Phase 1 even though lifecycle actions ship in Phase 5.
+- **`filter` or `multiple`** — only valid when `mode` is `file`. With `mode: text` (or omitted, which defaults to text) or `mode: folder` → explicit validation error on the offending field.
+- **`placeholder` or `default`** — only valid when `mode` is `text` or omitted (omitted `mode` defaults to text). With `mode: file` or `mode: folder` → explicit validation error.
+- **`start_path`** — only valid when `mode` is `file` or `mode` is `folder`. With `mode: text` or omitted → explicit validation error.
+
+**Related:** **REQ-0057** — `mode: file` or `mode: folder` combined with `multiline: true` → explicit error (independent of REQ-0059; enforced when file/folder modes ship in b.4).
+
+**REQ-0060** — `show`, `hide`, and `exit` are invalid outside `--interactive`; using them elsewhere produces a structured state error. Enforced from Phase A even though lifecycle actions ship in Phase E.
 
 ---
 

@@ -1,4 +1,4 @@
-# Phase 5 / s2b-mcp-persistent
+# Phase E / s2a-mcp-server
 
 ## Status
 pending

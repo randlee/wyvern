@@ -1,4 +1,4 @@
-# Phase 3 / s2a-win-linux-chrome
+# Phase D / s1a-wizard-host
 
 ## Status
 pending

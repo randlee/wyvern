@@ -1,4 +1,4 @@
-# Phase 5 / s1a-interactive-loop
+# Phase C / s2b-cross-platform-validation
 
 ## Status
 pending

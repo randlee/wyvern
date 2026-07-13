@@ -1,4 +1,4 @@
-# Phase 2 / s2b-input-picker
+# Phase C / s1a-icon-set
 
 ## Status
 pending
