@@ -55,14 +55,15 @@ target: integrate/phase-B
 
 - One card per `questions[]` entry
 - Radio/checkbox `name` scoped per card
-- Submit button (not preset button bar labels) — maps to normal completion without `button` field
+- Submit button (not preset button bar) — sends `question_submitted` IPC; normal completion has no stdout `button` field
 - `questions` array echoed verbatim in stdout response
 
 ### IPC
 
-- Submit action sends collected answers to host
-- Host builds `answers` map keyed by `question` string text
-- Multi-select: join selected `options[].label` with `", "` (REQ-0062)
+- Submit control sends `question_submitted` per [ipc-dialog-contract.md](ipc-dialog-contract.md) (not `button_pressed`)
+- Page validates every card has a selection before send
+- Host builds `answers` map from IPC payload; echoes input `questions` verbatim in stdout
+- Multi-select: comma-join selected `options[].label` with `", "` (REQ-0062)
 
 ### ADR-0007
 
@@ -103,6 +104,10 @@ pub struct QuestionResult {
 }
 ```
 
+```json
+{ "kind": "question_submitted", "answers": { "Output format?": "JSON" } }
+```
+
 See [question-contract-examples.md](question-contract-examples.md) for minimal single-select and multi-select stdout shapes.
 
 ## This Sprint Does Not Close
@@ -127,5 +132,5 @@ See [question-contract-examples.md](question-contract-examples.md) for minimal s
 
 - `cargo test --workspace -- --test-threads=1`
 - `cargo test -p wyvern-schema -- validation_question`
-- Unit tests: answer map keys, comma-join multi-select
+- IPC integration test: `question_submitted` → `QuestionResult` without `button`
 - Compare stdout against examples in question-contract-examples.md (minus preview case)

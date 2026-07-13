@@ -35,6 +35,22 @@ User confirmed an `input` dialog.
 - **`mode: file` / `mode: folder` (b.4):** page sends `{ "kind": "input_submitted", "button": "ok" }` **without** `value`. Host opens native picker via `rfd` synchronously on receive; on selection, host completes with `InputResult.input` set to path string (or path array when `multiple: true`). Picker cancel leaves dialog open (no stdout yet); user may retry or press Cancel.
 - Text field is hidden for file/folder modes; message prompt and button bar remain visible per b.4 UX flow.
 
+### `question_submitted`
+
+User clicked Submit on a `question` dialog (b.7+). Question dialogs use a dedicated Submit control — not the preset `buttons` mapping table.
+
+```json
+{
+  "kind": "question_submitted",
+  "answers": { "Output format?": "JSON", "Pick tools": "JSON, Plain" }
+}
+```
+
+- `answers` — map keyed by each card's `question` string; values are selected `options[].label` (comma-joined when `multiSelect: true` per REQ-0062)
+- Host closes window and completes with `QuestionResult` **without** top-level `button` field (REQ-0067)
+- Host echoes input `questions` array verbatim in stdout result
+- Validation of answer completeness (every card answered) is enforced in page JS before send; host rejects empty `answers` with fail-safe `dismissed`
+
 ### `dismissed`
 
 User closed via OS chrome (×) or equivalent.

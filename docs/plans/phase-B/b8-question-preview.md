@@ -48,8 +48,12 @@ target: integrate/phase-B
 }
 ```
 
-- Preview HTML sanitized/escaped per project policy (no script execution)
-- Markdown string in `preview` → converted via shared markdown renderer
+- Preview HTML sanitized before render (authoritative policy):
+  - Strip `<script>` and `<style>` tags and their contents
+  - Remove all `on*` event attributes from remaining tags
+  - Reject `javascript:` URLs in `href`/`src`; allow `data:` URIs for inline images only
+  - Allow semantic HTML tags (`pre`, `code`, `table`, `p`, `strong`, etc.) needed for preview fragments
+- Markdown string in `preview` → converted via shared markdown renderer, then same sanitization pass applied
 - Layout: preview column or block adjacent to option label; must not break card scroll
 
 ### Normal vs force-close stdout
@@ -105,7 +109,7 @@ QuestionResult {
 
 ## Acceptance Criteria
 
-- `preview` renders alongside option when present
+- Preview sanitization: `<script>` stripped; `on*` attributes removed (unit tests with malicious fragment)
 - All question-contract-examples.md cases pass in automated tests
 - Normal submit: AskUserQuestion shape without `button`
 - OS close: REQ-0068 extended shape with `button: "dismissed"`
