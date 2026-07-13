@@ -21,7 +21,8 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev
+          # webkit2gtk for wry; xvfb for headless GTK/winit window tests (phase-A README)
+          sudo apt-get install -y libwebkit2gtk-4.1-dev xvfb
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -32,7 +33,15 @@ jobs:
         run: cargo build --workspace
 
       - name: cargo test
+        if: runner.os != 'Linux'
         run: cargo test --workspace
+
+      # GTK/winit need a display; ubuntu-latest is headless — use Xvfb (docs/plans/phase-A/README.md).
+      - name: cargo test (Linux / xvfb)
+        if: runner.os == 'Linux'
+        env:
+          GDK_BACKEND: x11
+        run: xvfb-run -a cargo test --workspace
 
       - name: cargo clippy
         run: cargo clippy --workspace -- -D warnings
