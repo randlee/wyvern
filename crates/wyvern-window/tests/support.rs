@@ -19,7 +19,7 @@ pub fn open_blank_window_for_test() -> Result<CommandResult, RunError> {
 pub fn assert_dismissed(result: &CommandResult) {
     match result {
         CommandResult::Chrome(ChromeResult { button }) => {
-            assert_eq!(button, "dismissed");
+            assert_eq!(button.as_str(), "dismissed");
         }
     }
 }

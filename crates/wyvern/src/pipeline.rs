@@ -21,7 +21,7 @@ pub fn run_from_loaded(value: Value) -> Result<String, (String, i32)> {
         Err(e) => {
             observability::log_validation_result(false);
             observability::log_error("validate", &format!("{e:?}"));
-            return Err((emit_validation_error(&e), 1));
+            return Err((emit_validation_error(&e), e.exit_code()));
         }
     };
     observability::log_window_open();

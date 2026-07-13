@@ -5,6 +5,8 @@ use std::path::Path;
 
 use serde_json::Value;
 
+use wyvern_schema::FieldName;
+
 use crate::error::LoadError;
 
 /// Canonical usage text for invalid argv / empty stdin.
@@ -56,7 +58,7 @@ fn load_positional(arg: &str) -> Result<Value, LoadError> {
 
 fn load_json_file(path: &Path) -> Result<Value, LoadError> {
     let text = std::fs::read_to_string(path).map_err(|err| LoadError::Io {
-        field: "file".to_string(),
+        field: FieldName::new("file"),
         message: format!("could not read path '{}': {err}", path.display()),
     })?;
     parse_json(&text)
@@ -67,7 +69,7 @@ fn load_stdin(mut stdin: impl Read) -> Result<Value, LoadError> {
     stdin
         .read_to_string(&mut buf)
         .map_err(|err| LoadError::Io {
-            field: "stdin".to_string(),
+            field: FieldName::new("stdin"),
             message: format!("could not read stdin: {err}"),
         })?;
     if buf.trim().is_empty() {

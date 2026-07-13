@@ -7,6 +7,7 @@
 use serde::Serialize;
 
 use crate::error_code::ErrorCode;
+use crate::field_name::FieldName;
 
 /// Structured stderr JSON payload emitted by the CLI on failure.
 ///
@@ -33,7 +34,7 @@ pub struct StderrError {
     pub code: ErrorCode,
     /// Field path when applicable (`title`, `file`, …).
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub field: Option<String>,
+    pub field: Option<FieldName>,
     /// Human-readable failure message.
     pub message: String,
     /// Why the failure occurred (optional).
@@ -62,7 +63,7 @@ impl StderrError {
     }
 
     /// Attach a field path.
-    pub fn field(mut self, field: impl Into<String>) -> Self {
+    pub fn field(mut self, field: impl Into<FieldName>) -> Self {
         self.field = Some(field.into());
         self
     }

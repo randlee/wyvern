@@ -31,6 +31,18 @@ pub enum ErrorCode {
 }
 
 impl ErrorCode {
+    /// Stable process exit code for this failure category.
+    pub fn exit_code(self) -> i32 {
+        match self {
+            Self::ParseError => 2,
+            Self::IoError => 3,
+            Self::ValidationError => 4,
+            Self::StateError => 5,
+            Self::WindowCreateError => 6,
+            Self::EventLoopError => 7,
+        }
+    }
+
     /// Wire slug historically emitted in the `error` field (REQ-0051–0073).
     pub fn error_slug(self) -> &'static str {
         match self {

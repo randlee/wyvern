@@ -6,7 +6,7 @@ use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::window::{Window, WindowId};
 use wry::WebViewBuilder;
 
-use wyvern_schema::{ChromeResult, ChromeStatus, ChromeTitle, Command, CommandResult};
+use wyvern_schema::{ButtonLabel, ChromeResult, ChromeStatus, ChromeTitle, Command, CommandResult};
 
 use crate::chrome::render_chrome_html;
 use crate::error::RunError;
@@ -66,7 +66,7 @@ fn run_chrome(title: ChromeTitle, status: Option<ChromeStatus>) -> Result<Comman
 
     app.outcome.unwrap_or_else(|| {
         Ok(CommandResult::Chrome(ChromeResult {
-            button: "dismissed".into(),
+            button: ButtonLabel::dismissed(),
         }))
     })
 }
@@ -89,7 +89,7 @@ impl ChromeApp {
         pump_gtk_events();
         self.window.take();
         self.outcome = Some(Ok(CommandResult::Chrome(ChromeResult {
-            button: "dismissed".into(),
+            button: ButtonLabel::dismissed(),
         })));
         event_loop.exit();
     }

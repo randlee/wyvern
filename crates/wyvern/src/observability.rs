@@ -130,7 +130,10 @@ fn emit(action: &str, level: Level, outcome: Option<&str>, fields: Map<String, V
 
     let event = match build_event(service.clone(), action, level, outcome, fields) {
         Ok(event) => event,
-        Err(_) => return,
+        Err(err) => {
+            eprintln!("wyvern: observability event build failed: {err}");
+            return;
+        }
     };
     let _ = logger.try_log(event);
     // CLI exits quickly; flush so stderr console events are visible before teardown.

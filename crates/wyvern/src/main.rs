@@ -28,7 +28,7 @@ fn main() -> ExitCode {
         }
         Err(err) => {
             eprintln!("{}", emit_load_error(&err));
-            return ExitCode::from(1);
+            return ExitCode::from(u8::try_from(err.exit_code()).unwrap_or(1));
         }
     };
 

@@ -5,6 +5,7 @@ use serde_json::{Map, Value};
 use crate::chrome::{ChromeStatus, ChromeTitle};
 use crate::command::Command;
 use crate::error::ValidationError;
+use crate::field_name::FieldName;
 
 /// Known lifecycle actions that require `--interactive` (REQ-0060).
 const LIFECYCLE_ACTIONS: &[&str] = &["show", "hide", "exit"];
@@ -80,7 +81,7 @@ fn validate_chrome(obj: &Map<String, Value>) -> Result<Command, ValidationError>
     for key in obj.keys() {
         if !CHROME_FIELDS.contains(&key.as_str()) {
             return Err(ValidationError::validation(
-                key.clone(),
+                FieldName::new(key.as_str()),
                 format!("unknown field '{key}'"),
             ));
         }
