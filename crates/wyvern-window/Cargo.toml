@@ -32,6 +32,11 @@ path = "tests/chrome_ipc.rs"
 harness = false
 
 [[test]]
+name = "chrome_minimize_ipc"
+path = "tests/chrome_minimize_ipc.rs"
+harness = false
+
+[[test]]
 name = "message_ipc"
 path = "tests/message_ipc.rs"
 harness = false
