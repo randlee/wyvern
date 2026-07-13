@@ -30,6 +30,7 @@ target: integrate/phase-C
 - `crates/wyvern-window/src/message/render.rs`, `input/render.rs`, `markdown/render.rs`, `question/render.rs`, `chrome/render.rs` — pass `PlatformChrome` from `platform_chrome_for(command_type)`
 - `crates/wyvern-window/src/run.rs` — **ChromeApp upgrade** (see below); import `parse_chrome_ipc` from `chrome::ipc`; extend MessageApp/InputApp/MarkdownApp `handle_ipc` for `window_close` / `window_minimize`
 - `crates/wyvern-window/src/question/handler.rs` — import `parse_chrome_ipc` from `chrome::ipc`; extend `QuestionApp::handle_ipc` (QuestionApp lives here, not in `run.rs`, to break the module cycle)
+- `crates/wyvern-window/tests/chrome_ipc.rs` — new: chrome `window_close` → `{"button":"dismissed"}`; chrome `window_minimize` without stdout
 - `crates/wyvern-window/tests/` — IPC tests for close/minimize; modal minimize no-op; ChromeApp `WYVERN_INJECT_IPC` integration test; render/fixture tests assert `#window-controls` click wiring and title-bar style per platform cfg
 - `docs/wyvern-window/architecture.md` — mark ADR-0010a implemented for Win/Linux
 

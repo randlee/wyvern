@@ -46,7 +46,7 @@ target: integrate/phase-C
 - NFR-0006: JSON schema 1:1 MCP mapping preserved — `cargo test -p wyvern-schema` validation suites pass; no field rename or restructure in Phase C diffs
 - NFR-0007: validation errors remain human-readable — unknown icon names list valid catalog; no opaque error codes introduced
 - No rendering regressions on Windows or Linux CI legs
-- All Phase B README smoke scenarios pass via automated tests where possible; macOS manual spot-check for icon + chrome combo
+- All Phase B README smoke scenarios pass via matrix rows M2, M4, M5, M6; macOS manual spot-check for icon + chrome combo
 - Auto-size bounds unchanged: dialog **min 320×200**, **max 800×600**; chrome **480×360** default open
 
 ## Required Work — NFR verification (authoritative)

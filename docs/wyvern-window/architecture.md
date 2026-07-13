@@ -47,7 +47,7 @@
 - **Windows** — `decorations: false` + HTML close/minimize buttons via IPC; **no** 72px left padding; controls on the right
 - **Linux** — `decorations: false` + HTML close/minimize buttons via IPC; same title-bar layout as Windows
 
-**Consequences:** Consistent immersive look across platforms. HTML-rendered close/minimize on Windows/Linux wired to IPC in `run.rs`. `decorations: false` is orthogonal to modal `.with_enabled_buttons(WindowButtons::CLOSE)` — the former removes the OS frame; the latter restricts winit chrome buttons when decorations are enabled.
+**Consequences:** Consistent immersive look across platforms. Chrome IPC parsed in `chrome/ipc.rs` (`parse_chrome_ipc`); dispatched in `run.rs` (MessageApp, InputApp, MarkdownApp, ChromeApp) and `question/handler.rs` (QuestionApp). `decorations: false` is orthogonal to modal `.with_enabled_buttons(WindowButtons::CLOSE)` — the former removes the OS frame; the latter restricts winit chrome buttons when decorations are enabled.
 
 **Modal minimize policy:** HTML minimize button hidden on modal types; host `handle_ipc` must **no-op** `window_minimize` (not dismiss) as defense-in-depth.
 

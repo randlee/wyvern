@@ -104,7 +104,7 @@ After c.5: release workflow (see [c5-release.md](c5-release.md)) validates on ta
 | NFR | Target | Measurement |
 |-----|--------|-------------|
 | NFR-0001 | Window open < 500ms | macOS manual measurement or `load_finished` hook (product target); **not** auto-dismiss timing; optional non-blocking CI job may use 2000ms smoke bound |
-| NFR-0002 | Resident memory < 80MB | `ps -o rss= -p $(pgrep -x wyvern)` after dialog open (RSS KB ÷ 1024); Activity Monitor acceptable |
+| NFR-0002 | Resident memory < 80MB | `ps -o rss= -p $(pgrep -x wyvern)` after **≥ 2s** settle post first paint (RSS KB ÷ 1024); Activity Monitor acceptable |
 | NFR-0003 | Binary < 10MB | `ls -lh target/release/wyvern` on macOS release build |
 
 NFR-0004–NFR-0007 remain satisfied by existing architecture; c.4 confirms no regression.
