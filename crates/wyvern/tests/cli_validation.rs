@@ -2,6 +2,8 @@
 
 use std::process::Command;
 
+use serial_test::serial;
+
 fn wyvern() -> Command {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_wyvern"));
     // Auto-dismiss so chrome GUI paths do not block the test harness.
@@ -11,13 +13,45 @@ fn wyvern() -> Command {
     cmd
 }
 
+/// Spawns `wyvern` with auto-dismiss; detects child panic/abort/signal failures.
+fn run_wyvern(cmd: &mut Command) -> std::process::Output {
+    cmd.env("WYVERN_AUTO_DISMISS", "1").env_remove("WYVERN_LOG");
+    let output = cmd.output().expect("spawn wyvern");
+    assert_child_ok(&output);
+    output
+}
+
 fn run_json(json: &str) -> (i32, String, String) {
-    let output = wyvern().arg(json).output().expect("spawn wyvern");
+    let output = run_wyvern(wyvern().arg(json));
     let code = output.status.code().unwrap_or(-1);
     let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
     let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
     (code, stdout, stderr)
 }
+
+mod child_assert {
+    /// Pure predicate — unit-testable without synthesizing `ExitStatus`.
+    /// `code == -1` covers Unix signal exits where `status.code()` is `None`.
+    pub(super) fn child_failed(stderr: &str, code: i32) -> bool {
+        stderr.contains("panicked at")
+            || stderr.contains("misaligned pointer")
+            || stderr.contains("cannot unwind")
+            || stderr.contains("abort")
+            || code == -1
+    }
+
+    pub(super) fn assert_child_ok(output: &std::process::Output) {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let code = output.status.code().unwrap_or(-1);
+        assert!(
+            !child_failed(&stderr, code),
+            "wyvern child panicked/aborted (use --test-threads=1 on macOS):\n\
+             code={code:?}\nstderr={stderr}"
+        );
+    }
+}
+
+use child_assert::{assert_child_ok, child_failed};
 
 fn stderr_json(stderr: &str) -> serde_json::Value {
     serde_json::from_str(stderr.trim()).unwrap_or_else(|err| {
@@ -26,6 +60,18 @@ fn stderr_json(stderr: &str) -> serde_json::Value {
 }
 
 #[test]
+fn child_failed_detects_panic_marker() {
+    assert!(child_failed("thread 'main' panicked at winit\n", 0));
+    assert!(!child_failed("", 0));
+}
+
+#[test]
+fn child_failed_detects_signal_exit() {
+    assert!(child_failed("", -1)); // None mapped via unwrap_or(-1)
+}
+
+#[test]
+#[serial]
 fn cli_valid_chrome_emits_dismissed() {
     let (code, stdout, stderr) = run_json(r#"{"type":"chrome","title":"T"}"#);
     assert_eq!(code, 0, "stderr={stderr}");
@@ -71,6 +117,7 @@ fn cli_unknown_field_validation_error() {
 }
 
 #[test]
+#[serial]
 fn cli_type_message_level_accepted() {
     let (code, stdout, stderr) =
         run_json(r#"{"type":"message","title":"T","message":"Hi","buttons":"ok","level":"info"}"#);
@@ -105,6 +152,7 @@ fn cli_type_message_missing_buttons_validation_error() {
 }
 
 #[test]
+#[serial]
 fn cli_valid_message_emits_dismissed() {
     let (code, stdout, stderr) =
         run_json(r#"{"type":"message","title":"T","message":"Hi","buttons":"ok"}"#);
@@ -114,6 +162,7 @@ fn cli_valid_message_emits_dismissed() {
 }
 
 #[test]
+#[serial]
 fn cli_valid_input_emits_dismissed() {
     let (code, stdout, stderr) = run_json(r#"{"type":"input","title":"Name","message":"Enter"}"#);
     assert_eq!(code, 0, "stderr={stderr}");
@@ -122,6 +171,7 @@ fn cli_valid_input_emits_dismissed() {
 }
 
 #[test]
+#[serial]
 fn cli_valid_input_file_mode_emits_dismissed() {
     let (code, stdout, stderr) =
         run_json(r#"{"type":"input","title":"T","message":"M","mode":"file"}"#);
@@ -162,6 +212,7 @@ fn cli_type_unknown_validation_error() {
 }
 
 #[test]
+#[serial]
 fn cli_valid_markdown_file_emits_dismissed() {
     let dir = std::env::temp_dir().join(format!("wyvern-b5-cli-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
@@ -185,16 +236,14 @@ fn cli_valid_markdown_file_emits_dismissed() {
 }
 
 #[test]
+#[serial]
 fn cli_markdown_md_shorthand_emits_dismissed() {
     let dir = std::env::temp_dir().join(format!("wyvern-b5-sh-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("notes.md");
     std::fs::write(&path, "# Notes\n\nBody\n").unwrap();
 
-    let output = wyvern()
-        .arg(path.to_str().unwrap())
-        .output()
-        .expect("spawn wyvern");
+    let output = run_wyvern(wyvern().arg(path.to_str().unwrap()));
     let code = output.status.code().unwrap_or(-1);
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -217,6 +266,7 @@ fn cli_markdown_missing_file_is_io() {
 }
 
 #[test]
+#[serial]
 fn cli_markdown_content_inline_emits_dismissed() {
     let (code, stdout, stderr) = run_json(r##"{"type":"markdown","content":"# Hi"}"##);
     assert_eq!(code, 0, "stderr={stderr}");
@@ -262,6 +312,7 @@ fn cli_wrong_title_type_expected_got() {
 
 /// README Phase B acceptance #4 — question opens; OS close → REQ-0068 shape.
 #[test]
+#[serial]
 fn cli_question_auto_dismiss_emits_req_0068() {
     let (code, stdout, stderr) = run_json(
         r#"{"type":"question","questions":[{"question":"Output format?","header":"Format","options":[{"label":"JSON","description":"Structured","preview":"<pre>{\"ok\":true}</pre>"},{"label":"Plain","description":"Text only"}],"multiSelect":false}]}"#,

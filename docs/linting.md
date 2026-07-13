@@ -39,6 +39,9 @@ sc-lint check native --config .sc-lint.toml
 `check` requires a target (`native` or `xwin`). Phase A CI uses `native`, which
 runs `cargo check --workspace` and must pass with zero warnings/failures.
 
+Always pass `--test-threads=1` for workspace tests on macOS (winit/objc races when
+multiple webview children spawn). CI already enforces this; local runs must match.
+
 ## CI
 
 Every matrix leg (`ubuntu-latest`, `macos-latest`, `windows-latest`) installs
