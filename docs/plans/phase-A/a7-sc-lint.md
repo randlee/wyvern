@@ -25,8 +25,8 @@ target: integrate/phase-A
 ## Deliverables
 
 - `.sc-lint.toml` at repo root with workspace scope
-- CI installs `sc-lint` from crates.io and runs canonical command on every matrix leg
-- Phase A complete when all **seven** sprint deliverables (a.1–a.7) merge to `integrate/phase-A`
+- CI installs `sc-lint` from crates.io on every matrix leg
+- `docs/linting.md` documents install + canonical command
 
 ## Explicit Code Samples
 
@@ -37,39 +37,31 @@ root = "."
 ```
 
 ```bash
-# Local: install once from crates.io
 cargo install sc-lint --version 0.4 --locked
-
-# Canonical invocation (from repo root)
 sc-lint check --config .sc-lint.toml
 ```
 
 ```yaml
-# .github/workflows/ci.yml — lint job or step (all matrix legs)
 - name: Install sc-lint from crates.io
   run: cargo install sc-lint --version 0.4 --locked
-
 - name: sc-lint check
   run: sc-lint check --config .sc-lint.toml
 ```
 
-**No** sibling checkout or path reference to a local `sc-lint` repo.
-
 ## This Sprint Does Not Close
 
-- `boundaries/*.toml` CI enforcement (Phase B planning activity)
-- Per-crate boundary TOML content
+- `boundaries/*.toml` CI enforcement (Phase B planning)
+- Phase completion gate (see [README.md](README.md))
 
 ## Acceptance Criteria
 
-- `sc-lint check --config .sc-lint.toml` passes with zero warnings (after `cargo install sc-lint`)
-- CI lint step runs on `ubuntu-latest`, `macos-latest`, and `windows-latest`
-- `docs/linting.md` documents crates.io install + canonical command
-- Phase A acceptance criteria #1–#3 pass after a.1–a.7 integrated
+- `sc-lint check --config .sc-lint.toml` passes with zero warnings
+- CI lint step on ubuntu, macOS, and Windows
+- `docs/linting.md` complete
 
 ## Required Validation
 
 - `cargo install sc-lint --version 0.4 --locked && sc-lint check --config .sc-lint.toml`
-- `cargo test --workspace` (all CI matrix legs)
+- CI matrix: [README.md — CI validation](README.md#ci-validation-authoritative)
+- Manual phase gates: [README.md — Phase acceptance](README.md#phase-acceptance-manual--not-ci-automated)
 - `cargo clippy --workspace -- -D warnings`
-- Phase A E2E gate from `docs/plans/project-plan.md`

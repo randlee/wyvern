@@ -22,21 +22,14 @@ target: integrate/phase-A
 - `crates/wyvern/src/input.rs`
 - `crates/wyvern/src/error.rs` (`LoadError`, `emit_load_error`)
 
-## Deliverables
+## Deliverables (authoritative checklist)
 
 - `load_command_input(args, stdin) -> Result<Value, LoadError>`
-- CLI maps `LoadError` variants to stderr JSON (REQ-0069 parse, REQ-0071 io)
-- Unit tests per input mode (no window)
-
-## Required Work
-
-- Inline JSON string arg
-- `.json` file path → read + parse
-- `.md` path → `{ "type": "markdown", "file": "<path>" }` shorthand (load only)
+- **Inline JSON** string arg → parsed `Value`
+- **`.json` file** path → read + parse to `Value`
+- **`.md` path** → `Value` with `type: "markdown"` and `file` path (load only)
 - **No arg → read stdin** (REQ-0004)
-- Missing/ambiguous args → usage on stderr, exit ≠ 0 (`LoadError::Usage`)
-
-**Usage argv shapes (authoritative):**
+- **Usage** argv shapes → `LoadError::Usage`, plain stderr usage text, exit ≠ 0 (no JSON):
 
 | Args | Result |
 |------|--------|
@@ -45,7 +38,8 @@ target: integrate/phase-A
 | `wyvern --unknown-flag` | `LoadError::Usage` |
 | `wyvern file.json other.json` (two file paths) | `LoadError::Usage` |
 
-Single arg (inline JSON, `.json`, or `.md`) and stdin-with-no-args remain valid loaders.
+- `emit_load_error` maps `Parse`/`Io` to stderr JSON via `serde_json::json!`
+- Unit tests per loader mode (no window)
 
 ## Explicit Code Samples
 
@@ -66,9 +60,7 @@ pub fn emit_load_error(err: &LoadError) -> String {
         LoadError::Io { field, message } => {
             serde_json::json!({ "error": "io", "field": field, "message": message }).to_string()
         }
-        LoadError::Usage { .. } => {
-            unreachable!("Usage handled in main, not emit_load_error")
-        }
+        LoadError::Usage { .. } => unreachable!("Usage handled in main"),
     }
 }
 ```
@@ -81,16 +73,9 @@ pub fn emit_load_error(err: &LoadError) -> String {
 
 ## Acceptance Criteria
 
-- Inline arg: valid JSON `Value` returned
-- `.json` file: file contents parsed to `Value`
-- `.md` file: `Value` with `type: "markdown"` and `file` path (not identical to inline payloads)
-- Stdin (no args): reads and parses JSON
-- Missing file: stderr `{ "error": "io", "field": "...", "message": "..." }`, exit ≠ 0
-- Invalid JSON: stderr `{ "error": "parse", "message": "..." }`, exit ≠ 0
-- Usage cases (table above): plain stderr usage text, exit ≠ 0, **no** JSON on stderr
-- `wyvern` with no args and empty stdin → usage, exit ≠ 0
-- `wyvern arg1 arg2` → usage, exit ≠ 0
-- Loaders testable without opening a window
+- All Deliverables verified by `cargo test -p wyvern -- input`
+- Load/parse/io failures exit ≠ 0 with correct stderr shapes
+- Usage cases exit ≠ 0 with plain stderr (no JSON)
 
 ## Required Validation
 

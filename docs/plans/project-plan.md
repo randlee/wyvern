@@ -22,7 +22,7 @@ Phase A sprint PRs target `integrate/phase-A`. Sprint authority: `docs/plans/pha
 
 ## Phase A — Foundation
 
-**Phase goal:** macOS binary with HTML chrome frame and validated JSON I/O on a **single direct path**. Only `type: "chrome"` is executable.
+**Phase goal:** Cross-platform foundation binary with HTML chrome frame and validated JSON I/O on a **single direct path**. Only `type: "chrome"` is executable. Win/Linux decoration polish deferred to Phase C.
 
 **Execution model:** `load (LoadError) → validate (ValidationError) → Command → run (RunError) → CommandResult → stdout`. One `type` → one handler. No CLI flags, no stub handlers.
 

@@ -30,8 +30,8 @@ pub struct ChromeResult {
     pub button: String,
 }
 
-// Phase A wire: {"button":"dismissed"} via #[serde(untagged)] + ChromeResult fields
-// Later variants must use distinct field sets to stay unambiguous under untagged
+// Phase A wire: {"button":"dismissed"} via #[serde(untagged)] + ChromeResult
+// Serialize-only protocol: overlapping {button} shapes across variants are intentional.
 
 pub fn validate(value: &serde_json::Value) -> Result<Command, ValidationError>;
 ```

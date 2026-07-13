@@ -10,7 +10,7 @@ target: integrate/phase-A
 
 ## Goal
 
-- Structured logging at `crates/wyvern/src/main.rs` only, using **`sc-observability` from crates.io**.
+- Structured logging via **`sc-observability` from crates.io**, wired at the CLI pipeline boundary.
 
 ## Hard Dependencies
 
@@ -20,54 +20,17 @@ target: integrate/phase-A
 
 - `Cargo.toml` (workspace dependency pin)
 - `crates/wyvern/Cargo.toml`
-- `crates/wyvern/src/main.rs`
+- `crates/wyvern/src/pipeline.rs` (stage hooks)
 - `crates/wyvern/src/observability.rs` (thin wrapper)
 - `docs/observability.md`
-- `.github/workflows/ci.yml` (cross-platform test matrix)
+- `.github/workflows/ci.yml` (xvfb on Linux per README CI section)
 
 ## Deliverables
 
-- Workspace + crate dep: `sc-observability = "1.2"` (crates.io — **no path/sibling checkout**)
-- Log events: `process_start`, `command_received`, `validation_result`, `window_open`, `window_close`, `result_emitted`, `error`
+- Workspace + crate dep: `sc-observability = "1.2"` (crates.io — no path dep)
+- Normative events: `process_start`, `command_received`, `validation_result`, `window_open`, `window_close`, `result_emitted`, `error`
 - `WYVERN_LOG` env var documented
-- CI runs full `cargo test --workspace` on all matrix legs (see policy below)
-
-## Phase A CI policy (authoritative)
-
-| Leg | `cargo build` / `clippy` | `cargo test --workspace` |
-|-----|--------------------------|--------------------------|
-| `ubuntu-latest` | full workspace | full workspace (incl. window tests; install Linux webview deps) |
-| `macos-latest` | full workspace | full workspace |
-| `windows-latest` | full workspace | full workspace |
-
-No platform skips or `#[cfg]` no-op substitutes for window integration tests. a.7 `sc-lint` step runs on **all** legs.
-
-### CI YAML sample (`.github/workflows/ci.yml` — no sibling checkouts)
-
-```yaml
-jobs:
-  build:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Linux webview deps
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev
-
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy, rustfmt
-
-      - run: cargo build --workspace
-      - run: cargo test --workspace
-      - run: cargo clippy --workspace -- -D warnings
-```
+- Pipeline integration sample (below) — logging calls live in `pipeline.rs`; `main.rs` calls `observability::init()` only
 
 ## Explicit Code Samples
 
@@ -81,51 +44,50 @@ sc-observability = { workspace = true }
 ```
 
 ```rust
-// crates/wyvern/src/observability.rs
-use sc_observability::{init_from_env, log_event};
-
-pub fn init() -> Result<(), sc_observability::Error> {
-    init_from_env("WYVERN_LOG")
+// crates/wyvern/src/pipeline.rs — observability hooks at each stage
+pub fn run_from_loaded(value: serde_json::Value) -> Result<String, (String, i32)> {
+    observability::log_command_received(&value);
+    let command = match wyvern_schema::validate(&value) {
+        Ok(cmd) => { observability::log_validation_result(true); cmd }
+        Err(e) => { observability::log_validation_result(false); observability::log_error("validate", &format!("{e:?}")); return Err((emit_validation_error(&e), 1)); }
+    };
+    observability::log_window_open();
+    let result = match wyvern_window::run(command) {
+        Ok(r) => { observability::log_window_close(); r }
+        Err(e) => { observability::log_error("run", &format!("{e:?}")); return Err(handle_run_failure(&e)); }
+    };
+    observability::log_result_emitted();
+    Ok(emit_stdout(&result))
 }
 
-pub fn log_process_start() {
-    log_event("wyvern.process_start", &[]);
-}
-
-pub fn log_command_received(cmd: &serde_json::Value) {
-    log_event("wyvern.command_received", &[("type", cmd.get("type").and_then(|v| v.as_str()).unwrap_or(""))]);
-}
-
-pub fn log_validation_result(ok: bool) {
-    log_event("wyvern.validation_result", &[("ok", if ok { "true" } else { "false" })]);
-}
-
-pub fn log_window_open() { log_event("wyvern.window_open", &[]); }
-pub fn log_window_close() { log_event("wyvern.window_close", &[]); }
-pub fn log_result_emitted() { log_event("wyvern.result_emitted", &[]); }
-pub fn log_error(stage: &str, detail: &str) {
-    log_event("wyvern.error", &[("stage", stage), ("detail", detail)]);
+// crates/wyvern/src/main.rs
+fn main() {
+    observability::init().ok();
+    observability::log_process_start();
+    // load → run_from_loaded → stdout / stderr + exit
 }
 ```
 
-Event keys above are normative; wrapper may rename `sc-observability` call symbols only if event keys and `WYVERN_LOG` behavior remain identical.
+Event keys are normative; `sc-observability` symbol names may differ if behavior matches.
 
 ## This Sprint Does Not Close
 
 - Logging inside `wyvern-schema`, `wyvern-window`, or other libs
 - MCP/interactive logging
+- Phase CI matrix definition (owned by [README.md](README.md#ci-validation-authoritative))
 
 ## Acceptance Criteria
 
-- `cargo build -p wyvern` succeeds with crates.io `sc-observability` only (no local path dep)
-- `WYVERN_LOG=debug` emits structured events on chrome E2E path
+- `cargo build -p wyvern` with crates.io dep only
+- `WYVERN_LOG=debug` emits events on chrome path
 - `rg 'sc_observability' crates/wyvern-schema crates/wyvern-window crates/wyvern-wizard crates/wyvern-mcp` → empty
-- CI: `cargo test --workspace` passes on ubuntu, macOS, and Windows
-- `docs/observability.md` documents crates.io version pin and event list
+- Linux CI uses `xvfb-run` per README CI section
+- `docs/observability.md` documents version pin + event list + pipeline hook map
 
 ## Required Validation
 
 - `cargo build -p wyvern`
 - `rg 'path.*sc-observability' Cargo.toml crates/` → empty
 - `rg 'sc_observability' crates/wyvern-schema crates/wyvern-window crates/wyvern-wizard crates/wyvern-mcp` → empty
+- CI matrix: [README.md — CI validation](README.md#ci-validation-authoritative)
 - `cargo clippy --workspace -- -D warnings`

@@ -31,7 +31,7 @@ target: integrate/phase-A
 - `Command::Chrome { title, status }`
 - `validate(value) -> Result<Command, ValidationError>` (no `PhaseSurface` param — surface is the `Command` enum at compile time)
 - `ValidationError` enum: `Validation { field, message }`, `State { field, message }`
-- `CommandResult` extensible enum; Phase A variant `Chrome { button }` serializes to `{ "button": "dismissed" }`
+- `CommandResult::Chrome(ChromeResult { button })` with `#[serde(untagged)]` — wire `{ "button": "dismissed" }`
 - CLI: on validation failure → stderr JSON + exit ≠ 0; **no window**
 
 ## Required Work — validation rules (authoritative checklist)
@@ -73,8 +73,9 @@ pub struct ChromeResult {
     pub button: String,
 }
 
-// Phase A wire: {"button":"dismissed"} — untagged wraps ChromeResult fields at top level
-// Later variants must use distinct field sets to remain unambiguous under untagged
+// Phase A wire: {"button":"dismissed"} via #[serde(untagged)] + ChromeResult
+// CommandResult is Serialize-only for stdout; overlapping {button} shapes across
+// Phase B variants (message, markdown) are intentional wire compatibility.
 
 pub fn validate(value: &serde_json::Value) -> Result<Command, ValidationError>;
 
@@ -104,13 +105,8 @@ pub fn emit_validation_error(err: &ValidationError) -> String {
 
 ## Acceptance Criteria
 
-- All validation rules above covered by `wyvern-schema` unit tests
-- CLI rejects invalid inputs with correct stderr `error` kind; no window
-- `wyvern '{"type":"message",...}'` → validation stderr, exit ≠ 0
-- `wyvern '{"type":"unknown"}'` → validation stderr, exit ≠ 0
-- `wyvern '{}'` → validation stderr on field `type`, exit ≠ 0
-- `wyvern '{"title":"T"}'` → validation stderr on field `type`, exit ≠ 0
-- Valid chrome JSON → exit 0, no stdout result yet (until a.5)
+- All Required Work validation rules covered by `wyvern-schema` unit tests
+- CLI integration tests cover validation rules + interim exit-0 for valid chrome (no window until a.5)
 
 ## Required Validation
 

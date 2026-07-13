@@ -74,3 +74,34 @@ Win/Linux decoration polish deferred to Phase C — window tests and `chrome` E2
 | `sc-lint` | [crates.io](https://crates.io/crates/sc-lint) | `cargo install sc-lint --version 0.4` (CI + local) |
 
 No path deps or sibling repo checkouts for either package.
+
+## Platform policy (Phase A interim)
+
+| Platform | Window chrome in Phase A | Deferred to Phase C |
+|----------|--------------------------|---------------------|
+| macOS | Transparent title bar (ADR-0010), HTML chrome shell | — |
+| Windows/Linux | **Native OS decorations** on blank-window + chrome tests | `decorations: false` + HTML close/minimize (ADR-0010a, REQ-0085) |
+
+## CI validation (authoritative)
+
+All sprint docs reference this section for matrix closure — do not defer to `project-plan.md`.
+
+| Leg | Prerequisites | Commands |
+|-----|---------------|----------|
+| `ubuntu-latest` | `libwebkit2gtk-4.1-dev`; **xvfb** for GUI tests | `xvfb-run -a cargo test --workspace` |
+| `macos-latest` | — | `cargo test --workspace` |
+| `windows-latest` | WebView2 runtime (preinstalled on `windows-latest`) | `cargo test --workspace` |
+
+Every leg also runs: `cargo build --workspace`, `cargo clippy --workspace -- -D warnings`.
+
+After a.7: `cargo install sc-lint --version 0.4 --locked && sc-lint check --config .sc-lint.toml`.
+
+### Phase acceptance (manual — not CI-automated)
+
+Run interactively on each platform before phase merge:
+
+1. `wyvern '{"type":"message","title":"T"}'` → validation stderr, exit ≠ 0, no window
+2. `wyvern '{"type":"chrome","title":"Foundation"}'` → chrome opens; OS close → `{"button":"dismissed"}`
+3. `wyvern '{"type":"unknown"}'` → validation stderr on `type`, exit ≠ 0, no window
+
+Automated CI proves unit/integration tests; manual gates above prove interactive chrome E2E.
