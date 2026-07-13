@@ -1,7 +1,7 @@
 ---
 id: a.4
 title: JSON schema validation (chrome only)
-status: planned
+status: done
 branch: feature/phase-A-a4-validation
 target: integrate/phase-A
 ---
