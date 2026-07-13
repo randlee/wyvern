@@ -1,0 +1,18 @@
+{
+  "phase": "A",
+  "status": "complete",
+  "integration_branch": "integrate/phase-A",
+  "integration_sha": "2ff76f09f9ff91919decb217c086dd92f002b7d9",
+  "completed_at": "2026-07-13",
+  "sprints_merged": [
+    { "id": "a.1", "pr": 4, "sha": "7c51e6e" },
+    { "id": "a.2", "pr": 5, "sha": "95b6c0d", "fix_rounds": 1 },
+    { "id": "a.3", "pr": 6, "sha": "fbda15f" },
+    { "id": "a.4", "pr": 7, "sha": "225a5e2" },
+    { "id": "a.5", "pr": 8, "sha": "1c566fc" },
+    { "id": "a.6", "pr": 9, "sha": "aa9bad0" },
+    { "id": "a.7", "pr": 10, "sha": "2ff76f0" }
+  ],
+  "unresolved_blockers": [],
+  "next_action": "Open PR integrate/phase-A → develop (phase integration closeout)"
+}

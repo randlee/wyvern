@@ -1,8 +1,9 @@
 ---
 id: a.2
 title: Native window opens and closes
-status: planned
+status: complete
 branch: feature/phase-A-a2-window
+worktree: /Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-A-a2-window
 target: integrate/phase-A
 ---
 
