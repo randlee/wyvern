@@ -50,9 +50,9 @@ c.5 (release) ──► c.6 ──► c.7
 
 | Sprint | Title | Doc | Status |
 |--------|-------|-----|--------|
-| c.6 | Result propagation — eliminate production unwrap/expect | [c6-result-propagation.md](c6-result-propagation.md) | in progress |
-| c.7 | CLI integration test hardening (`serial_test` for GUI-spawning CLI tests) | [c7-cli-test-hardening.md](c7-cli-test-hardening.md) | pending |
-| c.8 | Clippy deny unauthorized panics in lib/`main` src | [c8-clippy-deny-unwrap.md](c8-clippy-deny-unwrap.md) | pending |
+| c.6 | Result propagation — eliminate production unwrap/expect | [c6-result-propagation.md](c6-result-propagation.md) | complete |
+| c.7 | CLI integration test hardening (`serial_test` for GUI-spawning CLI tests) | [c7-cli-test-hardening.md](c7-cli-test-hardening.md) | complete |
+| c.8 | Clippy deny unauthorized panics in lib/`main` src | [c8-clippy-deny-unwrap.md](c8-clippy-deny-unwrap.md) | complete |
 
 - **c.6:** production `Result` propagation + structured stderr emit boundary (REQ-0078)
 - **c.7:** depends on c.6; local macOS CLI test serialization (CI already uses `--test-threads=1`)
