@@ -54,4 +54,4 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - name: sc-lint-boundary check
-        run: echo "sc-lint-boundary enforcement — wired in Phase 2"
+        run: echo "sc-lint-boundary enforcement — wired in Phase B"

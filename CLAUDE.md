@@ -83,7 +83,7 @@ main
   └── develop
         ├── integrate/phase-A          ← Phase A Foundation
         ├── integrate/phase-B          ← Phase B Core Dialogs
-        ├── integrate/phase-B … phase-4
+        ├── integrate/phase-B … integrate/phase-E
         └── feature/pN-sXa-...         ← sprint PR targets integrate/phase-* for that phase
         After all sprints in a phase → integrate/phase-* → develop
 ```
