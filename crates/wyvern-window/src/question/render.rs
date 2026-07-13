@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use serde_json::{json, Value};
 use wyvern_schema::QuestionCard;
 
+use crate::chrome::{platform_chrome_for, title_bar_style, window_controls_block, CommandKind};
 use crate::{DIALOG_MAX_HEIGHT, DIALOG_MAX_WIDTH, DIALOG_MIN_HEIGHT, DIALOG_MIN_WIDTH};
 
 use super::sanitize::render_preview_fragment;
@@ -142,9 +143,12 @@ pub fn render_question_html(input: &QuestionRenderInput<'_>) -> String {
         "title": title,
         "questions": ctx_questions,
     });
+    let chrome = platform_chrome_for(CommandKind::Question);
 
     QUESTION_HTML
         .replace("{{TITLE}}", &safe_title)
+        .replace("{{TITLE_BAR_STYLE}}", title_bar_style(&chrome))
+        .replace("{{WINDOW_CONTROLS_BLOCK}}", &window_controls_block(&chrome))
         .replace("{{CARDS}}", &cards_html)
         .replace("{{CONTEXT_JSON}}", &context.to_string())
 }
@@ -413,5 +417,12 @@ mod tests {
         let (w, h) = estimate_question_window_size(&[sample_card(false)]);
         assert!((DIALOG_MIN_WIDTH..=DIALOG_MAX_WIDTH).contains(&w));
         assert!((DIALOG_MIN_HEIGHT..=DIALOG_MAX_HEIGHT).contains(&h));
+
+        // Many cards must still clamp to dialog max (M11).
+        let many: Vec<_> = (0..20).map(|_| sample_card(true)).collect();
+        let (w2, h2) = estimate_question_window_size(&many);
+        assert!((DIALOG_MIN_WIDTH..=DIALOG_MAX_WIDTH).contains(&w2));
+        assert!((DIALOG_MIN_HEIGHT..=DIALOG_MAX_HEIGHT).contains(&h2));
+        assert!(h2 <= DIALOG_MAX_HEIGHT);
     }
 }

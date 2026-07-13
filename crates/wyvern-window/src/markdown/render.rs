@@ -3,6 +3,7 @@
 use serde_json::{json, Value};
 use wyvern_schema::ButtonsPreset;
 
+use crate::chrome::{platform_chrome_for, title_bar_style, window_controls_block, CommandKind};
 use crate::markdown::markdown_to_html;
 use crate::{DIALOG_MAX_HEIGHT, DIALOG_MAX_WIDTH, DIALOG_MIN_HEIGHT, DIALOG_MIN_WIDTH};
 
@@ -93,10 +94,13 @@ pub fn render_markdown_html(input: &MarkdownRenderInput<'_>) -> String {
         "default_button": 0,
     });
     let context_json = context.to_string();
+    let chrome = platform_chrome_for(CommandKind::Markdown);
 
     MARKDOWN_HTML
         .replace("{{STYLESHEET}}", MARKDOWN_CSS)
         .replace("{{TITLE}}", &safe_title)
+        .replace("{{TITLE_BAR_STYLE}}", title_bar_style(&chrome))
+        .replace("{{WINDOW_CONTROLS_BLOCK}}", &window_controls_block(&chrome))
         .replace("{{STATUS_BLOCK}}", &status_block)
         .replace("{{BODY}}", &body_html)
         .replace("{{BUTTONS}}", &button_html)
@@ -188,7 +192,7 @@ fn main() {}
             status: None,
             buttons: ButtonsPreset::Ok,
         });
-        assert!(html.contains(r#"id="title-bar">doc.md"#));
+        assert!(html.contains(r#"id="title-text">doc.md</span>"#));
         assert!(html.contains(r#"id="markdown-body""#));
         assert!(
             html.contains("<h1>Title</h1>") || html.contains("<h1>"),
@@ -218,6 +222,24 @@ fn main() {}
             "content region must scroll vertically"
         );
         assert!(html.contains(r#"href="styles.css""#));
+        // styles.css must not hard-code the macOS 72px safe zone.
+        assert!(
+            !MARKDOWN_CSS.contains("padding-left: 72px"),
+            "title-bar padding must come from TITLE_BAR_STYLE only"
+        );
+        assert!(html.contains(r#"getElementById("window-controls")"#));
+        #[cfg(target_os = "macos")]
+        {
+            assert!(html.contains("padding-left: 72px"));
+            assert!(!html.contains(r#"id="window-controls""#));
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            assert!(!html.contains("padding-left: 72px"));
+            assert!(html.contains(r#"id="window-controls""#));
+            assert!(html.contains(r#"data-action="close""#));
+            assert!(!html.contains(r#"data-action="minimize""#));
+        }
     }
 
     #[test]
@@ -228,7 +250,7 @@ fn main() {}
             status: Some("Read-only"),
             buttons: ButtonsPreset::Ok,
         });
-        assert!(html.contains(r#"id="title-bar">Markdown"#));
+        assert!(html.contains(r#"id="title-text">Markdown</span>"#));
         assert!(html.contains(r#"id="status-bar">Read-only"#));
         assert!(
             html.contains("<h2>Notes</h2>") || html.contains("<h2>"),

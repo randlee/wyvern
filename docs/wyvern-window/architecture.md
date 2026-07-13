@@ -40,7 +40,7 @@
 
 ## ADR-0010a: Full-size content view extended to all platforms
 
-**Status:** Accepted (Win/Linux implementation in Phase C c.3; macOS implemented Phase A)
+**Status:** Implemented (Win/Linux in Phase C c.3; macOS in Phase A)
 
 **Decision:** All platforms use full-size content view with no OS title bar.
 - **macOS** — transparent title bar + full-size content view; native traffic lights; HTML title bar reserves **72px left safe zone** (ADR-0010)
@@ -53,11 +53,11 @@
 
 **Render API:** `PlatformChrome` struct (`macos_safe_zone`, `show_minimize`, `show_window_controls`) drives template placeholders `{{TITLE_BAR_STYLE}}` and `{{WINDOW_CONTROLS_BLOCK}}` across all dialog and chrome templates.
 
-**ChromeApp IPC gap (Phase B):** `chrome` command currently has no `with_ipc_handler` — c.3 upgrades `ChromeApp` to the same `DialogEvent` + IPC pattern as dialog apps.
+**ChromeApp:** upgraded in c.3 to `EventLoop` user events + `with_ipc_handler`, matching dialog apps (`window_close` → dismissed; `window_minimize` → `set_minimized`).
 
-### Phase B platform policy (resolves ADR-0010a vs interim)
+### Phase B platform policy (historical)
 
-ADR-0010a describes the **target** cross-platform chrome. During **Phase B**, Windows and Linux keep **native OS window decorations** (same as Phase A). macOS uses ADR-0010 transparent title bar immediately. ADR-0010a Win/Linux implementation (`decorations: false` + HTML close/minimize, REQ-0085) ships in **Phase C** — not Phase B. Dialog **content** is always HTML; only the outer frame on Win/Linux stays native until Phase C.
+ADR-0010a was the **target** cross-platform chrome. During **Phase B**, Windows and Linux kept **native OS window decorations**. macOS used ADR-0010 transparent title bar immediately. ADR-0010a Win/Linux (`decorations: false` + HTML close/minimize, REQ-0085) shipped in **Phase C c.3**.
 
 ---
 

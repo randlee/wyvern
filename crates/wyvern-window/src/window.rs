@@ -55,9 +55,9 @@ fn set_env_if_unset(key: &str, value: &str) {
     }
 }
 
-/// Phase A platform interim policy (see phase-A README):
-/// - macOS: transparent title bar + full-size content (ADR-0010)
-/// - Windows/Linux: native OS decorations (custom chrome deferred to Phase C)
+/// Platform chrome window attributes (ADR-0010 / ADR-0010a):
+/// - macOS: transparent title bar + full-size content
+/// - Windows/Linux: `decorations: false` + HTML window controls
 pub(crate) fn chrome_window_attributes(title: &str) -> WindowAttributes {
     let attrs = Window::default_attributes()
         .with_title(title)
@@ -99,7 +99,7 @@ fn apply_platform_chrome(attrs: WindowAttributes) -> WindowAttributes {
     };
 
     #[cfg(not(target_os = "macos"))]
-    let attrs = attrs.with_decorations(true);
+    let attrs = attrs.with_decorations(false);
 
     attrs
 }
@@ -117,5 +117,76 @@ pub(crate) fn pump_gtk_events() {
         while gtk::events_pending() {
             gtk::main_iteration_do(false);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    //! ADR-0010a: Win/Linux use `decorations: false` (HTML chrome).
+    //! M11: dialog min/max and chrome default open size.
+
+    use winit::dpi::{LogicalSize, Size};
+
+    use crate::{
+        CHROME_DEFAULT_HEIGHT, CHROME_DEFAULT_WIDTH, DIALOG_MAX_HEIGHT, DIALOG_MAX_WIDTH,
+        DIALOG_MIN_HEIGHT, DIALOG_MIN_WIDTH,
+    };
+
+    fn logical_inner(size: Option<Size>) -> (f64, f64) {
+        match size.expect("inner size must be set") {
+            Size::Logical(LogicalSize { width, height }) => (width, height),
+            Size::Physical(_) => panic!("expected logical size"),
+        }
+    }
+
+    #[test]
+    #[cfg(not(target_os = "macos"))]
+    fn non_macos_chrome_and_modal_attrs_disable_decorations() {
+        let chrome = super::chrome_window_attributes("decorations-test");
+        assert!(
+            !chrome.decorations,
+            "Win/Linux chrome must use decorations(false) per ADR-0010a"
+        );
+
+        let modal = super::modal_window_attributes("decorations-modal", 400.0, 300.0);
+        assert!(
+            !modal.decorations,
+            "Win/Linux modal must use decorations(false) per ADR-0010a"
+        );
+    }
+
+    #[test]
+    fn chrome_default_open_size_is_480x360() {
+        let chrome = super::chrome_window_attributes("chrome-size");
+        let (w, h) = logical_inner(chrome.inner_size);
+        assert!(
+            (w - CHROME_DEFAULT_WIDTH).abs() < f64::EPSILON,
+            "chrome default width must be {CHROME_DEFAULT_WIDTH}, got {w}"
+        );
+        assert!(
+            (h - CHROME_DEFAULT_HEIGHT).abs() < f64::EPSILON,
+            "chrome default height must be {CHROME_DEFAULT_HEIGHT}, got {h}"
+        );
+    }
+
+    #[test]
+    fn modal_attrs_clamp_below_min_and_above_max() {
+        let too_small = super::modal_window_attributes("modal-min", 100.0, 50.0);
+        let (w_min, h_min) = logical_inner(too_small.inner_size);
+        assert!((w_min - DIALOG_MIN_WIDTH).abs() < f64::EPSILON);
+        assert!((h_min - DIALOG_MIN_HEIGHT).abs() < f64::EPSILON);
+
+        let too_large = super::modal_window_attributes("modal-max", 2000.0, 1500.0);
+        let (w_max, h_max) = logical_inner(too_large.inner_size);
+        assert!((w_max - DIALOG_MAX_WIDTH).abs() < f64::EPSILON);
+        assert!((h_max - DIALOG_MAX_HEIGHT).abs() < f64::EPSILON);
+
+        let (min_w, min_h) = logical_inner(too_small.min_inner_size);
+        assert!((min_w - DIALOG_MIN_WIDTH).abs() < f64::EPSILON);
+        assert!((min_h - DIALOG_MIN_HEIGHT).abs() < f64::EPSILON);
+
+        let (max_w, max_h) = logical_inner(too_large.max_inner_size);
+        assert!((max_w - DIALOG_MAX_WIDTH).abs() < f64::EPSILON);
+        assert!((max_h - DIALOG_MAX_HEIGHT).abs() < f64::EPSILON);
     }
 }

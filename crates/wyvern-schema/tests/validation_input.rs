@@ -383,3 +383,104 @@ fn validation_input_unknown_field_fails() {
         other => panic!("expected Validation, got {other:?}"),
     }
 }
+
+#[test]
+fn validation_input_icon_variant_passes() {
+    let cmd = validate(&json!({
+        "type": "input",
+        "title": "T",
+        "message": "M",
+        "icon": "warning:2"
+    }))
+    .expect("icon variant");
+    match cmd {
+        Command::Input { icon, .. } => assert_eq!(icon.as_deref(), Some("warning:2")),
+        other => panic!("expected Input, got {other:?}"),
+    }
+}
+
+#[test]
+fn validation_input_icon_unknown_named_fails() {
+    let err = validate(&json!({
+        "type": "input",
+        "title": "T",
+        "message": "M",
+        "icon": "nonexistent"
+    }))
+    .expect_err("unknown named icon");
+    match err {
+        ValidationError::Validation { field, message } => {
+            assert_eq!(field, "icon");
+            assert!(message.contains("unknown icon 'nonexistent'"));
+            assert!(message.contains("valid names:"));
+        }
+        other => panic!("unexpected {other:?}"),
+    }
+}
+
+#[test]
+fn validation_input_icon_variant_out_of_range_fails() {
+    let err = validate(&json!({
+        "type": "input",
+        "title": "T",
+        "message": "M",
+        "icon": "info:99"
+    }))
+    .expect_err("oob variant");
+    match err {
+        ValidationError::Validation { field, message } => {
+            assert_eq!(field, "icon");
+            assert!(message.contains("out of range"));
+            assert!(message.contains("1–2"));
+        }
+        other => panic!("unexpected {other:?}"),
+    }
+}
+
+#[test]
+fn validation_input_icon_non_numeric_variant_fails() {
+    let err = validate(&json!({
+        "type": "input",
+        "title": "T",
+        "message": "M",
+        "icon": "warning:abc"
+    }))
+    .expect_err("non-numeric variant");
+    match err {
+        ValidationError::Validation { field, message } => {
+            assert_eq!(field, "icon");
+            assert!(message.contains("invalid icon variant"));
+            assert!(message.contains("warning:abc"));
+        }
+        other => panic!("unexpected {other:?}"),
+    }
+}
+
+#[test]
+fn validation_input_icon_path_and_data_uri_pass() {
+    let path = validate(&json!({
+        "type": "input",
+        "title": "T",
+        "message": "M",
+        "icon": "/path/to/icon.svg"
+    }))
+    .expect("path icon");
+    match path {
+        Command::Input { icon, .. } => assert_eq!(icon.as_deref(), Some("/path/to/icon.svg")),
+        other => panic!("expected Input, got {other:?}"),
+    }
+
+    let data = validate(&json!({
+        "type": "input",
+        "title": "T",
+        "message": "M",
+        "icon": "data:image/png;base64,AA=="
+    }))
+    .expect("data uri icon");
+    match data {
+        Command::Input { icon, .. } => {
+            assert_eq!(icon.as_deref(), Some("data:image/png;base64,AA=="));
+        }
+        other => panic!("expected Input, got {other:?}"),
+    }
+}

@@ -12,6 +12,7 @@ mod command;
 mod error;
 mod error_code;
 mod field_name;
+pub mod icons;
 mod result;
 mod stderr;
 mod validate;

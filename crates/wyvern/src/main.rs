@@ -14,6 +14,11 @@ fn main() -> ExitCode {
 
     let args: Vec<String> = std::env::args().skip(1).collect();
 
+    if args.len() == 1 && (args[0] == "--version" || args[0] == "-V") {
+        println!("wyvern {}", env!("CARGO_PKG_VERSION"));
+        return ExitCode::SUCCESS;
+    }
+
     // No positional args on a TTY: print usage instead of blocking on stdin.
     if args.is_empty() && io::stdin().is_terminal() {
         eprintln!("{}", usage_message());
