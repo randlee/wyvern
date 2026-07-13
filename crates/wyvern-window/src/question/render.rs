@@ -7,6 +7,8 @@ use wyvern_schema::QuestionCard;
 
 use crate::{DIALOG_MAX_HEIGHT, DIALOG_MAX_WIDTH, DIALOG_MIN_HEIGHT, DIALOG_MIN_WIDTH};
 
+use super::sanitize::render_preview_fragment;
+
 const QUESTION_HTML: &str = include_str!("template.html");
 
 /// Inputs for [`render_question_html`].
@@ -50,7 +52,8 @@ fn escape_attr(s: &str) -> String {
 
 /// Build question-card HTML with radio or checkbox groups and a Submit control.
 ///
-/// Option `preview` is intentionally omitted from the template at b.7.
+/// When `options[].preview` is present, the fragment is converted (markdown→HTML
+/// when needed) and sanitized before insertion into the preview layout slot.
 pub fn render_question_html(input: &QuestionRenderInput<'_>) -> String {
     let QuestionRenderInput { title, questions } = input;
 
@@ -69,21 +72,39 @@ pub fn render_question_html(input: &QuestionRenderInput<'_>) -> String {
         let mut options_html = String::new();
         for (oi, opt) in card.options.iter().enumerate() {
             let id = format!("q{qi}-opt{oi}");
-            // preview deliberately not rendered (no layout slot at b.7).
+            let preview_block = opt
+                .preview
+                .as_deref()
+                .filter(|p| !p.is_empty())
+                .map(|p| {
+                    format!(
+                        r#"<div class="option-preview">{preview}</div>"#,
+                        preview = render_preview_fragment(p)
+                    )
+                })
+                .unwrap_or_default();
+            let row_class = if preview_block.is_empty() {
+                "option-row"
+            } else {
+                "option-row has-preview"
+            };
             options_html.push_str(&format!(
-                r#"<label class="option-row" for="{id}">
+                r#"<label class="{row_class}" for="{id}">
   <input type="{input_type}" id="{id}" name="{name}" value="{value}" />
   <span class="option-text">
     <span class="option-label">{label}</span>
     <div class="option-description">{description}</div>
   </span>
+  {preview}
 </label>"#,
+                row_class = row_class,
                 id = escape_attr(&id),
                 input_type = input_type,
                 name = escape_attr(&group_name),
                 value = escape_attr(&opt.label),
                 label = escape_html_text(&opt.label),
                 description = escape_html_text(&opt.description),
+                preview = preview_block,
             ));
         }
 
@@ -103,10 +124,16 @@ pub fn render_question_html(input: &QuestionRenderInput<'_>) -> String {
             "question": card.question,
             "header": card.header,
             "multiSelect": card.multi_select,
-            "options": card.options.iter().map(|o| json!({
-                "label": o.label,
-                "description": o.description,
-            })).collect::<Vec<_>>(),
+            "options": card.options.iter().map(|o| {
+                let mut obj = json!({
+                    "label": o.label,
+                    "description": o.description,
+                });
+                if let Some(preview) = &o.preview {
+                    obj["preview"] = json!(preview);
+                }
+                obj
+            }).collect::<Vec<_>>(),
         }));
     }
 
@@ -156,28 +183,38 @@ pub fn estimate_question_window_size(questions: &[QuestionCard]) -> (f64, f64) {
     const CONTENT_PAD_Y: f64 = 24.0;
     const CARD_BASE_H: f64 = 56.0;
     const OPTION_H: f64 = 36.0;
+    const PREVIEW_EXTRA_H: f64 = 48.0;
+    const PREVIEW_EXTRA_W: f64 = 160.0;
     const CARD_GAP: f64 = 12.0;
     const PAD_X: f64 = 48.0;
     const CHAR_W: f64 = 7.2;
 
     let mut content_h = 0.0_f64;
     let mut max_chars = 24usize;
+    let mut has_preview = false;
     for (i, card) in questions.iter().enumerate() {
         if i > 0 {
             content_h += CARD_GAP;
         }
-        content_h += CARD_BASE_H + (card.options.len() as f64) * OPTION_H;
-        max_chars = max_chars
-            .max(card.question.chars().count())
-            .max(card.header.chars().count());
+        let mut options_h = 0.0_f64;
         for opt in &card.options {
+            options_h += OPTION_H;
+            if opt.preview.as_ref().is_some_and(|p| !p.is_empty()) {
+                options_h += PREVIEW_EXTRA_H;
+                has_preview = true;
+            }
             max_chars = max_chars
                 .max(opt.label.chars().count())
                 .max(opt.description.chars().count());
         }
+        content_h += CARD_BASE_H + options_h;
+        max_chars = max_chars
+            .max(card.question.chars().count())
+            .max(card.header.chars().count());
     }
 
-    let width = ((max_chars as f64).mul_add(CHAR_W, PAD_X) + 80.0)
+    let preview_w = if has_preview { PREVIEW_EXTRA_W } else { 0.0 };
+    let width = ((max_chars as f64).mul_add(CHAR_W, PAD_X) + 80.0 + preview_w)
         .clamp(DIALOG_MIN_WIDTH, DIALOG_MAX_WIDTH);
     let height = (TITLE_H + CONTENT_PAD_Y + content_h + SUBMIT_BAR_H)
         .clamp(DIALOG_MIN_HEIGHT, DIALOG_MAX_HEIGHT);
@@ -224,8 +261,81 @@ mod tests {
         assert!(html.contains("Structured"));
         assert!(html.contains("id=\"submit-btn\""));
         assert!(html.contains("question_submitted"));
-        // preview must not appear in the rendered markup at b.7
-        assert!(!html.contains("<pre>x</pre>"));
+        // b.8: preview renders in the option-preview slot (sanitized).
+        assert!(html.contains("option-preview"));
+        assert!(html.contains("<pre>x</pre>") || html.contains("<pre>x</pre>\n"));
+        assert!(html.contains("has-preview"));
+    }
+
+    #[test]
+    fn render_preview_markdown_and_sanitize() {
+        let card = QuestionCard {
+            question: "Format?".into(),
+            header: "Fmt".into(),
+            options: vec![
+                QuestionOption {
+                    label: "JSON".into(),
+                    description: "Structured output".into(),
+                    preview: Some(r#"<pre>{"ok":true}</pre><script>alert(1)</script>"#.into()),
+                },
+                QuestionOption {
+                    label: "MD".into(),
+                    description: "Markdown".into(),
+                    preview: Some("**bold**".into()),
+                },
+            ],
+            multi_select: false,
+        };
+        let html = render_question_html(&QuestionRenderInput {
+            title: "Question",
+            questions: &[card],
+        });
+        // Inspect option-preview slots only (page chrome has its own <script>).
+        let mut previews = Vec::new();
+        let mut search = html.as_str();
+        while let Some(idx) = search.find(r#"class="option-preview""#) {
+            let from = idx;
+            let rest = &search[from..];
+            let end = rest.find("</div>").expect("preview close");
+            previews.push(&rest[..end]);
+            search = &rest[end + 1..];
+        }
+        assert_eq!(previews.len(), 2, "expected two preview slots");
+        assert!(
+            previews[0].contains(r#"{"ok":true}"#) || previews[0].contains("ok"),
+            "preview0={}",
+            previews[0]
+        );
+        assert!(
+            !previews[0].to_ascii_lowercase().contains("<script"),
+            "preview0={}",
+            previews[0]
+        );
+        assert!(!previews[0].contains("alert"), "preview0={}", previews[0]);
+        assert!(
+            previews[1].contains("<strong>bold</strong>"),
+            "preview1={}",
+            previews[1]
+        );
+    }
+
+    #[test]
+    fn dismissed_result_matches_req_0068() {
+        let questions = vec![json!({
+            "question": "Output format?",
+            "header": "Format",
+            "options": [
+                { "label": "JSON", "description": "Structured" },
+                { "label": "Plain", "description": "Text only" }
+            ],
+            "multiSelect": false
+        })];
+        let result = QuestionResult::dismissed(questions.clone());
+        let wire: Value = serde_json::from_str(&serde_json::to_string(&result).unwrap()).unwrap();
+        assert_eq!(wire["button"], "dismissed");
+        assert_eq!(wire["answers"], json!({}));
+        assert_eq!(wire["response"], "");
+        assert_eq!(wire["questions"], Value::Array(questions));
     }
 
     #[test]

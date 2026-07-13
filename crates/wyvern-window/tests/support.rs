@@ -312,3 +312,65 @@ pub fn assert_question_submitted(
         other => panic!("expected Question result, got {other:?}"),
     }
 }
+
+/// Assert helper: question dismiss includes REQ-0068 `button: "dismissed"`.
+#[allow(dead_code)]
+pub fn assert_question_dismissed(result: &CommandResult) {
+    match result {
+        CommandResult::Question(QuestionResult {
+            button,
+            answers,
+            response,
+            questions,
+        }) => {
+            assert_eq!(button.as_ref().map(ButtonLabel::as_str), Some("dismissed"));
+            assert!(answers.is_empty());
+            assert_eq!(response, "");
+            assert!(!questions.is_empty());
+        }
+        other => panic!("expected Question dismissed result, got {other:?}"),
+    }
+}
+
+/// Opens a question dialog and auto-dismisses (OS-close / REQ-0068 path).
+pub fn open_question_auto_dismiss() -> Result<CommandResult, RunError> {
+    // SAFETY: integration test harness runs single-threaded before other work.
+    unsafe {
+        std::env::remove_var("WYVERN_INJECT_IPC");
+        std::env::set_var("WYVERN_AUTO_DISMISS", "1");
+    }
+    let result = wyvern_window::run(Command::Question {
+        questions: vec![QuestionCard {
+            question: "Output format?".into(),
+            header: "Format".into(),
+            options: vec![
+                QuestionOption {
+                    label: "JSON".into(),
+                    description: "Structured".into(),
+                    preview: Some(r#"<pre>{"ok":true}</pre>"#.into()),
+                },
+                QuestionOption {
+                    label: "Plain".into(),
+                    description: "Text only".into(),
+                    preview: None,
+                },
+            ],
+            multi_select: false,
+        }],
+        questions_raw: vec![serde_json::json!({
+            "question": "Output format?",
+            "header": "Format",
+            "options": [
+                {
+                    "label": "JSON",
+                    "description": "Structured",
+                    "preview": "<pre>{\"ok\":true}</pre>"
+                },
+                { "label": "Plain", "description": "Text only" }
+            ],
+            "multiSelect": false
+        })],
+    });
+    unsafe { std::env::remove_var("WYVERN_AUTO_DISMISS") };
+    result
+}

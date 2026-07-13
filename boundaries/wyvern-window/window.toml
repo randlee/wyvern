@@ -3,7 +3,7 @@ owner_package = "wyvern-window"
 name = "WyvernWindow"
 
 [dependencies]
-allowed_dependencies = ["wyvern-schema", "wyvern-wizard", "wry", "winit", "serde_json", "pulldown-cmark", "rfd"]
+allowed_dependencies = ["wyvern-schema", "wyvern-wizard", "wry", "winit", "serde_json", "pulldown-cmark", "rfd", "ammonia"]
 forbidden_dependencies = ["wyvern", "wyvern-mcp"]
 forbidden_edges = ["wyvern-window -> wyvern", "wyvern-window -> wyvern-mcp"]
 

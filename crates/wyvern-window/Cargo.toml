@@ -13,6 +13,7 @@ winit         = { workspace = true }
 rfd           = "0.15"
 serde_json    = { workspace = true }
 pulldown-cmark = { workspace = true }
+ammonia = "4"
 
 # wry on Linux needs an initialized GTK main loop alongside winit.
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))'.dependencies]
@@ -58,5 +59,10 @@ harness = false
 [[test]]
 name = "question_multi_ipc"
 path = "tests/question_multi_ipc.rs"
+harness = false
+
+[[test]]
+name = "question_dismiss_ipc"
+path = "tests/question_dismiss_ipc.rs"
 harness = false
 
