@@ -11,7 +11,9 @@ use wyvern_schema::{
     InputMode, InputResult, InputValue, MarkdownResult, MessageLevel, MessageResult,
 };
 
-use crate::chrome::render_chrome_html;
+use crate::chrome::{
+    parse_chrome_ipc, platform_chrome_for, render_chrome_html, ChromeIpc, CommandKind,
+};
 use crate::error::RunError;
 use crate::input::{
     estimate_input_window_size, parse_input_page_ipc, pick_file, pick_folder, render_input_html,
@@ -136,20 +138,28 @@ pub fn run(command: Command) -> Result<CommandResult, RunError> {
 fn run_chrome(title: ChromeTitle, status: Option<ChromeStatus>) -> Result<CommandResult, RunError> {
     init_platform()?;
 
-    let html = render_chrome_html(title.as_str(), status.as_ref().map(|s| s.as_str()));
+    let chrome = platform_chrome_for(CommandKind::Chrome);
+    let html = render_chrome_html(title.as_str(), status.as_ref().map(|s| s.as_str()), chrome);
     let auto_dismiss = std::env::var_os(AUTO_DISMISS_ENV).is_some();
+    let inject_ipc = std::env::var(INJECT_IPC_ENV).ok();
 
-    let event_loop = EventLoop::new().map_err(|err| RunError::EventLoop {
-        message: err.to_string(),
-    })?;
+    let event_loop = EventLoop::<DialogEvent>::with_user_event()
+        .build()
+        .map_err(|err| RunError::EventLoop {
+            message: err.to_string(),
+        })?;
+    let proxy = event_loop.create_proxy();
 
     let mut app = ChromeApp {
         title: title.into_inner(),
         html,
+        proxy,
         window: None,
         webview: None,
         auto_dismiss,
-        pending_dismiss: false,
+        inject_ipc,
+        pending_auto: false,
+        pending_inject: false,
         outcome: None,
     };
 
@@ -428,10 +438,13 @@ fn run_markdown(args: MarkdownRunArgs) -> Result<CommandResult, RunError> {
 struct ChromeApp {
     title: String,
     html: String,
+    proxy: EventLoopProxy<DialogEvent>,
     window: Option<Window>,
     webview: Option<wry::WebView>,
     auto_dismiss: bool,
-    pending_dismiss: bool,
+    inject_ipc: Option<String>,
+    pending_auto: bool,
+    pending_inject: bool,
     outcome: Option<Result<CommandResult, RunError>>,
 }
 
@@ -452,9 +465,28 @@ impl ChromeApp {
         self.outcome = Some(Err(RunError::WindowCreate { message }));
         event_loop.exit();
     }
+
+    fn handle_ipc(&mut self, event_loop: &ActiveEventLoop, raw: &str) {
+        if let Some(msg) = parse_chrome_ipc(raw) {
+            match msg {
+                ChromeIpc::WindowClose => {
+                    self.dismiss(event_loop);
+                }
+                ChromeIpc::WindowMinimize => {
+                    if let Some(window) = &self.window {
+                        window.set_minimized(true);
+                    }
+                    // Non-modal: minimize only — no CommandResult / stdout yet.
+                }
+            }
+            return;
+        }
+        eprintln!("wyvern-window: malformed chrome IPC; dismissing: {raw}");
+        self.dismiss(event_loop);
+    }
 }
 
-impl ApplicationHandler for ChromeApp {
+impl ApplicationHandler<DialogEvent> for ChromeApp {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if self.window.is_some() {
             return;
@@ -468,8 +500,13 @@ impl ApplicationHandler for ChromeApp {
             }
         };
 
+        let proxy = self.proxy.clone();
         let webview = match WebViewBuilder::new(&window)
             .with_html(self.html.clone())
+            .with_ipc_handler(move |req| {
+                let body = req.body().clone();
+                let _ = proxy.send_event(DialogEvent::Ipc(body));
+            })
             .build()
         {
             Ok(webview) => webview,
@@ -482,8 +519,17 @@ impl ApplicationHandler for ChromeApp {
         self.window = Some(window);
         self.webview = Some(webview);
 
-        if self.auto_dismiss {
-            self.pending_dismiss = true;
+        if self.inject_ipc.is_some() {
+            self.pending_inject = true;
+        } else if self.auto_dismiss {
+            self.pending_auto = true;
+        }
+    }
+
+    fn user_event(&mut self, event_loop: &ActiveEventLoop, event: DialogEvent) {
+        match event {
+            DialogEvent::Ipc(raw) => self.handle_ipc(event_loop, &raw),
+            DialogEvent::AutoDismiss => self.dismiss(event_loop),
         }
     }
 
@@ -498,12 +544,24 @@ impl ApplicationHandler for ChromeApp {
         }
     }
 
-    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+    fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
         pump_gtk_events();
 
-        if self.pending_dismiss {
-            self.pending_dismiss = false;
-            self.dismiss(event_loop);
+        if self.pending_inject {
+            self.pending_inject = false;
+            if let Some(raw) = self.inject_ipc.take() {
+                let _ = self.proxy.send_event(DialogEvent::Ipc(raw));
+            }
+            // After a non-completing inject (e.g. window_minimize), finish via auto-dismiss.
+            if self.auto_dismiss {
+                self.pending_auto = true;
+            }
+            return;
+        }
+
+        if self.pending_auto {
+            self.pending_auto = false;
+            let _ = self.proxy.send_event(DialogEvent::AutoDismiss);
         }
     }
 }
@@ -544,6 +602,15 @@ impl MessageApp {
     }
 
     fn handle_ipc(&mut self, event_loop: &ActiveEventLoop, raw: &str) {
+        if let Some(msg) = parse_chrome_ipc(raw) {
+            match msg {
+                ChromeIpc::WindowMinimize => return, // modal: no-op — must NOT dismiss
+                ChromeIpc::WindowClose => {
+                    self.dismiss(event_loop);
+                    return;
+                }
+            }
+        }
         match parse_page_ipc(raw) {
             Some(PageIpc::ButtonPressed { label }) => {
                 self.finish_with_label(event_loop, ButtonLabel::new(label));
@@ -631,6 +698,11 @@ impl ApplicationHandler<DialogEvent> for MessageApp {
             if let Some(raw) = self.inject_ipc.take() {
                 let _ = self.proxy.send_event(DialogEvent::Ipc(raw));
             }
+            // After a non-completing inject (e.g. modal window_minimize no-op),
+            // finish via auto-dismiss so integration tests can observe no early exit.
+            if self.auto_dismiss {
+                self.pending_auto = true;
+            }
             return;
         }
 
@@ -711,6 +783,15 @@ impl InputApp {
     }
 
     fn handle_ipc(&mut self, event_loop: &ActiveEventLoop, raw: &str) {
+        if let Some(msg) = parse_chrome_ipc(raw) {
+            match msg {
+                ChromeIpc::WindowMinimize => return, // modal: no-op — must NOT dismiss
+                ChromeIpc::WindowClose => {
+                    self.dismiss(event_loop);
+                    return;
+                }
+            }
+        }
         match parse_input_page_ipc(raw) {
             Some(InputPageIpc::InputSubmitted { button, value }) => {
                 let label = ButtonLabel::new(button);
@@ -818,6 +899,11 @@ impl ApplicationHandler<DialogEvent> for InputApp {
             if let Some(raw) = self.inject_ipc.take() {
                 let _ = self.proxy.send_event(DialogEvent::Ipc(raw));
             }
+            // After a non-completing inject (e.g. modal window_minimize no-op),
+            // finish via auto-dismiss so integration tests can observe no early exit.
+            if self.auto_dismiss {
+                self.pending_auto = true;
+            }
             return;
         }
 
@@ -866,6 +952,15 @@ impl MarkdownApp {
     }
 
     fn handle_ipc(&mut self, event_loop: &ActiveEventLoop, raw: &str) {
+        if let Some(msg) = parse_chrome_ipc(raw) {
+            match msg {
+                ChromeIpc::WindowMinimize => return, // modal: no-op — must NOT dismiss
+                ChromeIpc::WindowClose => {
+                    self.dismiss(event_loop);
+                    return;
+                }
+            }
+        }
         match parse_markdown_page_ipc(raw) {
             Some(MarkdownPageIpc::ButtonPressed { label }) => {
                 self.finish_with_label(event_loop, ButtonLabel::new(label));
@@ -950,6 +1045,11 @@ impl ApplicationHandler<DialogEvent> for MarkdownApp {
             self.pending_inject = false;
             if let Some(raw) = self.inject_ipc.take() {
                 let _ = self.proxy.send_event(DialogEvent::Ipc(raw));
+            }
+            // After a non-completing inject (e.g. modal window_minimize no-op),
+            // finish via auto-dismiss so integration tests can observe no early exit.
+            if self.auto_dismiss {
+                self.pending_auto = true;
             }
             return;
         }

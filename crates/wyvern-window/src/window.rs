@@ -55,9 +55,9 @@ fn set_env_if_unset(key: &str, value: &str) {
     }
 }
 
-/// Phase A platform interim policy (see phase-A README):
-/// - macOS: transparent title bar + full-size content (ADR-0010)
-/// - Windows/Linux: native OS decorations (custom chrome deferred to Phase C)
+/// Platform chrome window attributes (ADR-0010 / ADR-0010a):
+/// - macOS: transparent title bar + full-size content
+/// - Windows/Linux: `decorations: false` + HTML window controls
 pub(crate) fn chrome_window_attributes(title: &str) -> WindowAttributes {
     let attrs = Window::default_attributes()
         .with_title(title)
@@ -99,7 +99,7 @@ fn apply_platform_chrome(attrs: WindowAttributes) -> WindowAttributes {
     };
 
     #[cfg(not(target_os = "macos"))]
-    let attrs = attrs.with_decorations(true);
+    let attrs = attrs.with_decorations(false);
 
     attrs
 }
@@ -117,5 +117,26 @@ pub(crate) fn pump_gtk_events() {
         while gtk::events_pending() {
             gtk::main_iteration_do(false);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    //! ADR-0010a: Win/Linux use `decorations: false` (HTML chrome).
+
+    #[test]
+    #[cfg(not(target_os = "macos"))]
+    fn non_macos_chrome_and_modal_attrs_disable_decorations() {
+        let chrome = super::chrome_window_attributes("decorations-test");
+        assert!(
+            !chrome.decorations,
+            "Win/Linux chrome must use decorations(false) per ADR-0010a"
+        );
+
+        let modal = super::modal_window_attributes("decorations-modal", 400.0, 300.0);
+        assert!(
+            !modal.decorations,
+            "Win/Linux modal must use decorations(false) per ADR-0010a"
+        );
     }
 }

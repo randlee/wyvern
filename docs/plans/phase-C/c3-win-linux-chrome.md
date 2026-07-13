@@ -1,8 +1,9 @@
 ---
 id: c.3
 title: Windows and Linux platform chrome
-status: pending
+status: complete
 branch: feature/phase-C-c3-win-linux-chrome
+worktree: /Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-C-c3-win-linux-chrome
 target: integrate/phase-C
 ---
 

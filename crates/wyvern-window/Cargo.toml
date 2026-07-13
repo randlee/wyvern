@@ -27,6 +27,36 @@ path = "tests/blank_window.rs"
 harness = false
 
 [[test]]
+name = "chrome_ipc"
+path = "tests/chrome_ipc.rs"
+harness = false
+
+[[test]]
+name = "chrome_minimize_ipc"
+path = "tests/chrome_minimize_ipc.rs"
+harness = false
+
+[[test]]
+name = "message_minimize_ipc"
+path = "tests/message_minimize_ipc.rs"
+harness = false
+
+[[test]]
+name = "input_minimize_ipc"
+path = "tests/input_minimize_ipc.rs"
+harness = false
+
+[[test]]
+name = "markdown_minimize_ipc"
+path = "tests/markdown_minimize_ipc.rs"
+harness = false
+
+[[test]]
+name = "question_minimize_ipc"
+path = "tests/question_minimize_ipc.rs"
+harness = false
+
+[[test]]
 name = "message_ipc"
 path = "tests/message_ipc.rs"
 harness = false
