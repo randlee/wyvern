@@ -1,6 +1,7 @@
-//! Load/validation-stage errors and stderr JSON emission.
+//! Load/validation/run-stage errors and JSON emission helpers.
 
-use wyvern_schema::ValidationError;
+use wyvern_schema::{CommandResult, ValidationError};
+use wyvern_window::RunError;
 
 /// Failure while loading command input from argv or stdin.
 #[derive(Debug)]
@@ -55,9 +56,36 @@ pub fn emit_validation_error(err: &ValidationError) -> String {
     }
 }
 
+/// Serialize a window/run error as stderr JSON (`window_create` | `event_loop`).
+pub fn emit_run_error(err: &RunError) -> String {
+    match err {
+        RunError::WindowCreate { message } => {
+            serde_json::json!({ "error": "window_create", "message": message }).to_string()
+        }
+        RunError::EventLoop { message } => {
+            serde_json::json!({ "error": "event_loop", "message": message }).to_string()
+        }
+    }
+}
+
+/// Serialize a successful [`CommandResult`] for stdout.
+///
+/// # Panics
+///
+/// Panics if `result` fails to serialize (should be impossible for schema types).
+pub fn emit_stdout(result: &CommandResult) -> String {
+    serde_json::to_string(result).expect("CommandResult serializes")
+}
+
+/// Map a run failure to stderr JSON plus a non-zero exit code.
+pub fn handle_run_failure(err: &RunError) -> (String, i32) {
+    (emit_run_error(err), 1)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use wyvern_schema::ChromeResult;
 
     #[test]
     fn emit_load_error_parse_with_quotes_is_valid_json() {
@@ -106,5 +134,59 @@ mod tests {
         let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
         assert_eq!(value["error"], "state");
         assert_eq!(value["field"], "action");
+    }
+
+    #[test]
+    fn emit_stdout_chrome_wire_shape() {
+        let result = CommandResult::Chrome(ChromeResult {
+            button: "dismissed".into(),
+        });
+        assert_eq!(emit_stdout(&result), r#"{"button":"dismissed"}"#);
+    }
+
+    #[test]
+    fn emit_run_error_window_create() {
+        let err = RunError::WindowCreate {
+            message: r#"create failed: "boom""#.into(),
+        };
+        let out = emit_run_error(&err);
+        let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
+        assert_eq!(value["error"], "window_create");
+        assert!(value["message"].as_str().unwrap().contains('"'));
+    }
+
+    #[test]
+    fn emit_run_error_event_loop() {
+        let err = RunError::EventLoop {
+            message: "loop failed".into(),
+        };
+        let out = emit_run_error(&err);
+        let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
+        assert_eq!(value["error"], "event_loop");
+        assert_eq!(value["message"], "loop failed");
+    }
+
+    #[test]
+    fn handle_run_failure_maps_stderr_json_and_nonzero_exit() {
+        let err = RunError::WindowCreate {
+            message: "no display".into(),
+        };
+        let (json, code) = handle_run_failure(&err);
+        assert_ne!(code, 0);
+        let value: serde_json::Value = serde_json::from_str(&json).expect("valid JSON");
+        assert_eq!(value["error"], "window_create");
+        assert_eq!(value["message"], "no display");
+    }
+
+    #[test]
+    fn handle_run_failure_event_loop() {
+        let err = RunError::EventLoop {
+            message: "os error".into(),
+        };
+        let (json, code) = handle_run_failure(&err);
+        assert_ne!(code, 0);
+        let value: serde_json::Value = serde_json::from_str(&json).expect("valid JSON");
+        assert_eq!(value["error"], "event_loop");
+        assert_eq!(value["message"], "os error");
     }
 }
