@@ -1,4 +1,7 @@
-//! Validate JSON input against the Phase B executable surface (`chrome`, `message`, `input`).
+//! Validate JSON input against the Phase B executable surface
+//! (`chrome`, `message`, `input`, `markdown`).
+
+use std::path::Path;
 
 use serde_json::{Map, Value};
 
@@ -46,8 +49,11 @@ const INPUT_FIELDS: &[&str] = &[
     "buttons",
 ];
 
-/// Phase B executable `type` values (through b.4).
-const VALID_TYPES: &[&str] = &["chrome", "message", "input"];
+/// Allowed fields on a `markdown` command object (b.5 file subset).
+const MARKDOWN_FIELDS: &[&str] = &["type", "title", "file", "content", "status", "buttons"];
+
+/// Phase B executable `type` values (through b.5).
+const VALID_TYPES: &[&str] = &["chrome", "message", "input", "markdown"];
 
 /// Validate `value` as a Phase B command.
 ///
@@ -95,6 +101,7 @@ pub fn validate(value: &Value) -> Result<Command, ValidationError> {
         "chrome" => validate_chrome(obj),
         "message" => validate_message(obj),
         "input" => validate_input(obj),
+        "markdown" => validate_markdown(obj),
         other => Err(unknown_type_error(other)),
     }
 }
@@ -488,6 +495,95 @@ fn validate_input(obj: &Map<String, Value>) -> Result<Command, ValidationError> 
         filter,
         multiple,
         start_path,
+        buttons,
+    })
+}
+
+fn validate_markdown(obj: &Map<String, Value>) -> Result<Command, ValidationError> {
+    for key in obj.keys() {
+        let key_str = key.as_str();
+        if !MARKDOWN_FIELDS.contains(&key_str) {
+            return Err(ValidationError::validation(
+                FieldName::new(key_str),
+                format!("unknown field '{key_str}'"),
+            ));
+        }
+    }
+
+    let file = optional_string_field(obj, "file")?;
+    let content = optional_string_field(obj, "content")?;
+
+    // REQ-0058 — exactly one of file or content; b.5 rejects content until b.6.
+    match (file.as_ref(), content.as_ref()) {
+        (None, None) => {
+            return Err(ValidationError::validation(
+                "file",
+                "markdown requires exactly one of 'file' or 'content'",
+            ));
+        }
+        (Some(_), Some(_)) => {
+            return Err(ValidationError::validation(
+                "file",
+                "markdown requires exactly one of 'file' or 'content'",
+            ));
+        }
+        (None, Some(_)) => {
+            return Err(ValidationError::validation(
+                "content",
+                "content is not supported until inline markdown ships (b.6)",
+            ));
+        }
+        (Some(_), None) => {}
+    }
+
+    let title = match optional_string_field(obj, "title")? {
+        Some(t) => Some(ChromeTitle::new(t)),
+        None => file.as_ref().map(|path| {
+            let name = Path::new(path)
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_else(|| path.clone());
+            ChromeTitle::new(name)
+        }),
+    };
+    let status = optional_string_field(obj, "status")?;
+
+    let buttons = match obj.get("buttons") {
+        None => ButtonsPreset::Ok,
+        Some(Value::String(s)) => match ButtonsPreset::parse(s) {
+            Some(preset) => preset,
+            None => {
+                let options = ButtonsPreset::all_names().join(", ");
+                let mut msg = format!("got '{s}', expected one of: {options}");
+                if let Some(suggestion) = closest_match(s, ButtonsPreset::all_names()) {
+                    msg.push_str(&format!("; did you mean '{suggestion}'?"));
+                }
+                return Err(ValidationError::validation("buttons", msg));
+            }
+        },
+        Some(other) => {
+            return Err(ValidationError::validation(
+                "buttons",
+                format!(
+                    "field 'buttons' expected string, got {}",
+                    json_type_name(other)
+                ),
+            ));
+        }
+    };
+
+    if buttons == ButtonsPreset::Custom {
+        return Err(ValidationError::validation(
+            "buttons",
+            "buttons: custom is not supported for markdown in sprint b.5",
+        ));
+    }
+
+    Ok(Command::Markdown {
+        title,
+        file,
+        content: None,
+        status: status.map(ChromeStatus::new),
         buttons,
     })
 }

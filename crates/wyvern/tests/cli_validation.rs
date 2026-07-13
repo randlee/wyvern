@@ -162,6 +162,71 @@ fn cli_type_unknown_validation_error() {
 }
 
 #[test]
+fn cli_valid_markdown_file_emits_dismissed() {
+    let dir = std::env::temp_dir().join(format!("wyvern-b5-cli-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("doc.md");
+    std::fs::write(
+        &path,
+        "# Hello\n\n- list\n\n```\ncode\n```\n\n| A | B |\n|---|---|\n| 1 | 2 |\n",
+    )
+    .unwrap();
+
+    let json = format!(
+        r#"{{"type":"markdown","file":"{}"}}"#,
+        path.to_str().unwrap().replace('\\', "\\\\")
+    );
+    let (code, stdout, stderr) = run_json(&json);
+    assert_eq!(code, 0, "stderr={stderr}");
+    assert_eq!(stdout.trim(), r#"{"button":"dismissed"}"#);
+    assert!(stderr.trim().is_empty(), "stderr={stderr}");
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn cli_markdown_md_shorthand_emits_dismissed() {
+    let dir = std::env::temp_dir().join(format!("wyvern-b5-sh-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("notes.md");
+    std::fs::write(&path, "# Notes\n\nBody\n").unwrap();
+
+    let output = wyvern()
+        .arg(path.to_str().unwrap())
+        .output()
+        .expect("spawn wyvern");
+    let code = output.status.code().unwrap_or(-1);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert_eq!(code, 0, "stderr={stderr}");
+    assert_eq!(stdout.trim(), r#"{"button":"dismissed"}"#);
+    assert!(stderr.trim().is_empty(), "stderr={stderr}");
+
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn cli_markdown_missing_file_is_io() {
+    let (code, stdout, stderr) =
+        run_json(r#"{"type":"markdown","file":"/definitely/missing/wyvern-b5.md"}"#);
+    assert_ne!(code, 0);
+    assert!(stdout.trim().is_empty(), "stdout={stdout}");
+    let value = stderr_json(&stderr);
+    assert_eq!(value["error"], "io");
+    assert_eq!(value["field"], "file");
+}
+
+#[test]
+fn cli_markdown_content_validation_error() {
+    let (code, stdout, stderr) = run_json(r##"{"type":"markdown","content":"# Hi"}"##);
+    assert_ne!(code, 0);
+    assert!(stdout.trim().is_empty(), "stdout={stdout}");
+    let value = stderr_json(&stderr);
+    assert_eq!(value["error"], "validation");
+    assert_eq!(value["field"], "content");
+}
+
+#[test]
 fn cli_action_show_state_error() {
     let (code, _stdout, stderr) = run_json(r#"{"action":"show"}"#);
     assert_ne!(code, 0);
