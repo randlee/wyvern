@@ -1,6 +1,6 @@
 //! HTML message dialog template and rendering.
 
-mod media;
+pub(crate) mod media;
 mod render;
 
 pub use render::{

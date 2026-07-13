@@ -114,6 +114,40 @@ fn cli_valid_message_emits_dismissed() {
 }
 
 #[test]
+fn cli_valid_input_emits_dismissed() {
+    let (code, stdout, stderr) = run_json(r#"{"type":"input","title":"Name","message":"Enter"}"#);
+    assert_eq!(code, 0, "stderr={stderr}");
+    assert_eq!(stdout.trim(), r#"{"button":"dismissed"}"#);
+    assert!(stderr.trim().is_empty(), "stderr={stderr}");
+}
+
+#[test]
+fn cli_input_mode_file_validation_error() {
+    let (code, stdout, stderr) =
+        run_json(r#"{"type":"input","title":"T","message":"M","mode":"file"}"#);
+    assert_ne!(code, 0);
+    assert!(stdout.trim().is_empty(), "stdout={stdout}");
+    let value = stderr_json(&stderr);
+    assert_eq!(value["error"], "validation");
+    assert_eq!(value["field"], "mode");
+    assert!(value["message"]
+        .as_str()
+        .unwrap()
+        .contains("not implemented"));
+}
+
+#[test]
+fn cli_input_filter_with_text_validation_error() {
+    let (code, stdout, stderr) =
+        run_json(r#"{"type":"input","title":"T","message":"M","filter":["*.rs"]}"#);
+    assert_ne!(code, 0);
+    assert!(stdout.trim().is_empty(), "stdout={stdout}");
+    let value = stderr_json(&stderr);
+    assert_eq!(value["error"], "validation");
+    assert_eq!(value["field"], "filter");
+}
+
+#[test]
 fn cli_type_unknown_validation_error() {
     let (code, _stdout, stderr) = run_json(r#"{"type":"unknown"}"#);
     assert_ne!(code, 0);

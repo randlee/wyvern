@@ -116,6 +116,43 @@ impl MessageLevel {
     }
 }
 
+/// Input dialog mode (REQ-0014).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InputMode {
+    /// Free-text field (default when `mode` is omitted).
+    Text,
+    /// Native file picker — rejected until sprint b.4.
+    File,
+    /// Native folder picker — rejected until sprint b.4.
+    Folder,
+}
+
+impl InputMode {
+    /// Parse a wire mode name (`text`, `file`, `folder`).
+    pub fn parse(value: &str) -> Option<Self> {
+        match value {
+            "text" => Some(Self::Text),
+            "file" => Some(Self::File),
+            "folder" => Some(Self::Folder),
+            _ => None,
+        }
+    }
+
+    /// All valid wire names (for error messages / suggestions).
+    pub fn all_names() -> &'static [&'static str] {
+        &["text", "file", "folder"]
+    }
+
+    /// Wire name for this mode.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Text => "text",
+            Self::File => "file",
+            Self::Folder => "folder",
+        }
+    }
+}
+
 /// Executable command after successful validation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
@@ -136,6 +173,19 @@ pub enum Command {
         icon: Option<String>,
         image: Option<String>,
         markdown: bool,
+    },
+    /// Modal input dialog — text mode in sprint b.3 (REQ-0013).
+    Input {
+        title: ChromeTitle,
+        message: String,
+        status: Option<ChromeStatus>,
+        icon: Option<String>,
+        markdown: bool,
+        multiline: bool,
+        placeholder: Option<String>,
+        default: Option<String>,
+        mode: InputMode,
+        buttons: ButtonsPreset,
     },
 }
 
