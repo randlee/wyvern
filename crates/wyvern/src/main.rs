@@ -3,9 +3,13 @@
 use std::io::{self, IsTerminal, Write};
 use std::process::ExitCode;
 
+use wyvern::observability;
 use wyvern::{emit_load_error, load_command_input, run_from_loaded, usage_message, LoadError};
 
 fn main() -> ExitCode {
+    let _ = observability::init();
+    observability::log_process_start();
+
     let args: Vec<String> = std::env::args().skip(1).collect();
 
     // No positional args on a TTY: print usage instead of blocking on stdin.

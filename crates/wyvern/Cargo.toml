@@ -9,6 +9,7 @@ name = "wyvern"
 path = "src/main.rs"
 
 [dependencies]
-wyvern-schema = { path = "../wyvern-schema" }
-wyvern-window = { path = "../wyvern-window" }
-serde_json    = { workspace = true }
+wyvern-schema    = { path = "../wyvern-schema" }
+wyvern-window    = { path = "../wyvern-window" }
+serde_json       = { workspace = true }
+sc-observability = { workspace = true }
