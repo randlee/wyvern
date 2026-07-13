@@ -24,13 +24,14 @@ target: integrate/phase-A
 
 ## Deliverables
 
-- `open_blank_window() -> Result<CloseReason, RunError>` in `wyvern-window`
+- `#[cfg(test)]` helper `open_blank_window_for_test() -> Result<CloseReason, RunError>` in `crates/wyvern-window/tests/support.rs` (or `src/test_support.rs`) — **not** exported from `lib.rs`
 - macOS transparent title bar + full-size content view (ADR-0010)
 - Integration test opens window, closes via API/event, asserts `CloseReason::Dismissed`
 
 ## Explicit Code Samples
 
 ```rust
+// crates/wyvern-window/tests/support.rs — test-only, not pub in lib.rs
 pub enum CloseReason {
     Dismissed,
 }
@@ -40,14 +41,15 @@ pub enum RunError {
     EventLoop { message: String },
 }
 
-pub fn open_blank_window() -> Result<CloseReason, RunError>;
+#[cfg(test)]
+pub fn open_blank_window_for_test() -> Result<CloseReason, RunError>;
 ```
 
 ## This Sprint Does Not Close
 
 - Any change to `crates/wyvern/src/main.rs` beyond a.1 usage stub
 - JSON loading, validation, stdout emission
-- `--window-demo` or any CLI flag (forbidden — second execution path)
+- Public `wyvern_window::run` (a.5) — a.2 does not export any window entry point from `lib.rs`
 
 ## Acceptance Criteria
 

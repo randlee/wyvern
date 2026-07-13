@@ -48,6 +48,19 @@ members = [
 # crates/wyvern/Cargo.toml
 wyvern-window = { path = "../wyvern-window" }
 wyvern-schema = { path = "../wyvern-schema" }
+
+# crates/wyvern-window/Cargo.toml
+wyvern-schema = { path = "../wyvern-schema" }
+wyvern-wizard = { path = "../wyvern-wizard" }
+wry = { workspace = true }
+winit = { workspace = true }
+
+# crates/wyvern-wizard/Cargo.toml
+wyvern-schema = { path = "../wyvern-schema" }
+
+# crates/wyvern-mcp/Cargo.toml
+wyvern-window = { path = "../wyvern-window" }
+wyvern-schema = { path = "../wyvern-schema" }
 ```
 
 ## This Sprint Does Not Close
@@ -58,6 +71,7 @@ wyvern-schema = { path = "../wyvern-schema" }
 
 - `cargo build --workspace` succeeds on macOS with no warnings
 - `wry`/`winit` only in `crates/wyvern-window/Cargo.toml`
+- ADR-0011 edges present: `wyvern` → `{window, schema}`; `window` → `{schema, wizard}`; `wizard` → `schema`; `mcp` → `{window, schema}`; `schema` has no internal wyvern crate deps
 - `cargo run -p wyvern` prints usage and exits 0
 
 ## Required Validation
@@ -66,3 +80,5 @@ wyvern-schema = { path = "../wyvern-schema" }
 - `cargo test --workspace`
 - `cargo clippy --workspace -- -D warnings`
 - `git diff --check`
+- `rg 'wry|winit' crates/*/Cargo.toml` lists only `crates/wyvern-window/Cargo.toml`
+- `rg 'wyvern-window|wyvern-wizard|wry|winit' crates/wyvern-schema/Cargo.toml` → empty

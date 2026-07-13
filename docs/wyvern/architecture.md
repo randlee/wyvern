@@ -11,7 +11,7 @@
 1. `load_command_input() -> Result<Value, LoadError>` (`Parse` | `Io` | `Usage`)
 2. `wyvern_schema::validate(value) -> Result<Command, ValidationError>`
 3. `wyvern_window::run(command) -> Result<CommandResult, RunError>`
-4. `emit_stdout(CommandResult)`
+4. `emit_run_error` on failure; `emit_stdout(CommandResult)` on success
 
 Map errors to stderr JSON at the CLI boundary — one variant → one `error` field value. No generic catch-all.
 

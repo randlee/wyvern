@@ -62,6 +62,18 @@ pub struct CommandResult {
 }
 
 pub fn validate(value: &serde_json::Value) -> Result<Command, ValidationError>;
+
+// crates/wyvern — CLI boundary (mirrors a.3 LoadError pattern)
+pub fn emit_validation_error(err: &ValidationError) -> String {
+    match err {
+        ValidationError::Validation { field, message } => {
+            format!(r#"{{"error":"validation","field":"{field}","message":"{message}"}}"#)
+        }
+        ValidationError::State { field, message } => {
+            format!(r#"{{"error":"state","field":"{field}","message":"{message}"}}"#)
+        }
+    }
+}
 ```
 
 ## This Sprint Does Not Close

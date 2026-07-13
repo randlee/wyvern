@@ -33,7 +33,7 @@ Each stage owns its enum. The CLI **re-interprets** variants to stderr JSON at t
 |-------|-------|------|------------------------|
 | Load | `wyvern` | `LoadError` | `parse`, `io`, (usage → non-JSON stderr + exit) |
 | Validate | `wyvern-schema` | `ValidationError` | `validation`, `state` |
-| Run | `wyvern-window` | `RunError` | mapped at CLI (window failures) |
+| Run | `wyvern-window` | `RunError` | `window_create`, `event_loop` |
 
 ## Foundation command: `chrome`
 

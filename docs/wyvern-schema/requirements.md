@@ -77,3 +77,5 @@
 **REQ-0071** — File/path load failures: `LoadError::Io` in `crates/wyvern` → stderr `{ "error": "io", "field": "...", "message": "..." }`, exit non-zero.
 
 **REQ-0072** — Mode/state failures: `ValidationError::State` → stderr `{ "error": "state", "field": "...", "message": "..." }`, exit non-zero.
+
+**REQ-0073** — Window/run failures: `RunError` in `wyvern-window` → stderr `{ "error": "window_create" | "event_loop", "message": "..." }` via `emit_run_error` in `crates/wyvern`, exit non-zero.
