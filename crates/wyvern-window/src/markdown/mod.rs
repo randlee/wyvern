@@ -1,9 +1,16 @@
-//! Shared markdown → HTML converter for Phase B dialogs.
+//! Shared markdown → HTML converter and markdown viewer for Phase B dialogs.
 //!
 //! Owned by `wyvern-window` (not `wyvern-schema`). Reused by message body,
 //! markdown dialog (b.5/b.6), and question option previews (b.8).
 
+mod render;
+
 use pulldown_cmark::{html, Options, Parser};
+
+pub use render::{
+    estimate_markdown_window_size, parse_markdown_page_ipc, render_markdown_html, MarkdownPageIpc,
+    MarkdownRenderInput,
+};
 
 /// Convert markdown source to an HTML fragment.
 ///
@@ -47,5 +54,19 @@ mod tests {
     fn markdown_plain_paragraph() {
         let html = markdown_to_html("hello");
         assert!(html.contains("<p>hello</p>"), "html={html}");
+    }
+
+    #[test]
+    fn markdown_renders_table() {
+        let html = markdown_to_html("| A | B |\n|---|---|\n| 1 | 2 |");
+        assert!(html.contains("<table>"), "html={html}");
+        assert!(html.contains("<th>"), "html={html}");
+    }
+
+    #[test]
+    fn markdown_renders_code_fence() {
+        let html = markdown_to_html("```\ncode\n```");
+        assert!(html.contains("<pre>"), "html={html}");
+        assert!(html.contains("<code>"), "html={html}");
     }
 }

@@ -193,6 +193,18 @@ pub enum Command {
         start_path: Option<String>,
         buttons: ButtonsPreset,
     },
+    /// Markdown viewer — file path in b.5; inline `content` arrives in b.6 (REQ-0016).
+    Markdown {
+        /// Window title; omitted → filename default at validate/load.
+        title: Option<ChromeTitle>,
+        /// Path to a `.md` file (required in b.5).
+        file: Option<String>,
+        /// Inline markdown source — rejected at validation until b.6.
+        content: Option<String>,
+        status: Option<ChromeStatus>,
+        /// Defaults to [`ButtonsPreset::Ok`] when omitted.
+        buttons: ButtonsPreset,
+    },
 }
 
 #[cfg(test)]

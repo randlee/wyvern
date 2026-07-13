@@ -4,7 +4,7 @@
 
 use wyvern_schema::{
     ButtonLabel, ButtonsPreset, ChromeResult, ChromeTitle, Command, CommandResult, InputMode,
-    InputResult, InputValue, MessageResult,
+    InputResult, InputValue, MarkdownResult, MessageResult,
 };
 use wyvern_window::RunError;
 
@@ -138,16 +138,16 @@ pub fn open_folder_picker_with_mock(mock_path: &str) -> Result<CommandResult, Ru
     result
 }
 
-/// Assert helper: dismissed chrome/message/input yields `{ "button": "dismissed" }`.
+/// Assert helper: dismissed chrome/message/markdown/input yields `{ "button": "dismissed" }`.
 #[allow(dead_code)]
 pub fn assert_dismissed(result: &CommandResult) {
-    match result {
-        CommandResult::Chrome(ChromeResult { button })
-        | CommandResult::Message(MessageResult { button })
-        | CommandResult::Input(InputResult { button, .. }) => {
-            assert_eq!(button.as_str(), "dismissed");
-        }
-    }
+    let button = match result {
+        CommandResult::Chrome(ChromeResult { button }) => button,
+        CommandResult::Message(MessageResult { button }) => button,
+        CommandResult::Markdown(MarkdownResult { button }) => button,
+        CommandResult::Input(InputResult { button, .. }) => button,
+    };
+    assert_eq!(button.as_str(), "dismissed");
 }
 
 /// Assert helper: message result button wire label.
