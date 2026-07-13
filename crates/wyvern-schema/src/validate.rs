@@ -2,6 +2,7 @@
 
 use serde_json::{Map, Value};
 
+use crate::chrome::{ChromeStatus, ChromeTitle};
 use crate::command::Command;
 use crate::error::ValidationError;
 
@@ -92,7 +93,7 @@ fn validate_chrome(obj: &Map<String, Value>) -> Result<Command, ValidationError>
                 "missing required field 'title'",
             ));
         }
-        Some(Value::String(s)) => s.clone(),
+        Some(Value::String(s)) => ChromeTitle::new(s.clone()),
         Some(other) => {
             return Err(ValidationError::validation(
                 "title",
@@ -106,7 +107,7 @@ fn validate_chrome(obj: &Map<String, Value>) -> Result<Command, ValidationError>
 
     let status = match obj.get("status") {
         None => None,
-        Some(Value::String(s)) => Some(s.clone()),
+        Some(Value::String(s)) => Some(ChromeStatus::new(s.clone())),
         Some(other) => {
             return Err(ValidationError::validation(
                 "status",
@@ -152,6 +153,7 @@ fn json_type_name(value: &Value) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{ChromeStatus, ChromeTitle};
     use serde_json::json;
 
     #[test]
@@ -160,7 +162,7 @@ mod tests {
         assert_eq!(
             cmd,
             Command::Chrome {
-                title: "T".into(),
+                title: ChromeTitle::new("T"),
                 status: None,
             }
         );
@@ -172,8 +174,8 @@ mod tests {
         assert_eq!(
             cmd,
             Command::Chrome {
-                title: "T".into(),
-                status: Some("Ready".into()),
+                title: ChromeTitle::new("T"),
+                status: Some(ChromeStatus::new("Ready")),
             }
         );
     }

@@ -1,6 +1,6 @@
 //! Shared helpers for `wyvern-window` integration tests.
 
-use wyvern_schema::{ChromeResult, Command, CommandResult};
+use wyvern_schema::{ChromeResult, ChromeTitle, Command, CommandResult};
 use wyvern_window::RunError;
 
 /// Opens chrome via [`wyvern_window::run`], auto-dismisses, and returns the
@@ -9,7 +9,7 @@ pub fn open_blank_window_for_test() -> Result<CommandResult, RunError> {
     // SAFETY: integration test harness runs single-threaded before other work.
     unsafe { std::env::set_var("WYVERN_AUTO_DISMISS", "1") };
     wyvern_window::run(Command::Chrome {
-        title: "wyvern-test".into(),
+        title: ChromeTitle::new("wyvern-test"),
         status: None,
     })
 }

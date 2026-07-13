@@ -6,7 +6,7 @@ use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::window::{Window, WindowId};
 use wry::WebViewBuilder;
 
-use wyvern_schema::{ChromeResult, Command, CommandResult};
+use wyvern_schema::{ChromeResult, ChromeStatus, ChromeTitle, Command, CommandResult};
 
 use crate::chrome::render_chrome_html;
 use crate::error::RunError;
@@ -36,10 +36,10 @@ pub fn run(command: Command) -> Result<CommandResult, RunError> {
     }
 }
 
-fn run_chrome(title: String, status: Option<String>) -> Result<CommandResult, RunError> {
+fn run_chrome(title: ChromeTitle, status: Option<ChromeStatus>) -> Result<CommandResult, RunError> {
     init_platform()?;
 
-    let html = render_chrome_html(&title, status.as_deref());
+    let html = render_chrome_html(title.as_str(), status.as_ref().map(|s| s.as_str()));
     // wry does not support data: URLs via `with_url`; `with_html` is the
     // supported inline-HTML path equivalent to loading a data URL.
     let auto_dismiss = std::env::var_os(AUTO_DISMISS_ENV).is_some();
@@ -49,7 +49,7 @@ fn run_chrome(title: String, status: Option<String>) -> Result<CommandResult, Ru
     })?;
 
     let mut app = ChromeApp {
-        title,
+        title: title.into_inner(),
         html,
         window: None,
         webview: None,
