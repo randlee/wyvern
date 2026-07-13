@@ -57,6 +57,12 @@ jobs:
       - name: cargo clippy
         run: cargo clippy --workspace -- -D warnings
 
+      - name: Install sc-lint from crates.io
+        run: cargo install sc-lint --version 0.4.0 --locked
+
+      - name: sc-lint check
+        run: sc-lint check native --config .sc-lint.toml
+
   fmt:
     name: Format check
     runs-on: ubuntu-latest
