@@ -101,23 +101,46 @@ fn validation_recovery(field: &str, message: &str) -> Vec<String> {
     }
     if field == "type" && message.contains("expected one of") {
         return vec![
-            "Set \"type\" to \"chrome\" (Phase A executable surface)".into(),
-            "Other dialog types ship in later phases".into(),
+            "Set \"type\" to an executable value for this phase (chrome or message)".into(),
+            "Example: {\"type\":\"message\",\"title\":\"T\",\"message\":\"Hi\",\"buttons\":\"ok\"}"
+                .into(),
         ];
+    }
+    if field == "buttons" {
+        return vec![
+            "Set \"buttons\" to one of: ok, ok_cancel, yes_no, yes_no_cancel, retry_cancel, custom"
+                .into(),
+        ];
+    }
+    if field == "custom_buttons" {
+        return vec![
+            "Provide \"custom_buttons\" as a string array only when \"buttons\" is \"custom\""
+                .into(),
+        ];
+    }
+    if field == "default_button" {
+        return vec![
+            "Set \"default_button\" to a 0-based index within the active button list".into(),
+        ];
+    }
+    if message.contains("not supported on message until sprint b.2") {
+        return vec![format!(
+            "Remove field \"{field}\" until sprint b.2 ships level/icon/image/markdown"
+        )];
     }
     if message.contains("expected string") {
         return vec![format!("Provide field \"{field}\" as a JSON string")];
     }
     if message.contains("unknown field") {
         return vec![format!(
-            "Remove unknown field \"{field}\"; chrome allows only type, title, and status"
+            "Remove unknown field \"{field}\"; check the schema for this command type"
         )];
     }
     if message.contains("expected JSON object") {
         return vec!["Pass a single JSON object as the command payload".into()];
     }
     vec![format!(
-        "Fix field \"{field}\" to match the Phase A chrome schema"
+        "Fix field \"{field}\" to match the current phase command schema"
     )]
 }
 
@@ -164,7 +187,7 @@ pub fn handle_run_failure(err: &RunError) -> (String, i32) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use wyvern_schema::{ButtonLabel, ChromeResult, CommandResult, FieldName};
+    use wyvern_schema::{ButtonLabel, ChromeResult, CommandResult, FieldName, MessageResult};
 
     #[test]
     fn emit_load_error_parse_with_quotes_is_valid_json() {
@@ -244,6 +267,14 @@ mod tests {
             button: ButtonLabel::dismissed(),
         });
         assert_eq!(emit_stdout(&result), r#"{"button":"dismissed"}"#);
+    }
+
+    #[test]
+    fn emit_stdout_message_wire_shape() {
+        let result = CommandResult::Message(MessageResult {
+            button: ButtonLabel::new("ok"),
+        });
+        assert_eq!(emit_stdout(&result), r#"{"button":"ok"}"#);
     }
 
     #[test]

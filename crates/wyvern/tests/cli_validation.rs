@@ -71,12 +71,32 @@ fn cli_unknown_field_validation_error() {
 }
 
 #[test]
-fn cli_type_message_not_implemented() {
-    let (code, _stdout, stderr) = run_json(r#"{"type":"message","message":"Hi"}"#);
+fn cli_type_message_deferred_fields_validation_error() {
+    let (code, stdout, stderr) =
+        run_json(r#"{"type":"message","title":"T","message":"Hi","buttons":"ok","level":"info"}"#);
+    assert_ne!(code, 0);
+    assert!(stdout.trim().is_empty(), "stdout={stdout}");
+    let value = stderr_json(&stderr);
+    assert_eq!(value["error"], "validation");
+    assert_eq!(value["field"], "level");
+}
+
+#[test]
+fn cli_type_message_missing_buttons_validation_error() {
+    let (code, _stdout, stderr) = run_json(r#"{"type":"message","title":"T","message":"Hi"}"#);
     assert_ne!(code, 0);
     let value = stderr_json(&stderr);
     assert_eq!(value["error"], "validation");
-    assert_eq!(value["field"], "type");
+    assert_eq!(value["field"], "buttons");
+}
+
+#[test]
+fn cli_valid_message_emits_dismissed() {
+    let (code, stdout, stderr) =
+        run_json(r#"{"type":"message","title":"T","message":"Hi","buttons":"ok"}"#);
+    assert_eq!(code, 0, "stderr={stderr}");
+    assert_eq!(stdout.trim(), r#"{"button":"dismissed"}"#);
+    assert!(stderr.trim().is_empty(), "stderr={stderr}");
 }
 
 #[test]

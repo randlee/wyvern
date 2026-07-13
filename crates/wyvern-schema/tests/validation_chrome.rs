@@ -86,11 +86,12 @@ fn rule_wrong_field_types_explicit_expected_got() {
 }
 
 #[test]
-fn rule_type_message_not_implemented() {
+fn rule_type_message_missing_required_fields() {
+    // Message is unlocked in b.1; incomplete payloads still fail validation.
     let err = validate(&json!({"type":"message","message":"Hi"})).unwrap_err();
     assert!(matches!(
         err,
-        ValidationError::Validation { ref field, .. } if field == "type"
+        ValidationError::Validation { ref field, .. } if field == "title" || field == "buttons"
     ));
 }
 
