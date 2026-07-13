@@ -1,5 +1,17 @@
 //! Wyvern CLI — thin wrapper around load → pipeline (validate → run → emit).
 
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::panic,
+        clippy::unreachable,
+        clippy::todo,
+        clippy::unimplemented
+    )
+)]
+
 use std::io::{self, IsTerminal, Write};
 use std::process::ExitCode;
 
