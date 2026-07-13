@@ -2,7 +2,13 @@
   "phase": "A",
   "status": "complete",
   "integration_branch": "integrate/phase-A",
-  "integration_sha": "2ff76f09f9ff91919decb217c086dd92f002b7d9",
+  "integration_sha": "2f5df15",
+  "integration_pr": {
+    "number": 11,
+    "url": "https://github.com/randlee/wyvern/pull/11",
+    "status": "merged",
+    "merged_at": "2026-07-13T08:00:00Z"
+  },
   "completed_at": "2026-07-13",
   "sprints_merged": [
     { "id": "a.1", "pr": 4, "sha": "7c51e6e" },
@@ -14,5 +20,5 @@
     { "id": "a.7", "pr": 10, "sha": "2ff76f0" }
   ],
   "unresolved_blockers": [],
-  "next_action": "Open PR integrate/phase-A → develop (phase integration closeout)"
+  "next_action": "Phase A complete — integrated via PR #11"
 }
