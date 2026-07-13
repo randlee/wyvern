@@ -53,7 +53,7 @@ Modal types (`message`, `input`, `markdown`, `question`) disable minimize/maximi
 
 1. `wyvern '{"type":"message","title":"T","message":"Hi","buttons":"ok"}'` → dialog; OK → `{"button":"ok"}`; OS close → `{"button":"dismissed"}`
 2. `wyvern '{"type":"input","title":"Name","message":"Enter name","default":"Ada"}'` → text field; OK → `{"button":"ok","input":"..."}`
-3. `wyvern doc.md` and `wyvern '{"type":"markdown","file":"doc.md"}'` → rendered viewer; OK → `{"button":"ok"}`
+3. `wyvern doc.md`, `wyvern '{"type":"markdown","file":"doc.md"}'`, and `wyvern '{"type":"markdown","content":"# Hi"}'` → rendered viewer; OK → `{"button":"ok"}`
 4. `wyvern '{"type":"question","questions":[...]}'` → cards; submit → AskUserQuestion response shape (see [question-contract-examples.md](question-contract-examples.md))
 5. `wyvern '{"type":"wizard",...}'` → validation stderr, exit ≠ 0, no window (still Phase D)
 

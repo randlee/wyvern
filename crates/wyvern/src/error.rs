@@ -129,16 +129,11 @@ fn validation_recovery(field: &str, message: &str) -> Vec<String> {
     if field == "markdown" {
         return vec!["Provide \"markdown\" as a JSON boolean (true or false)".into()];
     }
-    if field == "content" && message.contains("not supported until inline markdown") {
-        return vec![
-            "Use \"file\" with a path to a .md document for sprint b.5".into(),
-            "Example: {\"type\":\"markdown\",\"file\":\"doc.md\"}".into(),
-        ];
-    }
     if field == "file" && message.contains("exactly one of") {
         return vec![
             "Provide exactly one of \"file\" or \"content\" for markdown commands".into(),
             "Example: {\"type\":\"markdown\",\"file\":\"doc.md\"}".into(),
+            "Example: {\"type\":\"markdown\",\"content\":\"# Hello\"}".into(),
         ];
     }
     if message.contains("expected string") {

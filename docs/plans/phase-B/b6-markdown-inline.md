@@ -1,7 +1,7 @@
 ---
 id: b.6
 title: Markdown inline content and default stylesheet
-status: pending
+status: complete
 branch: feature/phase-B-b6-markdown-inline
 target: integrate/phase-B
 ---

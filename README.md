@@ -53,7 +53,7 @@ wyvern '{"type": "wizard", "page": {"id": "start", "title": "Setup", "html": "wi
 
 - **`message`** — blocking modal with title, body, icon, and standard button combos (`ok`, `yes_no`, `ok_cancel`, `yes_no_cancel`, `retry_cancel`, or custom)
 - **`input`** — text entry, multiline, or file/folder chooser
-- **`markdown`** — styled markdown viewer (`wyvern file.md` shorthand)
+- **`markdown`** — styled markdown viewer (`file`, inline `content`, or `wyvern file.md` shorthand)
 - **`wizard`** — multi-page wizard with browser-history navigation, driven by page descriptors plus your HTML + JSON config
 - **`question`** — blocking native renderer based on Claude's public `AskUserQuestion` API
 
