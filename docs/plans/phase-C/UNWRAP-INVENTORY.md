@@ -33,7 +33,7 @@ Legend:
 | `wyvern-schema/src/stderr.rs` | 95 | `serde_json::to_string(self).expect(...)` | **FIXED** | `to_json_string` → `Result<String, SerializeError>` |
 | `wyvern/src/error.rs` | 60 | `unreachable!("Usage handled in main")` | **FIXED** | `emit_parse_error` / `emit_io_error`; Usage only in `main` |
 
-**Authoritative closure checklist:** c.6 Deliverables §1 table (this section is audit trail only). Fixed in sprint c.6 (`feature/phase-C-c6-result-propagation`); commit SHA recorded after merge commit.
+**Authoritative closure checklist:** c.6 Deliverables §1 table (this section is audit trail only). Fixed in sprint c.6 commit `f4ec5254a000faded457ecbb9327fb4e1ebccfc2`.
 
 ### Production `src/` — safe non-panic APIs (no change)
 
