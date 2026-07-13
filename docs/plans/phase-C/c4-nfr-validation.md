@@ -1,8 +1,9 @@
 ---
 id: c.4
 title: Cross-platform validation and NFR pass
-status: pending
+status: complete
 branch: feature/phase-C-c4-nfr-validation
+worktree: /Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-C-c4-nfr-validation
 target: integrate/phase-C
 ---
 
