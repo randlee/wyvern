@@ -109,6 +109,24 @@ TODO rule:
 - report TODOs as findings unless fixed, removed, or rewritten as non-action
   explanatory comments before the final verdict
 
+## Hard merge gate
+
+Declare **PASS** only when **all** of the following are true:
+
+1. **Deliverables:** 100% completion per `req-qa` (every item in `sprint_doc`).
+2. **Reviewers:** every required reviewer for this round returned PASS.
+3. **Findings:** **0 Blocking + 0 Important + 0 Minor** open findings across
+   all reviewers. Minor findings are not optional cleanup — they must be fixed
+   or explicitly resolved before PASS. No backlog deferral.
+4. **CI:** all required PR checks green when a PR number is present (`gh pr
+   checks` — no pending or failing legs).
+
+If any finding remains open, verdict is **FAIL** (even when only Minor).
+List **all** open finding ids in the FAIL report, not only Blocking/Important.
+Route every id to the parent for the dev–fix–re-QA loop.
+
+Merge may proceed only after PASS **and** green CI.
+
 ## Tool recipes (fenced)
 
 `sc-compose` must be on `PATH`.
@@ -402,8 +420,8 @@ FAIL line:
 
 `Sprint <id> QA: FAIL — deliverables <complete>/<total> (<percent>%); blockers: <ids>; …; coordinator=cursor-quality-mgr; PR #<n>; worktree <path>`
 
-After FAIL, list blocking findings with id, file:line when available, and
-one-line remediation.
+After FAIL, list **all** open findings (Blocking, Important, Minor) with id,
+severity, file:line when available, and one-line remediation.
 
 ## Constraints
 

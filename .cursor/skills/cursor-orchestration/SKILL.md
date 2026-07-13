@@ -121,6 +121,25 @@ Other phase-end reviewers stay on their YAML defaults.
    - `.claude/assets/sc-rust/quality-mgr/quality-mgr.rust.md`
 4. `sc-compose` is on `PATH` and usable (see **Tool recipes**).
 
+## Dev–QA loop (mandatory per sprint)
+
+Every sprint runs the same closed loop until **both** gates pass:
+
+```
+dev → push → PR → QA → [FAIL → triage → fix → push → re-QA]* → PASS + green CI → merge
+```
+
+| Gate | Requirement |
+|------|-------------|
+| **QA** | `cursor-quality-mgr` declares **PASS** only when deliverables are 100% complete, every required reviewer PASSes, and **zero open findings** at any severity (**0 Blocking + 0 Important + 0 Minor**). No backlog deferral, no "fix later", no severity downgrade to skip work. |
+| **CI** | All required PR checks green (`gh pr checks <PR> --watch`). Merge is blocked while any check fails or is pending. |
+
+**Fix scope on FAIL:** route **every** finding id (Blocking, Important, and Minor) back to `rust-developer` via `fix-assignment.xml.j2`. Do not merge after fixing only Important/Blocking findings while Minors remain open.
+
+**QA rounds:** QA-1 runs the full reviewer set (incl. RBP + service-hardening). QA-2+ omits RBP and service-hardening but the merge gate stays **0B+0I+0m** — prior-round findings must be fixed before re-QA.
+
+**Sequence:** one sprint at a time. Do not start sprint N+1 until sprint N is merged to `integrate/phase-N` (or the sprint's `pr_target`).
+
 ## Sprint flow
 
 1. Render a dev assignment with `sc-compose` from
@@ -134,11 +153,11 @@ Other phase-end reviewers stay on their YAML defaults.
    with coordinator = **`cursor-quality-mgr`**.
 5. Spawn **one** `cursor-quality-mgr` coordinator (see spawn rules above).
 6. `cursor-quality-mgr` launches the reviewer set (see that agent prompt).
-7. QA-2+: omit RBP and service-hardening reviewers; merge gate remains
-   0B+0I+0m with no backlog deferral.
-8. On FAIL: run `/triaging-findings`, then fix via
+7. On **FAIL** (any open finding or deliverable &lt; 100%): run
+   `/triaging-findings`, then fix **all** findings via
    `.cursor/skills/cursor-orchestration/fix-assignment.xml.j2` →
-   `rust-developer`, then re-QA via `cursor-quality-mgr` only.
+   `rust-developer`, push, then re-QA via `cursor-quality-mgr` only.
+   Repeat until QA PASS **and** CI green.
    Fix assignments must include:
    - authoritative `sprint_doc` = owning/promoted branch sprint plan (plus
      additional sprint docs when findings span multiple sprint origins)
@@ -146,9 +165,10 @@ Other phase-end reviewers stay on their YAML defaults.
      requirements/architecture dumps; planning already embeds those in the
      sprint plan)
    - triage `.ttl` paths and concrete occurrences
+   - **every** finding id from the FAIL round (all severities)
    Fresh `rust-developer` Tasks have no prior sprint memory — never omit
    these fields.
-9. On PASS + green CI: merge may proceed.
+8. On **PASS + green CI**: merge to `pr_target`; then start the next sprint.
 
 ## Plan review flow
 
