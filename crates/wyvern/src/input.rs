@@ -14,6 +14,7 @@ pub fn usage_message() -> String {
     concat!(
         "Usage: wyvern '<json>' | <file.json> | <file.md>\n",
         "       echo '<json>' | wyvern\n",
+        "       wyvern --version\n",
         "\n",
         "Pass exactly one JSON string, .json file, or .md file; or pipe JSON on stdin.",
     )

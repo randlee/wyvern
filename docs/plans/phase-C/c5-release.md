@@ -1,8 +1,9 @@
 ---
 id: c.5
 title: Release tooling and v0.1.0
-status: pending
+status: complete
 branch: feature/phase-C-c5-release
+worktree: /Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-C-c5-release
 target: integrate/phase-C
 ---
 

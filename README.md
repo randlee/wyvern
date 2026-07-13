@@ -8,6 +8,29 @@
 
 ---
 
+## Quickstart
+
+1. Download the latest release for your platform from [GitHub Releases](https://github.com/randlee/wyvern/releases).
+2. Extract and add `wyvern` to your PATH.
+3. Try:
+
+```bash
+wyvern '{"type":"message","title":"Hello","message":"Wyvern works","level":"info","buttons":"ok"}'
+wyvern '{"type":"input","title":"Name","message":"Enter your name","default":""}'
+wyvern '{"type":"markdown","content":"# Hello\n\nFrom **Wyvern**."}'
+```
+
+Release artifacts (no clone required):
+
+| Platform | Artifact |
+|----------|----------|
+| macOS Apple Silicon | `wyvern-macos-aarch64.tar.gz` |
+| macOS Intel | `wyvern-macos-x86_64.tar.gz` |
+| Windows x86_64 | `wyvern-windows.zip` |
+| Linux x86_64 | `wyvern-linux.tar.gz` |
+
+---
+
 ## What it does
 
 Wyvern bridges the gap between CLI tools and rich user interaction. Pass it a JSON command, get back a JSON result. No Electron. No Chrome. Just the OS's built-in webview rendering your HTML.
