@@ -3,6 +3,7 @@ name        = "wyvern-window"
 version     = "0.1.0"
 edition     = "2021"
 description = "Wyvern native webview window, IPC bridge, and HTML chrome frame"
+autotests   = false
 
 [dependencies]
 wyvern-schema = { path = "../wyvern-schema" }
@@ -10,3 +11,15 @@ wyvern-wizard = { path = "../wyvern-wizard" }
 wry           = { workspace = true }
 winit         = { workspace = true }
 serde_json    = { workspace = true }
+
+# wry on Linux needs an initialized GTK main loop alongside winit.
+[target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))'.dependencies]
+gtk = "0.18"
+
+# GUI window tests must run on the process main thread (macOS NSApp / winit).
+# autotests=false so tests/support.rs is a module, not its own harness.
+[[test]]
+name = "blank_window"
+path = "tests/blank_window.rs"
+harness = false
+
