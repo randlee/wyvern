@@ -86,12 +86,14 @@ pub fn variant_count(role: &str) -> u32 {
     }
 }
 
-pub fn parse_icon_spec(spec: &str) -> (String, u32) {
-    let (base, variant) = spec
-        .split_once(':')
-        .map(|(b, v)| (b, v.parse().unwrap_or(1)))
-        .unwrap_or((spec, 1));
-    (base.to_string(), variant)
+/// Parse `"role"` or `"role:N"` where N is a 1-based variant index.
+/// Non-numeric suffix (e.g. `"warning:abc"`) returns `Err(())` — validation layer maps to `ValidationError`.
+pub fn parse_icon_spec(spec: &str) -> Result<(String, u32), ()> {
+    let (base, variant) = match spec.split_once(':') {
+        None => (spec, 1u32),
+        Some((b, v)) => (b, v.parse::<u32>().map_err(|_| ())?),
+    };
+    Ok((base.to_string(), variant))
 }
 ```
 

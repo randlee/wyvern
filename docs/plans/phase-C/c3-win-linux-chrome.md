@@ -65,6 +65,14 @@ All dialog/chrome render entry points accept `PlatformChrome`:
 
 ```rust
 // crates/wyvern-window/src/chrome/platform.rs
+pub(crate) enum CommandKind {
+    Chrome,
+    Message,
+    Input,
+    Markdown,
+    Question,
+}
+
 pub struct PlatformChrome {
     /// macOS only: reserve 72px left padding for traffic lights (ADR-0010).
     pub macos_safe_zone: bool,
@@ -204,16 +212,18 @@ impl ChromeApp {
 
 ### Modal minimize no-op (all dialog apps)
 
-Every modal `handle_ipc` (MessageApp, InputApp, MarkdownApp in `run.rs`; QuestionApp in `question/handler.rs`) must handle `window_minimize` as an explicit **no-op** before the malformed-IPC fail-safe:
+Every modal `handle_ipc` (MessageApp, InputApp, MarkdownApp in `run.rs`; QuestionApp in `question/handler.rs`) must handle `window_minimize` as an explicit **no-op** before the malformed-IPC fail-safe. Use a **single** `match parse_chrome_ipc(raw)` — do not call `parse_chrome_ipc` twice (avoids double JSON parse):
 
 ```rust
 fn handle_ipc(&mut self, event_loop: &ActiveEventLoop, raw: &str) {
-    if parse_chrome_ipc(raw) == Some(ChromeIpc::WindowMinimize) {
-        return; // modal: ignore — must NOT dismiss
-    }
-    if parse_chrome_ipc(raw) == Some(ChromeIpc::WindowClose) {
-        self.dismiss(event_loop);
-        return;
+    if let Some(msg) = parse_chrome_ipc(raw) {
+        match msg {
+            ChromeIpc::WindowMinimize => return, // modal: no-op — must NOT dismiss
+            ChromeIpc::WindowClose => {
+                self.dismiss(event_loop);
+                return;
+            }
+        }
     }
     // ... existing dialog IPC ...
 }
@@ -239,7 +249,19 @@ pub fn render_chrome_html(title: &str, status: Option<&str>, chrome: PlatformChr
 ```
 
 ```rust
+// run.rs — call sites map dialog type → CommandKind for render
+let chrome = platform_chrome_for(CommandKind::Chrome);   // ChromeApp
+let chrome = platform_chrome_for(CommandKind::Message);  // MessageApp
+let chrome = platform_chrome_for(CommandKind::Input);    // InputApp
+let chrome = platform_chrome_for(CommandKind::Markdown); // MarkdownApp
+
+// question/handler.rs — QuestionApp (outside run.rs to break module cycle)
+let chrome = platform_chrome_for(CommandKind::Question);
+```
+
+```rust
 // chrome/ipc.rs — shared parse helper (pub(crate), under chrome/)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ChromeIpc { WindowClose, WindowMinimize }
 
 pub(crate) fn parse_chrome_ipc(raw: &str) -> Option<ChromeIpc> {
