@@ -57,6 +57,54 @@ pub(crate) fn dialog_payload(command: &Command) -> Value {
             }
             obj
         }
+        Command::Input {
+            title,
+            message,
+            status,
+            icon,
+            markdown,
+            multiline,
+            placeholder,
+            default,
+            password,
+            mode,
+            filter,
+            multiple,
+            start_path,
+            buttons,
+        } => {
+            let mut obj = json!({
+                "type": "input",
+                "title": title.as_str(),
+                "message": message,
+                "markdown": markdown,
+                "multiline": multiline,
+                "password": password,
+                "mode": mode.as_str(),
+                "multiple": multiple,
+                "buttons": buttons_wire(*buttons),
+                "button_list": button_list(*buttons, None),
+            });
+            if let Some(status) = status {
+                obj["status"] = json!(status.as_str());
+            }
+            if let Some(icon) = icon {
+                obj["icon"] = json!(icon);
+            }
+            if let Some(placeholder) = placeholder {
+                obj["placeholder"] = json!(placeholder);
+            }
+            if let Some(default) = default {
+                obj["default"] = json!(default);
+            }
+            if let Some(filter) = filter {
+                obj["filter"] = json!(filter);
+            }
+            if let Some(start_path) = start_path {
+                obj["start_path"] = json!(start_path);
+            }
+            obj
+        }
         other => json!({
             "type": command_type_name(other),
             "error": "unsupported_type",

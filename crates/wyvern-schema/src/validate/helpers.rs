@@ -25,7 +25,7 @@ pub(super) const MESSAGE_FIELDS: &[&str] = &[
     "markdown",
 ];
 
-/// Allowed fields on an `input` command object (b.4 full surface).
+/// Allowed fields on an `input` command object (b.4 full surface + c.11 password).
 pub(super) const INPUT_FIELDS: &[&str] = &[
     "type",
     "title",
@@ -36,6 +36,7 @@ pub(super) const INPUT_FIELDS: &[&str] = &[
     "multiline",
     "placeholder",
     "default",
+    "password",
     "mode",
     "filter",
     "multiple",

@@ -32,6 +32,7 @@ pub(super) fn validate_input(obj: &Map<String, Value>) -> Result<Command, Valida
     let multiline = optional_bool_field(obj, "multiline")?.unwrap_or(false);
     let placeholder = optional_string_field(obj, "placeholder")?;
     let default = optional_string_field(obj, "default")?;
+    let password = optional_bool_field(obj, "password")?.unwrap_or(false);
 
     let mode = match obj.get("mode") {
         None => InputMode::Text,
@@ -62,6 +63,20 @@ pub(super) fn validate_input(obj: &Map<String, Value>) -> Result<Command, Valida
         return Err(ValidationError::validation(
             "multiline",
             "multiline is only valid when mode is 'text' (or omitted)",
+        ));
+    }
+
+    // password masking is text-mode only; incompatible with multiline.
+    if password && matches!(mode, InputMode::File | InputMode::Folder) {
+        return Err(ValidationError::validation(
+            "password",
+            "password is only valid when mode is 'text' (or omitted)",
+        ));
+    }
+    if password && multiline {
+        return Err(ValidationError::validation(
+            "password",
+            "password is not valid when multiline is true",
         ));
     }
 
@@ -195,6 +210,7 @@ pub(super) fn validate_input(obj: &Map<String, Value>) -> Result<Command, Valida
         multiline,
         placeholder,
         default,
+        password,
         mode,
         filter,
         multiple,

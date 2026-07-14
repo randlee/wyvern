@@ -17,6 +17,7 @@
 
 mod error;
 mod options;
+mod picker;
 mod routes;
 mod server;
 mod session;
@@ -52,14 +53,10 @@ pub fn run(command: Command, options: HostOptions) -> Result<CommandResult, Host
 
     let type_name = match &command {
         Command::Message { .. } => "message",
+        Command::Input { .. } => "input",
         Command::Chrome { .. } => {
             return Err(HostError::UnsupportedType {
                 type_name: "chrome".into(),
-            });
-        }
-        Command::Input { .. } => {
-            return Err(HostError::UnsupportedType {
-                type_name: "input".into(),
             });
         }
         Command::Markdown { .. } => {

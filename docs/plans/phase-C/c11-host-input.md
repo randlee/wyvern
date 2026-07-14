@@ -1,8 +1,9 @@
 ---
 id: c.11
 title: Host + UI — input (incl. picker)
-status: planning
+status: complete
 branch: feature/phase-C-c11-host-input
+worktree: /Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-C-c11-host-input
 target: integrate/phase-c-web-server
 ---
 

@@ -10,7 +10,7 @@ use tokio::sync::oneshot;
 use tower_http::services::ServeDir;
 
 use crate::error::HostError;
-use crate::routes::{dialog, result};
+use crate::routes::{dialog, picker, result};
 use crate::session::SessionState;
 use crate::static_files::require_type_dir;
 
@@ -51,6 +51,8 @@ pub(crate) fn build_router(session: SessionState, ui_root: PathBuf) -> Router {
     Router::new()
         .route("/api/dialog", get(dialog::get_dialog))
         .route("/api/result", post(result::post_result))
+        .route("/api/picker/file", post(picker::post_picker_file))
+        .route("/api/picker/folder", post(picker::post_picker_folder))
         .fallback_service(static_files)
         .with_state(session)
 }

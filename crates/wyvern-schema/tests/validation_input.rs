@@ -21,6 +21,7 @@ fn validation_input_minimal_defaults_text_and_ok_cancel() {
             multiline,
             placeholder,
             default,
+            password,
             mode,
             filter,
             multiple,
@@ -35,6 +36,7 @@ fn validation_input_minimal_defaults_text_and_ok_cancel() {
             assert!(!multiline);
             assert!(placeholder.is_none());
             assert!(default.is_none());
+            assert!(!password);
             assert_eq!(mode, InputMode::Text);
             assert!(filter.is_none());
             assert!(!multiple);

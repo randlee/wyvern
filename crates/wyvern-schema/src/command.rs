@@ -121,9 +121,9 @@ impl MessageLevel {
 pub enum InputMode {
     /// Free-text field (default when `mode` is omitted).
     Text,
-    /// Native file picker via `rfd` in `wyvern-window` (sprint b.4).
+    /// Native file picker via `rfd` in `wyvern-host` (sprint c.11).
     File,
-    /// Native folder picker via `rfd` in `wyvern-window` (sprint b.4).
+    /// Native folder picker via `rfd` in `wyvern-host` (sprint c.11).
     Folder,
 }
 
@@ -184,6 +184,8 @@ pub enum Command {
         multiline: bool,
         placeholder: Option<String>,
         default: Option<String>,
+        /// Mask the text field (`type=password`); text mode only (c.11).
+        password: bool,
         mode: InputMode,
         /// Extension patterns (`*.json`, …); file mode only (REQ-0015 / REQ-0059).
         filter: Option<Vec<String>>,
