@@ -1,14 +1,14 @@
 @prefix triage: <urn:atm:triage:> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
-<urn:atm:triage:finding/RBP-F001>
+<urn:atm:triage:finding/RSH-003>
   a triage:Finding ;
-  triage:findingId "RBP-F001" ;
-  triage:title "ApiError::bad_request without cause/recovery" ;
-  triage:description "ApiError::bad_request errors lack cause and recovery information for diagnostics" ;
+  triage:findingId "RSH-003" ;
+  triage:title "No render timeout" ;
+  triage:description "Markdown render_content_html lacks timeout protection against runaway rendering" ;
   triage:phaseId "phase-C-web-server" ;
   triage:triageMode "initial_pass" ;
-  triage:category "RBP" ;
+  triage:category "RSH" ;
   triage:severity "important" ;
   triage:repeatable false ;
   triage:sweepScope "file_only" ;
@@ -16,15 +16,15 @@
   triage:dispatchReady true ;
   triage:originatingSprintDoc "docs/plans/phase-C/c12-host-markdown.md" ;
   triage:triagedAt "2026-07-14T08:02:00Z"^^xsd:dateTime ;
-  triage:hasOccurrence <urn:atm:triage:occurrence/RBP-F001/c12-host-markdown/1> ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/RSH-003/c12-host-markdown/1> ;
   triage:openOn <urn:atm:triage:worktree/c12-host-markdown/edfe34e> ;
   triage:promoteTo <urn:atm:triage:worktree/c12-host-markdown/edfe34e> .
 
-<urn:atm:triage:occurrence/RBP-F001/c12-host-markdown/1>
+<urn:atm:triage:occurrence/RSH-003/c12-host-markdown/1>
   a triage:Occurrence ;
-  triage:file "result.rs" ;
-  triage:line 31 ;
-  triage:snippet "ApiError::bad_request" ;
+  triage:file "markdown.rs" ;
+  triage:line 26 ;
+  triage:snippet "render_content_html" ;
   triage:status "open" ;
   triage:closed false ;
   triage:branch "feature/phase-C-c12-host-markdown" ;

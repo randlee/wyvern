@@ -1,30 +1,30 @@
 @prefix triage: <urn:atm:triage:> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
-<urn:atm:triage:finding/RBP-F001>
+<urn:atm:triage:finding/C12-QA-002>
   a triage:Finding ;
-  triage:findingId "RBP-F001" ;
-  triage:title "ApiError::bad_request without cause/recovery" ;
-  triage:description "ApiError::bad_request errors lack cause and recovery information for diagnostics" ;
+  triage:findingId "C12-QA-002" ;
+  triage:title "Sprint doc status planning" ;
+  triage:description "Sprint documentation status field shows 'planning' instead of current phase status" ;
   triage:phaseId "phase-C-web-server" ;
   triage:triageMode "initial_pass" ;
-  triage:category "RBP" ;
-  triage:severity "important" ;
+  triage:category "C12-QA" ;
+  triage:severity "minor" ;
   triage:repeatable false ;
   triage:sweepScope "file_only" ;
   triage:status "open" ;
   triage:dispatchReady true ;
   triage:originatingSprintDoc "docs/plans/phase-C/c12-host-markdown.md" ;
   triage:triagedAt "2026-07-14T08:02:00Z"^^xsd:dateTime ;
-  triage:hasOccurrence <urn:atm:triage:occurrence/RBP-F001/c12-host-markdown/1> ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/C12-QA-002/c12-host-markdown/1> ;
   triage:openOn <urn:atm:triage:worktree/c12-host-markdown/edfe34e> ;
   triage:promoteTo <urn:atm:triage:worktree/c12-host-markdown/edfe34e> .
 
-<urn:atm:triage:occurrence/RBP-F001/c12-host-markdown/1>
+<urn:atm:triage:occurrence/C12-QA-002/c12-host-markdown/1>
   a triage:Occurrence ;
-  triage:file "result.rs" ;
-  triage:line 31 ;
-  triage:snippet "ApiError::bad_request" ;
+  triage:file "docs/plans/phase-C/c12-host-markdown.md" ;
+  triage:line 4 ;
+  triage:snippet "status: planning" ;
   triage:status "open" ;
   triage:closed false ;
   triage:branch "feature/phase-C-c12-host-markdown" ;
