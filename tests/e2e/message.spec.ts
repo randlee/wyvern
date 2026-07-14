@@ -34,6 +34,16 @@ function waitForUrlFile(filePath: string, timeoutMs = 15_000): Promise<string> {
   });
 }
 
+function waitForExit(child: ChildProcessWithoutNullStreams): Promise<number> {
+  if (child.exitCode !== null) {
+    return Promise.resolve(child.exitCode);
+  }
+  return new Promise((resolve, reject) => {
+    child.on("error", reject);
+    child.on("close", (code) => resolve(code ?? -1));
+  });
+}
+
 test("message dialog ok via --viewer none", async ({ page }) => {
   test.skip(!fs.existsSync(WYVERN_BIN), `missing wyvern binary at ${WYVERN_BIN}`);
 
@@ -67,25 +77,18 @@ test("message dialog ok via --viewer none", async ({ page }) => {
     child.stderr.on("data", (chunk) => {
       stderr += chunk.toString();
     });
+    const exitPromise = waitForExit(child);
 
     const dialogUrl = await waitForUrlFile(urlFile);
     await page.goto(dialogUrl);
     await expect(page.getByTestId("btn-ok")).toBeVisible();
     await page.getByTestId("btn-ok").click();
 
-    const exitCode: number = await new Promise((resolve, reject) => {
-      if (!child) {
-        reject(new Error("child missing"));
-        return;
-      }
-      child.on("error", reject);
-      child.on("close", (code) => resolve(code ?? -1));
-    });
-
+    const exitCode = await exitPromise;
     expect(exitCode, `stderr=${stderr}`).toBe(0);
     expect(stdout.trim()).toBe('{"button":"ok"}');
   } finally {
-    if (child && !child.killed) {
+    if (child && child.exitCode === null && !child.killed) {
       child.kill("SIGTERM");
     }
     try {
