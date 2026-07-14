@@ -415,6 +415,9 @@ mod tests {
 
     #[tokio::test]
     async fn dialog_payload_rejects_oversized_question_preview() {
+        let _guard = crate::markdown::lock_hooks().await;
+        crate::markdown::set_render_delay_ms(0);
+        crate::markdown::set_render_timeout_ms(0);
         let oversized = "x".repeat(MARKDOWN_CONTENT_MAX_BYTES + 1);
         let err = dialog_payload(&question_with_preview(oversized))
             .await
@@ -425,6 +428,9 @@ mod tests {
 
     #[tokio::test]
     async fn dialog_payload_renders_normal_question_preview() {
+        let _guard = crate::markdown::lock_hooks().await;
+        crate::markdown::set_render_delay_ms(0);
+        crate::markdown::set_render_timeout_ms(0);
         let value = dialog_payload(&question_with_preview("**bold**"))
             .await
             .expect("render");

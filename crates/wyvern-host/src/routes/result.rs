@@ -98,17 +98,22 @@ fn parse_result_for_command(command: &Command, body: &Value) -> Result<CommandRe
     }
 }
 
+/// Allowed top-level keys for `question` `POST /api/result` (http-post-schema.md).
+const QUESTION_RESULT_KEYS: &[&str] = &["questions", "answers", "response", "button"];
+
 /// Parse question POST body per http-post-schema.md (REQ-0067 / REQ-0068).
 ///
 /// - Normal submit: omit `button`, non-empty `answers`, `response` present.
 /// - Presence of `button`, or empty `answers` without submit → fail-safe dismiss.
 /// - Stdout `questions` always echo the validated command `questions_raw`.
 /// - Answer map keys must be prompts from the active [`QuestionCard`] set.
+/// - Unknown top-level keys → 400 (Extra fields convention).
 fn parse_question_result(
     questions: &[QuestionCard],
     questions_raw: &[Value],
     body: &Value,
 ) -> Result<CommandResult, HostError> {
+    reject_unknown_keys(body, QUESTION_RESULT_KEYS)?;
     if !body.get("questions").map(Value::is_array).unwrap_or(false) {
         return Err(HostError::InvalidResult {
             message: "missing array field 'questions'".into(),
@@ -134,6 +139,23 @@ fn parse_question_result(
         questions_raw.to_vec(),
         answers,
     )))
+}
+
+/// Reject unknown top-level object keys (http-post-schema.md Extra fields → 400).
+fn reject_unknown_keys(body: &Value, allowed: &[&str]) -> Result<(), HostError> {
+    let Some(obj) = body.as_object() else {
+        return Err(HostError::InvalidResult {
+            message: "result body must be a JSON object".into(),
+        });
+    };
+    for key in obj.keys() {
+        if !allowed.contains(&key.as_str()) {
+            return Err(HostError::InvalidResult {
+                message: format!("unknown field '{key}'"),
+            });
+        }
+    }
+    Ok(())
 }
 
 /// Reject answer keys that are not prompts on the active question cards.

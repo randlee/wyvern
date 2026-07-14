@@ -468,6 +468,54 @@ fn result_rejects_unknown_answer_keys() {
 }
 
 #[test]
+fn result_rejects_unknown_top_level_fields() {
+    let tmp = tempfile::tempdir().expect("temp dir");
+    let url_file = tmp.path().join("dialog-url");
+    let options = host_options(url_file.clone());
+    let command = single_select_command();
+    let expected_raw = match &command {
+        Command::Question { questions_raw, .. } => questions_raw.clone(),
+        _ => unreachable!(),
+    };
+    let handle = thread::spawn(move || run(command, options));
+
+    let dialog_url = wait_for_url_file(&url_file);
+    let base = dialog_base(&dialog_url);
+
+    let client = reqwest::blocking::Client::new();
+    let _ = wait_for_dialog_ready(&client, &base);
+    let response = client
+        .post(format!("{base}/api/result"))
+        .json(&serde_json::json!({
+            "questions": expected_raw,
+            "answers": { "Output format?": "JSON" },
+            "response": "",
+            "extra": true
+        }))
+        .send()
+        .expect("POST result");
+    assert_eq!(response.status(), reqwest::StatusCode::BAD_REQUEST);
+    let body: serde_json::Value = response.json().expect("error json");
+    assert_eq!(body["error"], "bad_request");
+    assert!(body["message"]
+        .as_str()
+        .is_some_and(|m| m.contains("unknown field") && m.contains("extra")));
+
+    let _ = client
+        .post(format!("{base}/api/result"))
+        .json(&serde_json::json!({
+            "button": "dismissed",
+            "questions": expected_raw,
+            "answers": {},
+            "response": ""
+        }))
+        .send()
+        .expect("POST result")
+        .error_for_status();
+    let _ = handle.join().expect("host thread").expect("run ok");
+}
+
+#[test]
 fn dialog_rejects_oversized_question_preview() {
     let tmp = tempfile::tempdir().expect("temp dir");
     let url_file = tmp.path().join("dialog-url");
