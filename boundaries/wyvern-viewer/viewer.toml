@@ -1,10 +1,10 @@
 boundary_id = "BOUNDARY-WyvernViewer"
 owner_package = "wyvern-viewer"
 name = "WyvernViewer"
-status = "planned"
+status = "active"
 
 [dependencies]
-allowed_dependencies = ["wry", "winit", "url"]
+allowed_dependencies = ["wry", "winit", "url", "tracing", "gtk"]
 forbidden_dependencies = ["wyvern", "wyvern-mcp", "wyvern-host", "wyvern-schema"]
 forbidden_edges = ["wyvern-viewer -> wyvern-host", "wyvern-viewer -> wyvern-schema"]
 

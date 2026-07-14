@@ -1,7 +1,8 @@
 //! Wyvern HTTP dialog host — bind, serve packaged UI, await `POST /api/result`.
 //!
 //! Greenfield crate (sprint c.10). No wry/winit. One-shot `run()` serves a single
-//! dialog session over loopback HTTP.
+//! dialog session over loopback HTTP for `none` / `system` / `named` viewers.
+//! Embedded one-shot uses [`begin`] + CLI `embedded_viewer_spawn` (c.15).
 
 #![cfg_attr(
     not(test),
@@ -15,7 +16,11 @@
     )
 )]
 
+mod browser_catalog;
+mod browser_launch;
+mod browser_registry;
 mod error;
+mod handle;
 mod markdown;
 mod options;
 mod picker;
@@ -25,42 +30,46 @@ mod server;
 mod session;
 mod static_files;
 
+pub use browser_registry::{
+    list_entries as list_browser_entries, load_or_refresh as load_or_refresh_browser_registry,
+    refresh as refresh_browser_registry, registry_path as browser_registry_path,
+    BrowserRegistryEntry, BrowserRegistryFile,
+};
 pub use error::{DialogTypeName, HostError};
+pub use handle::{begin, DialogHandle};
 pub use options::{
     BrowserId, HostOptions, ViewerLaunchOptions, ViewerMode, DEFAULT_SESSION_TIMEOUT,
 };
 pub use picker::{MockPickerConfig, MockPickerSlotEvent, MockPickerSlotLog};
 
-use tokio::sync::oneshot;
 use wyvern_schema::{Command, CommandResult};
 
-use crate::server::{bind_server, publish_dialog_url, serve_until_result};
-use crate::session::SessionState;
+use crate::handle::{dialog_type_name, run_owned_async};
 
-/// One-shot convenience for viewer modes the host owns (`None` in c.10).
+/// One-shot convenience for viewer modes the host owns (`none` / `system` / `named`).
 ///
-/// Binds HTTP, optionally publishes the dialog URL (stderr / file), serves static UI + API,
-/// and returns when the page POSTs `/api/result`.
+/// Binds HTTP, optionally publishes the dialog URL (stderr / file), opens a system
+/// or named browser when requested, serves static UI + API, and returns when the
+/// page POSTs `/api/result`.
+///
+/// **Must not** be used for [`ViewerMode::Embedded`] — the CLI owns embedded spawn
+/// via [`begin`] + `embedded_viewer_spawn`.
 ///
 /// # Errors
 ///
-/// Returns [`HostError`] on unsupported type/viewer, bind/UI failures, or
-/// internal server faults.
+/// Returns [`HostError`] on unsupported embedded mode, bind/UI failures, viewer
+/// miss, or internal server faults.
 pub fn run(command: Command, options: HostOptions) -> Result<CommandResult, HostError> {
     match options.viewer {
-        ViewerMode::None => {}
-        other => {
-            return Err(HostError::ViewerUnsupported { mode: other });
+        ViewerMode::None | ViewerMode::System | ViewerMode::Named(_) => {}
+        ViewerMode::Embedded => {
+            return Err(HostError::ViewerUnsupported {
+                mode: ViewerMode::Embedded,
+            });
         }
     }
 
-    let type_name = match &command {
-        Command::Chrome { .. } => DialogTypeName::Chrome,
-        Command::Message { .. } => DialogTypeName::Message,
-        Command::Input { .. } => DialogTypeName::Input,
-        Command::Markdown { .. } => DialogTypeName::Markdown,
-        Command::Question { .. } => DialogTypeName::Question,
-    };
+    let type_name = dialog_type_name(&command);
 
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -69,35 +78,5 @@ pub fn run(command: Command, options: HostOptions) -> Result<CommandResult, Host
             message: format!("failed to create tokio runtime: {e}"),
         })?;
 
-    rt.block_on(run_async(command, options, type_name))
-}
-
-async fn run_async(
-    command: Command,
-    options: HostOptions,
-    type_name: DialogTypeName,
-) -> Result<CommandResult, HostError> {
-    let (result_tx, result_rx) = oneshot::channel();
-    let session = SessionState::new(command, result_tx, options.mock_picker.clone());
-    let (bound, ui_root) = bind_server(
-        options.bind,
-        options.allow_non_loopback,
-        &options.ui_root,
-        type_name.as_str(),
-    )
-    .await?;
-
-    if options.dialog_url_env {
-        publish_dialog_url(&bound.dialog_url, options.dialog_url_file.as_deref());
-    }
-
-    let state_session = session.clone();
-    serve_until_result(
-        bound,
-        state_session,
-        ui_root,
-        result_rx,
-        options.session_timeout,
-    )
-    .await
+    rt.block_on(run_owned_async(command, options, type_name))
 }

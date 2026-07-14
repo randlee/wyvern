@@ -7,7 +7,7 @@ members = [
     "crates/wyvern-wizard",
     "crates/wyvern-mcp",
     "crates/wyvern-host",
-    # "crates/wyvern-viewer", # add c.15
+    "crates/wyvern-viewer",
 ]
 resolver = "2"
 
@@ -33,6 +33,15 @@ tower = "0.5"
 tower-http = { version = "0.6", features = ["fs", "limit"] }
 tracing = "0.1"
 http-body-util = "0.1"
+
+# Embedded viewer (c.15)
+wry   = "0.53"
+winit = "0.30"
+url   = "2"
+
+# Browser registry / system launch (c.15)
+dirs       = "6"
+webbrowser = "1"
 
 # Logging (crates.io — see docs/plans/phase-A/a6-sc-observability.md)
 sc-observability = "1.2"

@@ -16,6 +16,8 @@ tracing       = { workspace = true }
 rfd           = "0.15"
 pulldown-cmark = { workspace = true }
 ammonia       = { workspace = true }
+dirs          = { workspace = true }
+webbrowser    = { workspace = true }
 
 [dev-dependencies]
 http-body-util = { workspace = true }

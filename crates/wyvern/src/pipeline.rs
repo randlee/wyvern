@@ -1,13 +1,17 @@
-//! CLI pipeline: validate → load markdown files → host run → emit.
+//! CLI pipeline: validate → load markdown files → host run / embedded spawn → emit.
+
+use std::thread;
+use std::time::Duration;
 
 use serde_json::Value;
-use wyvern_host::{run as host_run, HostError, HostOptions};
+use wyvern_host::{begin, run as host_run, HostError, HostOptions, ViewerMode};
 use wyvern_schema::{Command, FieldName};
 
 use crate::error::{
     emit_host_error, emit_io_error, emit_stdout, emit_validation_error, EmitError, LoadError,
 };
 use crate::observability;
+use crate::viewer_spawn::{spawn_embedded_viewer, ViewerSpawnError};
 
 /// Pipeline failure after load: stage stderr + exit, or emit-boundary serialize failure.
 #[derive(Debug)]
@@ -56,19 +60,103 @@ pub fn run_from_loaded(value: Value, host: HostOptions) -> Result<String, Pipeli
     };
 
     observability::log_host_start(command_type_name(&command));
-    match host_run(command, host) {
+    let result = match host.viewer {
+        ViewerMode::Embedded => run_embedded(command, host),
+        ViewerMode::None | ViewerMode::System | ViewerMode::Named(_) => {
+            host_run(command, host).map_err(PipelineHostError::Host)
+        }
+    };
+
+    match result {
         Ok(result) => {
             observability::log_host_result(true);
             emit_stdout(&result).map_err(PipelineError::Emit)
         }
-        Err(err) => {
+        Err(PipelineHostError::Host(err)) => {
             observability::log_error("host", &format!("{err:?}"));
             observability::log_host_result(false);
             let exit_code = host_error_exit_code(&err);
             let stderr = emit_host_error(&err).map_err(PipelineError::Emit)?;
             Err(PipelineError::Stage { stderr, exit_code })
         }
+        Err(PipelineHostError::Viewer(err)) => {
+            observability::log_error("viewer_spawn", &format!("{err:?}"));
+            observability::log_host_result(false);
+            let stderr = emit_viewer_spawn_error(&err).map_err(PipelineError::Emit)?;
+            Err(PipelineError::Stage {
+                stderr,
+                exit_code: wyvern_schema::ErrorCode::HostViewerError.exit_code(),
+            })
+        }
     }
+}
+
+enum PipelineHostError {
+    Host(HostError),
+    Viewer(ViewerSpawnError),
+}
+
+fn run_embedded(
+    command: Command,
+    host: HostOptions,
+) -> Result<wyvern_schema::CommandResult, PipelineHostError> {
+    let mut handle = begin(command, host).map_err(PipelineHostError::Host)?;
+    let mut child = match spawn_embedded_viewer(&handle.dialog_url, &handle.viewer_options) {
+        Ok(child) => child,
+        Err(err) => {
+            // Shut down the host session — no viewer will post a result.
+            let _ = handle.viewer_exited_without_result();
+            return Err(PipelineHostError::Viewer(err));
+        }
+    };
+
+    let dismiss_tx = handle.take_viewer_exit_signal();
+    if let Some(tx) = dismiss_tx {
+        thread::spawn(move || {
+            let _ = child.wait();
+            let _ = tx.send(());
+        });
+    } else {
+        // Should not happen; still wait so we don't zombie.
+        thread::spawn(move || {
+            let _ = child.wait();
+        });
+    }
+
+    // Give the child a brief moment to fail-fast (missing display, etc.).
+    thread::sleep(Duration::from_millis(50));
+
+    handle.await_result().map_err(PipelineHostError::Host)
+}
+
+fn emit_viewer_spawn_error(err: &ViewerSpawnError) -> Result<String, EmitError> {
+    use wyvern_schema::{ErrorCode, StderrError};
+    let (message, cause, recovery) = match err {
+        ViewerSpawnError::NotFound { hint } => (
+            "wyvern-viewer binary not found".to_string(),
+            hint.clone(),
+            vec![
+                "Build or install wyvern-viewer next to the wyvern binary".to_string(),
+                "Set WYVERN_VIEWER_BIN to the viewer executable".to_string(),
+                "Use --viewer none for headless / CI".to_string(),
+            ],
+        ),
+        ViewerSpawnError::Io { message } => (
+            format!("failed to spawn wyvern-viewer: {message}"),
+            "Could not start the embedded viewer process".to_string(),
+            vec![
+                "Verify wyvern-viewer is executable".to_string(),
+                "Use --viewer none for headless / CI".to_string(),
+            ],
+        ),
+    };
+    let mut envelope = StderrError::new(ErrorCode::HostViewerError, message)
+        .cause(cause)
+        .docs("docs/plans/phase-C/http-viewer-contract.md");
+    for step in recovery {
+        envelope = envelope.recovery(step);
+    }
+    envelope.to_json_string().map_err(EmitError::Serialize)
 }
 
 fn command_type_name(command: &Command) -> &'static str {

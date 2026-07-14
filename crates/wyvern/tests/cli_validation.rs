@@ -348,9 +348,68 @@ fn cli_message_viewer_none_posts_ok() {
 }
 
 #[test]
-fn cli_message_omitted_viewer_defaults_to_none() {
+fn cli_message_omitted_viewer_defaults_to_embedded() {
+    // Product default is embedded; missing viewer binary must error (not silent none).
     let json = r#"{"type":"message","title":"T","message":"Hi","buttons":"ok"}"#;
-    let (child, dialog_url, stderr_handle) = spawn_wyvern_ephemeral(&[json]);
+    let output = run_wyvern(
+        wyvern()
+            .env_remove("WYVERN_VIEWER")
+            .env(
+                "WYVERN_VIEWER_BIN",
+                "/nonexistent/wyvern-viewer-c15-missing-bin",
+            )
+            .arg(json),
+    );
+    assert_eq!(
+        output.status.code(),
+        Some(wyvern_schema::ErrorCode::HostViewerError.exit_code())
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let value = stderr_json(&stderr);
+    assert_eq!(value["code"], "HOST_VIEWER_ERROR");
+    assert!(
+        value["message"]
+            .as_str()
+            .unwrap_or("")
+            .contains("wyvern-viewer")
+            || value["cause"]
+                .as_str()
+                .unwrap_or("")
+                .contains("WYVERN_VIEWER_BIN"),
+        "stderr={stderr}"
+    );
+}
+
+#[test]
+fn cli_message_wyvern_viewer_env_none_publishes_url() {
+    let json = r#"{"type":"message","title":"T","message":"Hi","buttons":"ok"}"#;
+    let mut child = wyvern()
+        .env("WYVERN_VIEWER", "none")
+        .args([json, "--bind", "127.0.0.1:0"])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("spawn");
+
+    let stderr = child.stderr.take().expect("stderr");
+    let (url_tx, url_rx) = std::sync::mpsc::channel::<String>();
+    let stderr_handle = thread::spawn(move || {
+        let mut collected = String::new();
+        let reader = BufReader::new(stderr);
+        for line in reader.lines() {
+            let line = line.expect("stderr line");
+            collected.push_str(&line);
+            collected.push('\n');
+            if let Some(url) = line.strip_prefix("WYVERN_DIALOG_URL=") {
+                let _ = url_tx.send(url.to_string());
+            }
+        }
+        collected
+    });
+
+    let dialog_url = url_rx
+        .recv_timeout(Duration::from_secs(10))
+        .expect("timed out waiting for WYVERN_DIALOG_URL on stderr");
     let base = dialog_base_url(&dialog_url);
 
     let client = wait_for_http(&format!("{base}/api/dialog"));

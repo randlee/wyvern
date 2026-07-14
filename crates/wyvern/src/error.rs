@@ -314,13 +314,16 @@ pub fn emit_host_error(err: &wyvern_host::HostError) -> Result<String, EmitError
         ),
         HostError::ViewerUnsupported { mode } => (
             ErrorCode::HostViewerError,
-            format!("viewer mode '{}' is not implemented yet", mode.as_str()),
-            "c.10 implements --viewer none only".to_string(),
+            format!(
+                "viewer mode '{}' is not supported by host::run",
+                mode.as_str()
+            ),
+            "Embedded one-shot must use begin + wyvern-viewer spawn (CLI pipeline)".to_string(),
             vec![
-                "Use --viewer none (or omit --viewer until c.15)".into(),
-                "Named and embedded viewers arrive in c.15".into(),
+                "Omit --viewer or use --viewer embedded (CLI default)".into(),
+                "Use --viewer none for headless / CI".into(),
             ],
-            "docs/plans/phase-C/c10-http-host-message.md",
+            "docs/plans/phase-C/http-viewer-contract.md",
         ),
         HostError::Internal { message } => (
             ErrorCode::HostError,

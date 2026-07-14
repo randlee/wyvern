@@ -11,8 +11,8 @@ pub const DEFAULT_SESSION_TIMEOUT: Duration = Duration::from_secs(600);
 
 /// How the dialog URL is opened after bind.
 ///
-/// c.10 implements [`ViewerMode::None`] only. Other variants are parsed by the
-/// CLI and rejected at run time until c.15.
+/// c.15 implements all modes. Product CLI default is [`ViewerMode::Embedded`];
+/// CI / headless uses [`ViewerMode::None`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ViewerMode {
     /// Spawn `wyvern-viewer` (c.15 — product default).
@@ -91,7 +91,7 @@ pub struct HostOptions {
     pub bind: SocketAddr,
     /// Static UI root directory (default `ui/` in the workspace / install tree).
     pub ui_root: PathBuf,
-    /// Viewer launch mode (c.10: only [`ViewerMode::None`] is supported).
+    /// Viewer launch mode (c.15: `embedded` / `none` / `system` / named).
     pub viewer: ViewerMode,
     /// When true, publish dialog URL via stderr / optional file after bind (typical for `none`).
     pub dialog_url_env: bool,

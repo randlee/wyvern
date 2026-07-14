@@ -10,7 +10,7 @@ use crate::error::LoadError;
 /// Parsed CLI invocation: host options + remaining positional/stdin args.
 #[derive(Debug, Clone)]
 pub struct CliArgs {
-    /// Options passed to [`wyvern_host::run`].
+    /// Options passed to [`wyvern_host::run`] / [`wyvern_host::begin`].
     pub host: HostOptions,
     /// Non-flag argv entries (JSON / file path).
     pub positionals: Vec<String>,
@@ -18,7 +18,7 @@ pub struct CliArgs {
 
 /// Split argv into host flags and positionals.
 ///
-/// Interim default (c.10–c.14): omitted `--viewer` → [`ViewerMode::None`].
+/// Product default (c.15+): omitted `--viewer` → [`ViewerMode::Embedded`].
 /// `WYVERN_VIEWER` overrides when set. Unknown flags → usage error.
 ///
 /// # Errors
@@ -27,7 +27,7 @@ pub struct CliArgs {
 pub fn parse_cli_args(args: &[String]) -> Result<CliArgs, LoadError> {
     let mut bind = SocketAddr::from(([127, 0, 0, 1], 0));
     let mut ui_root = default_ui_root();
-    let mut viewer = viewer_from_env().unwrap_or(ViewerMode::None);
+    let mut viewer = viewer_from_env().unwrap_or(ViewerMode::Embedded);
     let mut allow_non_loopback = false;
     let mut positionals = Vec::new();
 
@@ -155,6 +155,7 @@ pub fn usage_message() -> String {
     concat!(
         "Usage: wyvern '<json>' | <file.json> | <file.md> [options]\n",
         "       echo '<json>' | wyvern [options]\n",
+        "       wyvern browsers list|refresh\n",
         "       wyvern --version\n",
         "\n",
         "Options:\n",
@@ -162,7 +163,7 @@ pub fn usage_message() -> String {
         "  --allow-non-loopback       Permit non-loopback --bind (0.0.0.0 / LAN)\n",
         "  --ui-root <PATH>           Packaged UI root (default ./ui)\n",
         "  --viewer <MODE>            embedded|none|system|chrome|safari|edge|firefox\n",
-        "                             (c.10: none only; omitted defaults to none)\n",
+        "                             (default: embedded; CI uses none / WYVERN_VIEWER)\n",
         "\n",
         "Pass exactly one JSON string, .json file, or .md file; or pipe JSON on stdin.",
     )
@@ -178,10 +179,12 @@ mod tests {
     }
 
     #[test]
-    fn parse_defaults_viewer_none() {
+    fn parse_defaults_viewer_embedded() {
+        // Ensure env override does not leak from other tests.
+        std::env::remove_var("WYVERN_VIEWER");
         let parsed = parse_cli_args(&args(&[r#"{"type":"message"}"#])).expect("parse");
-        assert_eq!(parsed.host.viewer, ViewerMode::None);
-        assert!(parsed.host.dialog_url_env);
+        assert_eq!(parsed.host.viewer, ViewerMode::Embedded);
+        assert!(!parsed.host.dialog_url_env);
         assert_eq!(parsed.positionals.len(), 1);
     }
 
@@ -190,6 +193,7 @@ mod tests {
         let parsed =
             parse_cli_args(&args(&[r#"{"type":"message"}"#, "--viewer", "none"])).expect("parse");
         assert_eq!(parsed.host.viewer, ViewerMode::None);
+        assert!(parsed.host.dialog_url_env);
     }
 
     #[test]

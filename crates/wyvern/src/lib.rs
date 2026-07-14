@@ -14,12 +14,16 @@
     )
 )]
 
+mod browsers_cmd;
 mod cli_args;
 mod error;
 mod input;
 mod observability;
 mod pipeline;
+mod viewer_spawn;
 
+#[doc(inline)]
+pub use browsers_cmd::{run_browsers_command, BrowsersError};
 #[doc(inline)]
 pub use cli_args::{parse_cli_args, usage_message, CliArgs};
 #[doc(inline)]
@@ -31,3 +35,5 @@ pub use error::{
 pub use input::load_command_input;
 #[doc(inline)]
 pub use pipeline::{run_from_loaded, PipelineError};
+#[doc(inline)]
+pub use viewer_spawn::{resolve_viewer_bin, spawn_embedded_viewer, ViewerSpawnError};
