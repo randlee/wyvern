@@ -126,8 +126,9 @@ fn run_rejects_unsupported_chrome() {
 
 #[test]
 fn run_rejects_missing_ui_root() {
+    let tmp = tempfile::tempdir().expect("temp dir");
     let mut options = host_options(unique_path("unused"));
-    options.ui_root = PathBuf::from("/definitely/missing/wyvern-ui-root");
+    options.ui_root = tmp.path().join("definitely-missing-wyvern-ui-root");
     let err = run(message_command(), options).expect_err("missing ui");
     assert!(matches!(err, HostError::UiNotFound { .. }));
 }

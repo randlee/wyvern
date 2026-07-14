@@ -99,6 +99,10 @@ jobs:
         working-directory: tests/e2e
         run: npx playwright test input.spec.ts
 
+      - name: Run markdown.spec.ts
+        working-directory: tests/e2e
+        run: npx playwright test markdown.spec.ts
+
   fmt:
     name: Format check
     runs-on: ubuntu-latest

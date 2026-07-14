@@ -60,6 +60,13 @@ pub(super) const QUESTION_OPTION_FIELDS: &[&str] = &["label", "description", "pr
 /// Max characters for `questions[].header` (REQ-0062).
 pub(super) const QUESTION_HEADER_MAX_CHARS: usize = 12;
 
+/// Maximum UTF-8 byte length for markdown `content`.
+///
+/// Aligned with the host `/api/*` request body limit (256 KiB) so inline
+/// markdown cannot exceed what the HTTP API accepts. Enforced at schema
+/// validation, CLI file load, and host render (defense in depth).
+pub const MARKDOWN_CONTENT_MAX_BYTES: usize = 256 * 1024;
+
 /// Phase B executable `type` values (through b.7).
 pub(super) const VALID_TYPES: &[&str] = &["chrome", "message", "input", "markdown", "question"];
 

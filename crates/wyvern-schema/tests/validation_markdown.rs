@@ -225,3 +225,21 @@ fn validation_markdown_custom_buttons_rejected() {
         other => panic!("expected Validation, got {other:?}"),
     }
 }
+
+#[test]
+fn validation_markdown_content_over_max_bytes_rejected() {
+    let oversized = "x".repeat(wyvern_schema::MARKDOWN_CONTENT_MAX_BYTES + 1);
+    let err = wyvern_schema::validate(&json!({
+        "type": "markdown",
+        "content": oversized
+    }))
+    .expect_err("oversized");
+    match err {
+        ValidationError::Validation { field, message } => {
+            assert_eq!(field, "content");
+            assert!(message.contains("exceeds maximum"));
+            assert!(message.contains(&wyvern_schema::MARKDOWN_CONTENT_MAX_BYTES.to_string()));
+        }
+        other => panic!("expected Validation, got {other:?}"),
+    }
+}

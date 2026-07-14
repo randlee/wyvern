@@ -51,4 +51,4 @@ pub use result::{
 #[doc(inline)]
 pub use stderr::{SerializeError, StderrError};
 #[doc(inline)]
-pub use validate::validate;
+pub use validate::{validate, MARKDOWN_CONTENT_MAX_BYTES};
