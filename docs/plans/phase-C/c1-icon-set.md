@@ -9,6 +9,8 @@ target: integrate/phase-C
 
 # Sprint c.1 — Production icon asset bundle
 
+> **Historical (merged)** — Rust-embedded icon bundle for deleted `wyvern-window`. Superseded: icons in packaged `ui/` (c.10+); `icons.rs` deleted c.9.
+
 ## Goal
 
 - Ship the curated built-in icon set (REQ-0030): six semantic roles, minimum two variants each, bundled via `include_bytes!`.

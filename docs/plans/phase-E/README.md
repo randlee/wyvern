@@ -4,7 +4,7 @@ Phase E implementation PRs target **`integrate/phase-E`**. This directory is the
 
 Sprints are **sequentially numbered** `e.1` → `e.4` (strict dependency order — not parallel sub-sprints).
 
-> **Note:** Sprint docs in this directory are authority shells pending full hardening. Acceptance criteria in each sprint stub are authoritative until hardened sprint docs land.
+Each individual sprint doc (`e1`–`e4`) is the **sole authority** for that sprint's deliverables, acceptance criteria, and required validation.
 
 ## Phase goal
 
@@ -16,10 +16,16 @@ A Claude Code agent can open Wyvern in `--interactive` mode from a background sh
 
 ## What Phase E closes
 
-- `--interactive` stdin loop and lifecycle actions (`show`/`hide`/`exit`)
-- Blocking dialogs and clean process termination in interactive mode
-- MCP server wrapper with tool mapping for all dialog types
-- MCP persistent window lifecycle and integration testing
+- `--interactive` stdin loop and lifecycle actions — [http-interactive-mcp-contract.md](../phase-C/http-interactive-mcp-contract.md)
+- Persistent **`wyvern-host`** `HostSession`; blocking dialogs via HTTP (same as Phase C)
+- MCP server wrapper → `HostSession::run_dialog` for each tool call
+- MCP stdio integration harness (headless default)
+
+**Hard dependency:** Phase C **c.16** complete. Phase D required only for wizard MCP tools.
+
+## What Phase E does not close
+
+- Wizard MCP tools when Phase D incomplete — deferred to post-d.2 (see e.3 non-closure)
 
 ## Sprint index (sequential: e.1–e.4)
 

@@ -30,6 +30,8 @@
 - `finish` → `{ "action": "finish", "page": { ... }, "data": {} }`
 - `cancel` → `{ "action": "cancel" }`
 
+**HTTP amendment (Phase D):** On the HTTP host path, `POST /api/wizard/navigate` accepts **`next`** and **`back` only**. Terminal **`cancel`**, **`finish`**, and **`dismissed`** use **`POST /api/wizard/finish`** — see [http-wizard-contract.md](../plans/phase-C/http-wizard-contract.md).
+
 ---
 
 ## History Model Example

@@ -1,6 +1,10 @@
+# DEPRECATED — superseded by boundaries/wyvern-host/host.toml.
+# Crate wyvern-window deleted in c.9. Delete this file in c.9. QA: must not exist post c.9 merge.
+
 boundary_id = "BOUNDARY-WyvernWindow"
 owner_package = "wyvern-window"
 name = "WyvernWindow"
+status = "deprecated"
 
 [dependencies]
 allowed_dependencies = ["wyvern-schema", "wyvern-wizard", "wry", "winit", "serde_json", "pulldown-cmark", "rfd", "ammonia"]

@@ -75,9 +75,11 @@ Phase B sprint PRs target `integrate/phase-B`. Sprint authority: `docs/plans/pha
 
 ## Phase C — Polish & Release v0.1.0
 
-**Phase goal:** Wyvern ships as a usable, cross-platform CLI tool. Full icon set (REQ-0030). Win/Linux platform chrome (ADR-0010a). Binaries available for download.
+**Phase goal (revised c.9–c.16):** HTTP dialog host with packaged UI; optional embedded viewer; cross-platform headless CI. v0.1.0 after c.16.
 
-**Phase acceptance criteria:** Install from GitHub release (or equivalent) works; a developer can run all Phase B dialog types on macOS, Windows, and Linux from a released binary. See [docs/plans/phase-C/README.md](phase-C/README.md#phase-acceptance-criteria-smoke).
+**Historical goal (c.1–c.5, superseded):** Icon bundle (REQ-0030), Win/Linux wry chrome (ADR-0010a) — deleted with `wyvern-window` in c.9.
+
+**Phase acceptance criteria:** See [delivery rewrite](phase-C/README.md#delivery-rewrite-c9c16--http-host) and [c.16 smoke](phase-C/README.md#phase-acceptance-criteria-smoke--delivery-rewrite-c16).
 
 Phase C release sprint PRs (**c.1–c.5**) target `integrate/phase-C`. Post-release error-handling fix sprints (**c.6–c.8**) target `integrate/phase-C-fixes`. Sprint authority: `docs/plans/phase-C/`. Dependency graph:
 
@@ -95,7 +97,7 @@ Phase B ──┬──► c.1 ──► c.2 ──┐
 
 **Inherited from Phase B:** Dialog auto-size **min 320×200** / **max 800×600**; Win/Linux native OS decorations until c.3; b.2 placeholder icons at `assets/icons/placeholder/` until c.1 production bundle.
 
-**Sprints:** five release (**c.1–c.5**) plus three post-release fixes (**c.6–c.8**). See [docs/plans/phase-C/README.md](phase-C/README.md).
+**Sprints:** c.1–c.5 (historical, old stack) + c.6–c.8 (fixes) + **c.9–c.16 (delivery rewrite)**. See [docs/plans/phase-C/README.md](phase-C/README.md).
 
 | Sprint | Title | Doc | Target branch |
 |--------|-------|-----|---------------|
@@ -107,12 +109,34 @@ Phase B ──┬──► c.1 ──► c.2 ──┐
 | c.6 | Result propagation (no production panics) | [c6-result-propagation.md](phase-C/c6-result-propagation.md) | `integrate/phase-C-fixes` |
 | c.7 | CLI integration test hardening | [c7-cli-test-hardening.md](phase-C/c7-cli-test-hardening.md) | `integrate/phase-C-fixes` |
 | c.8 | Clippy deny unauthorized panics | [c8-clippy-deny-unwrap.md](phase-C/c8-clippy-deny-unwrap.md) | `integrate/phase-C-fixes` |
+| c.9 | Delete `wyvern-window` (compile optional) | [c9-deletion.md](phase-C/c9-deletion.md) | `integrate/phase-C` |
+| c.10 | `wyvern-host` + `message` | [c10-http-host-message.md](phase-C/c10-http-host-message.md) | `integrate/phase-C` |
+| c.11 | `input` on host | [c11-host-input.md](phase-C/c11-host-input.md) | `integrate/phase-C` |
+| c.12 | `markdown` on host | [c12-host-markdown.md](phase-C/c12-host-markdown.md) | `integrate/phase-C` |
+| c.13 | `question` on host | [c13-host-question.md](phase-C/c13-host-question.md) | `integrate/phase-C` |
+| c.14 | `chrome` on host | [c14-host-chrome.md](phase-C/c14-host-chrome.md) | `integrate/phase-C` |
+| c.15 | `wyvern-viewer` + browser registry | [c15-wyvern-viewer.md](phase-C/c15-wyvern-viewer.md) | `integrate/phase-C` |
+| c.16 | Release + v0.1.0 | [c16-release.md](phase-C/c16-release.md) | `integrate/phase-C` |
+
+---
+
+## Phase C delivery rewrite (c.9–c.16)
+
+**Phase goal (revised):** Usable cross-platform CLI via HTTP-packaged UI — not embedded wry IPC.
+
+**Phase acceptance criteria (revised):** Full dialog matrix on HTTP host; release tarball includes `share/wyvern/ui/`; `wyvern-window` deleted; v0.1.0 after c.16.
+
+See [docs/plans/phase-C/README.md](phase-C/README.md#delivery-rewrite-c9c16--http-host).
 
 ---
 
 ## Phase D — Wizard
 
 **Phase goal:** Multi-page wizards with branching navigation and data persistence across pages.
+
+**Transport:** [http-wizard-contract.md](phase-C/http-wizard-contract.md) on `wyvern-host`.
+
+**Prerequisite:** Phase C **c.16** complete.
 
 **Phase acceptance criteria:** The example DAG layout-picker wizard completes a full flow with branching, back-navigation, data restoration, and returns the correct stack JSON.
 
@@ -123,7 +147,7 @@ Phase D sprint PRs target `integrate/phase-D`. Sprint authority: `docs/plans/pha
 | Sprint | Title | Doc |
 |--------|-------|-----|
 | d.1 | Wizard host: HTML load and config injection | [d1-wizard-host.md](phase-D/d1-wizard-host.md) |
-| d.2 | Wizard IPC contract | [d2-wizard-ipc.md](phase-D/d2-wizard-ipc.md) |
+| d.2 | Wizard HTTP navigation | [d2-wizard-ipc.md](phase-D/d2-wizard-ipc.md) |
 | d.3 | Browser-history navigation model | [d3-history-nav.md](phase-D/d3-history-nav.md) |
 | d.4 | Stack injection and data restoration | [d4-stack-inject.md](phase-D/d4-stack-inject.md) |
 | d.5 | Example DAG layout-picker wizard | [d5-dag-example.md](phase-D/d5-dag-example.md) |
@@ -134,6 +158,10 @@ Phase D sprint PRs target `integrate/phase-D`. Sprint authority: `docs/plans/pha
 ## Phase E — Interactive & MCP
 
 **Phase goal:** Wyvern runs as a persistent process, driveable by agents over stdin or as an MCP server.
+
+**Transport:** [http-interactive-mcp-contract.md](phase-C/http-interactive-mcp-contract.md) — persistent `HostSession`.
+
+**Prerequisite:** Phase C **c.16** complete.
 
 **Phase acceptance criteria:** A Claude Code agent can open Wyvern in `--interactive` mode from a background shell, issue multiple blocking dialog commands against one persistent process, receive the JSON results, and exit — with no MCP required.
 
@@ -156,7 +184,7 @@ Phase E sprint PRs target `integrate/phase-E`. Sprint authority: `docs/plans/pha
 |-------|---------|-------|
 | Phase A — Foundation | 7 | Working binary, `chrome` command |
 | Phase B — Core Dialogs | 8 | **MVP — all dialog types usable** |
-| Phase C — Release v0.1.0 | 5 + 3 fixes | **v0.1.0 on mac/win/linux** (+ c.6–c.8 error-handling hardening) |
+| Phase C — Release v0.1.0 | 5 + 3 fixes + 8 delivery | **v0.1.0** after c.16 HTTP host |
 | Phase D — Wizard | 6 | Multi-page wizard with branching |
 | Phase E — Interactive & MCP | 4 | Agent-driveable status viewer + MCP |
 
@@ -164,8 +192,8 @@ Phase E sprint PRs target `integrate/phase-E`. Sprint authority: `docs/plans/pha
 
 ```
 Phase A
-  └─ Phase B ──────────────────── sc-lint-boundary applied from here
-       └─ Phase C (v0.1.0 release)
-            └─ Phase D (wizard)
-                 └─ Phase E (interactive + MCP)
+  └─ Phase B
+       └─ Phase C (c.9–c.16 HTTP delivery + wyvern-viewer + v0.1.0)
+            └─ Phase D (wizard — HTTP on same host)
+                 └─ Phase E (persistent host + MCP)
 ```

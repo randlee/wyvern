@@ -9,6 +9,8 @@ target: integrate/phase-C-fixes
 
 # Sprint c.8 — Clippy deny unauthorized panics (regression gate)
 
+> **Historical** — denied panics in deleted `wyvern-window` lib (merged c.8). Crate removed c.9; c.10+ extends deny to `wyvern-host` / `wyvern` roots.
+
 ## Goal
 
 - Deny production `unwrap`/`expect`/`panic`/`unreachable` in **`wyvern`**, **`wyvern-schema`**, **`wyvern-window`** library roots **and** `crates/wyvern/src/main.rs` (binary root; policy includes main)

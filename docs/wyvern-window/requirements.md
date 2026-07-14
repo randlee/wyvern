@@ -1,5 +1,7 @@
 # `wyvern-window` — Requirements
 
+> **DEPRECATED (c.9+)** — Delivery requirements moved to [`wyvern-host`](../wyvern-host/requirements.md). Dialog **validation** stays in `wyvern-schema`. REQ-0030–0032 and REQ-0080–0087 are **not** implemented in new code.
+
 *Part of the [principal requirements](../requirements.md).*
 
 ---

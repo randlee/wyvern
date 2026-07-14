@@ -1,0 +1,16 @@
+boundary_id = "BOUNDARY-WyvernViewer"
+owner_package = "wyvern-viewer"
+name = "WyvernViewer"
+status = "planned"
+
+[dependencies]
+allowed_dependencies = ["wry", "winit", "url"]
+forbidden_dependencies = ["wyvern", "wyvern-mcp", "wyvern-host", "wyvern-schema", "wyvern-window"]
+forbidden_edges = ["wyvern-viewer -> wyvern-host", "wyvern-viewer -> wyvern-schema"]
+
+[ownership]
+io_owns = ["webview_open_url", "webview_show_hide"]
+io_forbidden = ["http_server", "stdin_reading", "stdout_writing", "inline_html", "dialog_ipc"]
+
+[enforcement]
+lint_rules = ["LINT-BOUNDARY-VIEWER-URL-ONLY"]

@@ -8,11 +8,12 @@ Functional requirements are prefixed **REQ**, non-functional **NFR**. Crate-spec
 
 | Crate | Scope | Detail |
 |-------|-------|--------|
-| `wyvern` | CLI invocation, interactive mode | [docs/wyvern/requirements.md](wyvern/requirements.md) |
+| `wyvern` | CLI invocation, host options, interactive mode | [docs/wyvern/requirements.md](wyvern/requirements.md) |
 | `wyvern-schema` | Validation, error messages, return values | [docs/wyvern-schema/requirements.md](wyvern-schema/requirements.md) |
-| `wyvern-window` | Dialog types, icons, chrome frame, platform window | [docs/wyvern-window/requirements.md](wyvern-window/requirements.md) |
-| `wyvern-wizard` | Wizard navigation, history model, IPC contract | [docs/wyvern-wizard/requirements.md](wyvern-wizard/requirements.md) |
-| `wyvern-mcp` | MCP server, tool mapping, persistent window | [docs/wyvern-mcp/requirements.md](wyvern-mcp/requirements.md) |
+| `wyvern-host` | HTTP server, packaged UI, dialog session (c.10+) | [docs/wyvern-host/requirements.md](wyvern-host/requirements.md) |
+| ~~`wyvern-window`~~ | **Deprecated** — see `wyvern-host` | [docs/wyvern-window/requirements.md](wyvern-window/requirements.md) |
+| `wyvern-wizard` | Wizard navigation, history model | [docs/wyvern-wizard/requirements.md](wyvern-wizard/requirements.md) |
+| `wyvern-mcp` | MCP server, tool mapping, persistent host | [docs/wyvern-mcp/requirements.md](wyvern-mcp/requirements.md) |
 
 ---
 
@@ -45,15 +46,15 @@ Functional requirements are prefixed **REQ**, non-functional **NFR**. Crate-spec
 
 ## Non-Functional Requirements
 
-**NFR-0001** — On macOS, window opens in under 500ms from process launch.
+**NFR-0001** — On macOS, dialog is reachable (viewer open or URL logged) within 500ms of process launch.
 
-**NFR-0002** — On macOS, resident memory does not exceed 80MB under normal operation.
+**NFR-0002** — On macOS, resident memory does not exceed 80MB under normal one-shot host operation (with optional embedded viewer).
 
-**NFR-0003** — Compiled binary does not exceed 10MB on macOS.
+**NFR-0003** — Compiled `wyvern` binary does not exceed 10MB on macOS (measure after c.16).
 
-**NFR-0004** — Wyvern does not require a browser installed on the host system.
+**NFR-0004** — Wyvern does not require a *particular* browser brand. Any HTTP-capable client may act as viewer. Embedded webview is optional (`wyvern-viewer`).
 
-**NFR-0005** — Runs on macOS (WebKit), Windows (WebView2), and Linux (WebKitGTK).
+**NFR-0005** — Host runs on macOS, Windows, and Linux. Viewer modes: `embedded` (default), `none`, `system`, and named browsers (`chrome`, `safari`, `edge`, `firefox`). CI uses `none`; desktop default is `embedded`.
 
 **NFR-0006** — JSON schema for all dialog types maps 1:1 to MCP tool parameters — no field renaming or restructuring.
 

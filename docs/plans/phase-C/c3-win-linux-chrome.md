@@ -9,6 +9,8 @@ target: integrate/phase-C
 
 # Sprint c.3 — Windows and Linux platform chrome
 
+> **Historical (merged)** — wry IPC chrome for deleted `wyvern-window`. Superseded: `ui/chrome/` on HTTP host (c.14).
+
 ## Goal
 
 - Implement ADR-0010a on Windows and Linux: `decorations: false` + HTML window controls wired via IPC (REQ-0085, REQ-0086, REQ-0087).

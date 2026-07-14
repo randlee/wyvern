@@ -9,6 +9,8 @@ target: integrate/phase-C-fixes
 
 # Sprint c.7 — CLI integration test hardening
 
+> **Historical** — serialized wry GUI CLI tests (merged c.7). Deleted c.9; replaced by HTTP headless e2e (c.10+).
+
 ## Goal
 
 - Serialize **macOS GUI-spawning** CLI integration tests so local `cargo test -p wyvern` without `--test-threads=1` does not flake.

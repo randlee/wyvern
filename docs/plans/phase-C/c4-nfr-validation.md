@@ -9,6 +9,8 @@ target: integrate/phase-C
 
 # Sprint c.4 — Cross-platform validation and NFR pass
 
+> **Historical (merged)** — NFR pass on deleted `wyvern-window` / xvfb matrix. Superseded: HTTP headless CI (c.10+); re-benchmark at c.16.
+
 ## Goal
 
 - Verify macOS NFR targets (NFR-0001–NFR-0003) after icon bundle + platform chrome land.
