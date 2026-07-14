@@ -67,7 +67,8 @@ fn validation_markdown_empty_content_passes() {
             title,
             file,
             content,
-            .. } => {
+            ..
+        } => {
             assert_eq!(title.as_ref().map(|t| t.as_str()), Some("Markdown"));
             assert!(file.is_none());
             assert_eq!(content.as_deref(), Some(""));
@@ -92,7 +93,8 @@ fn validation_markdown_explicit_title_and_status() {
             file,
             status,
             buttons,
-            .. } => {
+            ..
+        } => {
             assert_eq!(title.as_ref().map(|t| t.as_str()), Some("Readme"));
             assert_eq!(file.as_deref(), Some("path/to/readme.md"));
             assert_eq!(status.as_ref().map(|s| s.as_str()), Some("Draft"));

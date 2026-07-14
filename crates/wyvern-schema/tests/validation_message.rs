@@ -71,7 +71,8 @@ fn validation_message_custom_buttons_pass() {
             buttons,
             custom_buttons,
             default_button,
-            .. } => {
+            ..
+        } => {
             assert_eq!(buttons, ButtonsPreset::Custom);
             assert_eq!(
                 custom_buttons.as_deref(),

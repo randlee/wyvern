@@ -58,9 +58,10 @@ fn text_input_command() -> Command {
         multiple: false,
         start_path: None,
         buttons: ButtonsPreset::OkCancel,
-    
-            width: None,
-            height: None,}
+
+        width: None,
+        height: None,
+    }
 }
 
 fn password_input_command() -> Command {
@@ -79,9 +80,10 @@ fn password_input_command() -> Command {
         multiple: false,
         start_path: None,
         buttons: ButtonsPreset::OkCancel,
-    
-            width: None,
-            height: None,}
+
+        width: None,
+        height: None,
+    }
 }
 
 fn file_input_command() -> Command {
@@ -100,9 +102,10 @@ fn file_input_command() -> Command {
         multiple: false,
         start_path: None,
         buttons: ButtonsPreset::OkCancel,
-    
-            width: None,
-            height: None,}
+
+        width: None,
+        height: None,
+    }
 }
 
 fn multi_file_input_command() -> Command {
@@ -121,9 +124,10 @@ fn multi_file_input_command() -> Command {
         multiple: true,
         start_path: None,
         buttons: ButtonsPreset::OkCancel,
-    
-            width: None,
-            height: None,}
+
+        width: None,
+        height: None,
+    }
 }
 
 fn folder_input_command() -> Command {
@@ -142,9 +146,10 @@ fn folder_input_command() -> Command {
         multiple: false,
         start_path: None,
         buttons: ButtonsPreset::OkCancel,
-    
-            width: None,
-            height: None,}
+
+        width: None,
+        height: None,
+    }
 }
 
 fn wait_for_url_file(path: &std::path::Path) -> String {

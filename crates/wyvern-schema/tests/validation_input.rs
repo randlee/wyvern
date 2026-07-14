@@ -89,7 +89,8 @@ fn validation_input_placeholder_and_default_allowed() {
             markdown,
             status,
             icon,
-            .. } => {
+            ..
+        } => {
             assert_eq!(placeholder.as_deref(), Some("hint"));
             assert_eq!(default.as_deref(), Some("prefill"));
             assert!(multiline);
@@ -119,7 +120,8 @@ fn validation_input_mode_file_passes() {
             filter,
             multiple,
             start_path,
-            .. } => {
+            ..
+        } => {
             assert_eq!(mode, InputMode::File);
             assert_eq!(
                 filter.as_deref(),
@@ -148,7 +150,8 @@ fn validation_input_mode_folder_passes() {
             filter,
             multiple,
             start_path,
-            .. } => {
+            ..
+        } => {
             assert_eq!(mode, InputMode::Folder);
             assert!(filter.is_none());
             assert!(!multiple);
@@ -205,9 +208,7 @@ fn validation_input_placeholder_with_file_passes() {
     .expect("placeholder allowed for file mode");
     match cmd {
         Command::Input {
-            mode,
-            placeholder,
-            ..
+            mode, placeholder, ..
         } => {
             assert_eq!(mode, InputMode::File);
             assert_eq!(placeholder.as_deref(), Some("/path/to/file"));
@@ -227,11 +228,7 @@ fn validation_input_default_with_folder_passes() {
     }))
     .expect("default allowed for folder mode");
     match cmd {
-        Command::Input {
-            mode,
-            default,
-            ..
-        } => {
+        Command::Input { mode, default, .. } => {
             assert_eq!(mode, InputMode::Folder);
             assert_eq!(default.as_deref(), Some("/tmp"));
         }

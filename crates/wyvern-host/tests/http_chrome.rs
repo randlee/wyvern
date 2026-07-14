@@ -17,18 +17,20 @@ fn chrome_command() -> Command {
     Command::Chrome {
         title: ChromeTitle::new("Test Chrome"),
         status: None,
-    
-            width: None,
-            height: None,}
+
+        width: None,
+        height: None,
+    }
 }
 
 fn chrome_command_with_status(status: impl Into<String>) -> Command {
     Command::Chrome {
         title: ChromeTitle::new("Test Chrome"),
         status: Some(ChromeStatus::new(status)),
-    
-            width: None,
-            height: None,}
+
+        width: None,
+        height: None,
+    }
 }
 
 fn unique_path(prefix: &str) -> PathBuf {

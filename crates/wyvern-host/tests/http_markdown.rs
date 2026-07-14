@@ -32,9 +32,10 @@ fn markdown_command(content: &str) -> Command {
         content: Some(content.into()),
         status: Some(wyvern_schema::ChromeStatus::new("Read-only")),
         buttons: ButtonsPreset::Ok,
-    
-            width: None,
-            height: None,}
+
+        width: None,
+        height: None,
+    }
 }
 
 fn wait_for_url_file(path: &Path) -> String {

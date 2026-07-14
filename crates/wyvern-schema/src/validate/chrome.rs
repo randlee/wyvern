@@ -7,7 +7,9 @@ use crate::command::Command;
 use crate::error::ValidationError;
 use crate::field_name::FieldName;
 
-use super::helpers::{optional_string_field, optional_window_size_fields, require_string_field, CHROME_FIELDS};
+use super::helpers::{
+    optional_string_field, optional_window_size_fields, require_string_field, CHROME_FIELDS,
+};
 
 pub(super) fn validate_chrome(obj: &Map<String, Value>) -> Result<Command, ValidationError> {
     for key in obj.keys() {
