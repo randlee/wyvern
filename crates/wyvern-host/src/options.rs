@@ -159,16 +159,20 @@ mod tests {
 
     #[test]
     fn validate_rejects_zero_session_timeout() {
-        let mut opts = HostOptions::default();
-        opts.session_timeout = Duration::ZERO;
+        let opts = HostOptions {
+            session_timeout: Duration::ZERO,
+            ..HostOptions::default()
+        };
         let err = opts.validate().expect_err("zero");
         assert!(err.to_string().contains("session_timeout"));
     }
 
     #[test]
     fn validate_rejects_sub_minimum_session_timeout() {
-        let mut opts = HostOptions::default();
-        opts.session_timeout = Duration::from_millis(500);
+        let opts = HostOptions {
+            session_timeout: Duration::from_millis(500),
+            ..HostOptions::default()
+        };
         assert!(opts.validate().is_err());
     }
 
