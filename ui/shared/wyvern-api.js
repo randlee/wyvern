@@ -34,9 +34,37 @@
     }
   }
 
+  async function postPickerFile(body) {
+    const res = await fetch("/api/picker/file", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(body || {}),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error("POST /api/picker/file failed: " + res.status + " " + text);
+    }
+    return res.json();
+  }
+
+  async function postPickerFolder(body) {
+    const res = await fetch("/api/picker/folder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(body || {}),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error("POST /api/picker/folder failed: " + res.status + " " + text);
+    }
+    return res.json();
+  }
+
   global.WyvernApi = {
     fetchDialog: fetchDialog,
     postResult: postResult,
     postResultBeacon: postResultBeacon,
+    postPickerFile: postPickerFile,
+    postPickerFolder: postPickerFolder,
   };
 })(typeof window !== "undefined" ? window : globalThis);

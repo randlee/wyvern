@@ -5,7 +5,7 @@ use axum::http::StatusCode;
 use axum::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use wyvern_schema::{ButtonLabel, Command, CommandResult, MessageResult};
+use wyvern_schema::{ButtonLabel, Command, CommandResult, InputResult, InputValue, MessageResult};
 
 use crate::session::SessionState;
 
@@ -45,6 +45,54 @@ fn parse_result_for_command(command: &Command, body: &Value) -> Result<CommandRe
                 button: ButtonLabel::new(button),
             }))
         }
+        Command::Input { .. } => parse_input_result(body),
         _ => Err("active dialog type does not accept results yet".into()),
+    }
+}
+
+fn parse_input_result(body: &Value) -> Result<CommandResult, String> {
+    let button = body
+        .get("button")
+        .and_then(Value::as_str)
+        .ok_or_else(|| "missing string field 'button'".to_string())?;
+    let input = match body.get("input") {
+        None | Some(Value::Null) => None,
+        Some(Value::String(s)) => Some(InputValue::Text(s.clone())),
+        Some(Value::Array(items)) => {
+            let mut paths = Vec::with_capacity(items.len());
+            for (i, item) in items.iter().enumerate() {
+                match item {
+                    Value::String(s) => paths.push(s.clone()),
+                    other => {
+                        return Err(format!(
+                            "input[{i}] expected string, got {}",
+                            json_type_name(other)
+                        ));
+                    }
+                }
+            }
+            Some(InputValue::Paths(paths))
+        }
+        Some(other) => {
+            return Err(format!(
+                "field 'input' expected string or array, got {}",
+                json_type_name(other)
+            ));
+        }
+    };
+    Ok(CommandResult::Input(InputResult {
+        button: ButtonLabel::new(button),
+        input,
+    }))
+}
+
+fn json_type_name(value: &Value) -> &'static str {
+    match value {
+        Value::Null => "null",
+        Value::Bool(_) => "boolean",
+        Value::Number(_) => "number",
+        Value::String(_) => "string",
+        Value::Array(_) => "array",
+        Value::Object(_) => "object",
     }
 }

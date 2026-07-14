@@ -82,7 +82,7 @@ c.8 ──► c.9 ──► c.10 ──► c.11 ──► c.12 ──► c.13 �
 |--------|-------|-----|--------|
 | c.9 | **Delete** `wyvern-window` (compile optional) | [c9-deletion.md](c9-deletion.md), [c9-deletion-and-rework.md](c9-deletion-and-rework.md) | complete |
 | c.10 | `wyvern-host` + `message` + workspace green | [c10-http-host-message.md](c10-http-host-message.md), [c9-testing-headless.md](c9-testing-headless.md) | planned |
-| c.11 | `input` (+ picker) | [c11-host-input.md](c11-host-input.md) | planned |
+| c.11 | `input` (+ picker) | [c11-host-input.md](c11-host-input.md) | complete |
 | c.12 | `markdown` | [c12-host-markdown.md](c12-host-markdown.md) | planned |
 | c.13 | `question` | [c13-host-question.md](c13-host-question.md) | planned |
 | c.14 | `chrome` — full dialog matrix | [c14-host-chrome.md](c14-host-chrome.md) | planned |
