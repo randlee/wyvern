@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use wyvern_schema::{
     ButtonLabel, Command, CommandResult, InputResult, InputValue, MarkdownResult, MessageResult,
-    QuestionResult,
+    QuestionCard, QuestionResult,
 };
 
 use crate::error::HostError;
@@ -59,6 +59,9 @@ fn result_bad_request(message: impl Into<String>, cause: impl Into<String>) -> A
         .recovery(
             "For question submit omit 'button' and include questions, non-empty answers, and response",
         )
+        .recovery(
+            "Question answer keys must match the active dialog's question prompts",
+        )
         .docs(RESULT_DOCS)
 }
 
@@ -85,7 +88,10 @@ fn parse_result_for_command(command: &Command, body: &Value) -> Result<CommandRe
             }))
         }
         Command::Input { .. } => parse_input_result(body),
-        Command::Question { questions_raw, .. } => parse_question_result(questions_raw, body),
+        Command::Question {
+            questions,
+            questions_raw,
+        } => parse_question_result(questions, questions_raw, body),
         _ => Err(HostError::InvalidResult {
             message: "active dialog type does not accept results yet".into(),
         }),
@@ -97,7 +103,9 @@ fn parse_result_for_command(command: &Command, body: &Value) -> Result<CommandRe
 /// - Normal submit: omit `button`, non-empty `answers`, `response` present.
 /// - Presence of `button`, or empty `answers` without submit → fail-safe dismiss.
 /// - Stdout `questions` always echo the validated command `questions_raw`.
+/// - Answer map keys must be prompts from the active [`QuestionCard`] set.
 fn parse_question_result(
+    questions: &[QuestionCard],
     questions_raw: &[Value],
     body: &Value,
 ) -> Result<CommandResult, HostError> {
@@ -112,6 +120,7 @@ fn parse_question_result(
         });
     }
     let answers = parse_question_answers(body)?;
+    validate_answer_keys(questions, &answers)?;
     let has_button = body.get("button").is_some();
 
     // Fail-safe dismiss: any `button` field, or empty answers on "submit".
@@ -125,6 +134,30 @@ fn parse_question_result(
         questions_raw.to_vec(),
         answers,
     )))
+}
+
+/// Reject answer keys that are not prompts on the active question cards.
+fn validate_answer_keys(
+    questions: &[QuestionCard],
+    answers: &HashMap<String, String>,
+) -> Result<(), HostError> {
+    if answers.is_empty() {
+        return Ok(());
+    }
+    let allowed: std::collections::HashSet<&str> = questions
+        .iter()
+        .map(|card| card.question.as_str())
+        .collect();
+    for key in answers.keys() {
+        if !allowed.contains(key.as_str()) {
+            return Err(HostError::InvalidResult {
+                message: format!(
+                    "answers key {key:?} is not a question prompt on the active dialog"
+                ),
+            });
+        }
+    }
+    Ok(())
 }
 
 fn parse_question_answers(body: &Value) -> Result<HashMap<String, String>, HostError> {

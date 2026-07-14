@@ -151,6 +151,17 @@ pub(crate) async fn dialog_payload(command: &Command) -> Result<Value, ApiError>
             Ok(obj)
         }
         Command::Question { questions, .. } => {
+            // Defense-in-depth: reject oversized option previews before
+            // pulldown-cmark + ammonia (same cap as markdown content_html).
+            for card in questions {
+                for opt in &card.options {
+                    if let Some(preview) = &opt.preview {
+                        if preview.len() > MARKDOWN_CONTENT_MAX_BYTES {
+                            return Err(preview_too_large(preview.len()));
+                        }
+                    }
+                }
+            }
             let questions_payload = render_question_payload_async(questions.clone()).await?;
             Ok(json!({
                 "type": "question",
@@ -208,6 +219,18 @@ fn question_payload_value(questions: &[QuestionCard]) -> Value {
         })
         .collect();
     Value::Array(cards)
+}
+
+fn preview_too_large(got_bytes: usize) -> ApiError {
+    ApiError::bad_request(format!(
+        "question option preview exceeds maximum of {MARKDOWN_CONTENT_MAX_BYTES} bytes (got {got_bytes} bytes)"
+    ))
+    .cause("active question dialog option preview is larger than the host render limit")
+    .recovery("Reduce option preview size before opening the dialog")
+    .recovery(format!(
+        "Keep each preview at or below {MARKDOWN_CONTENT_MAX_BYTES} UTF-8 bytes"
+    ))
+    .docs(QUESTION_DOCS)
 }
 
 fn question_timeout(message: impl Into<String>) -> ApiError {
@@ -313,7 +336,7 @@ fn command_type_name(command: &Command) -> &'static str {
 mod tests {
     use super::*;
     use axum::response::IntoResponse;
-    use wyvern_schema::{ButtonsPreset, ChromeTitle};
+    use wyvern_schema::{ButtonsPreset, ChromeTitle, QuestionCard, QuestionOption};
 
     fn md(content: impl Into<String>) -> Command {
         Command::Markdown {
@@ -322,6 +345,38 @@ mod tests {
             content: Some(content.into()),
             status: None,
             buttons: ButtonsPreset::Ok,
+        }
+    }
+
+    fn question_with_preview(preview: impl Into<String>) -> Command {
+        let preview = preview.into();
+        Command::Question {
+            questions: vec![QuestionCard {
+                question: "Q?".into(),
+                header: "Hdr".into(),
+                options: vec![
+                    QuestionOption {
+                        label: "A".into(),
+                        description: "a".into(),
+                        preview: Some(preview.clone()),
+                    },
+                    QuestionOption {
+                        label: "B".into(),
+                        description: "b".into(),
+                        preview: None,
+                    },
+                ],
+                multi_select: false,
+            }],
+            questions_raw: vec![json!({
+                "question": "Q?",
+                "header": "Hdr",
+                "options": [
+                    { "label": "A", "description": "a", "preview": preview },
+                    { "label": "B", "description": "b" }
+                ],
+                "multiSelect": false
+            })],
         }
     }
 
@@ -356,5 +411,27 @@ mod tests {
         assert!(value["content_html"]
             .as_str()
             .is_some_and(|s| s.contains("<h1>Hello</h1>")));
+    }
+
+    #[tokio::test]
+    async fn dialog_payload_rejects_oversized_question_preview() {
+        let oversized = "x".repeat(MARKDOWN_CONTENT_MAX_BYTES + 1);
+        let err = dialog_payload(&question_with_preview(oversized))
+            .await
+            .expect_err("oversized preview");
+        let response = err.into_response();
+        assert_eq!(response.status(), axum::http::StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn dialog_payload_renders_normal_question_preview() {
+        let value = dialog_payload(&question_with_preview("**bold**"))
+            .await
+            .expect("render");
+        assert_eq!(value["type"], "question");
+        assert!(value["questions"][0]["options"][0]["preview_html"]
+            .as_str()
+            .is_some_and(|s| s.contains("<strong>bold</strong>")));
+        assert!(value.get("buttons").is_none());
     }
 }

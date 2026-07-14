@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, Page } from "@playwright/test";
 import { spawn, ChildProcessWithoutNullStreams } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
@@ -42,6 +42,21 @@ function waitForDialogUrl(
     };
     tick();
   });
+}
+
+/** Retry page.goto for transient connection races before axum accepts. */
+async function gotoDialog(page: Page, url: string, attempts = 15): Promise<void> {
+  let lastError: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      await page.goto(url, { waitUntil: "domcontentloaded" });
+      return;
+    } catch (err) {
+      lastError = err;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+  }
+  throw lastError;
 }
 
 function waitForExit(child: ChildProcessWithoutNullStreams): Promise<number> {
@@ -90,7 +105,7 @@ test("question single-select submit via --viewer none", async ({ page }) => {
     const exitPromise = waitForExit(child);
 
     const dialogUrl = await waitForDialogUrl(urlFile, () => stderr);
-    await page.goto(dialogUrl);
+    await gotoDialog(page, dialogUrl);
     await expect(page.getByTestId("question-cards")).toBeVisible();
     await expect(page.getByTestId("option-q0-o0")).toBeVisible();
     await expect(page.getByTestId("preview-q0-o0")).toContainText("ok");
@@ -154,7 +169,7 @@ test("question multi-select submit via --viewer none", async ({ page }) => {
     const exitPromise = waitForExit(child);
 
     const dialogUrl = await waitForDialogUrl(urlFile, () => stderr);
-    await page.goto(dialogUrl);
+    await gotoDialog(page, dialogUrl);
     await expect(page.getByTestId("question-cards")).toBeVisible();
     await page.getByTestId("option-q0-o0").click();
     await page.getByTestId("option-q0-o1").click();
@@ -215,7 +230,7 @@ test("question dismiss returns REQ-0068 shape", async ({ page }) => {
     const exitPromise = waitForExit(child);
 
     const dialogUrl = await waitForDialogUrl(urlFile, () => stderr);
-    await page.goto(dialogUrl);
+    await gotoDialog(page, dialogUrl);
     await expect(page.getByTestId("question-cards")).toBeVisible();
 
     // Extended dismiss shape (REQ-0068) — same body beforeunload beacon uses.

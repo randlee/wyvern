@@ -39,7 +39,7 @@ cargo build --workspace
 cargo clippy --workspace -- -D warnings
 cargo test -p wyvern-host
 cargo test -p wyvern
-# L2: npx playwright test tests/e2e/question.spec.ts
+# L2: cd tests/e2e && npx playwright test question.spec.ts
 ```
 
 ## Non-closure

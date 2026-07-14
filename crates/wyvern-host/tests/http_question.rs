@@ -79,6 +79,32 @@ fn wait_for_url_file(path: &Path) -> String {
     }
 }
 
+/// Poll `GET /api/dialog` until HTTP 200 (URL file alone is not readiness).
+fn wait_for_dialog_ready(client: &reqwest::blocking::Client, base: &str) -> serde_json::Value {
+    let url = format!("{base}/api/dialog");
+    let start = std::time::Instant::now();
+    loop {
+        match client.get(&url).send() {
+            Ok(resp) if resp.status() == reqwest::StatusCode::OK => {
+                return resp.json().expect("dialog json");
+            }
+            Ok(_) | Err(_) => {
+                if start.elapsed() > Duration::from_secs(15) {
+                    panic!("timed out waiting for GET /api/dialog at {url}");
+                }
+                thread::sleep(Duration::from_millis(20));
+            }
+        }
+    }
+}
+
+fn dialog_base(dialog_url: &str) -> String {
+    dialog_url
+        .trim_end_matches("/question/")
+        .trim_end_matches('/')
+        .to_string()
+}
+
 #[test]
 fn run_question_posts_submit_via_http() {
     let tmp = tempfile::tempdir().expect("temp dir");
@@ -92,23 +118,15 @@ fn run_question_posts_submit_via_http() {
     let handle = thread::spawn(move || run(command, options));
 
     let dialog_url = wait_for_url_file(&url_file);
-    let base = dialog_url
-        .trim_end_matches("/question/")
-        .trim_end_matches('/');
+    let base = dialog_base(&dialog_url);
 
     let client = reqwest::blocking::Client::new();
-    let dialog: serde_json::Value = client
-        .get(format!("{base}/api/dialog"))
-        .send()
-        .expect("GET dialog")
-        .error_for_status()
-        .expect("dialog status")
-        .json()
-        .expect("dialog json");
+    let dialog = wait_for_dialog_ready(&client, &base);
     assert_eq!(dialog["type"], "question");
     assert_eq!(dialog["title"], "Question");
     assert_eq!(dialog["questions"][0]["question"], "Output format?");
     assert_eq!(dialog["questions"][0]["multiSelect"], false);
+    assert!(dialog.get("buttons").is_none());
 
     let preview_html = dialog["questions"][0]["options"][0]["preview_html"]
         .as_str()
@@ -202,19 +220,10 @@ fn dialog_preview_html_strips_script_tags() {
     let handle = thread::spawn(move || run(command, options));
 
     let dialog_url = wait_for_url_file(&url_file);
-    let base = dialog_url
-        .trim_end_matches("/question/")
-        .trim_end_matches('/');
+    let base = dialog_base(&dialog_url);
 
     let client = reqwest::blocking::Client::new();
-    let dialog: serde_json::Value = client
-        .get(format!("{base}/api/dialog"))
-        .send()
-        .expect("GET dialog")
-        .error_for_status()
-        .expect("dialog status")
-        .json()
-        .expect("dialog json");
+    let dialog = wait_for_dialog_ready(&client, &base);
 
     let preview_html = dialog["questions"][0]["options"][0]["preview_html"]
         .as_str()
@@ -254,11 +263,10 @@ fn run_question_dismiss_extended_shape() {
     let handle = thread::spawn(move || run(command, options));
 
     let dialog_url = wait_for_url_file(&url_file);
-    let base = dialog_url
-        .trim_end_matches("/question/")
-        .trim_end_matches('/');
+    let base = dialog_base(&dialog_url);
 
     let client = reqwest::blocking::Client::new();
+    let _ = wait_for_dialog_ready(&client, &base);
     let ack: serde_json::Value = client
         .post(format!("{base}/api/result"))
         .json(&serde_json::json!({
@@ -295,11 +303,10 @@ fn empty_answers_without_button_becomes_dismiss() {
     let handle = thread::spawn(move || run(command, options));
 
     let dialog_url = wait_for_url_file(&url_file);
-    let base = dialog_url
-        .trim_end_matches("/question/")
-        .trim_end_matches('/');
+    let base = dialog_base(&dialog_url);
 
     let client = reqwest::blocking::Client::new();
+    let _ = wait_for_dialog_ready(&client, &base);
     let _ = client
         .post(format!("{base}/api/result"))
         .json(&serde_json::json!({
@@ -326,11 +333,10 @@ fn result_invalid_question_includes_cause_recovery_docs() {
     let handle = thread::spawn(move || run(single_select_command(), options));
 
     let dialog_url = wait_for_url_file(&url_file);
-    let base = dialog_url
-        .trim_end_matches("/question/")
-        .trim_end_matches('/');
+    let base = dialog_base(&dialog_url);
 
     let client = reqwest::blocking::Client::new();
+    let _ = wait_for_dialog_ready(&client, &base);
     let response = client
         .post(format!("{base}/api/result"))
         .json(&serde_json::json!({}))
@@ -388,19 +394,10 @@ fn validate_then_run_multi_select_shape() {
     let handle = thread::spawn(move || run(command, options));
 
     let dialog_url = wait_for_url_file(&url_file);
-    let base = dialog_url
-        .trim_end_matches("/question/")
-        .trim_end_matches('/');
+    let base = dialog_base(&dialog_url);
 
     let client = reqwest::blocking::Client::new();
-    let dialog: serde_json::Value = client
-        .get(format!("{base}/api/dialog"))
-        .send()
-        .expect("GET dialog")
-        .error_for_status()
-        .expect("dialog status")
-        .json()
-        .expect("dialog json");
+    let dialog = wait_for_dialog_ready(&client, &base);
     assert_eq!(dialog["questions"][0]["multiSelect"], true);
 
     let _ = client
@@ -421,4 +418,123 @@ fn validate_then_run_multi_select_shape() {
         result,
         CommandResult::Question(QuestionResult::submitted(expected_raw, answers))
     );
+}
+
+#[test]
+fn result_rejects_unknown_answer_keys() {
+    let tmp = tempfile::tempdir().expect("temp dir");
+    let url_file = tmp.path().join("dialog-url");
+    let options = host_options(url_file.clone());
+    let command = single_select_command();
+    let expected_raw = match &command {
+        Command::Question { questions_raw, .. } => questions_raw.clone(),
+        _ => unreachable!(),
+    };
+    let handle = thread::spawn(move || run(command, options));
+
+    let dialog_url = wait_for_url_file(&url_file);
+    let base = dialog_base(&dialog_url);
+
+    let client = reqwest::blocking::Client::new();
+    let _ = wait_for_dialog_ready(&client, &base);
+    let response = client
+        .post(format!("{base}/api/result"))
+        .json(&serde_json::json!({
+            "questions": expected_raw,
+            "answers": { "Not a real prompt": "JSON" },
+            "response": ""
+        }))
+        .send()
+        .expect("POST result");
+    assert_eq!(response.status(), reqwest::StatusCode::BAD_REQUEST);
+    let body: serde_json::Value = response.json().expect("error json");
+    assert_eq!(body["error"], "bad_request");
+    assert!(body["message"]
+        .as_str()
+        .is_some_and(|m| m.contains("answers key") && m.contains("Not a real prompt")));
+
+    let _ = client
+        .post(format!("{base}/api/result"))
+        .json(&serde_json::json!({
+            "button": "dismissed",
+            "questions": expected_raw,
+            "answers": {},
+            "response": ""
+        }))
+        .send()
+        .expect("POST result")
+        .error_for_status();
+    let _ = handle.join().expect("host thread").expect("run ok");
+}
+
+#[test]
+fn dialog_rejects_oversized_question_preview() {
+    let tmp = tempfile::tempdir().expect("temp dir");
+    let url_file = tmp.path().join("dialog-url");
+    let options = host_options(url_file.clone());
+    let oversized = "x".repeat(wyvern_schema::MARKDOWN_CONTENT_MAX_BYTES + 1);
+    let command = Command::Question {
+        questions: vec![QuestionCard {
+            question: "Q?".into(),
+            header: "Hdr".into(),
+            options: vec![
+                QuestionOption {
+                    label: "A".into(),
+                    description: "a".into(),
+                    preview: Some(oversized),
+                },
+                QuestionOption {
+                    label: "B".into(),
+                    description: "b".into(),
+                    preview: None,
+                },
+            ],
+            multi_select: false,
+        }],
+        questions_raw: vec![serde_json::json!({
+            "question": "Q?",
+            "header": "Hdr",
+            "options": [
+                { "label": "A", "description": "a", "preview": "x" },
+                { "label": "B", "description": "b" }
+            ],
+            "multiSelect": false
+        })],
+    };
+    let handle = thread::spawn(move || run(command, options));
+
+    let dialog_url = wait_for_url_file(&url_file);
+    let base = dialog_base(&dialog_url);
+
+    let client = reqwest::blocking::Client::new();
+    let start = std::time::Instant::now();
+    let response = loop {
+        match client.get(format!("{base}/api/dialog")).send() {
+            Ok(resp) => break resp,
+            Err(_) if start.elapsed() < Duration::from_secs(15) => {
+                thread::sleep(Duration::from_millis(20));
+            }
+            Err(err) => panic!("GET dialog failed: {err}"),
+        }
+    };
+    assert_eq!(response.status(), reqwest::StatusCode::BAD_REQUEST);
+    let body: serde_json::Value = response.json().expect("error json");
+    assert_eq!(body["error"], "bad_request");
+    assert!(body["message"]
+        .as_str()
+        .is_some_and(|m| m.contains("preview") && m.contains("exceeds maximum")));
+    assert!(body["docs"]
+        .as_str()
+        .is_some_and(|s| s.contains("c13-host-question")));
+
+    let _ = client
+        .post(format!("{base}/api/result"))
+        .json(&serde_json::json!({
+            "button": "dismissed",
+            "questions": [],
+            "answers": {},
+            "response": ""
+        }))
+        .send();
+    let _ = handle.join();
 }
