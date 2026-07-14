@@ -1,0 +1,20 @@
+[package]
+name        = "wyvern-host"
+version     = "0.1.0"
+edition     = "2021"
+description = "Wyvern HTTP dialog host — bind, serve packaged UI, await POST /api/result"
+
+[dependencies]
+wyvern-schema = { path = "../wyvern-schema" }
+serde         = { workspace = true }
+serde_json    = { workspace = true }
+tokio         = { workspace = true }
+axum          = { workspace = true }
+tower         = { workspace = true }
+tower-http    = { workspace = true }
+tracing       = { workspace = true }
+
+[dev-dependencies]
+http-body-util = { workspace = true }
+tower          = { workspace = true, features = ["util"] }
+reqwest        = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "blocking"] }

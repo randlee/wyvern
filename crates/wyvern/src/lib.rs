@@ -14,17 +14,20 @@
     )
 )]
 
+mod cli_args;
 mod error;
 mod input;
 pub mod observability;
 mod pipeline;
 
 #[doc(inline)]
+pub use cli_args::{parse_cli_args, usage_message, CliArgs};
+#[doc(inline)]
 pub use error::{
-    emit_fatal_internal, emit_io_error, emit_parse_error, emit_stdout, emit_validation_error,
-    EmitError, LoadError,
+    emit_fatal_internal, emit_host_error, emit_io_error, emit_parse_error, emit_stdout,
+    emit_validation_error, EmitError, LoadError,
 };
 #[doc(inline)]
-pub use input::{load_command_input, usage_message};
+pub use input::load_command_input;
 #[doc(inline)]
 pub use pipeline::{run_from_loaded, PipelineError};

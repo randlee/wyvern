@@ -1,0 +1,95 @@
+//! `GET /api/dialog` — JSON payload for the active command.
+
+use axum::extract::State;
+use axum::http::StatusCode;
+use axum::Json;
+use serde_json::{json, Value};
+use wyvern_schema::{ButtonsPreset, Command};
+
+use crate::session::SessionState;
+
+/// Serialize active command fields for the packaged UI.
+pub async fn get_dialog(State(session): State<SessionState>) -> Result<Json<Value>, StatusCode> {
+    let command = session.command().await;
+    Ok(Json(dialog_payload(&command)))
+}
+
+/// Build the `/api/dialog` JSON object for `command`.
+pub(crate) fn dialog_payload(command: &Command) -> Value {
+    match command {
+        Command::Message {
+            title,
+            message,
+            status,
+            buttons,
+            custom_buttons,
+            default_button,
+            level,
+            icon,
+            image,
+            markdown,
+        } => {
+            let mut obj = json!({
+                "type": "message",
+                "title": title.as_str(),
+                "message": message,
+                "buttons": buttons_wire(*buttons),
+                "markdown": markdown,
+                "button_list": button_list(*buttons, custom_buttons.as_deref()),
+            });
+            if let Some(status) = status {
+                obj["status"] = json!(status.as_str());
+            }
+            if let Some(custom) = custom_buttons {
+                obj["custom_buttons"] = json!(custom);
+            }
+            if let Some(idx) = default_button {
+                obj["default_button"] = json!(idx);
+            }
+            if let Some(level) = level {
+                obj["level"] = json!(level.as_str());
+            }
+            if let Some(icon) = icon {
+                obj["icon"] = json!(icon);
+            }
+            if let Some(image) = image {
+                obj["image"] = json!(image);
+            }
+            obj
+        }
+        other => json!({
+            "type": command_type_name(other),
+            "error": "unsupported_type",
+        }),
+    }
+}
+
+fn buttons_wire(preset: ButtonsPreset) -> &'static str {
+    match preset {
+        ButtonsPreset::Ok => "ok",
+        ButtonsPreset::OkCancel => "ok_cancel",
+        ButtonsPreset::YesNo => "yes_no",
+        ButtonsPreset::YesNoCancel => "yes_no_cancel",
+        ButtonsPreset::RetryCancel => "retry_cancel",
+        ButtonsPreset::Custom => "custom",
+    }
+}
+
+fn button_list(preset: ButtonsPreset, custom: Option<&[String]>) -> Vec<Value> {
+    let wire = preset.wire_labels(custom);
+    let display = preset.display_labels(custom);
+    wire.into_iter()
+        .zip(display)
+        .map(|(id, label)| json!({ "id": id, "label": label }))
+        .collect()
+}
+
+fn command_type_name(command: &Command) -> &'static str {
+    match command {
+        Command::Chrome { .. } => "chrome",
+        Command::Message { .. } => "message",
+        Command::Input { .. } => "input",
+        Command::Markdown { .. } => "markdown",
+        Command::Question { .. } => "question",
+    }
+}

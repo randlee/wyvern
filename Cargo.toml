@@ -6,7 +6,7 @@ members = [
     "crates/wyvern-schema",
     "crates/wyvern-wizard",
     "crates/wyvern-mcp",
-    # "crates/wyvern-host",   # add c.10
+    "crates/wyvern-host",
     # "crates/wyvern-viewer", # add c.15
 ]
 resolver = "2"
@@ -22,8 +22,13 @@ serde_json = "1"
 # Validation
 strsim = "0.11"
 
-# Async (MCP server)
+# Async (MCP server / HTTP host)
 tokio = { version = "1", features = ["full"] }
+axum = { version = "0.8", features = ["json"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["fs"] }
+tracing = "0.1"
+http-body-util = "0.1"
 
 # Logging (crates.io — see docs/plans/phase-A/a6-sc-observability.md)
 sc-observability = "1.2"

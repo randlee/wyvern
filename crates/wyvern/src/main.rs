@@ -17,8 +17,8 @@ use std::process::ExitCode;
 
 use wyvern::observability;
 use wyvern::{
-    emit_fatal_internal, emit_io_error, emit_parse_error, load_command_input, run_from_loaded,
-    usage_message, EmitError, LoadError, PipelineError,
+    emit_fatal_internal, emit_io_error, emit_parse_error, load_command_input, parse_cli_args,
+    run_from_loaded, usage_message, EmitError, LoadError, PipelineError,
 };
 use wyvern_schema::SerializeError;
 
@@ -30,18 +30,29 @@ fn main() -> ExitCode {
 
     let args: Vec<String> = std::env::args().skip(1).collect();
 
-    if args.len() == 1 && (args[0] == "--version" || args[0] == "-V") {
+    let cli = match parse_cli_args(&args) {
+        Ok(cli) => cli,
+        Err(LoadError::Usage { message }) => {
+            eprintln!("{message}");
+            return ExitCode::from(1);
+        }
+        Err(err) => return emit_load_stage_failure(&err),
+    };
+
+    if cli.positionals.len() == 1
+        && (cli.positionals[0] == "--version" || cli.positionals[0] == "-V")
+    {
         println!("wyvern {}", env!("CARGO_PKG_VERSION"));
         return ExitCode::SUCCESS;
     }
 
     // No positional args on a TTY: print usage instead of blocking on stdin.
-    if args.is_empty() && io::stdin().is_terminal() {
+    if cli.positionals.is_empty() && io::stdin().is_terminal() {
         eprintln!("{}", usage_message());
         return ExitCode::from(1);
     }
 
-    let value = match load_command_input(&args, io::stdin()) {
+    let value = match load_command_input(&cli.positionals, io::stdin()) {
         Ok(value) => value,
         Err(LoadError::Usage { message }) => {
             eprintln!("{message}");
@@ -50,7 +61,7 @@ fn main() -> ExitCode {
         Err(err) => return emit_load_stage_failure(&err),
     };
 
-    match run_from_loaded(value) {
+    match run_from_loaded(value, cli.host) {
         Ok(stdout) => {
             let mut out = io::stdout().lock();
             let _ = writeln!(out, "{stdout}");

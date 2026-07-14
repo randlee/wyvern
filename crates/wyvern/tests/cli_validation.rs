@@ -1,19 +1,26 @@
 //! CLI integration: load → validate → run → emit.
 
-use std::process::Command;
+use std::net::TcpListener;
+use std::path::PathBuf;
+use std::process::{Command, Stdio};
+use std::thread;
+use std::time::Duration;
 
 fn wyvern() -> Command {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_wyvern"));
-    // Auto-dismiss so chrome GUI paths do not block the test harness.
-    cmd.env("WYVERN_AUTO_DISMISS", "1");
     // Isolate from developer/CI WYVERN_LOG so stdout/stderr assertions stay stable.
     cmd.env_remove("WYVERN_LOG");
+    cmd.env("WYVERN_UI_ROOT", workspace_ui_root());
     cmd
 }
 
-/// Spawns `wyvern` with auto-dismiss; detects child panic/abort/signal failures.
+fn workspace_ui_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../ui")
+}
+
+/// Spawns `wyvern`; detects child panic/abort/signal failures.
 fn run_wyvern(cmd: &mut Command) -> std::process::Output {
-    cmd.env("WYVERN_AUTO_DISMISS", "1").env_remove("WYVERN_LOG");
+    cmd.env_remove("WYVERN_LOG");
     let output = cmd.output().expect("spawn wyvern");
     assert_child_ok(&output);
     output
@@ -52,9 +59,23 @@ mod child_assert {
 use child_assert::{assert_child_ok, child_failed};
 
 fn stderr_json(stderr: &str) -> serde_json::Value {
-    serde_json::from_str(stderr.trim()).unwrap_or_else(|err| {
+    // Host may print WYVERN_DIALOG_URL=… before JSON error lines.
+    let json_line = stderr
+        .lines()
+        .rev()
+        .find(|line| line.trim_start().starts_with('{'))
+        .unwrap_or(stderr.trim());
+    serde_json::from_str(json_line.trim()).unwrap_or_else(|err| {
         panic!("stderr is not JSON ({err}): {stderr:?}");
     })
+}
+
+fn free_port() -> u16 {
+    TcpListener::bind("127.0.0.1:0")
+        .expect("bind")
+        .local_addr()
+        .expect("addr")
+        .port()
 }
 
 #[test]
@@ -217,4 +238,93 @@ fn cli_wizard_still_validation_error() {
     let value = stderr_json(&stderr);
     assert_eq!(value["error"], "validation");
     assert_eq!(value["field"], "type");
+}
+
+#[test]
+fn cli_chrome_unsupported_type_at_runtime() {
+    let (code, stdout, stderr) = run_json(r#"{"type":"chrome","title":"T"}"#);
+    assert_ne!(code, 0);
+    assert!(stdout.trim().is_empty(), "stdout={stdout}");
+    let value = stderr_json(&stderr);
+    assert_eq!(value["error"], "host_error");
+    assert_eq!(value["code"], "UNSUPPORTED_TYPE");
+}
+
+#[test]
+fn cli_message_viewer_none_posts_ok() {
+    let port = free_port();
+    let bind = format!("127.0.0.1:{port}");
+    let json = r#"{"type":"message","title":"T","message":"Hi","buttons":"ok"}"#;
+    let child = wyvern()
+        .args([json, "--viewer", "none", "--bind", &bind])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("spawn");
+
+    let client = wait_for_http(&format!("http://{bind}/api/dialog"));
+    let dialog: serde_json::Value = client
+        .get(format!("http://{bind}/api/dialog"))
+        .send()
+        .expect("dialog")
+        .json()
+        .expect("json");
+    assert_eq!(dialog["type"], "message");
+
+    let ack: serde_json::Value = client
+        .post(format!("http://{bind}/api/result"))
+        .json(&serde_json::json!({"button":"ok"}))
+        .send()
+        .expect("post")
+        .json()
+        .expect("ack");
+    assert_eq!(ack["ok"], true);
+
+    let output = child.wait_with_output().expect("wait");
+    assert_child_ok(&output);
+    assert_eq!(output.status.code(), Some(0));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert_eq!(stdout.trim(), r#"{"button":"ok"}"#);
+}
+
+#[test]
+fn cli_message_omitted_viewer_defaults_to_none() {
+    let port = free_port();
+    let bind = format!("127.0.0.1:{port}");
+    let json = r#"{"type":"message","title":"T","message":"Hi","buttons":"ok"}"#;
+    let child = wyvern()
+        .args([json, "--bind", &bind])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("spawn");
+
+    let client = wait_for_http(&format!("http://{bind}/api/dialog"));
+    let _ = client
+        .post(format!("http://{bind}/api/result"))
+        .json(&serde_json::json!({"button":"ok"}))
+        .send()
+        .expect("post");
+
+    let output = child.wait_with_output().expect("wait");
+    assert_child_ok(&output);
+    assert_eq!(output.status.code(), Some(0));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert_eq!(stdout.trim(), r#"{"button":"ok"}"#);
+}
+
+fn wait_for_http(url: &str) -> reqwest::blocking::Client {
+    let client = reqwest::blocking::Client::new();
+    for _ in 0..200 {
+        if client
+            .get(url)
+            .send()
+            .map(|r| r.status().is_success())
+            .unwrap_or(false)
+        {
+            return client;
+        }
+        thread::sleep(Duration::from_millis(25));
+    }
+    panic!("timed out waiting for {url}");
 }

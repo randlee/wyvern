@@ -2,7 +2,7 @@
 name        = "wyvern"
 version     = "0.1.0"
 edition     = "2021"
-description = "What You View, Engine Renders Natively — native webview dialog CLI"
+description = "What You View, Engine Renders Natively — HTTP dialog CLI"
 
 [[bin]]
 name = "wyvern"
@@ -10,5 +10,10 @@ path = "src/main.rs"
 
 [dependencies]
 wyvern-schema    = { path = "../wyvern-schema" }
+wyvern-host      = { path = "../wyvern-host" }
 serde_json       = { workspace = true }
 sc-observability = { workspace = true }
+
+[dev-dependencies]
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "blocking"] }
+serde_json = { workspace = true }

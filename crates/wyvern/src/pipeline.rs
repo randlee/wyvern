@@ -1,12 +1,12 @@
-//! CLI pipeline: validate → load markdown files → run → emit (argv load stays in `main`).
-//!
-//! c.9: `wyvern-window` deleted. Delivery resumes in c.10 via `wyvern-host`.
+//! CLI pipeline: validate → load markdown files → host run → emit.
 
 use serde_json::Value;
+use wyvern_host::{run as host_run, HostError, HostOptions};
+use wyvern_schema::{Command, FieldName};
 
-use wyvern_schema::{Command, ErrorCode, FieldName, StderrError};
-
-use crate::error::{emit_io_error, emit_validation_error, EmitError, LoadError};
+use crate::error::{
+    emit_host_error, emit_io_error, emit_stdout, emit_validation_error, EmitError, LoadError,
+};
 use crate::observability;
 
 /// Pipeline failure after load: stage stderr + exit, or emit-boundary serialize failure.
@@ -23,9 +23,9 @@ pub enum PipelineError {
 /// # Errors
 ///
 /// Returns [`PipelineError::Stage`] with stderr JSON and a non-zero exit code on
-/// validation, markdown I/O, or (until c.10) missing host. Returns
-/// [`PipelineError::Emit`] when structured JSON serialization fails (REQ-0078).
-pub fn run_from_loaded(value: Value) -> Result<String, PipelineError> {
+/// validation, markdown I/O, or host failure. Returns [`PipelineError::Emit`] when
+/// structured JSON serialization fails (REQ-0078).
+pub fn run_from_loaded(value: Value, host: HostOptions) -> Result<String, PipelineError> {
     observability::log_command_received(&value);
     let command = match wyvern_schema::validate(&value) {
         Ok(cmd) => {
@@ -55,22 +55,45 @@ pub fn run_from_loaded(value: Value) -> Result<String, PipelineError> {
         }
     };
 
-    // c.9 demolition: no delivery stack until wyvern-host (c.10).
-    let _ = command;
-    observability::log_error("run", "wyvern-window deleted; wyvern-host arrives in c.10");
-    let stderr = StderrError::new(
-        ErrorCode::InternalError,
-        "wyvern-window deleted; dialog delivery returns in c.10 via wyvern-host",
-    )
-    .cause("Embedded wry/winit stack removed in sprint c.9")
-    .recovery("Wait for wyvern-host (sprint c.10) or use validation-only flows")
-    .docs("docs/plans/phase-C/c9-deletion.md")
-    .to_json_string()
-    .map_err(|e| PipelineError::Emit(EmitError::Serialize(e)))?;
-    Err(PipelineError::Stage {
-        stderr,
-        exit_code: ErrorCode::InternalError.exit_code(),
-    })
+    observability::log_host_start(command_type_name(&command));
+    match host_run(command, host) {
+        Ok(result) => {
+            observability::log_host_result(true);
+            emit_stdout(&result).map_err(PipelineError::Emit)
+        }
+        Err(err) => {
+            observability::log_error("host", &format!("{err:?}"));
+            observability::log_host_result(false);
+            let exit_code = host_error_exit_code(&err);
+            let stderr = emit_host_error(&err).map_err(PipelineError::Emit)?;
+            Err(PipelineError::Stage { stderr, exit_code })
+        }
+    }
+}
+
+fn command_type_name(command: &Command) -> &'static str {
+    match command {
+        Command::Chrome { .. } => "chrome",
+        Command::Message { .. } => "message",
+        Command::Input { .. } => "input",
+        Command::Markdown { .. } => "markdown",
+        Command::Question { .. } => "question",
+    }
+}
+
+fn host_error_exit_code(err: &HostError) -> i32 {
+    match err {
+        HostError::Bind { .. } => wyvern_schema::ErrorCode::HostBindError.exit_code(),
+        HostError::UiNotFound { .. } | HostError::UnsupportedType { .. } => {
+            wyvern_schema::ErrorCode::HostError.exit_code()
+        }
+        HostError::ViewerNotFound { .. } | HostError::ViewerUnsupported { .. } => {
+            wyvern_schema::ErrorCode::HostViewerError.exit_code()
+        }
+        HostError::InvalidResult { .. } | HostError::Internal { .. } => {
+            wyvern_schema::ErrorCode::HostError.exit_code()
+        }
+    }
 }
 
 /// Read markdown `file` into `content` before the host opens (REQ-0071).

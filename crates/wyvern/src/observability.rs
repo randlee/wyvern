@@ -79,7 +79,22 @@ pub fn log_validation_result(ok: bool) {
     emit("validation_result", Level::Info, Some(outcome), fields);
 }
 
-/// Emit normative `window_open` before dialog delivery (host from c.10).
+/// Emit normative `host_start` before dialog delivery.
+pub fn log_host_start(command_type: &str) {
+    let mut fields = Map::new();
+    fields.insert("command_type".to_string(), json!(command_type));
+    emit("host_start", Level::Info, Some("ok"), fields);
+}
+
+/// Emit normative `host_result` after the host returns.
+pub fn log_host_result(ok: bool) {
+    let mut fields = Map::new();
+    fields.insert("ok".to_string(), json!(ok));
+    let outcome = if ok { "ok" } else { "error" };
+    emit("host_result", Level::Info, Some(outcome), fields);
+}
+
+/// Emit normative `window_open` before dialog delivery (legacy alias; prefer [`log_host_start`]).
 pub fn log_window_open() {
     emit("window_open", Level::Info, Some("ok"), Map::new());
 }
