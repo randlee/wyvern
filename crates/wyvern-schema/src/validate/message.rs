@@ -9,7 +9,7 @@ use crate::field_name::FieldName;
 
 use super::helpers::{
     closest_match, json_type_name, optional_bool_field, optional_media_ref_field,
-    optional_string_field, require_string_field, MESSAGE_FIELDS,
+    optional_string_field, optional_window_size_fields, require_string_field, MESSAGE_FIELDS,
 };
 
 pub(super) fn validate_message(obj: &Map<String, Value>) -> Result<Command, ValidationError> {
@@ -169,6 +169,7 @@ pub(super) fn validate_message(obj: &Map<String, Value>) -> Result<Command, Vali
     let icon = optional_media_ref_field(obj, "icon")?;
     let image = optional_media_ref_field(obj, "image")?;
     let markdown = optional_bool_field(obj, "markdown")?.unwrap_or(false);
+    let (width, height) = optional_window_size_fields(obj)?;
 
     Ok(Command::Message {
         title: ChromeTitle::new(title),
@@ -181,5 +182,7 @@ pub(super) fn validate_message(obj: &Map<String, Value>) -> Result<Command, Vali
         icon,
         image,
         markdown,
+        width,
+        height,
     })
 }

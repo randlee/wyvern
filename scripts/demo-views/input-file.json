@@ -1,0 +1,8 @@
+{
+  "type": "input",
+  "title": "File",
+  "message": "Enter a path or use … to browse (JSON and text files).",
+  "mode": "file",
+  "filter": ["*.json", "*.txt"],
+  "buttons": "ok_cancel"
+}

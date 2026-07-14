@@ -145,12 +145,14 @@ fn viewer_from_env() -> Option<ViewerMode> {
 }
 
 /// Default UI root discovery order:
-/// 1. `WYVERN_UI_ROOT`
-/// 2. `./ui` (dev workspace)
+///
+/// 1. `WYVERN_UI_ROOT` environment variable
+/// 2. `./ui` (dev workspace — cwd contains ui/)
 /// 3. `./share/wyvern/ui` (cwd install layout)
 /// 4. `<exe_dir>/share/wyvern/ui` (release tarball layout — REQ-0093 / REQ-0116)
-/// 5. `<exe_dir>/ui`
-/// 6. fallback `./ui` (caller gets a clear missing-root error later)
+/// 5. `<exe_dir>/ui` (sibling to binary)
+/// 6. Embedded assets extracted to platform cache dir (`cargo install` layout)
+/// 7. Fallback `./ui` — caller receives a clear "UI not found" error downstream
 pub fn default_ui_root() -> PathBuf {
     if let Ok(path) = std::env::var("WYVERN_UI_ROOT") {
         return PathBuf::from(path);
@@ -175,6 +177,11 @@ pub fn default_ui_root() -> PathBuf {
         if sibling_ui.is_dir() {
             return sibling_ui;
         }
+    }
+    // For `cargo install` users: extract embedded assets to the platform cache
+    // directory on first use.  Returns None when the cache dir is unavailable.
+    if let Some(cached) = crate::embedded_ui::extract_to_cache() {
+        return cached;
     }
     cwd_ui
 }

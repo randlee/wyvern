@@ -1,0 +1,223 @@
+/**
+ * Wyvern Browser embedded shell (wyvern-viewer only).
+ *
+ * macOS: native red/yellow/green traffic lights only — no surrounding OS frame.
+ * HTML/CSS owns all visible chrome (title, colors, buttons, layout).
+ *
+ * Real browsers (--viewer safari|chrome|…) do not load window.ipc; these rules
+ * do not apply — pages render as normal web apps.
+ */
+
+html.wyvern-embedded.wyvern-macos {
+  --wyvern-safe-left: 72px;
+  --wyvern-drag-band: 28px;
+}
+
+html.wyvern-embedded body {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+}
+
+html.wyvern-embedded.wyvern-macos body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+html.wyvern-embedded .dialog--compact,
+html.wyvern-embedded .dialog--panel,
+html.wyvern-embedded .dialog--frame,
+html.wyvern-embedded .dialog--fill {
+  margin: 0 auto;
+  flex: 0 0 auto;
+}
+
+/* File/folder path row: stretch with user-resized embedded window. */
+html.wyvern-embedded .dialog--compact.dialog--fill {
+  width: 100%;
+  max-width: 100%;
+  min-height: 100vh;
+  flex: 1 1 auto;
+  align-self: stretch;
+  margin: 0 !important;
+}
+
+html.wyvern-embedded body:has(.dialog--fill) {
+  align-items: stretch;
+  width: 100%;
+}
+
+/* Panel + frame: intrinsic height (not 100vh) — avoids clipped buttons / inner scroll. */
+html.wyvern-embedded .dialog--panel,
+html.wyvern-embedded .dialog--frame {
+  position: relative;
+  box-sizing: border-box;
+  min-height: auto !important;
+  max-height: none !important;
+  height: auto !important;
+  flex: 0 0 auto !important;
+  margin: 0 auto !important;
+  width: fit-content;
+}
+
+html.wyvern-embedded.wyvern-macos .dialog--panel,
+html.wyvern-embedded.wyvern-macos .dialog--frame {
+  max-width: min(35rem, 560px);
+  padding: var(--wyvern-drag-band) 1.25rem 1rem;
+  padding-left: max(1.25rem, var(--wyvern-safe-left));
+}
+
+html.wyvern-embedded:not(.wyvern-macos) .dialog--panel,
+html.wyvern-embedded:not(.wyvern-macos) .dialog--frame {
+  max-width: min(35rem, 560px);
+  padding: calc(var(--wyvern-drag-band, 28px) + 0.5rem) 1.25rem 1rem;
+}
+
+html.wyvern-embedded .dialog--frame {
+  max-width: min(480px, 800px);
+  min-width: min(480px, 100vw);
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
+}
+
+html.wyvern-embedded .dialog--panel {
+  width: 100%;
+  max-width: min(35rem, 560px);
+}
+
+html.wyvern-embedded .dialog--panel.dialog,
+html.wyvern-embedded .dialog--frame.dialog {
+  height: auto !important;
+  min-height: auto !important;
+}
+
+html.wyvern-embedded .dialog--panel .content,
+html.wyvern-embedded .dialog--panel .cards {
+  overflow: visible;
+  flex: none;
+  min-height: 0;
+}
+
+html.wyvern-embedded .dialog--frame .buttons,
+html.wyvern-embedded .dialog--panel .buttons {
+  margin-top: 1rem !important;
+}
+
+/* Top drag band + traffic-light safe zone (macOS). */
+html.wyvern-embedded.wyvern-macos .wyvern-titlebar {
+  box-sizing: border-box;
+  min-height: var(--wyvern-drag-band);
+  padding: 0.35rem 1rem 0.35rem var(--wyvern-safe-left);
+  -webkit-app-region: drag;
+  user-select: none;
+}
+
+html.wyvern-embedded.wyvern-macos .dialog:not(.dialog--compact):not(.dialog--panel):not(.dialog--frame) {
+  position: relative;
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 0 1.5rem 1.25rem;
+  padding-top: var(--wyvern-drag-band);
+  padding-left: max(1.5rem, var(--wyvern-safe-left));
+}
+
+html.wyvern-embedded.wyvern-macos .dialog--compact {
+  position: relative;
+  box-sizing: border-box;
+  min-height: auto;
+  width: fit-content;
+  max-width: min(30rem, 480px);
+  padding: var(--wyvern-drag-band) 1.25rem 1rem;
+  padding-left: max(1.25rem, var(--wyvern-safe-left));
+}
+
+html.wyvern-embedded.wyvern-macos .dialog--compact.dialog--fill {
+  width: 100%;
+  max-width: 100%;
+  min-height: 100vh;
+}
+
+html.wyvern-embedded.wyvern-macos .dialog::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--wyvern-drag-band);
+  -webkit-app-region: drag;
+  z-index: 0;
+}
+
+html.wyvern-embedded.wyvern-macos .dialog > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Win/Linux: no OS frame; HTML supplies look/feel and drag band. */
+html.wyvern-embedded:not(.wyvern-macos) body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+html.wyvern-embedded:not(.wyvern-macos) .wyvern-titlebar {
+  box-sizing: border-box;
+  min-height: var(--wyvern-drag-band, 28px);
+  padding: 0.35rem 1rem;
+  -webkit-app-region: drag;
+  user-select: none;
+}
+
+html.wyvern-embedded:not(.wyvern-macos) .dialog::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--wyvern-drag-band, 28px);
+  -webkit-app-region: drag;
+  z-index: 0;
+}
+
+html.wyvern-embedded:not(.wyvern-macos) .dialog:not(.dialog--compact):not(.dialog--panel):not(.dialog--frame) {
+  position: relative;
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: calc(var(--wyvern-drag-band, 28px) + 0.5rem) 1.5rem 1.25rem;
+}
+
+html.wyvern-embedded:not(.wyvern-macos) .dialog--compact {
+  position: relative;
+  box-sizing: border-box;
+  min-height: auto;
+  width: fit-content;
+  max-width: min(30rem, 480px);
+  padding: calc(var(--wyvern-drag-band, 28px) + 0.5rem) 1.25rem 1rem;
+}
+
+html.wyvern-embedded:not(.wyvern-macos) .dialog--compact.dialog--fill {
+  width: 100%;
+  max-width: 100%;
+  min-height: 100vh;
+}
+
+html.wyvern-embedded:not(.wyvern-macos) .dialog > * {
+  position: relative;
+  z-index: 1;
+}
+
+html.wyvern-embedded button,
+html.wyvern-embedded input,
+html.wyvern-embedded textarea,
+html.wyvern-embedded select,
+html.wyvern-embedded a,
+html.wyvern-embedded label,
+html.wyvern-embedded [role="button"] {
+  -webkit-app-region: no-drag;
+}

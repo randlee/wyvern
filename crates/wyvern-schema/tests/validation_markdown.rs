@@ -17,6 +17,7 @@ fn validation_markdown_file_passes() {
             content,
             status,
             buttons,
+            ..
         } => {
             assert_eq!(title.as_ref().map(|t| t.as_str()), Some("doc.md"));
             assert_eq!(file.as_deref(), Some("doc.md"));
@@ -42,6 +43,7 @@ fn validation_markdown_content_only_passes() {
             content,
             status,
             buttons,
+            ..
         } => {
             assert_eq!(title.as_ref().map(|t| t.as_str()), Some("Markdown"));
             assert!(file.is_none());
@@ -119,6 +121,7 @@ fn validation_markdown_inline_title_and_status() {
             content,
             status,
             buttons,
+            ..
         } => {
             assert_eq!(title.as_ref().map(|t| t.as_str()), Some("Inline doc"));
             assert!(file.is_none());

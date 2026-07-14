@@ -25,6 +25,9 @@ fn message_command() -> Command {
         icon: None,
         image: None,
         markdown: false,
+
+        width: None,
+        height: None,
     }
 }
 

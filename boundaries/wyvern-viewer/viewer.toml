@@ -9,8 +9,8 @@ forbidden_dependencies = ["wyvern", "wyvern-mcp", "wyvern-host", "wyvern-schema"
 forbidden_edges = ["wyvern-viewer -> wyvern-host", "wyvern-viewer -> wyvern-schema"]
 
 [ownership]
-io_owns = ["webview_open_url", "webview_show_hide"]
-io_forbidden = ["http_server", "stdin_reading", "stdout_writing", "inline_html", "dialog_ipc"]
+io_owns = ["webview_open_url", "webview_show_hide", "viewer_lifecycle_stdin", "chrome_presentation_ipc"]
+io_forbidden = ["http_server", "stdout_writing", "inline_html"]
 
 [enforcement]
 lint_rules = ["LINT-BOUNDARY-VIEWER-URL-ONLY"]

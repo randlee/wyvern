@@ -1,0 +1,7 @@
+{
+  "type": "input",
+  "title": "Folder",
+  "message": "Enter a folder path or use … to browse.",
+  "mode": "folder",
+  "buttons": "ok_cancel"
+}

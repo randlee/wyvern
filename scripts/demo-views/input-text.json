@@ -1,0 +1,7 @@
+{
+  "type": "input",
+  "title": "Input",
+  "message": "Single-line text field — compact auto-size.",
+  "placeholder": "Ada Lovelace",
+  "buttons": "ok_cancel"
+}

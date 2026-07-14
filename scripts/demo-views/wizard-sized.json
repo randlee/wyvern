@@ -1,0 +1,8 @@
+{
+  "type": "message",
+  "title": "Wizard-sized shell",
+  "message": "Placeholder for wizard window sizing — uses explicit dimensions like a full web app shell.",
+  "buttons": "ok",
+  "width": 800,
+  "height": 600
+}

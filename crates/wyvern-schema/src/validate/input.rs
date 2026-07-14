@@ -9,7 +9,7 @@ use crate::field_name::FieldName;
 
 use super::helpers::{
     closest_match, json_type_name, optional_bool_field, optional_media_ref_field,
-    optional_string_field, require_string_field, INPUT_FIELDS,
+    optional_string_field, optional_window_size_fields, require_string_field, INPUT_FIELDS,
 };
 
 pub(super) fn validate_input(obj: &Map<String, Value>) -> Result<Command, ValidationError> {
@@ -80,21 +80,7 @@ pub(super) fn validate_input(obj: &Map<String, Value>) -> Result<Command, Valida
         ));
     }
 
-    // REQ-0059 — placeholder / default only for text mode.
-    if placeholder.is_some() && matches!(mode, InputMode::File | InputMode::Folder) {
-        return Err(ValidationError::validation(
-            "placeholder",
-            "placeholder is only valid when mode is 'text' (or omitted)",
-        ));
-    }
-    if default.is_some() && matches!(mode, InputMode::File | InputMode::Folder) {
-        return Err(ValidationError::validation(
-            "default",
-            "default is only valid when mode is 'text' (or omitted)",
-        ));
-    }
-
-    // REQ-0059 — filter / multiple only for file mode.
+    // REQ-0059 — placeholder / default not valid for password-only conflicts; allowed for all modes.
     let filter = match obj.get("filter") {
         None => None,
         Some(_) if mode != InputMode::File => {
@@ -201,6 +187,8 @@ pub(super) fn validate_input(obj: &Map<String, Value>) -> Result<Command, Valida
         ));
     }
 
+    let (width, height) = optional_window_size_fields(obj)?;
+
     Ok(Command::Input {
         title: ChromeTitle::new(title),
         message,
@@ -216,5 +204,7 @@ pub(super) fn validate_input(obj: &Map<String, Value>) -> Result<Command, Valida
         multiple,
         start_path,
         buttons,
+        width,
+        height,
     })
 }

@@ -10,6 +10,8 @@ fn chrome_with_title_passes() {
         Command::Chrome {
             title: ChromeTitle::new("T"),
             status: None,
+            width: None,
+            height: None,
         }
     );
 }
@@ -22,6 +24,8 @@ fn chrome_with_title_and_status_passes() {
         Command::Chrome {
             title: ChromeTitle::new("T"),
             status: Some(ChromeStatus::new("Ready")),
+            width: None,
+            height: None,
         }
     );
 }
@@ -122,6 +126,34 @@ fn chrome_status_wrong_type_fails() {
         }
         other => panic!("expected Validation, got {other:?}"),
     }
+}
+
+#[test]
+fn optional_width_height_pass() {
+    let cmd = validate(&json!({
+        "type":"message",
+        "title":"T",
+        "message":"Hi",
+        "buttons":"ok",
+        "width": 640,
+        "height": 480
+    }))
+    .expect("valid");
+    assert_eq!(cmd.window_width(), Some(640));
+    assert_eq!(cmd.window_height(), Some(480));
+}
+
+#[test]
+fn width_out_of_range_fails() {
+    let err = validate(&json!({
+        "type":"message",
+        "title":"T",
+        "message":"Hi",
+        "buttons":"ok",
+        "width": 900
+    }))
+    .expect_err("width");
+    assert!(matches!(err, ValidationError::Validation { field, .. } if field == "width"));
 }
 
 #[test]

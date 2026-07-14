@@ -1,9 +1,14 @@
 [package]
-name        = "wyvern-mcp"
-version     = "0.1.0"
-edition     = "2021"
+name              = "wyvern-mcp"
+version.workspace     = true
+edition.workspace     = true
+rust-version.workspace = true
+license.workspace     = true
+repository.workspace  = true
+homepage.workspace    = true
 description = "Wyvern MCP server — persistent native webview via Model Context Protocol"
+publish     = false
 
 [dependencies]
 # c.9: wyvern-window removed. Phase E rewires to wyvern-host (c.10+).
-wyvern-schema = { path = "../wyvern-schema" }
+wyvern-schema = { workspace = true }

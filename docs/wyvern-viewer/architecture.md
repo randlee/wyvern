@@ -31,4 +31,4 @@ crates/wyvern-viewer/
     platform.rs  # macOS / Win / Linux window attrs
 ```
 
-**Boundaries:** `boundaries/wyvern-viewer/viewer.toml` — no `wyvern-host` / `wyvern-schema` deps; forbids `http_server` and `dialog_ipc`.
+**Boundaries:** `boundaries/wyvern-viewer/viewer.toml` — no `wyvern-host` / `wyvern-schema` deps; forbids `http_server`. Allows lifecycle stdin (`exit`) and lightweight chrome IPC (`resize:` / `navigate:`) per REQ-V006.

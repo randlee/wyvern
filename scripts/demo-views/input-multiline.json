@@ -1,0 +1,8 @@
+{
+  "type": "input",
+  "title": "Multiline",
+  "message": "Taller input dialog — auto-size should grow with the field.",
+  "multiline": true,
+  "placeholder": "Paste several lines here…",
+  "buttons": "ok_cancel"
+}

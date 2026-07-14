@@ -1,22 +1,33 @@
 [package]
-name        = "wyvern"
-version     = "0.1.0"
-edition     = "2021"
-description = "What You View, Engine Renders Natively — HTTP dialog CLI"
+name             = "wyvern"
+version.workspace    = true
+edition.workspace    = true
+rust-version.workspace = true
+license.workspace    = true
+repository.workspace = true
+homepage.workspace   = true
+description  = "What You View, Engine Renders Natively — HTTP dialog CLI"
+keywords     = ["wyvern", "dialog", "webview", "cli", "json"]
+categories   = ["command-line-utilities", "gui"]
+readme       = "../../README.md"
+# ui/ is included here for cargo-install users (no separate share/wyvern/ui needed).
+include      = ["src/**", "ui/**", "Cargo.toml"]
 
 [[bin]]
 name = "wyvern"
 path = "src/main.rs"
 
 [dependencies]
-wyvern-schema    = { path = "../wyvern-schema" }
-wyvern-host      = { path = "../wyvern-host" }
-serde_json       = { workspace = true }
-tracing          = { workspace = true }
+wyvern-schema      = { workspace = true }
+wyvern-host        = { workspace = true }
+serde_json         = { workspace = true }
+tracing            = { workspace = true }
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "env-filter", "std"] }
-sc-observability = { workspace = true }
+sc-observability   = { workspace = true }
+rust-embed         = { version = "8", features = ["compression"] }
+dirs               = { workspace = true }
 
 [dev-dependencies]
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "blocking"] }
+reqwest    = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "blocking"] }
 serde_json = { workspace = true }
-tempfile = "3"
+tempfile   = "3"

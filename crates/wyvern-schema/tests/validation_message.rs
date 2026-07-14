@@ -24,6 +24,7 @@ fn validation_message_ok_preset_passes() {
             icon,
             image,
             markdown,
+            ..
         } => {
             assert_eq!(title.as_str(), "T");
             assert_eq!(message, "Hi");

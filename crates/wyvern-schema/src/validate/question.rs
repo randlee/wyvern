@@ -7,8 +7,8 @@ use crate::error::ValidationError;
 use crate::field_name::FieldName;
 
 use super::helpers::{
-    json_type_name, QUESTION_CARD_FIELDS, QUESTION_FIELDS, QUESTION_HEADER_MAX_CHARS,
-    QUESTION_OPTION_FIELDS,
+    json_type_name, optional_window_size_fields, QUESTION_CARD_FIELDS, QUESTION_FIELDS,
+    QUESTION_HEADER_MAX_CHARS, QUESTION_OPTION_FIELDS,
 };
 
 pub(super) fn validate_question(obj: &Map<String, Value>) -> Result<Command, ValidationError> {
@@ -284,8 +284,12 @@ pub(super) fn validate_question(obj: &Map<String, Value>) -> Result<Command, Val
         questions_raw.push(card_value.clone());
     }
 
+    let (width, height) = optional_window_size_fields(obj)?;
+
     Ok(Command::Question {
         questions,
         questions_raw,
+        width,
+        height,
     })
 }
