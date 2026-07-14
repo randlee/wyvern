@@ -15,18 +15,19 @@
 use std::io::{self, IsTerminal, Write};
 use std::process::ExitCode;
 
-use wyvern::observability;
 use wyvern::{
     emit_fatal_internal, emit_io_error, emit_parse_error, load_command_input, parse_cli_args,
     run_from_loaded, usage_message, EmitError, LoadError, PipelineError,
 };
 use wyvern_schema::SerializeError;
 
+mod main_observability;
+
 fn main() -> ExitCode {
-    if let Err(err) = observability::init() {
+    if let Err(err) = main_observability::init() {
         eprintln!("wyvern: {err}");
     }
-    observability::log_process_start();
+    main_observability::log_process_start();
 
     let args: Vec<String> = std::env::args().skip(1).collect();
 

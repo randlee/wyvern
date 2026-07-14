@@ -253,26 +253,38 @@ pub fn emit_stdout(result: &wyvern_schema::CommandResult) -> Result<String, Emit
 pub fn emit_host_error(err: &wyvern_host::HostError) -> Result<String, EmitError> {
     use wyvern_host::HostError;
     let (code, message, cause, recovery, docs) = match err {
-        HostError::Bind { message } => (
-            ErrorCode::HostBindError,
-            message.clone(),
-            "Failed to bind the dialog HTTP server".to_string(),
-            vec![
-                "Check that --bind is a valid address".into(),
-                "Try --bind 127.0.0.1:0 for an ephemeral port".into(),
-            ],
-            "docs/wyvern-host/requirements.md (REQ-0091)",
-        ),
-        HostError::UiNotFound { path } => (
-            ErrorCode::UiNotFound,
-            format!("UI not found at '{}'", path.display()),
-            "Packaged UI root or dialog template is missing".to_string(),
-            vec![
-                "Pass --ui-root pointing at a directory with message/index.html".into(),
-                "Ensure ui/message/ exists in the workspace for development".into(),
-            ],
-            "docs/wyvern-host/requirements.md (REQ-0093)",
-        ),
+        HostError::Bind { message, source } => {
+            let message = match source {
+                Some(err) => format!("{message}: {err}"),
+                None => message.clone(),
+            };
+            (
+                ErrorCode::HostBindError,
+                message,
+                "Failed to bind the dialog HTTP server".to_string(),
+                vec![
+                    "Check that --bind is a valid address".into(),
+                    "Try --bind 127.0.0.1:0 for an ephemeral port".into(),
+                ],
+                "docs/wyvern-host/requirements.md (REQ-0091)",
+            )
+        }
+        HostError::UiNotFound { path, source } => {
+            let message = match source {
+                Some(err) => format!("UI not found at '{}': {err}", path.display()),
+                None => format!("UI not found at '{}'", path.display()),
+            };
+            (
+                ErrorCode::UiNotFound,
+                message,
+                "Packaged UI root or dialog template is missing".to_string(),
+                vec![
+                    "Pass --ui-root pointing at a directory with message/index.html".into(),
+                    "Ensure ui/message/ exists in the workspace for development".into(),
+                ],
+                "docs/wyvern-host/requirements.md (REQ-0093)",
+            )
+        }
         HostError::UnsupportedType { type_name } => (
             ErrorCode::UnsupportedType,
             format!("dialog type '{type_name}' is not implemented on the HTTP host yet"),
@@ -302,7 +314,7 @@ pub fn emit_host_error(err: &wyvern_host::HostError) -> Result<String, EmitError
         ),
         HostError::ViewerUnsupported { mode } => (
             ErrorCode::HostViewerError,
-            format!("viewer mode '{mode}' is not implemented yet"),
+            format!("viewer mode '{}' is not implemented yet", mode.as_str()),
             "c.10 implements --viewer none only".to_string(),
             vec![
                 "Use --viewer none (or omit --viewer until c.15)".into(),

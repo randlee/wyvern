@@ -12,6 +12,8 @@ path = "src/main.rs"
 wyvern-schema    = { path = "../wyvern-schema" }
 wyvern-host      = { path = "../wyvern-host" }
 serde_json       = { workspace = true }
+tracing          = { workspace = true }
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "env-filter", "std"] }
 sc-observability = { workspace = true }
 
 [dev-dependencies]

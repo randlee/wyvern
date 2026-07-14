@@ -3,13 +3,13 @@
 use std::path::PathBuf;
 
 use axum::extract::State;
-use axum::http::StatusCode;
 use axum::Json;
 use serde::{Deserialize, Serialize};
 use wyvern_schema::{Command, InputMode};
 
 use crate::picker::{pick_file, pick_folder};
-use crate::session::SessionState;
+use crate::routes::api_error::ApiError;
+use crate::session::{SessionState, PICKER_TIMEOUT};
 
 /// Request body for `POST /api/picker/file`.
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -64,7 +64,7 @@ impl PickerResponse {
 pub async fn post_picker_file(
     State(session): State<SessionState>,
     Json(body): Json<PickerFileRequest>,
-) -> Result<Json<PickerResponse>, (StatusCode, String)> {
+) -> Result<Json<PickerResponse>, ApiError> {
     let command = session.command().await;
     let (filter, multiple, start_path) = match &command {
         Command::Input {
@@ -82,32 +82,37 @@ pub async fn post_picker_file(
             (filter, multiple, start_path)
         }
         Command::Input { mode, .. } => {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                format!(
-                    "file picker requires input mode 'file', got '{}'",
-                    mode.as_str()
-                ),
-            ));
+            return Err(ApiError::bad_request(format!(
+                "file picker requires input mode 'file', got '{}'",
+                mode.as_str()
+            )));
         }
         _ => {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                "file picker is only available for input dialogs".into(),
+            return Err(ApiError::bad_request(
+                "file picker is only available for input dialogs",
             ));
         }
     };
 
+    let _permit = session
+        .acquire_picker_slot()
+        .await
+        .map_err(|_| ApiError::service_unavailable("dialog session closed"))?;
+
     let start = start_path.as_ref().map(PathBuf::from);
-    let picked =
-        tokio::task::spawn_blocking(move || pick_file(&filter, multiple, start.as_deref()))
-            .await
-            .map_err(|e| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("picker task failed: {e}"),
-                )
-            })?;
+    let join = tokio::task::spawn_blocking(move || pick_file(&filter, multiple, start.as_deref()));
+    let picked = match tokio::time::timeout(PICKER_TIMEOUT, join).await {
+        Ok(Ok(paths)) => paths,
+        Ok(Err(e)) => {
+            return Err(ApiError::internal(format!("picker task failed: {e}")));
+        }
+        Err(_) => {
+            return Err(ApiError::gateway_timeout(format!(
+                "file picker timed out after {} seconds",
+                PICKER_TIMEOUT.as_secs()
+            )));
+        }
+    };
 
     Ok(Json(match picked {
         Some(paths) => PickerResponse::selected(paths_to_strings(paths)),
@@ -119,7 +124,7 @@ pub async fn post_picker_file(
 pub async fn post_picker_folder(
     State(session): State<SessionState>,
     Json(body): Json<PickerFolderRequest>,
-) -> Result<Json<PickerResponse>, (StatusCode, String)> {
+) -> Result<Json<PickerResponse>, ApiError> {
     let command = session.command().await;
     let start_path = match &command {
         Command::Input {
@@ -128,31 +133,37 @@ pub async fn post_picker_folder(
             ..
         } => body.start_path.or_else(|| start_path.clone()),
         Command::Input { mode, .. } => {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                format!(
-                    "folder picker requires input mode 'folder', got '{}'",
-                    mode.as_str()
-                ),
-            ));
+            return Err(ApiError::bad_request(format!(
+                "folder picker requires input mode 'folder', got '{}'",
+                mode.as_str()
+            )));
         }
         _ => {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                "folder picker is only available for input dialogs".into(),
+            return Err(ApiError::bad_request(
+                "folder picker is only available for input dialogs",
             ));
         }
     };
 
-    let start = start_path.as_ref().map(PathBuf::from);
-    let picked = tokio::task::spawn_blocking(move || pick_folder(start.as_deref()))
+    let _permit = session
+        .acquire_picker_slot()
         .await
-        .map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("picker task failed: {e}"),
-            )
-        })?;
+        .map_err(|_| ApiError::service_unavailable("dialog session closed"))?;
+
+    let start = start_path.as_ref().map(PathBuf::from);
+    let join = tokio::task::spawn_blocking(move || pick_folder(start.as_deref()));
+    let picked = match tokio::time::timeout(PICKER_TIMEOUT, join).await {
+        Ok(Ok(path)) => path,
+        Ok(Err(e)) => {
+            return Err(ApiError::internal(format!("picker task failed: {e}")));
+        }
+        Err(_) => {
+            return Err(ApiError::gateway_timeout(format!(
+                "folder picker timed out after {} seconds",
+                PICKER_TIMEOUT.as_secs()
+            )));
+        }
+    };
 
     Ok(Json(match picked {
         Some(path) => PickerResponse::selected(vec![path_to_string(path)]),

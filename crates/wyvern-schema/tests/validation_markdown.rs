@@ -134,7 +134,7 @@ fn validation_markdown_inline_title_and_status() {
 fn validation_markdown_title_defaults_to_filename() {
     let cmd = wyvern_schema::validate(&json!({
         "type": "markdown",
-        "file": "/tmp/notes/guide.md"
+        "file": "notes/guide.md"
     }))
     .expect("valid");
     match cmd {

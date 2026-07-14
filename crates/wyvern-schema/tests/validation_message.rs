@@ -337,11 +337,11 @@ fn validation_message_image_field_passes() {
         "title": "T",
         "message": "Hi",
         "buttons": "ok",
-        "image": "/tmp/deco.png"
+        "image": "fixtures/deco.png"
     }))
     .expect("image unlocked");
     match cmd {
-        Command::Message { image, .. } => assert_eq!(image.as_deref(), Some("/tmp/deco.png")),
+        Command::Message { image, .. } => assert_eq!(image.as_deref(), Some("fixtures/deco.png")),
         other => panic!("expected Message, got {other:?}"),
     }
 }

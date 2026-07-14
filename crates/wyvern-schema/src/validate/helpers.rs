@@ -100,6 +100,62 @@ pub(super) fn optional_string_field(
     }
 }
 
+/// Optional `icon` / `image` string with structural checks (no catalog).
+///
+/// Accepts paths, URLs, `data:` URIs, bare role names, and `role:index`.
+/// Rejects empty strings and malformed named-spec shapes with field-scoped errors.
+pub(super) fn optional_media_ref_field(
+    obj: &Map<String, Value>,
+    field: &str,
+) -> Result<Option<crate::MediaRef>, ValidationError> {
+    match optional_string_field(obj, field)? {
+        None => Ok(None),
+        Some(value) => {
+            validate_media_ref(field, &value)?;
+            Ok(Some(crate::MediaRef::new(value)))
+        }
+    }
+}
+
+fn validate_media_ref(field: &str, value: &str) -> Result<(), ValidationError> {
+    if value.is_empty() || value.trim().is_empty() {
+        return Err(ValidationError::validation(
+            field,
+            format!("field '{field}' must not be empty"),
+        ));
+    }
+    if looks_like_opaque_media(value) {
+        return Ok(());
+    }
+    // Named-style template hint: `role` or `role:index` (catalog deleted in c.9).
+    if let Some((role, variant)) = value.split_once(':') {
+        let role_ok = !role.is_empty()
+            && role
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-');
+        let variant_ok = !variant.is_empty() && variant.chars().all(|c| c.is_ascii_digit());
+        if !role_ok || !variant_ok {
+            return Err(ValidationError::validation(
+                field,
+                format!(
+                    "invalid {field} spec '{value}': expected 'name' or 'name:index' with numeric index"
+                ),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn looks_like_opaque_media(value: &str) -> bool {
+    value.contains("://")
+        || value.starts_with("data:")
+        || value.starts_with('/')
+        || value.starts_with("./")
+        || value.starts_with("../")
+        || value.contains('/')
+        || value.contains('\\')
+}
+
 pub(super) fn optional_bool_field(
     obj: &Map<String, Value>,
     field: &str,

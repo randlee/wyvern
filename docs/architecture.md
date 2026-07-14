@@ -14,7 +14,7 @@ Architecture decisions are recorded as ADRs. Cross-cutting ADRs live here. Crate
 | `wyvern-viewer` | Optional URL-only webview launcher (c.15) | *(planned)* |
 | `wyvern-wizard` | Wizard navigation state machine | [docs/wyvern-wizard/architecture.md](wyvern-wizard/architecture.md) |
 | `wyvern-mcp` | MCP server, tool mapping, persistent host | [docs/wyvern-mcp/architecture.md](wyvern-mcp/architecture.md) |
-| ~~`wyvern-window`~~ | **Removed c.9** — historical docs only until folder deleted | [docs/wyvern-window/architecture.md](wyvern-window/architecture.md) (archival) |
+| ~~`wyvern-window`~~ | **Deleted in c.9** — crate removed from the workspace; archival docs only under `docs/wyvern-window/` | [docs/wyvern-window/architecture.md](wyvern-window/architecture.md) (archival) |
 
 ---
 

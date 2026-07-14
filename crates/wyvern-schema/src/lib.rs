@@ -24,6 +24,7 @@ mod command;
 mod error;
 mod error_code;
 mod field_name;
+mod media;
 mod result;
 mod stderr;
 mod validate;
@@ -39,7 +40,9 @@ pub use error::ValidationError;
 #[doc(inline)]
 pub use error_code::ErrorCode;
 #[doc(inline)]
-pub use field_name::FieldName;
+pub use field_name::{FieldName, FieldNameError};
+#[doc(inline)]
+pub use media::MediaRef;
 #[doc(inline)]
 pub use result::{
     ChromeResult, CommandResult, InputResult, InputValue, MarkdownResult, MessageResult,

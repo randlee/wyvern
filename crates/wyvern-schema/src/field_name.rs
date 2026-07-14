@@ -3,6 +3,18 @@
 use std::fmt;
 use std::ops::Deref;
 
+/// Error when constructing a [`FieldName`] from an empty string.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FieldNameError;
+
+impl fmt::Display for FieldNameError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("field name must not be empty")
+    }
+}
+
+impl std::error::Error for FieldNameError {}
+
 /// A command JSON field path used in validation and stderr errors.
 ///
 /// Invariant: the inner string is non-empty after construction. Prefer
@@ -20,7 +32,7 @@ impl FieldName {
     pub fn new(value: impl Into<String>) -> Self {
         match Self::try_new(value) {
             Ok(name) => name,
-            Err(()) => Self("_".into()),
+            Err(FieldNameError) => Self("_".into()),
         }
     }
 
@@ -28,15 +40,11 @@ impl FieldName {
     ///
     /// # Errors
     ///
-    /// Returns `Err(())` when `value` is empty after conversion.
-    #[expect(
-        clippy::result_unit_err,
-        reason = "minimal invariant API; callers map to ValidationError when needed"
-    )]
-    pub fn try_new(value: impl Into<String>) -> Result<Self, ()> {
+    /// Returns [`FieldNameError`] when `value` is empty after conversion.
+    pub fn try_new(value: impl Into<String>) -> Result<Self, FieldNameError> {
         let value = value.into();
         if value.is_empty() {
-            return Err(());
+            return Err(FieldNameError);
         }
         Ok(Self(value))
     }
@@ -106,7 +114,7 @@ mod tests {
 
     #[test]
     fn try_new_rejects_empty() {
-        assert!(FieldName::try_new("").is_err());
+        assert_eq!(FieldName::try_new("").unwrap_err(), FieldNameError);
         assert_eq!(FieldName::try_new("title").unwrap().as_str(), "title");
     }
 

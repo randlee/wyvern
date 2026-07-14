@@ -28,6 +28,7 @@ pub fn parse_cli_args(args: &[String]) -> Result<CliArgs, LoadError> {
     let mut bind = SocketAddr::from(([127, 0, 0, 1], 0));
     let mut ui_root = default_ui_root();
     let mut viewer = viewer_from_env().unwrap_or(ViewerMode::None);
+    let mut allow_non_loopback = false;
     let mut positionals = Vec::new();
 
     let mut i = 0;
@@ -45,6 +46,11 @@ pub fn parse_cli_args(args: &[String]) -> Result<CliArgs, LoadError> {
             bind = value.parse().map_err(|e| LoadError::Usage {
                 message: format!("invalid --bind '{value}': {e}"),
             })?;
+            i += 1;
+            continue;
+        }
+        if arg == "--allow-non-loopback" {
+            allow_non_loopback = true;
             i += 1;
             continue;
         }
@@ -92,6 +98,8 @@ pub fn parse_cli_args(args: &[String]) -> Result<CliArgs, LoadError> {
             viewer,
             dialog_url_env,
             dialog_url_file: std::env::var_os("WYVERN_DIALOG_URL_FILE").map(PathBuf::from),
+            allow_non_loopback,
+            session_timeout: wyvern_host::DEFAULT_SESSION_TIMEOUT,
         },
         positionals,
     })
@@ -149,10 +157,11 @@ pub fn usage_message() -> String {
         "       wyvern --version\n",
         "\n",
         "Options:\n",
-        "  --bind <ADDR:PORT>   HTTP bind (default 127.0.0.1:0)\n",
-        "  --ui-root <PATH>     Packaged UI root (default ./ui)\n",
-        "  --viewer <MODE>      embedded|none|system|chrome|safari|edge|firefox\n",
-        "                       (c.10: none only; omitted defaults to none)\n",
+        "  --bind <ADDR:PORT>         HTTP bind (default 127.0.0.1:0)\n",
+        "  --allow-non-loopback       Permit non-loopback --bind (0.0.0.0 / LAN)\n",
+        "  --ui-root <PATH>           Packaged UI root (default ./ui)\n",
+        "  --viewer <MODE>            embedded|none|system|chrome|safari|edge|firefox\n",
+        "                             (c.10: none only; omitted defaults to none)\n",
         "\n",
         "Pass exactly one JSON string, .json file, or .md file; or pipe JSON on stdin.",
     )

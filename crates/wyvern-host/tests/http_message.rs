@@ -45,6 +45,8 @@ fn host_options(url_file: PathBuf) -> HostOptions {
         viewer: ViewerMode::None,
         dialog_url_env: true,
         dialog_url_file: Some(url_file),
+        allow_non_loopback: false,
+        session_timeout: wyvern_host::DEFAULT_SESSION_TIMEOUT,
     }
 }
 
@@ -118,7 +120,9 @@ fn run_rejects_unsupported_chrome() {
     )
     .expect_err("chrome unsupported");
     match err {
-        HostError::UnsupportedType { type_name } => assert_eq!(type_name, "chrome"),
+        HostError::UnsupportedType { type_name } => {
+            assert_eq!(type_name, wyvern_host::DialogTypeName::Chrome)
+        }
         other => panic!("expected UnsupportedType, got {other:?}"),
     }
 }
@@ -149,6 +153,8 @@ fn run_serves_custom_ui_root() {
         viewer: ViewerMode::None,
         dialog_url_env: true,
         dialog_url_file: Some(url_file.clone()),
+        allow_non_loopback: false,
+        session_timeout: wyvern_host::DEFAULT_SESSION_TIMEOUT,
     };
     let handle = thread::spawn(move || run(message_command(), options));
     let dialog_url = wait_for_url_file(&url_file);

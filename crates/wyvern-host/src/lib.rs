@@ -23,8 +23,10 @@ mod server;
 mod session;
 mod static_files;
 
-pub use error::HostError;
-pub use options::{BrowserId, HostOptions, ViewerLaunchOptions, ViewerMode};
+pub use error::{DialogTypeName, HostError};
+pub use options::{
+    BrowserId, HostOptions, ViewerLaunchOptions, ViewerMode, DEFAULT_SESSION_TIMEOUT,
+};
 
 use tokio::sync::oneshot;
 use wyvern_schema::{Command, CommandResult};
@@ -34,7 +36,7 @@ use crate::session::SessionState;
 
 /// One-shot convenience for viewer modes the host owns (`None` in c.10).
 ///
-/// Binds HTTP, optionally publishes `WYVERN_DIALOG_URL`, serves static UI + API,
+/// Binds HTTP, optionally publishes the dialog URL (stderr / file), serves static UI + API,
 /// and returns when the page POSTs `/api/result`.
 ///
 /// # Errors
@@ -45,28 +47,26 @@ pub fn run(command: Command, options: HostOptions) -> Result<CommandResult, Host
     match options.viewer {
         ViewerMode::None => {}
         other => {
-            return Err(HostError::ViewerUnsupported {
-                mode: other.as_str().to_string(),
-            });
+            return Err(HostError::ViewerUnsupported { mode: other });
         }
     }
 
     let type_name = match &command {
-        Command::Message { .. } => "message",
-        Command::Input { .. } => "input",
+        Command::Message { .. } => DialogTypeName::Message,
+        Command::Input { .. } => DialogTypeName::Input,
         Command::Chrome { .. } => {
             return Err(HostError::UnsupportedType {
-                type_name: "chrome".into(),
+                type_name: DialogTypeName::Chrome,
             });
         }
         Command::Markdown { .. } => {
             return Err(HostError::UnsupportedType {
-                type_name: "markdown".into(),
+                type_name: DialogTypeName::Markdown,
             });
         }
         Command::Question { .. } => {
             return Err(HostError::UnsupportedType {
-                type_name: "question".into(),
+                type_name: DialogTypeName::Question,
             });
         }
     };
@@ -84,17 +84,29 @@ pub fn run(command: Command, options: HostOptions) -> Result<CommandResult, Host
 async fn run_async(
     command: Command,
     options: HostOptions,
-    type_name: &str,
+    type_name: DialogTypeName,
 ) -> Result<CommandResult, HostError> {
     let (result_tx, result_rx) = oneshot::channel();
     let session = SessionState::new(command, result_tx);
-    let (bound, ui_root) = bind_server(options.bind, &options.ui_root, type_name).await?;
+    let (bound, ui_root) = bind_server(
+        options.bind,
+        options.allow_non_loopback,
+        &options.ui_root,
+        type_name.as_str(),
+    )
+    .await?;
 
     if options.dialog_url_env {
         publish_dialog_url(&bound.dialog_url, options.dialog_url_file.as_deref());
     }
 
     let state_session = session.clone();
-    let _addr = bound.local_addr;
-    serve_until_result(bound, state_session, ui_root, result_rx).await
+    serve_until_result(
+        bound,
+        state_session,
+        ui_root,
+        result_rx,
+        options.session_timeout,
+    )
+    .await
 }
