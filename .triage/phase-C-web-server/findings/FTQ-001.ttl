@@ -5,43 +5,44 @@
   a triage:Finding ;
   triage:findingId "FTQ-001" ;
   triage:title "unique_path can collide under parallel cargo test" ;
-  triage:description "http_input.rs/http_message.rs unique_path uses pid+nanos; collision risk without --test-threads=1" ;
+  triage:description "http_input.rs/http_message.rs unique_path used pid+nanos; collision risk without --test-threads=1. Closed by AtomicU64 sequence in host HTTP tests (0800872), verified on PR head 5509343." ;
   triage:phaseId "phase-C-web-server" ;
-  triage:triageMode "initial_pass" ;
+  triage:triageMode "followup_pass" ;
   triage:category "FTQ" ;
   triage:severity "minor" ;
   triage:repeatable true ;
   triage:sweepScope "file_only" ;
-  triage:status "open" ;
-  triage:dispatchReady true ;
-  triage:triagedAt "2026-07-14T12:43:00Z"^^xsd:dateTime ;
+  triage:status "closed" ;
+  triage:dispatchReady false ;
+  triage:triagedAt "2026-07-14T11:26:24Z"^^xsd:dateTime ;
   triage:originatingSprintDoc "docs/plans/phase-C/c11-host-input.md" ;
-  triage:hasOccurrence <urn:atm:triage:occurrence/FTQ-001/c11/1> ;
-  triage:hasOccurrence <urn:atm:triage:occurrence/FTQ-001/c11/2> ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/FTQ-001/c15/1> ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/FTQ-001/c15/2> ;
   triage:openOn <urn:atm:triage:worktree/c11/209858f> ;
-  triage:promoteTo <urn:atm:triage:worktree/c11/209858f> .
+  triage:fixedOn <urn:atm:triage:worktree/c15/5509343> ;
+  triage:promoteTo <urn:atm:triage:worktree/c15/5509343> .
 
-<urn:atm:triage:occurrence/FTQ-001/c11/1>
+<urn:atm:triage:occurrence/FTQ-001/c15/1>
   a triage:Occurrence ;
   triage:file "crates/wyvern-host/tests/http_input.rs" ;
-  triage:line 17 ;
-  triage:snippet "fn unique_path(prefix: &str) -> PathBuf { std::env::temp_dir().join(format!(\"{prefix}-{}-{}\", std::process::id(), std::time::SystemTime::now().duration_since(...).as_nanos())) }" ;
-  triage:status "open" ;
-  triage:closed false ;
-  triage:branch "feature/phase-C-c11-reverify-fixes" ;
-  triage:headSha "209858f" ;
-  triage:occursIn <urn:atm:triage:worktree/c11/209858f> .
+  triage:line 20 ;
+  triage:snippet "fn unique_path(prefix: &str) -> PathBuf { static SEQ: AtomicU64 = AtomicU64::new(0); ... }" ;
+  triage:status "closed" ;
+  triage:closed true ;
+  triage:branch "feature/phase-C-c15-wyvern-viewer" ;
+  triage:headSha "5509343" ;
+  triage:occursIn <urn:atm:triage:worktree/c15/5509343> .
 
-<urn:atm:triage:occurrence/FTQ-001/c11/2>
+<urn:atm:triage:occurrence/FTQ-001/c15/2>
   a triage:Occurrence ;
   triage:file "crates/wyvern-host/tests/http_message.rs" ;
-  triage:line 30 ;
-  triage:snippet "fn unique_path(prefix: &str) -> PathBuf { std::env::temp_dir().join(format!(\"{prefix}-{}-{}\", std::process::id(), std::time::SystemTime::now().duration_since(...).as_nanos())) }" ;
-  triage:status "open" ;
-  triage:closed false ;
-  triage:branch "feature/phase-C-c11-reverify-fixes" ;
-  triage:headSha "209858f" ;
-  triage:occursIn <urn:atm:triage:worktree/c11/209858f> .
+  triage:line 31 ;
+  triage:snippet "fn unique_path(prefix: &str) -> PathBuf { static SEQ: AtomicU64 = AtomicU64::new(0); ... }" ;
+  triage:status "closed" ;
+  triage:closed true ;
+  triage:branch "feature/phase-C-c15-wyvern-viewer" ;
+  triage:headSha "5509343" ;
+  triage:occursIn <urn:atm:triage:worktree/c15/5509343> .
 
 <urn:atm:triage:worktree/c11/209858f>
   a triage:WorktreeSnapshot ;
@@ -49,3 +50,10 @@
   triage:path "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-C-c11-reverify-fixes" ;
   triage:headSha "209858f" ;
   triage:orderIndex 11 .
+
+<urn:atm:triage:worktree/c15/5509343>
+  a triage:WorktreeSnapshot ;
+  triage:branch "feature/phase-C-c15-wyvern-viewer" ;
+  triage:path "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-C-c15-wyvern-viewer" ;
+  triage:headSha "5509343" ;
+  triage:orderIndex 15 .

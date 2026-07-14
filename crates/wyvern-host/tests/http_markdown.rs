@@ -51,6 +51,25 @@ fn wait_for_url_file(path: &Path) -> String {
     }
 }
 
+/// Poll `GET /api/dialog` until HTTP 200 (URL file alone is not readiness).
+fn wait_for_dialog_ready(client: &reqwest::blocking::Client, base: &str) -> serde_json::Value {
+    let url = format!("{base}/api/dialog");
+    let start = std::time::Instant::now();
+    loop {
+        match client.get(&url).send() {
+            Ok(resp) if resp.status() == reqwest::StatusCode::OK => {
+                return resp.json().expect("dialog json");
+            }
+            Ok(_) | Err(_) => {
+                if start.elapsed() > Duration::from_secs(15) {
+                    panic!("timed out waiting for GET /api/dialog at {url}");
+                }
+                thread::sleep(Duration::from_millis(20));
+            }
+        }
+    }
+}
+
 #[test]
 fn run_markdown_posts_ok_via_http() {
     let tmp = tempfile::tempdir().expect("temp dir");
@@ -64,14 +83,7 @@ fn run_markdown_posts_ok_via_http() {
         .trim_end_matches('/');
 
     let client = reqwest::blocking::Client::new();
-    let dialog: serde_json::Value = client
-        .get(format!("{base}/api/dialog"))
-        .send()
-        .expect("GET dialog")
-        .error_for_status()
-        .expect("dialog status")
-        .json()
-        .expect("dialog json");
+    let dialog = wait_for_dialog_ready(&client, base);
     assert_eq!(dialog["type"], "markdown");
     assert_eq!(dialog["title"], "Doc");
     assert_eq!(dialog["content"], "# Hello\n\nBody");
@@ -133,14 +145,7 @@ fn dialog_content_html_strips_script_tags() {
         .trim_end_matches('/');
 
     let client = reqwest::blocking::Client::new();
-    let dialog: serde_json::Value = client
-        .get(format!("{base}/api/dialog"))
-        .send()
-        .expect("GET dialog")
-        .error_for_status()
-        .expect("dialog status")
-        .json()
-        .expect("dialog json");
+    let dialog = wait_for_dialog_ready(&client, base);
 
     let content_html = dialog["content_html"].as_str().expect("content_html");
     let lower = content_html.to_ascii_lowercase();
@@ -174,10 +179,16 @@ fn dialog_rejects_oversized_markdown_content() {
         .trim_end_matches('/');
 
     let client = reqwest::blocking::Client::new();
-    let response = client
-        .get(format!("{base}/api/dialog"))
-        .send()
-        .expect("GET dialog");
+    let start = std::time::Instant::now();
+    let response = loop {
+        match client.get(format!("{base}/api/dialog")).send() {
+            Ok(resp) => break resp,
+            Err(_) if start.elapsed() < Duration::from_secs(15) => {
+                thread::sleep(Duration::from_millis(20));
+            }
+            Err(err) => panic!("GET dialog failed: {err}"),
+        }
+    };
     assert_eq!(response.status(), reqwest::StatusCode::BAD_REQUEST);
     let body: serde_json::Value = response.json().expect("error json");
     assert_eq!(body["error"], "bad_request");
@@ -211,6 +222,7 @@ fn result_invalid_markdown_includes_cause_recovery_docs() {
         .trim_end_matches('/');
 
     let client = reqwest::blocking::Client::new();
+    let _ = wait_for_dialog_ready(&client, base);
     let response = client
         .post(format!("{base}/api/result"))
         .json(&serde_json::json!({}))

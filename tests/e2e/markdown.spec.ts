@@ -3,6 +3,7 @@ import { spawn, ChildProcessWithoutNullStreams } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { gotoDialog } from "./helpers";
 
 const REPO_ROOT = path.resolve(__dirname, "../..");
 const WYVERN_BIN =
@@ -80,7 +81,7 @@ test("markdown JSON ok via --viewer none", async ({ page }) => {
     const exitPromise = waitForExit(child);
 
     const dialogUrl = await waitForUrlFile(urlFile);
-    await page.goto(dialogUrl);
+    await gotoDialog(page, dialogUrl);
     await expect(page.getByTestId("markdown-content")).toBeVisible();
     await expect(page.locator("#markdown-body h1")).toHaveText("Hello");
     await page.getByTestId("btn-ok").click();
@@ -140,7 +141,7 @@ test("markdown file path via --viewer none", async ({ page }) => {
     const exitPromise = waitForExit(child);
 
     const dialogUrl = await waitForUrlFile(urlFile);
-    await page.goto(dialogUrl);
+    await gotoDialog(page, dialogUrl);
     await expect(page.getByTestId("markdown-content")).toBeVisible();
     await expect(page.locator("#markdown-body h1")).toHaveText("From File");
     await page.getByTestId("btn-ok").click();

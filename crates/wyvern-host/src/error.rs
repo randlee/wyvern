@@ -79,19 +79,23 @@ pub enum HostError {
         message: String,
     },
     /// Named browser not installed (`HOST_VIEWER_ERROR`).
-    ///
-    /// Reserved until c.15 (`browser_launch` / registry lookup). Not constructed
-    /// by the c.10–c.14 host matrix; kept so CLI `emit_host_error` mapping stays stable.
     ViewerNotFound {
         /// Catalog / registry id.
         id: BrowserId,
         /// Install or fallback hint.
         hint: String,
     },
-    /// Viewer mode not implemented yet (c.10: only `none`).
+    /// Viewer mode cannot be handled by the current API entrypoint.
+    ///
+    /// [`crate::run`] rejects [`ViewerMode::Embedded`] — use [`crate::begin`] instead.
     ViewerUnsupported {
         /// Requested viewer mode.
         mode: ViewerMode,
+    },
+    /// Browser registry I/O or cache failure (`HOST_ERROR` with registry recovery).
+    Registry {
+        /// Failure detail (path, parse, permissions).
+        message: String,
     },
     /// Internal server fault.
     Internal {
@@ -119,8 +123,13 @@ impl fmt::Display for HostError {
                 write!(f, "viewer '{id}' not found; {hint}")
             }
             Self::ViewerUnsupported { mode } => {
-                write!(f, "viewer mode '{}' is not implemented yet", mode.as_str())
+                write!(
+                    f,
+                    "viewer mode '{}' is not supported by host::run (use begin + CLI spawn for embedded)",
+                    mode.as_str()
+                )
             }
+            Self::Registry { message } => write!(f, "browser registry error: {message}"),
             Self::Internal { message } => write!(f, "internal host error: {message}"),
         }
     }

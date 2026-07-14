@@ -47,6 +47,25 @@ fn host_options(url_file: PathBuf) -> HostOptions {
     }
 }
 
+/// Poll `GET /api/dialog` until HTTP 200 (URL file alone is not readiness).
+fn wait_for_dialog_ready(client: &reqwest::blocking::Client, base: &str) -> serde_json::Value {
+    let url = format!("{base}/api/dialog");
+    let start = std::time::Instant::now();
+    loop {
+        match client.get(&url).send() {
+            Ok(resp) if resp.status() == reqwest::StatusCode::OK => {
+                return resp.json().expect("dialog json");
+            }
+            Ok(_) | Err(_) => {
+                if start.elapsed() > Duration::from_secs(15) {
+                    panic!("timed out waiting for GET /api/dialog at {url}");
+                }
+                thread::sleep(Duration::from_millis(20));
+            }
+        }
+    }
+}
+
 #[test]
 fn run_message_posts_ok_via_http() {
     let url_file = unique_path("wyvern-host-url");
@@ -59,14 +78,7 @@ fn run_message_posts_ok_via_http() {
         .trim_end_matches('/');
 
     let client = reqwest::blocking::Client::new();
-    let dialog: serde_json::Value = client
-        .get(format!("{base}/api/dialog"))
-        .send()
-        .expect("GET dialog")
-        .error_for_status()
-        .expect("dialog status")
-        .json()
-        .expect("dialog json");
+    let dialog = wait_for_dialog_ready(&client, base);
     assert_eq!(dialog["type"], "message");
     assert_eq!(dialog["title"], "T");
     assert_eq!(dialog["message"], "Hi");
@@ -107,6 +119,39 @@ fn run_message_posts_ok_via_http() {
 }
 
 #[test]
+fn begin_viewer_exit_yields_dismissed_stdout_shape() {
+    // ATM-QA-004 / AC7: simulate embedded viewer OS-close via dismiss signal.
+    use wyvern_host::begin;
+    use wyvern_schema::ButtonLabel;
+
+    let options = HostOptions {
+        bind: SocketAddr::from(([127, 0, 0, 1], 0)),
+        ui_root: workspace_ui_root(),
+        viewer: ViewerMode::Embedded,
+        dialog_url_env: false,
+        dialog_url_file: None,
+        allow_non_loopback: false,
+        session_timeout: Duration::from_secs(30),
+        mock_picker: None,
+    };
+    let handle = begin(message_command(), options).expect("begin");
+    assert!(
+        handle.dialog_url.contains("127.0.0.1"),
+        "url={}",
+        handle.dialog_url
+    );
+    let result = handle
+        .viewer_exited_without_result()
+        .expect("dismissed result");
+    assert_eq!(
+        result,
+        CommandResult::Message(MessageResult {
+            button: ButtonLabel::dismissed(),
+        })
+    );
+}
+
+#[test]
 fn run_rejects_missing_ui_root() {
     let tmp = tempfile::tempdir().expect("temp dir");
     let mut options = host_options(unique_path("unused"));
@@ -144,6 +189,7 @@ fn run_serves_custom_ui_root() {
         .trim_end_matches('/');
 
     let client = reqwest::blocking::Client::new();
+    let _ = wait_for_dialog_ready(&client, base);
     let html = client
         .get(&dialog_url)
         .send()

@@ -1,0 +1,19 @@
+[package]
+name        = "wyvern-viewer"
+version     = "0.1.0"
+edition     = "2021"
+description = "Wyvern embedded URL viewer — wry window that loads a dialog URL"
+
+[[bin]]
+name = "wyvern-viewer"
+path = "src/main.rs"
+
+[dependencies]
+wry   = { workspace = true }
+winit = { workspace = true }
+url   = { workspace = true }
+tracing = { workspace = true }
+
+# wry on Linux needs an initialized GTK main loop alongside winit.
+[target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))'.dependencies]
+gtk = "0.18"

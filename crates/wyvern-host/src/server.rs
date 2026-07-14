@@ -90,13 +90,14 @@ pub(crate) fn build_router(session: SessionState, ui_root: PathBuf) -> Router {
         .with_state(session)
 }
 
-/// Serve until a result arrives, session timeout, or server failure.
+/// Serve until a result arrives, session timeout, viewer-exit signal, or server failure.
 pub(crate) async fn serve_until_result(
     bound: BoundServer,
     session: SessionState,
     ui_root: PathBuf,
     result_rx: oneshot::Receiver<CommandResult>,
     session_timeout: Duration,
+    mut dismiss_rx: oneshot::Receiver<()>,
 ) -> Result<CommandResult, HostError> {
     use std::future::IntoFuture;
 
@@ -117,6 +118,10 @@ pub(crate) async fn serve_until_result(
             })
         }
         () = &mut timeout => {
+            let command = session.command().await;
+            Ok(dismissed_for_command(&command))
+        }
+        _ = &mut dismiss_rx => {
             let command = session.command().await;
             Ok(dismissed_for_command(&command))
         }
@@ -146,7 +151,7 @@ pub(crate) async fn serve_until_result(
 }
 
 /// REQ-0097 dismissed shape for the active command type.
-fn dismissed_for_command(command: &Command) -> CommandResult {
+pub(crate) fn dismissed_for_command(command: &Command) -> CommandResult {
     match command {
         Command::Message { .. } => CommandResult::Message(MessageResult {
             button: ButtonLabel::dismissed(),

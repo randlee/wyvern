@@ -17,7 +17,8 @@ use std::process::ExitCode;
 
 use wyvern::{
     emit_fatal_internal, emit_io_error, emit_parse_error, load_command_input, parse_cli_args,
-    run_from_loaded, usage_message, EmitError, LoadError, PipelineError,
+    run_browsers_command, run_from_loaded, usage_message, BrowsersError, EmitError, LoadError,
+    PipelineError,
 };
 use wyvern_schema::SerializeError;
 
@@ -30,6 +31,24 @@ fn main() -> ExitCode {
     main_observability::log_process_start();
 
     let args: Vec<String> = std::env::args().skip(1).collect();
+
+    if args.first().map(String::as_str) == Some("browsers") {
+        return match run_browsers_command(&args[1..]) {
+            Ok(stdout) => {
+                print!("{stdout}");
+                ExitCode::SUCCESS
+            }
+            Err(BrowsersError::Usage { message }) => {
+                eprintln!("{message}");
+                ExitCode::from(1)
+            }
+            Err(BrowsersError::Stage { stderr, exit_code }) => {
+                eprintln!("{stderr}");
+                ExitCode::from(u8::try_from(exit_code).unwrap_or(1))
+            }
+            Err(BrowsersError::Emit(e)) => emit_fatal_internal(&e),
+        };
+    }
 
     let cli = match parse_cli_args(&args) {
         Ok(cli) => cli,

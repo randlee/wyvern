@@ -4,7 +4,7 @@
   "pr_target": "integrate/phase-c-web-server",
   "integrate_branch": "integrate/phase-c-web-server",
   "integrate_worktree": "/Volumes/Extreme Pro/github/wyvern-worktrees/integrate/phase-c-web-server",
-  "integrate_head": "3bccde4",
+  "integrate_head": "9ab0f0e",
   "develop_head": "9cd332c",
   "planning_pr": 37,
   "sequence": [
@@ -17,7 +17,7 @@
     "c.15",
     "c.16"
   ],
-  "current_sprint": "c.14",
+  "current_sprint": "c.15",
   "sprints": {
     "c.9": {
       "id": "c.9",
@@ -91,14 +91,24 @@
       "worktree": "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-C-c14-host-chrome",
       "sprint_doc": "docs/plans/phase-C/c14-host-chrome.md",
       "pr_target": "integrate/phase-c-web-server",
-      "status": "in_progress",
-      "merged": false
+      "status": "merged",
+      "pr_number": 46,
+      "sha": "3a88c81",
+      "merge_sha": "9ab0f0e",
+      "qa_rounds": ["qa-c14-1", "qa-c14-2"],
+      "merged": true,
+      "merged_at": "2026-07-14T09:32:53Z",
+      "pr_url": "https://github.com/randlee/wyvern/pull/46"
     },
     "c.15": {
       "id": "c.15",
+      "title": "wyvern-viewer + browser registry",
       "branch": "feature/phase-C-c15-wyvern-viewer",
+      "worktree": "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-C-c15-wyvern-viewer",
       "sprint_doc": "docs/plans/phase-C/c15-wyvern-viewer.md",
-      "status": "pending"
+      "pr_target": "integrate/phase-c-web-server",
+      "status": "in_progress",
+      "merged": false
     },
     "c.16": {
       "id": "c.16",

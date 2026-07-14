@@ -150,6 +150,39 @@ fn wait_for_url_file(path: &std::path::Path) -> String {
     panic!("timed out waiting for dialog URL file {}", path.display());
 }
 
+/// Poll `GET /api/dialog` until HTTP 200 (URL file alone is not readiness).
+fn wait_for_dialog_ready(client: &reqwest::blocking::Client, base: &str) -> serde_json::Value {
+    let url = format!("{base}/api/dialog");
+    let start = std::time::Instant::now();
+    loop {
+        match client.get(&url).send() {
+            Ok(resp) if resp.status() == reqwest::StatusCode::OK => {
+                return resp.json().expect("dialog json");
+            }
+            Ok(_) | Err(_) => {
+                if start.elapsed() > Duration::from_secs(15) {
+                    panic!("timed out waiting for GET /api/dialog at {url}");
+                }
+                thread::sleep(Duration::from_millis(20));
+            }
+        }
+    }
+}
+
+/// Poll until the mock picker records its first Enter (slot held).
+fn wait_for_picker_enter(slot_log: &MockPickerSlotLog) {
+    let start = std::time::Instant::now();
+    loop {
+        if slot_log.events().contains(&MockPickerSlotEvent::Enter) {
+            return;
+        }
+        if start.elapsed() > Duration::from_secs(5) {
+            panic!("timed out waiting for first picker Enter in slot_log");
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+}
+
 #[test]
 fn run_input_text_posts_ok_via_http() {
     let url_file = unique_path("wyvern-host-input-url");
@@ -160,14 +193,7 @@ fn run_input_text_posts_ok_via_http() {
     let base = dialog_url.trim_end_matches("/input/").trim_end_matches('/');
 
     let client = reqwest::blocking::Client::new();
-    let dialog: serde_json::Value = client
-        .get(format!("{base}/api/dialog"))
-        .send()
-        .expect("GET dialog")
-        .error_for_status()
-        .expect("dialog status")
-        .json()
-        .expect("dialog json");
+    let dialog = wait_for_dialog_ready(&client, base);
     assert_eq!(dialog["type"], "input");
     assert_eq!(dialog["mode"], "text");
     assert_eq!(dialog["title"], "Name");
@@ -206,14 +232,7 @@ fn run_input_password_posts_ok_via_http() {
     let base = dialog_url.trim_end_matches("/input/").trim_end_matches('/');
 
     let client = reqwest::blocking::Client::new();
-    let dialog: serde_json::Value = client
-        .get(format!("{base}/api/dialog"))
-        .send()
-        .expect("GET dialog")
-        .error_for_status()
-        .expect("dialog status")
-        .json()
-        .expect("dialog json");
+    let dialog = wait_for_dialog_ready(&client, base);
     assert_eq!(dialog["type"], "input");
     assert_eq!(dialog["password"], true);
     assert_eq!(dialog["mode"], "text");
@@ -258,6 +277,7 @@ fn picker_file_returns_picker_response_json() {
     let base = dialog_url.trim_end_matches("/input/").trim_end_matches('/');
 
     let client = reqwest::blocking::Client::new();
+    let _ = wait_for_dialog_ready(&client, base);
     let picker: serde_json::Value = client
         .post(format!("{base}/api/picker/file"))
         .json(&serde_json::json!({}))
@@ -315,6 +335,7 @@ fn picker_file_cancelled_returns_cancelled_json() {
     let base = dialog_url.trim_end_matches("/input/").trim_end_matches('/');
 
     let client = reqwest::blocking::Client::new();
+    let _ = wait_for_dialog_ready(&client, base);
     let picker: serde_json::Value = client
         .post(format!("{base}/api/picker/file"))
         .json(&serde_json::json!({}))
@@ -355,14 +376,7 @@ fn picker_multi_file_returns_paths_array_via_result() {
     let base = dialog_url.trim_end_matches("/input/").trim_end_matches('/');
 
     let client = reqwest::blocking::Client::new();
-    let dialog: serde_json::Value = client
-        .get(format!("{base}/api/dialog"))
-        .send()
-        .expect("GET dialog")
-        .error_for_status()
-        .expect("dialog status")
-        .json()
-        .expect("dialog json");
+    let dialog = wait_for_dialog_ready(&client, base);
     assert_eq!(dialog["multiple"], true);
 
     let picker: serde_json::Value = client
@@ -427,6 +441,7 @@ fn picker_folder_returns_picker_response_json() {
     let base = dialog_url.trim_end_matches("/input/").trim_end_matches('/');
 
     let client = reqwest::blocking::Client::new();
+    let _ = wait_for_dialog_ready(&client, base);
     let picker: serde_json::Value = client
         .post(format!("{base}/api/picker/folder"))
         .json(&serde_json::json!({}))
@@ -484,6 +499,7 @@ fn picker_folder_cancelled_returns_cancelled_json() {
     let base = dialog_url.trim_end_matches("/input/").trim_end_matches('/');
 
     let client = reqwest::blocking::Client::new();
+    let _ = wait_for_dialog_ready(&client, base);
     let picker: serde_json::Value = client
         .post(format!("{base}/api/picker/folder"))
         .json(&serde_json::json!({}))
@@ -515,6 +531,7 @@ fn picker_rejects_empty_filter_override_with_recovery_fields() {
     let base = dialog_url.trim_end_matches("/input/").trim_end_matches('/');
 
     let client = reqwest::blocking::Client::new();
+    let _ = wait_for_dialog_ready(&client, base);
     let resp = client
         .post(format!("{base}/api/picker/file"))
         .json(&serde_json::json!({"filter": [""]}))
@@ -548,6 +565,7 @@ fn picker_rejects_empty_start_path_override() {
     let base = dialog_url.trim_end_matches("/input/").trim_end_matches('/');
 
     let client = reqwest::blocking::Client::new();
+    let _ = wait_for_dialog_ready(&client, base);
     let resp = client
         .post(format!("{base}/api/picker/file"))
         .json(&serde_json::json!({"start_path": ""}))
@@ -590,6 +608,7 @@ fn picker_slot_held_until_blocking_task_finishes() {
         .timeout(Duration::from_secs(5))
         .build()
         .expect("client");
+    let _ = wait_for_dialog_ready(&client, base);
 
     let base_a = base.to_string();
     let base_b = base.to_string();
@@ -604,8 +623,8 @@ fn picker_slot_held_until_blocking_task_finishes() {
             .json::<serde_json::Value>()
             .expect("picker 1 json")
     });
-    // Give the first request time to acquire the slot and enter the mock body.
-    thread::sleep(Duration::from_millis(50));
+    // Wait until the first request has entered the mock body (holds the slot).
+    wait_for_picker_enter(&slot_log);
     let t2 = thread::spawn(move || {
         reqwest::blocking::Client::new()
             .post(format!("{base_b}/api/picker/file"))

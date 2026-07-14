@@ -22,17 +22,26 @@ jobs:
         with:
           components: clippy, rustfmt
 
-      # rfd (xdg-portal/ashpd) needs wayland-client.pc on Linux.
+      # rfd (xdg-portal/ashpd) needs wayland-client.pc; wry needs webkit2gtk (c.15 viewer).
       - name: Install Linux build deps
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwayland-dev pkg-config
+          sudo apt-get install -y \
+            libwayland-dev \
+            pkg-config \
+            libwebkit2gtk-4.1-dev \
+            libxkbcommon-x11-0 \
+            libgl1-mesa-dri \
+            mesa-utils \
+            at-spi2-core \
+            dbus-x11 \
+            xvfb
 
       - name: cargo build
         run: cargo build --workspace
 
-      # Phase C is HTTP headless (c.9+): no wry/WebKitGTK/xvfb on Linux.
+      # Workspace includes wyvern-viewer (wry); headless e2e still uses --viewer none.
       - name: cargo test
         run: cargo test --workspace -- --test-threads=1
 
@@ -58,12 +67,21 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      # rfd (xdg-portal/ashpd) needs wayland-client.pc on Linux.
+      # rfd (xdg-portal/ashpd) needs wayland-client.pc; wry needs webkit2gtk (c.15 viewer).
       - name: Install Linux build deps
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwayland-dev pkg-config
+          sudo apt-get install -y \
+            libwayland-dev \
+            pkg-config \
+            libwebkit2gtk-4.1-dev \
+            libxkbcommon-x11-0 \
+            libgl1-mesa-dri \
+            mesa-utils \
+            at-spi2-core \
+            dbus-x11 \
+            xvfb
 
       - name: cargo build -p wyvern
         run: cargo build -p wyvern
