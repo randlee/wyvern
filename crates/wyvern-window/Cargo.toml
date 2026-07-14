@@ -3,10 +3,100 @@ name        = "wyvern-window"
 version     = "0.1.0"
 edition     = "2021"
 description = "Wyvern native webview window, IPC bridge, and HTML chrome frame"
+autotests   = false
 
 [dependencies]
 wyvern-schema = { path = "../wyvern-schema" }
 wyvern-wizard = { path = "../wyvern-wizard" }
 wry           = { workspace = true }
 winit         = { workspace = true }
+rfd           = "0.15"
 serde_json    = { workspace = true }
+pulldown-cmark = { workspace = true }
+ammonia = "4"
+
+# wry on Linux needs an initialized GTK main loop alongside winit.
+[target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))'.dependencies]
+gtk = "0.18"
+
+# GUI window tests must run on the process main thread (macOS NSApp / winit).
+# autotests=false so tests/support.rs is a module, not its own harness.
+[[test]]
+name = "blank_window"
+path = "tests/blank_window.rs"
+harness = false
+
+[[test]]
+name = "chrome_ipc"
+path = "tests/chrome_ipc.rs"
+harness = false
+
+[[test]]
+name = "chrome_minimize_ipc"
+path = "tests/chrome_minimize_ipc.rs"
+harness = false
+
+[[test]]
+name = "message_minimize_ipc"
+path = "tests/message_minimize_ipc.rs"
+harness = false
+
+[[test]]
+name = "input_minimize_ipc"
+path = "tests/input_minimize_ipc.rs"
+harness = false
+
+[[test]]
+name = "markdown_minimize_ipc"
+path = "tests/markdown_minimize_ipc.rs"
+harness = false
+
+[[test]]
+name = "question_minimize_ipc"
+path = "tests/question_minimize_ipc.rs"
+harness = false
+
+[[test]]
+name = "message_ipc"
+path = "tests/message_ipc.rs"
+harness = false
+
+[[test]]
+name = "input_ipc"
+path = "tests/input_ipc.rs"
+harness = false
+
+[[test]]
+name = "input_file_ipc"
+path = "tests/input_file_ipc.rs"
+harness = false
+
+[[test]]
+name = "input_file_multi_ipc"
+path = "tests/input_file_multi_ipc.rs"
+harness = false
+
+[[test]]
+name = "input_folder_ipc"
+path = "tests/input_folder_ipc.rs"
+harness = false
+
+[[test]]
+name = "question_ipc"
+path = "tests/question_ipc.rs"
+harness = false
+
+[[test]]
+name = "question_multi_ipc"
+path = "tests/question_multi_ipc.rs"
+harness = false
+
+[[test]]
+name = "question_dismiss_ipc"
+path = "tests/question_dismiss_ipc.rs"
+harness = false
+
+[dev-dependencies]
+serial_test = "3"
+libc = "0.2"
+

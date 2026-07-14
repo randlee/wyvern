@@ -1,0 +1,77 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Release (${{ matrix.artifact }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact: wyvern-macos-aarch64
+            ext: tar.gz
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact: wyvern-macos-x86_64
+            ext: tar.gz
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact: wyvern-windows
+            ext: zip
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact: wyvern-linux
+            ext: tar.gz
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux webview deps
+        if: runner.os == "Linux"
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      # macos-latest is aarch64; cross-compile the Intel artifact explicitly.
+      - name: Add x86_64-apple-darwin target
+        if: matrix.target == "x86_64-apple-darwin"
+        run: rustup target add x86_64-apple-darwin
+
+      - name: Build release binary
+        run: cargo build --release -p wyvern --target ${{ matrix.target }}
+
+      - name: Package (Unix)
+        if: runner.os != "Windows"
+        run: |
+          mkdir -p dist
+          cp "target/${{ matrix.target }}/release/wyvern" dist/wyvern
+          tar -czf "${{ matrix.artifact }}.${{ matrix.ext }}" -C dist wyvern
+
+      - name: Package (Windows)
+        if: runner.os == "Windows"
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Copy-Item "target/${{ matrix.target }}/release/wyvern.exe" dist/wyvern.exe
+          Compress-Archive -Path dist/wyvern.exe -DestinationPath "${{ matrix.artifact }}.${{ matrix.ext }}"
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.artifact }}.${{ matrix.ext }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
