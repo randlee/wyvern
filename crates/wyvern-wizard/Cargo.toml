@@ -1,12 +1,16 @@
 [package]
-name        = "wyvern-wizard"
-version     = "0.1.0"
-edition     = "2021"
-license    = { workspace = true }
-repository = { workspace = true }
-homepage   = { workspace = true }
+name              = "wyvern-wizard"
+version.workspace     = true
+edition.workspace     = true
+rust-version.workspace = true
+license.workspace     = true
+repository.workspace  = true
+homepage.workspace    = true
 description = "Wyvern wizard navigation state machine (browser-history cursor)"
+keywords    = ["wyvern", "dialog", "wizard", "state-machine"]
+categories  = ["command-line-utilities"]
+readme      = "../../README.md"
 
 [dependencies]
-wyvern-schema = { path = "../wyvern-schema" }
+wyvern-schema = { workspace = true }
 serde_json    = { workspace = true }

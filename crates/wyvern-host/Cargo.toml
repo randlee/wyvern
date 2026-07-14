@@ -1,14 +1,18 @@
 [package]
-name        = "wyvern-host"
-version     = "0.1.0"
-edition     = "2021"
-license    = { workspace = true }
-repository = { workspace = true }
-homepage   = { workspace = true }
+name              = "wyvern-host"
+version.workspace     = true
+edition.workspace     = true
+rust-version.workspace = true
+license.workspace     = true
+repository.workspace  = true
+homepage.workspace    = true
 description = "Wyvern HTTP dialog host — bind, serve packaged UI, await POST /api/result"
+keywords    = ["wyvern", "dialog", "webview", "http"]
+categories  = ["command-line-utilities", "web-programming"]
+readme      = "../../README.md"
 
 [dependencies]
-wyvern-schema = { path = "../wyvern-schema" }
+wyvern-schema = { workspace = true }
 serde         = { workspace = true }
 serde_json    = { workspace = true }
 tokio         = { workspace = true }

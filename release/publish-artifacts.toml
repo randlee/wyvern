@@ -47,7 +47,7 @@ cargo_toml            = "crates/wyvern-viewer/Cargo.toml"
 required              = true
 publish               = true
 publish_order         = 4
-preflight_check       = "locked"
+preflight_check       = "full"
 wait_after_publish_seconds = 30
 verify_install        = true
 
@@ -58,7 +58,7 @@ cargo_toml            = "crates/wyvern/Cargo.toml"
 required              = true
 publish               = true
 publish_order         = 5
-preflight_check       = "full"
+preflight_check       = "locked"
 wait_after_publish_seconds = 0
 verify_install        = true
 

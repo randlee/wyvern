@@ -16,6 +16,7 @@
 
 mod browsers_cmd;
 mod cli_args;
+mod embedded_ui;
 mod error;
 mod input;
 mod observability;
