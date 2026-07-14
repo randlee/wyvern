@@ -4,6 +4,8 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::time::Duration;
 
+use crate::picker::MockPickerConfig;
+
 /// Default one-shot session idle timeout before dismissed semantics (REQ-0097).
 pub const DEFAULT_SESSION_TIMEOUT: Duration = Duration::from_secs(600);
 
@@ -99,6 +101,8 @@ pub struct HostOptions {
     pub allow_non_loopback: bool,
     /// Idle timeout waiting for `POST /api/result`; expiry → dismissed (REQ-0097).
     pub session_timeout: Duration,
+    /// In-process picker mock for tests/harnesses (preferred over process-global env).
+    pub mock_picker: Option<MockPickerConfig>,
 }
 
 impl Default for HostOptions {
@@ -111,6 +115,7 @@ impl Default for HostOptions {
             dialog_url_file: None,
             allow_non_loopback: false,
             session_timeout: DEFAULT_SESSION_TIMEOUT,
+            mock_picker: None,
         }
     }
 }

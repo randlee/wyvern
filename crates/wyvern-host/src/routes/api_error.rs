@@ -10,6 +10,9 @@ use serde::Serialize;
 pub struct ApiError {
     status: StatusCode,
     message: String,
+    cause: Option<String>,
+    recovery: Vec<String>,
+    docs: Option<String>,
 }
 
 impl ApiError {
@@ -18,6 +21,9 @@ impl ApiError {
         Self {
             status,
             message: message.into(),
+            cause: None,
+            recovery: Vec::new(),
+            docs: None,
         }
     }
 
@@ -45,6 +51,24 @@ impl ApiError {
     pub fn gateway_timeout(message: impl Into<String>) -> Self {
         Self::new(StatusCode::GATEWAY_TIMEOUT, message)
     }
+
+    /// Attach a cause string (RBP error-context contract).
+    pub fn cause(mut self, cause: impl Into<String>) -> Self {
+        self.cause = Some(cause.into());
+        self
+    }
+
+    /// Append one recovery step.
+    pub fn recovery(mut self, step: impl Into<String>) -> Self {
+        self.recovery.push(step.into());
+        self
+    }
+
+    /// Attach a docs pointer (path or URL).
+    pub fn docs(mut self, docs: impl Into<String>) -> Self {
+        self.docs = Some(docs.into());
+        self
+    }
 }
 
 /// Wire body for failed `/api/*` responses.
@@ -56,6 +80,15 @@ pub struct ApiErrorBody {
     pub error: &'static str,
     /// Human-readable detail.
     pub message: String,
+    /// Why the failure occurred (when known).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cause: Option<String>,
+    /// Actionable recovery steps.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub recovery: Vec<String>,
+    /// Pointer to contract / requirements docs.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub docs: Option<String>,
 }
 
 fn error_class(status: StatusCode) -> &'static str {
@@ -76,6 +109,9 @@ impl IntoResponse for ApiError {
             ok: false,
             error: error_class(status),
             message: self.message,
+            cause: self.cause,
+            recovery: self.recovery,
+            docs: self.docs,
         };
         (status, Json(body)).into_response()
     }

@@ -90,10 +90,14 @@ jobs:
         working-directory: tests/e2e
         run: npx playwright install --with-deps chromium
 
-      # message.spec.ts spawns wyvern with --viewer none (CI/agent headless path).
+      # message + input specs spawn wyvern with --viewer none (CI/agent headless path).
       - name: Run message.spec.ts
         working-directory: tests/e2e
         run: npx playwright test message.spec.ts
+
+      - name: Run input.spec.ts
+        working-directory: tests/e2e
+        run: npx playwright test input.spec.ts
 
   fmt:
     name: Format check
@@ -110,6 +114,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - name: sc-lint-boundary check
-        run: echo "sc-lint-boundary enforcement — wired in Phase B"
+      - name: Enforce boundaries/*.toml against Cargo.toml
+        run: python3 scripts/check-boundaries.py

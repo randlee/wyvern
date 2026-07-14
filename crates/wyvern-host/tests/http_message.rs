@@ -2,6 +2,7 @@
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread;
 use std::time::Duration;
 
@@ -28,14 +29,9 @@ fn message_command() -> Command {
 }
 
 fn unique_path(prefix: &str) -> PathBuf {
-    std::env::temp_dir().join(format!(
-        "{prefix}-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or(0)
-    ))
+    static SEQ: AtomicU64 = AtomicU64::new(0);
+    let n = SEQ.fetch_add(1, Ordering::Relaxed);
+    std::env::temp_dir().join(format!("{prefix}-{}-{n}", std::process::id()))
 }
 
 fn host_options(url_file: PathBuf) -> HostOptions {
@@ -47,6 +43,7 @@ fn host_options(url_file: PathBuf) -> HostOptions {
         dialog_url_file: Some(url_file),
         allow_non_loopback: false,
         session_timeout: wyvern_host::DEFAULT_SESSION_TIMEOUT,
+        mock_picker: None,
     }
 }
 
@@ -155,6 +152,7 @@ fn run_serves_custom_ui_root() {
         dialog_url_file: Some(url_file.clone()),
         allow_non_loopback: false,
         session_timeout: wyvern_host::DEFAULT_SESSION_TIMEOUT,
+        mock_picker: None,
     };
     let handle = thread::spawn(move || run(message_command(), options));
     let dialog_url = wait_for_url_file(&url_file);

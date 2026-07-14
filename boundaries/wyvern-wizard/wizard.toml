@@ -3,7 +3,7 @@ owner_package = "wyvern-wizard"
 name = "WyvernWizard"
 
 [dependencies]
-allowed_dependencies = ["wyvern-schema"]
+allowed_dependencies = ["wyvern-schema", "serde_json"]
 forbidden_dependencies = ["wyvern", "wyvern-mcp", "wry", "winit", "rfd"]
 
 [ownership]
