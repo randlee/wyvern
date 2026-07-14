@@ -12,6 +12,8 @@ allowed_dependencies = [
   "tracing",
   "tracing-subscriber",
   "sc-observability",
+  "dirs",
+  "rust-embed",
 ]
 forbidden_dependencies = ["wyvern-wizard", "wyvern-mcp", "wry", "winit", "rfd"]
 forbidden_edges = ["wyvern -> wyvern-mcp"]
