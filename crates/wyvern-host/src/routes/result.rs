@@ -131,8 +131,7 @@ fn parse_question_result(
             message: "missing string field 'response'".into(),
         });
     }
-    let answers = parse_question_answers(body)?;
-    validate_answer_keys(questions, &answers)?;
+    let answers = ValidatedAnswers::parse(questions, body)?;
     let has_button = body.get("button").is_some();
 
     // Fail-safe dismiss: any `button` field, or empty answers on "submit".
@@ -144,8 +143,28 @@ fn parse_question_result(
 
     Ok(CommandResult::Question(QuestionResult::submitted(
         questions_raw.to_vec(),
-        answers,
+        answers.into_map(),
     )))
+}
+
+/// Answer map whose keys were validated against active question prompts at parse time (RBP-F006).
+#[derive(Debug, Clone)]
+struct ValidatedAnswers(HashMap<String, String>);
+
+impl ValidatedAnswers {
+    fn parse(questions: &[QuestionCard], body: &Value) -> Result<Self, HostError> {
+        let answers = parse_question_answers(body)?;
+        validate_answer_keys(questions, &answers)?;
+        Ok(Self(answers))
+    }
+
+    fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    fn into_map(self) -> HashMap<String, String> {
+        self.0
+    }
 }
 
 /// Reject unknown top-level object keys (http-post-schema.md Extra fields → 400).

@@ -1,7 +1,7 @@
 ---
 id: c.15
 title: wyvern-viewer + browser registry
-status: implemented
+status: complete
 branch: feature/phase-C-c15-wyvern-viewer
 target: integrate/phase-c-web-server
 ---

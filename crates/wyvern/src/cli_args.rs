@@ -36,16 +36,12 @@ pub fn parse_cli_args(args: &[String]) -> Result<CliArgs, LoadError> {
         let arg = &args[i];
         if arg == "--bind" {
             let value = require_flag_value(args, i, "--bind")?;
-            bind = value.parse().map_err(|e| LoadError::Usage {
-                message: format!("invalid --bind '{value}': {e}"),
-            })?;
+            bind = parse_bind(value)?;
             i += 2;
             continue;
         }
         if let Some(value) = arg.strip_prefix("--bind=") {
-            bind = value.parse().map_err(|e| LoadError::Usage {
-                message: format!("invalid --bind '{value}': {e}"),
-            })?;
+            bind = parse_bind(value)?;
             i += 1;
             continue;
         }
@@ -103,6 +99,20 @@ pub fn parse_cli_args(args: &[String]) -> Result<CliArgs, LoadError> {
             mock_picker: None,
         },
         positionals,
+    })
+}
+
+fn parse_bind(value: &str) -> Result<SocketAddr, LoadError> {
+    value.parse().map_err(|e| LoadError::Usage {
+        message: format!(
+            "invalid --bind '{value}': {e}\n\
+             Recovery:\n\
+             - Use host:port form (example: 127.0.0.1:0 for an ephemeral loopback port)\n\
+             - For 0.0.0.0 / LAN binds, also pass --allow-non-loopback\n\
+             - Check the address is a valid IPv4/IPv6 socket address\n\
+             {}",
+            usage_message()
+        ),
     })
 }
 
@@ -192,6 +202,16 @@ pub fn usage_message() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::{Mutex, MutexGuard};
+
+    /// Single module-level lock for any test that mutates process env or cwd (QA-001).
+    static PROCESS_ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    fn lock_process_env() -> MutexGuard<'static, ()> {
+        PROCESS_ENV_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
 
     fn args(items: &[&str]) -> Vec<String> {
         items.iter().map(|s| (*s).to_string()).collect()
@@ -199,8 +219,10 @@ mod tests {
 
     #[test]
     fn parse_defaults_viewer_embedded() {
+        let _lock = lock_process_env();
         // Ensure env override does not leak from other tests.
-        std::env::remove_var("WYVERN_VIEWER");
+        // SAFETY: exclusive PROCESS_ENV_LOCK held for the duration of this test.
+        unsafe { std::env::remove_var("WYVERN_VIEWER") };
         let parsed = parse_cli_args(&args(&[r#"{"type":"message"}"#])).expect("parse");
         assert_eq!(parsed.host.viewer, ViewerMode::Embedded);
         assert!(!parsed.host.dialog_url_env);
@@ -230,6 +252,17 @@ mod tests {
     }
 
     #[test]
+    fn parse_bind_rejects_invalid_with_recovery_hint() {
+        let err = parse_cli_args(&args(&["--bind", "not-an-addr"])).expect_err("bind");
+        let LoadError::Usage { message } = err else {
+            panic!("expected Usage");
+        };
+        assert!(message.contains("invalid --bind"), "{message}");
+        assert!(message.contains("Recovery:"), "{message}");
+        assert!(message.contains("--allow-non-loopback"), "{message}");
+    }
+
+    #[test]
     fn parse_rejects_unknown_flag() {
         let err = parse_cli_args(&args(&["--nope"])).expect_err("flag");
         assert!(matches!(err, LoadError::Usage { .. }));
@@ -237,18 +270,13 @@ mod tests {
 
     #[test]
     fn default_ui_root_prefers_env_override() {
-        use std::sync::{Mutex, MutexGuard};
-
-        static ENV_LOCK: Mutex<()> = Mutex::new(());
-        let _lock: MutexGuard<'_, ()> = ENV_LOCK
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let _lock = lock_process_env();
 
         let tmp = tempfile::tempdir().expect("tempdir");
         let custom = tmp.path().join("custom-ui");
         std::fs::create_dir_all(&custom).expect("mkdir");
         let previous = std::env::var_os("WYVERN_UI_ROOT");
-        // SAFETY: exclusive ENV_LOCK held for the duration of this test.
+        // SAFETY: exclusive PROCESS_ENV_LOCK held for the duration of this test.
         unsafe { std::env::set_var("WYVERN_UI_ROOT", &custom) };
         let root = default_ui_root();
         unsafe {
@@ -262,15 +290,10 @@ mod tests {
 
     #[test]
     fn default_ui_root_falls_back_to_ui_when_nothing_found() {
-        use std::sync::{Mutex, MutexGuard};
-
-        static ENV_LOCK: Mutex<()> = Mutex::new(());
-        let _lock: MutexGuard<'_, ()> = ENV_LOCK
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let _lock = lock_process_env();
 
         let previous = std::env::var_os("WYVERN_UI_ROOT");
-        // SAFETY: exclusive ENV_LOCK held for the duration of this test.
+        // SAFETY: exclusive PROCESS_ENV_LOCK held for the duration of this test.
         unsafe { std::env::remove_var("WYVERN_UI_ROOT") };
         // From a temp cwd with no ui/ and no share/, expect the ./ui fallback path.
         let tmp = tempfile::tempdir().expect("tempdir");

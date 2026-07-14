@@ -88,6 +88,7 @@ impl Drop for DialogHandle {
 ///
 /// Returns [`HostError`] on bind/UI failures or runtime creation errors.
 pub fn begin(command: Command, options: HostOptions) -> Result<DialogHandle, HostError> {
+    options.validate()?;
     let type_name = dialog_type_name(&command);
     let viewer_options = ViewerLaunchOptions::default();
     let (ready_tx, ready_rx) = mpsc::channel::<Result<ReadyPayload, HostError>>();
