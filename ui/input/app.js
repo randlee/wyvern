@@ -5,7 +5,6 @@
   const titleEl = document.getElementById("title");
   const messageEl = document.getElementById("message");
   const fieldWrap = document.getElementById("field-wrap");
-  const pickedEl = document.getElementById("picked");
   const buttonsEl = document.getElementById("buttons");
   const errorEl = document.getElementById("error");
 
@@ -22,13 +21,66 @@
     return payload && (payload.mode === "file" || payload.mode === "folder");
   }
 
-  function renderField() {
-    fieldWrap.innerHTML = "";
-    fieldEl = null;
-    if (isPickerMode()) {
-      fieldWrap.hidden = true;
-      return;
+  function inputValueForSubmit() {
+    const raw = fieldEl ? fieldEl.value : "";
+    if (payload.mode === "file" && payload.multiple) {
+      return raw
+        .split(/\n/)
+        .map(function (s) {
+          return s.trim();
+        })
+        .filter(Boolean);
     }
+    return raw;
+  }
+
+  function bindEnterToSubmit(el) {
+    el.addEventListener("keydown", function (ev) {
+      if (ev.key === "Enter" && !payload.multiline && !ev.shiftKey) {
+        ev.preventDefault();
+        submit("ok");
+      }
+    });
+  }
+
+  function renderPickerField() {
+    fieldWrap.hidden = false;
+    const row = document.createElement("div");
+    row.className = "path-row";
+
+    fieldEl = document.createElement("input");
+    fieldEl.type = "text";
+    fieldEl.id = "input-field";
+    fieldEl.setAttribute("data-testid", "input-field");
+    fieldEl.value = payload.default || "";
+    if (payload.placeholder) {
+      fieldEl.placeholder = payload.placeholder;
+    }
+    row.appendChild(fieldEl);
+
+    const browse = document.createElement("button");
+    browse.type = "button";
+    browse.className = "browse-btn";
+    browse.setAttribute("data-testid", "btn-browse");
+    browse.setAttribute(
+      "aria-label",
+      payload.mode === "folder" ? "Choose folder" : "Choose file",
+    );
+    browse.textContent = "…";
+    browse.addEventListener("click", function () {
+      openPicker();
+    });
+    row.appendChild(browse);
+
+    fieldWrap.appendChild(row);
+    fieldEl.focus();
+    if (fieldEl.value) {
+      fieldEl.select();
+    }
+    bindEnterToSubmit(fieldEl);
+  }
+
+  function renderTextField() {
     fieldWrap.hidden = false;
     if (payload.multiline) {
       fieldEl = document.createElement("textarea");
@@ -49,12 +101,47 @@
     if (typeof fieldEl.select === "function" && fieldEl.value) {
       fieldEl.select();
     }
-    fieldEl.addEventListener("keydown", function (ev) {
-      if (ev.key === "Enter" && !payload.multiline && !ev.shiftKey) {
-        ev.preventDefault();
-        submit("ok");
+    bindEnterToSubmit(fieldEl);
+  }
+
+  function renderField() {
+    fieldWrap.innerHTML = "";
+    fieldEl = null;
+    if (isPickerMode()) {
+      renderPickerField();
+      return;
+    }
+    renderTextField();
+  }
+
+  async function openPicker() {
+    if (!fieldEl) return;
+    errorEl.hidden = true;
+    try {
+      const pickerBody = {};
+      let picked;
+      if (payload.mode === "file") {
+        if (Array.isArray(payload.filter)) pickerBody.filter = payload.filter;
+        if (payload.multiple) pickerBody.multiple = true;
+        if (payload.start_path) pickerBody.start_path = payload.start_path;
+        picked = await WyvernApi.postPickerFile(pickerBody);
+      } else {
+        if (payload.start_path) pickerBody.start_path = payload.start_path;
+        picked = await WyvernApi.postPickerFolder(pickerBody);
       }
-    });
+      if (!picked.ok || picked.cancelled) {
+        return;
+      }
+      const paths = picked.paths || [];
+      if (payload.mode === "file" && payload.multiple) {
+        fieldEl.value = paths.join("\n");
+      } else {
+        fieldEl.value = paths[0] || "";
+      }
+      fieldEl.focus();
+    } catch (err) {
+      showError(err);
+    }
   }
 
   async function submit(buttonId) {
@@ -70,51 +157,11 @@
       return;
     }
 
-    if (isPickerMode()) {
-      try {
-        const pickerBody = {};
-        if (payload.mode === "file") {
-          if (Array.isArray(payload.filter)) pickerBody.filter = payload.filter;
-          if (payload.multiple) pickerBody.multiple = true;
-          if (payload.start_path) pickerBody.start_path = payload.start_path;
-          const picked = await WyvernApi.postPickerFile(pickerBody);
-          if (!picked.ok || picked.cancelled) {
-            return;
-          }
-          const paths = picked.paths || [];
-          pickedEl.hidden = false;
-          pickedEl.textContent = paths.join(", ");
-          submitted = true;
-          const input =
-            payload.multiple || paths.length > 1 ? paths : paths[0] || "";
-          await WyvernApi.postResult({ button: "ok", input: input });
-        } else {
-          if (payload.start_path) pickerBody.start_path = payload.start_path;
-          const picked = await WyvernApi.postPickerFolder(pickerBody);
-          if (!picked.ok || picked.cancelled) {
-            return;
-          }
-          const paths = picked.paths || [];
-          pickedEl.hidden = false;
-          pickedEl.textContent = paths.join(", ");
-          submitted = true;
-          await WyvernApi.postResult({
-            button: "ok",
-            input: paths[0] || "",
-          });
-        }
-      } catch (err) {
-        submitted = false;
-        showError(err);
-      }
-      return;
-    }
-
     submitted = true;
     try {
       await WyvernApi.postResult({
         button: buttonId,
-        input: fieldEl ? fieldEl.value : "",
+        input: inputValueForSubmit(),
       });
     } catch (err) {
       submitted = false;
@@ -151,6 +198,9 @@
         throw new Error("expected input dialog, got " + data.type);
       }
       payload = data;
+      if (data.mode === "file" || data.mode === "folder") {
+        dialogEl.classList.add("dialog--fill");
+      }
       document.title = data.title || "Wyvern Input";
       titleEl.textContent = data.title || "";
       messageEl.textContent = data.message || "";
@@ -158,6 +208,7 @@
       const list = Array.isArray(data.button_list) ? data.button_list : [];
       renderButtons(list);
       dialogEl.hidden = false;
+      WyvernApi.applyDialogLayout(payload);
       window.addEventListener("beforeunload", onBeforeUnload);
     })
     .catch(showError);

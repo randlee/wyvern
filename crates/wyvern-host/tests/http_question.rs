@@ -60,6 +60,8 @@ fn single_select_command() -> Command {
             ],
             "multiSelect": false
         })],
+        width: None,
+        height: None,
     }
 }
 
@@ -216,6 +218,8 @@ fn dialog_preview_html_strips_script_tags() {
             ],
             "multiSelect": false
         })],
+        width: None,
+        height: None,
     };
     let handle = thread::spawn(move || run(command, options));
 
@@ -548,6 +552,8 @@ fn dialog_rejects_oversized_question_preview() {
             ],
             "multiSelect": false
         })],
+        width: None,
+        height: None,
     };
     let handle = thread::spawn(move || run(command, options));
 

@@ -30,6 +30,16 @@ pub async fn get_dialog(State(session): State<SessionState>) -> Result<Json<Valu
     Ok(Json(dialog_payload(&command).await?))
 }
 
+/// Attach optional `width` / `height` hints to a `/api/dialog` payload.
+fn attach_window_hints(obj: &mut Value, command: &Command) {
+    if let Some(w) = command.window_width() {
+        obj["width"] = json!(w);
+    }
+    if let Some(h) = command.window_height() {
+        obj["height"] = json!(h);
+    }
+}
+
 /// Build the `/api/dialog` JSON object for `command`.
 pub(crate) async fn dialog_payload(command: &Command) -> Result<Value, ApiError> {
     match command {
@@ -44,6 +54,7 @@ pub(crate) async fn dialog_payload(command: &Command) -> Result<Value, ApiError>
             icon,
             image,
             markdown,
+            ..
         } => {
             let mut obj = json!({
                 "type": "message",
@@ -71,6 +82,7 @@ pub(crate) async fn dialog_payload(command: &Command) -> Result<Value, ApiError>
             if let Some(image) = image {
                 obj["image"] = json!(image.as_str());
             }
+            attach_window_hints(&mut obj, command);
             Ok(obj)
         }
         Command::Input {
@@ -88,6 +100,7 @@ pub(crate) async fn dialog_payload(command: &Command) -> Result<Value, ApiError>
             multiple,
             start_path,
             buttons,
+            ..
         } => {
             let mut obj = json!({
                 "type": "input",
@@ -119,6 +132,7 @@ pub(crate) async fn dialog_payload(command: &Command) -> Result<Value, ApiError>
             if let Some(start_path) = start_path {
                 obj["start_path"] = json!(start_path);
             }
+            attach_window_hints(&mut obj, command);
             Ok(obj)
         }
         Command::Markdown {
@@ -147,6 +161,7 @@ pub(crate) async fn dialog_payload(command: &Command) -> Result<Value, ApiError>
             if let Some(status) = status {
                 obj["status"] = json!(status.as_str());
             }
+            attach_window_hints(&mut obj, command);
             Ok(obj)
         }
         Command::Question { questions, .. } => {
@@ -162,13 +177,15 @@ pub(crate) async fn dialog_payload(command: &Command) -> Result<Value, ApiError>
                 }
             }
             let questions_payload = render_question_payload_async(questions.clone()).await?;
-            Ok(json!({
+            let mut obj = json!({
                 "type": "question",
                 "title": "Question",
                 "questions": questions_payload,
-            }))
+            });
+            attach_window_hints(&mut obj, command);
+            Ok(obj)
         }
-        Command::Chrome { title, status } => {
+        Command::Chrome { title, status, .. } => {
             let mut obj = json!({
                 "type": "chrome",
                 "title": title.as_str(),
@@ -176,6 +193,7 @@ pub(crate) async fn dialog_payload(command: &Command) -> Result<Value, ApiError>
             if let Some(status) = status {
                 obj["status"] = json!(status.as_str());
             }
+            attach_window_hints(&mut obj, command);
             Ok(obj)
         }
     }
@@ -340,6 +358,8 @@ mod tests {
             content: Some(content.into()),
             status: None,
             buttons: ButtonsPreset::Ok,
+            width: None,
+            height: None,
         }
     }
 
@@ -372,6 +392,8 @@ mod tests {
                 ],
                 "multiSelect": false
             })],
+            width: None,
+            height: None,
         }
     }
 

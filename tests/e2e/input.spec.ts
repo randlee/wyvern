@@ -145,7 +145,9 @@ test("input file mode with WYVERN_MOCK_PICKER_PATH", async ({ page }) => {
 
     const dialogUrl = await waitForUrlFile(urlFile);
     await gotoDialog(page, dialogUrl);
-    await expect(page.getByTestId("btn-ok")).toBeVisible();
+    await expect(page.getByTestId("input-field")).toBeVisible();
+    await expect(page.getByTestId("btn-browse")).toBeVisible();
+    await page.getByTestId("btn-browse").click();
     await page.getByTestId("btn-ok").click();
 
     const exitCode = await exitPromise;
@@ -164,6 +166,68 @@ test("input file mode with WYVERN_MOCK_PICKER_PATH", async ({ page }) => {
     }
     try {
       fs.unlinkSync(fixture);
+    } catch {
+      // ignore
+    }
+  }
+});
+
+test("input file mode accepts typed path without browse", async ({ page }) => {
+  test.skip(!fs.existsSync(WYVERN_BIN), `missing wyvern binary at ${WYVERN_BIN}`);
+
+  const typedPath = path.join(
+    os.tmpdir(),
+    `wyvern-e2e-typed-${process.pid}-${Date.now()}.txt`,
+  );
+
+  const urlFile = path.join(
+    os.tmpdir(),
+    `wyvern-e2e-input-typed-url-${process.pid}-${Date.now()}.txt`,
+  );
+  const json =
+    '{"type":"input","title":"File","message":"Path","mode":"file","buttons":"ok_cancel"}';
+
+  let stdout = "";
+  let stderr = "";
+  let child: ChildProcessWithoutNullStreams | null = null;
+
+  try {
+    child = spawn(
+      WYVERN_BIN,
+      [json, "--viewer", "none", "--ui-root", path.join(REPO_ROOT, "ui")],
+      {
+        cwd: REPO_ROOT,
+        env: {
+          ...process.env,
+          WYVERN_DIALOG_URL_FILE: urlFile,
+          WYVERN_LOG: "off",
+        },
+      },
+    );
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk.toString();
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk.toString();
+    });
+    const exitPromise = waitForExit(child);
+
+    const dialogUrl = await waitForUrlFile(urlFile);
+    await gotoDialog(page, dialogUrl);
+    await page.getByTestId("input-field").fill(typedPath);
+    await page.getByTestId("btn-ok").click();
+
+    const exitCode = await exitPromise;
+    expect(exitCode, `stderr=${stderr}`).toBe(0);
+    const parsed = JSON.parse(stdout.trim());
+    expect(parsed.button).toBe("ok");
+    expect(parsed.input).toBe(typedPath);
+  } finally {
+    if (child && child.exitCode === null && !child.killed) {
+      child.kill("SIGTERM");
+    }
+    try {
+      fs.unlinkSync(urlFile);
     } catch {
       // ignore
     }
@@ -281,7 +345,9 @@ test("input multi-file mode returns paths array stdout", async ({ page }) => {
 
     const dialogUrl = await waitForUrlFile(urlFile);
     await gotoDialog(page, dialogUrl);
-    await expect(page.getByTestId("btn-ok")).toBeVisible();
+    await expect(page.getByTestId("input-field")).toBeVisible();
+    await expect(page.getByTestId("btn-browse")).toBeVisible();
+    await page.getByTestId("btn-browse").click();
     await page.getByTestId("btn-ok").click();
 
     const exitCode = await exitPromise;

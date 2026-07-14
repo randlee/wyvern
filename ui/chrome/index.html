@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Wyvern Chrome</title>
+    <link rel="stylesheet" href="/shared/embedded-chrome.css" />
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
@@ -11,7 +12,7 @@
       <span class="titlebar-title" id="titlebar-title"></span>
       <div class="titlebar-controls" id="titlebar-controls" aria-label="Window controls"></div>
     </div>
-    <main class="dialog" id="dialog" hidden>
+    <main class="dialog dialog--frame" id="dialog" hidden>
       <h1 id="title"></h1>
       <p id="status" class="status" hidden></p>
       <div class="buttons" id="buttons" role="group"></div>

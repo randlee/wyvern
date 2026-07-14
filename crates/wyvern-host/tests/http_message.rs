@@ -25,7 +25,9 @@ fn message_command() -> Command {
         icon: None,
         image: None,
         markdown: false,
-    }
+    
+            width: None,
+            height: None,}
 }
 
 fn unique_path(prefix: &str) -> PathBuf {

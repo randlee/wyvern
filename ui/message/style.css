@@ -1,11 +1,11 @@
 :root {
   color-scheme: light;
-  --bg: #f6f7f9;
+  --bg: #ffffff;
   --fg: #1a1d23;
   --muted: #5c6570;
   --accent: #2563eb;
   --border: #d0d5dd;
-  --radius: 10px;
+  --message-max-width: 30rem;
   font-family: "Segoe UI", "Helvetica Neue", sans-serif;
 }
 
@@ -13,35 +13,48 @@
   box-sizing: border-box;
 }
 
+html,
 body {
   margin: 0;
-  min-height: 100vh;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(160deg, #eef2ff 0%, var(--bg) 45%, #f8fafc 100%);
+  height: auto;
+  min-height: 0;
+  background: #fff;
   color: var(--fg);
+  overflow: visible;
+}
+
+body {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
 }
 
 .dialog {
-  width: min(420px, calc(100vw - 2rem));
-  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
   background: #fff;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 h1 {
   margin: 0 0 0.75rem;
   font-size: 1.25rem;
   font-weight: 650;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .message {
-  margin: 0 0 1.25rem;
+  margin: 0 0 1rem;
   color: var(--muted);
   line-height: 1.45;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: var(--message-max-width);
 }
 
 .buttons {
@@ -49,6 +62,8 @@ h1 {
   flex-wrap: wrap;
   gap: 0.5rem;
   justify-content: flex-end;
+  margin-top: 0.25rem;
+  padding-top: 0.5rem;
 }
 
 button {

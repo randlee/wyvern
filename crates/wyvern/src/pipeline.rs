@@ -1,5 +1,6 @@
 //! CLI pipeline: validate → load markdown files → host run / embedded spawn → emit.
 
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
@@ -11,7 +12,7 @@ use crate::error::{
     emit_host_error, emit_io_error, emit_stdout, emit_validation_error, EmitError, LoadError,
 };
 use crate::observability;
-use crate::viewer_spawn::{spawn_embedded_viewer, ViewerSpawnError};
+use crate::viewer_spawn::{spawn_embedded_viewer, wait_for_viewer_exit, ViewerSpawnError};
 
 /// Pipeline failure after load: stage stderr + exit, or emit-boundary serialize failure.
 #[derive(Debug)]
@@ -100,8 +101,11 @@ fn run_embedded(
     command: Command,
     host: HostOptions,
 ) -> Result<wyvern_schema::CommandResult, PipelineHostError> {
+    #[cfg(target_os = "macos")]
+    let picker_pump = wyvern_host::MacosPickerPump::install();
+
     let mut handle = begin(command, host).map_err(PipelineHostError::Host)?;
-    let mut child = match spawn_embedded_viewer(&handle.dialog_url, &handle.viewer_options) {
+    let child = match spawn_embedded_viewer(&handle.dialog_url, &handle.viewer_options) {
         Ok(child) => child,
         Err(err) => {
             // Shut down the host session — no viewer will post a result.
@@ -110,23 +114,64 @@ fn run_embedded(
         }
     };
 
+    let child = Arc::new(Mutex::new(child));
     let dismiss_tx = handle.take_viewer_exit_signal();
     if let Some(tx) = dismiss_tx {
+        let child_for_wait = Arc::clone(&child);
         thread::spawn(move || {
-            let _ = child.wait();
+            loop {
+                let exited = match child_for_wait.lock() {
+                    Ok(mut c) => c.try_wait().ok().flatten().is_some(),
+                    Err(_) => true,
+                };
+                if exited {
+                    break;
+                }
+                thread::sleep(Duration::from_millis(50));
+            }
             let _ = tx.send(());
         });
     } else {
-        // Should not happen; still wait so we don't zombie.
-        thread::spawn(move || {
-            let _ = child.wait();
+        let child_for_wait = Arc::clone(&child);
+        thread::spawn(move || loop {
+            let exited = match child_for_wait.lock() {
+                Ok(mut c) => c.try_wait().ok().flatten().is_some(),
+                Err(_) => true,
+            };
+            if exited {
+                break;
+            }
+            thread::sleep(Duration::from_millis(50));
         });
     }
 
     // Give the child a brief moment to fail-fast (missing display, etc.).
     thread::sleep(Duration::from_millis(50));
 
-    handle.await_result().map_err(PipelineHostError::Host)
+    let result = {
+        #[cfg(target_os = "macos")]
+        {
+            loop {
+                picker_pump.drain(Duration::from_millis(50));
+                if let Some(result) = handle.try_recv_result() {
+                    let mapped = result.map_err(PipelineHostError::Host);
+                    handle.join_host_worker();
+                    break mapped;
+                }
+            }
+        }
+        #[cfg(not(target_os = "macos"))]
+        {
+            handle.await_result().map_err(PipelineHostError::Host)
+        }
+    }?;
+
+    // Parent-controlled viewer shutdown after host graceful stop (page only POSTs result).
+    if let Ok(mut c) = child.lock() {
+        wait_for_viewer_exit(&mut c);
+    }
+
+    Ok(result)
 }
 
 fn emit_viewer_spawn_error(err: &ViewerSpawnError) -> Result<String, EmitError> {
@@ -197,6 +242,8 @@ fn load_markdown_file(command: Command) -> Result<Command, LoadError> {
             content: None,
             status,
             buttons,
+            width,
+            height,
         } => {
             let body = std::fs::read_to_string(&path).map_err(|err| LoadError::Io {
                 field: FieldName::new("file"),
@@ -218,6 +265,8 @@ fn load_markdown_file(command: Command) -> Result<Command, LoadError> {
                 content: Some(body),
                 status,
                 buttons,
+                width,
+                height,
             })
         }
         other => Ok(other),
@@ -239,6 +288,8 @@ mod tests {
             content: None,
             status: None,
             buttons: ButtonsPreset::Ok,
+            width: None,
+            height: None,
         };
         let err = load_markdown_file(cmd).expect_err("missing");
         match err {
@@ -262,6 +313,8 @@ mod tests {
             content: None,
             status: None,
             buttons: ButtonsPreset::Ok,
+            width: None,
+            height: None,
         };
         let loaded = load_markdown_file(cmd).expect("read");
         match loaded {
@@ -283,6 +336,8 @@ mod tests {
             content: Some("# Inline\n".into()),
             status: None,
             buttons: ButtonsPreset::Ok,
+            width: None,
+            height: None,
         };
         let loaded = load_markdown_file(cmd).expect("passthrough");
         match loaded {
@@ -310,6 +365,8 @@ mod tests {
             content: None,
             status: None,
             buttons: ButtonsPreset::Ok,
+            width: None,
+            height: None,
         };
         let err = load_markdown_file(cmd).expect_err("oversized");
         match err {

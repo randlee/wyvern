@@ -1,0 +1,6 @@
+{
+  "type": "markdown",
+  "title": "Markdown",
+  "content": "# Short doc\n\n- HTTP host serves UI\n- Viewer is Wyvern Browser\n- **Bold** and `code`",
+  "buttons": "ok"
+}

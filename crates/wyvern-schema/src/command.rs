@@ -153,6 +153,22 @@ impl InputMode {
     }
 }
 
+/// Optional viewer window size in CSS pixels (embedded shell or browser window hint).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct WindowSizeHint {
+    /// Width in CSS pixels.
+    pub width: Option<u32>,
+    /// Height in CSS pixels.
+    pub height: Option<u32>,
+}
+
+impl WindowSizeHint {
+    /// True when either dimension is set.
+    pub fn is_some(&self) -> bool {
+        self.width.is_some() || self.height.is_some()
+    }
+}
+
 /// Executable command after successful validation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
@@ -160,6 +176,8 @@ pub enum Command {
     Chrome {
         title: ChromeTitle,
         status: Option<ChromeStatus>,
+        width: Option<u32>,
+        height: Option<u32>,
     },
     /// Modal message dialog (Phase B sprint b.1 / b.2).
     Message {
@@ -173,6 +191,8 @@ pub enum Command {
         icon: Option<crate::MediaRef>,
         image: Option<crate::MediaRef>,
         markdown: bool,
+        width: Option<u32>,
+        height: Option<u32>,
     },
     /// Modal input dialog — text / file / folder (REQ-0013 / REQ-0015).
     Input {
@@ -194,6 +214,8 @@ pub enum Command {
         /// Initial picker directory; file or folder mode only (REQ-0059).
         start_path: Option<String>,
         buttons: ButtonsPreset,
+        width: Option<u32>,
+        height: Option<u32>,
     },
     /// Markdown viewer — exactly one of `file` or `content` (REQ-0016 / REQ-0058).
     Markdown {
@@ -206,6 +228,8 @@ pub enum Command {
         status: Option<ChromeStatus>,
         /// Defaults to [`ButtonsPreset::Ok`] when omitted.
         buttons: ButtonsPreset,
+        width: Option<u32>,
+        height: Option<u32>,
     },
     /// Question cards dialog (REQ-0061 / REQ-0062).
     Question {
@@ -213,7 +237,41 @@ pub enum Command {
         questions: Vec<QuestionCard>,
         /// Verbatim `questions` array entries for stdout echo (REQ-0067).
         questions_raw: Vec<serde_json::Value>,
+        width: Option<u32>,
+        height: Option<u32>,
     },
+}
+
+impl Command {
+    /// Optional viewer window width from command JSON (`width`).
+    pub fn window_width(&self) -> Option<u32> {
+        match self {
+            Self::Chrome { width, .. }
+            | Self::Message { width, .. }
+            | Self::Input { width, .. }
+            | Self::Markdown { width, .. }
+            | Self::Question { width, .. } => *width,
+        }
+    }
+
+    /// Optional viewer window height from command JSON (`height`).
+    pub fn window_height(&self) -> Option<u32> {
+        match self {
+            Self::Chrome { height, .. }
+            | Self::Message { height, .. }
+            | Self::Input { height, .. }
+            | Self::Markdown { height, .. }
+            | Self::Question { height, .. } => *height,
+        }
+    }
+
+    /// Combined optional window size hint.
+    pub fn window_size_hint(&self) -> WindowSizeHint {
+        WindowSizeHint {
+            width: self.window_width(),
+            height: self.window_height(),
+        }
+    }
 }
 
 /// One selectable option inside a [`QuestionCard`] (AskUserQuestion wire names).

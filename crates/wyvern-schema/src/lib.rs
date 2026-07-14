@@ -34,7 +34,7 @@ pub use button::ButtonLabel;
 #[doc(inline)]
 pub use chrome::{ChromeStatus, ChromeTitle};
 #[doc(inline)]
-pub use command::{ButtonsPreset, Command, InputMode, MessageLevel, QuestionCard, QuestionOption};
+pub use command::{ButtonsPreset, Command, InputMode, MessageLevel, QuestionCard, QuestionOption, WindowSizeHint};
 #[doc(inline)]
 pub use error::ValidationError;
 #[doc(inline)]

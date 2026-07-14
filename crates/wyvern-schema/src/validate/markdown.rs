@@ -10,8 +10,8 @@ use crate::error::ValidationError;
 use crate::field_name::FieldName;
 
 use super::helpers::{
-    closest_match, json_type_name, optional_string_field, MARKDOWN_CONTENT_MAX_BYTES,
-    MARKDOWN_FIELDS,
+    closest_match, json_type_name, optional_string_field, optional_window_size_fields,
+    MARKDOWN_CONTENT_MAX_BYTES, MARKDOWN_FIELDS,
 };
 
 pub(super) fn validate_markdown(obj: &Map<String, Value>) -> Result<Command, ValidationError> {
@@ -97,11 +97,15 @@ pub(super) fn validate_markdown(obj: &Map<String, Value>) -> Result<Command, Val
         ));
     }
 
+    let (width, height) = optional_window_size_fields(obj)?;
+
     Ok(Command::Markdown {
         title,
         file,
         content,
         status: status.map(ChromeStatus::new),
         buttons,
+        width,
+        height,
     })
 }

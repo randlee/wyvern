@@ -38,6 +38,16 @@ impl DialogHandle {
         result
     }
 
+    /// Non-blocking poll for dialog completion (macOS picker pump loops).
+    pub fn try_recv_result(&mut self) -> Option<Result<CommandResult, HostError>> {
+        self.done_rx.try_recv().ok()
+    }
+
+    /// Join the background host worker after [`Self::try_recv_result`] returns.
+    pub fn join_host_worker(&mut self) {
+        self.join_worker();
+    }
+
     /// CLI fallback when `wyvern-viewer` exits without posting a result (REQ-0097).
     ///
     /// # Errors
@@ -90,7 +100,7 @@ impl Drop for DialogHandle {
 pub fn begin(command: Command, options: HostOptions) -> Result<DialogHandle, HostError> {
     options.validate()?;
     let type_name = dialog_type_name(&command);
-    let viewer_options = ViewerLaunchOptions::default();
+    let viewer_options = ViewerLaunchOptions::from_command(&command);
     let (ready_tx, ready_rx) = mpsc::channel::<Result<ReadyPayload, HostError>>();
     let (done_tx, done_rx) = mpsc::channel::<Result<CommandResult, HostError>>();
 

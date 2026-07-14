@@ -121,6 +121,36 @@ pub fn pick_file(
         return mocked;
     }
 
+    #[cfg(target_os = "macos")]
+    if !crate::picker_dispatch::is_main_thread() {
+        return crate::picker_dispatch::dispatch_file(filter, multiple, start_path);
+    }
+
+    pick_file_rfd(filter, multiple, start_path)
+}
+
+/// Open a native folder picker (or mock) and return the selected directory.
+///
+/// Returns [`None`] when the user cancels (or the mock is empty).
+pub fn pick_folder(start_path: Option<&Path>, mock: Option<&MockPickerConfig>) -> Option<PathBuf> {
+    if let Some(mocked) = resolve_mock(mock) {
+        return mocked.and_then(|mut paths| paths.pop());
+    }
+
+    #[cfg(target_os = "macos")]
+    if !crate::picker_dispatch::is_main_thread() {
+        return crate::picker_dispatch::dispatch_folder(start_path);
+    }
+
+    pick_folder_rfd(start_path)
+}
+
+/// Native `rfd` file picker — must run on the process main thread on macOS.
+pub(crate) fn pick_file_rfd(
+    filter: &[String],
+    multiple: bool,
+    start_path: Option<&Path>,
+) -> Option<Vec<PathBuf>> {
     let mut dialog = FileDialog::new();
     if let Some(dir) = start_path {
         dialog = dialog.set_directory(dir);
@@ -138,14 +168,8 @@ pub fn pick_file(
     }
 }
 
-/// Open a native folder picker (or mock) and return the selected directory.
-///
-/// Returns [`None`] when the user cancels (or the mock is empty).
-pub fn pick_folder(start_path: Option<&Path>, mock: Option<&MockPickerConfig>) -> Option<PathBuf> {
-    if let Some(mocked) = resolve_mock(mock) {
-        return mocked.and_then(|mut paths| paths.pop());
-    }
-
+/// Native `rfd` folder picker — must run on the process main thread on macOS.
+pub(crate) fn pick_folder_rfd(start_path: Option<&Path>) -> Option<PathBuf> {
     let mut dialog = FileDialog::new();
     if let Some(dir) = start_path {
         dialog = dialog.set_directory(dir);

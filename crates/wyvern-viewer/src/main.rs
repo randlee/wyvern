@@ -1,4 +1,4 @@
-//! Wyvern embedded viewer — navigate to a dialog URL; POST dismissed on OS close.
+//! Wyvern Browser — thin shell that loads dialog/wizard URLs over HTTP.
 
 #![cfg_attr(
     not(test),

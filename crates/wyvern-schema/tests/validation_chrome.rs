@@ -6,7 +6,7 @@ use wyvern_schema::{validate, Command, ValidationError};
 #[test]
 fn rule_chrome_with_title_passes() {
     let cmd = validate(&json!({"type":"chrome","title":"T"})).unwrap();
-    assert!(matches!(cmd, Command::Chrome { title, status: None } if title == "T"));
+    assert!(matches!(cmd, Command::Chrome { title, status: None, .. } if title == "T"));
 }
 
 #[test]

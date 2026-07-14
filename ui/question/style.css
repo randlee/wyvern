@@ -219,3 +219,13 @@ button:disabled {
   color: #b91c1c;
   padding: 1rem;
 }
+
+html.wyvern-embedded .dialog.dialog--panel {
+  height: auto !important;
+  min-height: auto !important;
+}
+
+html.wyvern-embedded .dialog.dialog--panel .cards {
+  overflow: visible;
+  flex: none;
+}

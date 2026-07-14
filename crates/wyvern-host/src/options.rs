@@ -150,6 +150,41 @@ pub struct ViewerLaunchOptions {
     pub width: Option<u32>,
     /// Preferred window height in CSS pixels.
     pub height: Option<u32>,
+    /// Native window title (dialog chrome title, not the product name).
+    pub title: Option<String>,
+}
+
+impl ViewerLaunchOptions {
+    /// Derive embedded viewer hints from the validated command.
+    pub fn from_command(command: &wyvern_schema::Command) -> Self {
+        Self {
+            width: command.window_width(),
+            height: command.window_height(),
+            title: command_window_title(command),
+        }
+    }
+}
+
+fn command_window_title(command: &wyvern_schema::Command) -> Option<String> {
+    let title = match command {
+        wyvern_schema::Command::Chrome { title, .. }
+        | wyvern_schema::Command::Message { title, .. }
+        | wyvern_schema::Command::Input { title, .. } => title.as_str(),
+        wyvern_schema::Command::Markdown {
+            title: Some(title), ..
+        } => title.as_str(),
+        wyvern_schema::Command::Markdown { title: None, .. } => "Markdown",
+        wyvern_schema::Command::Question { questions, .. } => questions
+            .first()
+            .map(|card| card.header.as_str())
+            .filter(|header| !header.is_empty())
+            .unwrap_or("Question"),
+    };
+    if title.is_empty() {
+        None
+    } else {
+        Some(title.to_string())
+    }
 }
 
 #[cfg(test)]

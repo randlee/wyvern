@@ -26,6 +26,7 @@ fn validation_question_minimal_single_select_passes() {
         Command::Question {
             questions,
             questions_raw,
+            ..
         } => {
             assert_eq!(questions.len(), 1);
             assert_eq!(questions_raw.len(), 1);
@@ -94,6 +95,7 @@ fn validation_question_preview_accepted_not_required() {
         Command::Question {
             questions,
             questions_raw,
+            ..
         } => {
             assert_eq!(
                 questions[0].options[0].preview.as_deref(),

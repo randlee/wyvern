@@ -78,6 +78,9 @@ pub fn resolve_viewer_bin() -> Result<PathBuf, ViewerSpawnError> {
 
 /// Spawn `wyvern-viewer` for `dialog_url` with optional size hints.
 ///
+/// Stdin is piped so the CLI can send `exit\n` after the host accepts
+/// `POST /api/result` (parent-controlled shutdown — page does not close the window).
+///
 /// # Errors
 ///
 /// Returns [`ViewerSpawnError`] when the binary is missing or spawn fails.
@@ -88,19 +91,61 @@ pub fn spawn_embedded_viewer(
     let bin = resolve_viewer_bin()?;
     let mut cmd = Command::new(&bin);
     cmd.arg(dialog_url)
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::inherit());
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null());
+    // Panics during macOS teardown must not leak Rust stack traces to the agent/user.
+    if std::env::var_os("WYVERN_VIEWER_LOG").is_some() {
+        cmd.stderr(Stdio::inherit());
+    } else {
+        cmd.stderr(Stdio::null());
+    }
     if let Some(w) = options.width {
         cmd.env("WYVERN_VIEWER_WIDTH", w.to_string());
     }
     if let Some(h) = options.height {
         cmd.env("WYVERN_VIEWER_HEIGHT", h.to_string());
     }
+    if let Some(title) = &options.title {
+        cmd.env("WYVERN_VIEWER_TITLE", title);
+    }
     cmd.env("WYVERN_DIALOG_URL", dialog_url);
     cmd.spawn().map_err(|e| ViewerSpawnError::Io {
         message: format!("{}: {e}", bin.display()),
     })
+}
+
+/// Ask an embedded viewer to exit after the host session completes.
+///
+/// Writes `exit\n` to the child's stdin (see `spawn_embedded_viewer`). The viewer
+/// hides and tears down on its own — avoids page-initiated close racing macOS focus.
+pub fn request_viewer_exit(child: &mut Child) {
+    use std::io::Write;
+    if let Some(stdin) = child.stdin.as_mut() {
+        let _ = stdin.write_all(b"exit\n");
+        let _ = stdin.flush();
+    }
+}
+
+/// Block until the embedded viewer exits after [`request_viewer_exit`].
+pub fn wait_for_viewer_exit(child: &mut Child) {
+    use std::thread;
+    use std::time::{Duration, Instant};
+
+    request_viewer_exit(child);
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        match child.try_wait() {
+            Ok(Some(_)) => return,
+            Ok(None) => {}
+            Err(_) => return,
+        }
+        if Instant::now() >= deadline {
+            request_viewer_exit(child);
+            let _ = child.wait();
+            return;
+        }
+        thread::sleep(Duration::from_millis(50));
+    }
 }
 
 fn sibling_viewer_bin() -> Option<PathBuf> {

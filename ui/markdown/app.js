@@ -68,6 +68,7 @@
       const list = Array.isArray(payload.button_list) ? payload.button_list : [];
       renderButtons(list);
       dialogEl.hidden = false;
+      WyvernApi.applyDialogLayout(payload);
       window.addEventListener("beforeunload", onBeforeUnload);
     })
     .catch(showError);

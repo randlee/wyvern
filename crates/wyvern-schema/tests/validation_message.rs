@@ -24,6 +24,7 @@ fn validation_message_ok_preset_passes() {
             icon,
             image,
             markdown,
+            ..
         } => {
             assert_eq!(title.as_str(), "T");
             assert_eq!(message, "Hi");
@@ -70,8 +71,7 @@ fn validation_message_custom_buttons_pass() {
             buttons,
             custom_buttons,
             default_button,
-            ..
-        } => {
+            .. } => {
             assert_eq!(buttons, ButtonsPreset::Custom);
             assert_eq!(
                 custom_buttons.as_deref(),

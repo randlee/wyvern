@@ -173,6 +173,7 @@
       questionsEcho = stripPreviewHtml(payload.questions);
       renderCards(payload.questions || []);
       dialogEl.hidden = false;
+      WyvernApi.applyDialogLayout(payload);
       window.addEventListener("beforeunload", onBeforeUnload);
     })
     .catch(showError);

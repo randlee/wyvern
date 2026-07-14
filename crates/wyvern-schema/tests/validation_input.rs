@@ -27,6 +27,7 @@ fn validation_input_minimal_defaults_text_and_ok_cancel() {
             multiple,
             start_path,
             buttons,
+            ..
         } => {
             assert_eq!(title.as_str(), "Name");
             assert_eq!(message, "Enter name");
@@ -88,8 +89,7 @@ fn validation_input_placeholder_and_default_allowed() {
             markdown,
             status,
             icon,
-            ..
-        } => {
+            .. } => {
             assert_eq!(placeholder.as_deref(), Some("hint"));
             assert_eq!(default.as_deref(), Some("prefill"));
             assert!(multiline);
@@ -119,8 +119,7 @@ fn validation_input_mode_file_passes() {
             filter,
             multiple,
             start_path,
-            ..
-        } => {
+            .. } => {
             assert_eq!(mode, InputMode::File);
             assert_eq!(
                 filter.as_deref(),
@@ -149,8 +148,7 @@ fn validation_input_mode_folder_passes() {
             filter,
             multiple,
             start_path,
-            ..
-        } => {
+            .. } => {
             assert_eq!(mode, InputMode::Folder);
             assert!(filter.is_none());
             assert!(!multiple);
@@ -196,40 +194,48 @@ fn validation_input_multiline_with_folder_fails_req0057() {
 }
 
 #[test]
-fn validation_input_placeholder_with_file_fails_req0059() {
-    let err = validate(&json!({
+fn validation_input_placeholder_with_file_passes() {
+    let cmd = validate(&json!({
         "type": "input",
         "title": "T",
         "message": "M",
         "mode": "file",
-        "placeholder": "hint"
+        "placeholder": "/path/to/file"
     }))
-    .expect_err("REQ-0059 placeholder");
-    match err {
-        ValidationError::Validation { field, message } => {
-            assert_eq!(field, "placeholder");
-            assert!(message.contains("only valid when mode is 'text'"));
+    .expect("placeholder allowed for file mode");
+    match cmd {
+        Command::Input {
+            mode,
+            placeholder,
+            ..
+        } => {
+            assert_eq!(mode, InputMode::File);
+            assert_eq!(placeholder.as_deref(), Some("/path/to/file"));
         }
-        other => panic!("expected Validation, got {other:?}"),
+        other => panic!("expected Input, got {other:?}"),
     }
 }
 
 #[test]
-fn validation_input_default_with_folder_fails_req0059() {
-    let err = validate(&json!({
+fn validation_input_default_with_folder_passes() {
+    let cmd = validate(&json!({
         "type": "input",
         "title": "T",
         "message": "M",
         "mode": "folder",
-        "default": "x"
+        "default": "/tmp"
     }))
-    .expect_err("REQ-0059 default");
-    match err {
-        ValidationError::Validation { field, message } => {
-            assert_eq!(field, "default");
-            assert!(message.contains("only valid when mode is 'text'"));
+    .expect("default allowed for folder mode");
+    match cmd {
+        Command::Input {
+            mode,
+            default,
+            ..
+        } => {
+            assert_eq!(mode, InputMode::Folder);
+            assert_eq!(default.as_deref(), Some("/tmp"));
         }
-        other => panic!("expected Validation, got {other:?}"),
+        other => panic!("expected Input, got {other:?}"),
     }
 }
 

@@ -95,6 +95,14 @@ body {
   box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
 }
 
+html.wyvern-embedded .dialog--frame.dialog,
+html.wyvern-embedded .dialog--panel.dialog {
+  flex: 0 0 auto !important;
+  max-height: none !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
 h1 {
   margin: 0 0 0.75rem;
   font-size: 1.25rem;

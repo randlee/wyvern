@@ -101,6 +101,7 @@ fn parse_result_for_command(command: &Command, body: &Value) -> Result<CommandRe
         Command::Question {
             questions,
             questions_raw,
+            ..
         } => parse_question_result(questions, questions_raw, body),
     }
 }

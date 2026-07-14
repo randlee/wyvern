@@ -1,23 +1,43 @@
-//! Event loop: load dialog URL; on close POST `{ "button": "dismissed" }`.
+//! Event loop: load dialog URL; CLI stdin `exit` or OS close ends the process.
 
 use std::fmt;
-use std::io::{Read, Write};
+use std::io::{BufRead, Read, Write};
 use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
-use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+use std::thread;
 use std::time::Duration;
 
 use url::Url;
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
-use winit::event_loop::{ActiveEventLoop, EventLoop};
+use winit::event_loop::ActiveEventLoop;
 use winit::window::{Window, WindowId};
-use wry::WebViewBuilder;
+use wry::dpi::{LogicalPosition, LogicalSize};
+use wry::http::Request;
+use wry::{Rect, WebView, WebViewBuilder};
 
 use crate::platform::{
-    init_platform, pump_gtk_events, viewer_window_attributes, DEFAULT_HEIGHT, DEFAULT_WIDTH,
+    build_event_loop, init_platform, present_viewer_window, pump_gtk_events,
+    viewer_window_attributes, DEFAULT_HEIGHT, DEFAULT_WIDTH,
 };
 
-/// Bounded timeouts for best-effort dismiss POST (must not block the UI thread indefinitely).
+/// Max dialog chrome size (matches packaged UI open bounds).
+const MAX_DIALOG_WIDTH: u32 = 800;
+const MAX_DIALOG_HEIGHT: u32 = 600;
+const MIN_DIALOG_WIDTH: u32 = 200;
+const MIN_DIALOG_HEIGHT: u32 = 96;
+
+fn parse_resize_message(msg: &str) -> Option<(u32, u32)> {
+    let rest = msg.strip_prefix("resize:")?;
+    let (w, h) = rest.split_once('x')?;
+    let w: u32 = w.parse().ok()?;
+    let h: u32 = h.parse().ok()?;
+    Some((
+        w.clamp(MIN_DIALOG_WIDTH, MAX_DIALOG_WIDTH),
+        h.clamp(MIN_DIALOG_HEIGHT, MAX_DIALOG_HEIGHT),
+    ))
+}
 const DISMISS_CONNECT_TIMEOUT: Duration = Duration::from_secs(2);
 const DISMISS_IO_TIMEOUT: Duration = Duration::from_secs(2);
 
@@ -144,15 +164,20 @@ fn is_loopback_host(host: &str) -> bool {
 pub fn run(args: ViewerArgs) -> Result<(), ViewerError> {
     init_platform()?;
 
-    let event_loop = EventLoop::new().map_err(|err| ViewerError::EventLoop {
-        message: err.to_string(),
-    })?;
+    let event_loop = build_event_loop()?;
+    let close_requested = Arc::new(AtomicBool::new(false));
+    spawn_cli_exit_watcher(Arc::clone(&close_requested));
 
     let mut app = ViewerApp {
         args,
         window: None,
         webview: None,
         posted_dismiss: false,
+        pending_resize: Arc::new(Mutex::new(None)),
+        pending_navigate: Arc::new(Mutex::new(None)),
+        sized: false,
+        close_requested,
+        closing: false,
     };
 
     event_loop
@@ -165,11 +190,119 @@ pub fn run(args: ViewerArgs) -> Result<(), ViewerError> {
     Ok(())
 }
 
+/// Background thread: CLI writes `exit\n` on stdin after host accepts POST /api/result.
+fn spawn_cli_exit_watcher(close_requested: Arc<AtomicBool>) {
+    thread::spawn(move || {
+        let stdin = std::io::stdin();
+        let mut reader = std::io::BufReader::new(stdin.lock());
+        let mut line = String::new();
+        loop {
+            line.clear();
+            match reader.read_line(&mut line) {
+                Ok(0) => break,
+                Ok(_) => {
+                    if line.trim() == "exit" {
+                        close_requested.store(true, Ordering::Relaxed);
+                        break;
+                    }
+                }
+                Err(_) => break,
+            }
+        }
+    });
+}
+
+fn webview_bounds_for_window(window: &Window) -> Rect {
+    let scale = window.scale_factor();
+    let size = window.inner_size();
+    Rect {
+        position: LogicalPosition::new(0.0, 0.0).into(),
+        size: LogicalSize::new(size.width as f64 / scale, size.height as f64 / scale).into(),
+    }
+}
+
+fn fit_child_webview(webview: &WebView, window: &Window) {
+    let _ = webview.set_bounds(webview_bounds_for_window(window));
+}
+
 struct ViewerApp {
     args: ViewerArgs,
     window: Option<Arc<Window>>,
-    webview: Option<wry::WebView>,
+    webview: Option<WebView>,
     posted_dismiss: bool,
+    pending_resize: Arc<Mutex<Option<(u32, u32)>>>,
+    pending_navigate: Arc<Mutex<Option<String>>>,
+    sized: bool,
+    close_requested: Arc<AtomicBool>,
+    closing: bool,
+}
+
+impl ViewerApp {
+    /// Graceful shutdown: release WebKit, then let winit/AppKit close the window.
+    ///
+    /// Do not drop [`Window`] while the event loop is still dispatching AppKit
+    /// notifications (`windowDidResignKey:`) — winit 0.30 panics if the view's
+    /// weak window ref is cleared mid-callback. `event_loop.exit()` runs
+    /// `notify_windows_of_exit`, which closes windows through the normal delegate path.
+    fn request_shutdown(&mut self, event_loop: &ActiveEventLoop) {
+        if self.closing {
+            return;
+        }
+        self.closing = true;
+        self.close_requested.store(false, Ordering::Relaxed);
+        if let Some(window) = &self.window {
+            window.set_visible(false);
+        }
+        // WKWebView child must detach before NSWindow closes (wry).
+        self.webview.take();
+        pump_gtk_events();
+        event_loop.exit();
+    }
+
+    fn apply_pending_resize(&mut self) {
+        if self.sized {
+            return;
+        }
+        let pending = self
+            .pending_resize
+            .lock()
+            .ok()
+            .and_then(|mut guard| guard.take());
+        let Some((width, height)) = pending else {
+            return;
+        };
+        let Some(window) = self.window.as_ref() else {
+            return;
+        };
+        let size = LogicalSize::new(width as f64, height as f64);
+        let _ = window.request_inner_size(size);
+        if let Some(webview) = &self.webview {
+            fit_child_webview(webview, window);
+        }
+        self.sized = true;
+    }
+
+    fn apply_pending_navigate(&mut self) {
+        let pending = self
+            .pending_navigate
+            .lock()
+            .ok()
+            .and_then(|mut guard| guard.take());
+        let Some(url) = pending else {
+            return;
+        };
+        let Some(webview) = self.webview.as_ref() else {
+            return;
+        };
+        if let Err(err) = webview.load_url(&url) {
+            tracing::error!(error = %err, url = %url, "failed to navigate viewer");
+            return;
+        }
+        self.sized = false;
+        if let Some(window) = self.window.as_ref() {
+            present_viewer_window(window);
+        }
+    }
 }
 
 impl ApplicationHandler for ViewerApp {
@@ -187,16 +320,56 @@ impl ApplicationHandler for ViewerApp {
             }
         };
 
+        let pending_resize = Arc::clone(&self.pending_resize);
+        let pending_navigate = Arc::clone(&self.pending_navigate);
+        let close_requested = Arc::clone(&self.close_requested);
         let builder = WebViewBuilder::new()
             .with_url(&self.args.dialog_url)
-            .with_devtools(cfg!(debug_assertions));
+            .with_devtools(cfg!(debug_assertions))
+            .with_ipc_handler(move |req: Request<String>| {
+                let msg = req.body();
+                // Legacy: pages no longer send "close" after POST; CLI uses stdin `exit`.
+                if msg == "close" {
+                    close_requested.store(true, Ordering::Relaxed);
+                    return;
+                }
+                if let Some(url) = msg.strip_prefix("navigate:") {
+                    if let Ok(mut slot) = pending_navigate.lock() {
+                        *slot = Some(url.to_string());
+                    }
+                    return;
+                }
+                if let Some(size) = parse_resize_message(msg) {
+                    if let Ok(mut slot) = pending_resize.lock() {
+                        *slot = Some(size);
+                    }
+                }
+            });
 
+        // macOS: child webview + explicit bounds (stable focus/alt-tab vs `build()`).
+        #[cfg(target_os = "macos")]
         let webview = match builder.build_as_child(&*window) {
-            Ok(wv) => wv,
+            Ok(wv) => {
+                fit_child_webview(&wv, &window);
+                wv
+            }
             Err(err) => {
-                // Fallback: some platforms prefer `build` with window handle.
+                tracing::error!(error = %err, "failed to create webview");
+                event_loop.exit();
+                return;
+            }
+        };
+
+        #[cfg(not(target_os = "macos"))]
+        let webview = match builder.build_as_child(&*window) {
+            Ok(wv) => {
+                fit_child_webview(&wv, &window);
+                wv
+            }
+            Err(err) => {
                 match WebViewBuilder::new()
                     .with_url(&self.args.dialog_url)
+                    .with_devtools(cfg!(debug_assertions))
                     .build(&*window)
                 {
                     Ok(wv) => wv,
@@ -211,25 +384,42 @@ impl ApplicationHandler for ViewerApp {
 
         self.webview = Some(webview);
         self.window = Some(window);
+        if let Some(window) = self.window.as_ref() {
+            present_viewer_window(window);
+        }
+    }
+
+    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        if self.close_requested.load(Ordering::Relaxed) {
+            self.request_shutdown(event_loop);
+            return;
+        }
+        self.apply_pending_resize();
+        self.apply_pending_navigate();
+    }
+
+    fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
+        self.webview.take();
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
+        if self.closing {
+            return;
+        }
         match event {
             WindowEvent::CloseRequested => {
                 if !self.posted_dismiss {
                     post_dismissed(&self.args.dialog_url);
                     self.posted_dismiss = true;
                 }
-                self.webview.take();
-                self.window.take();
-                event_loop.exit();
+                self.request_shutdown(event_loop);
             }
-            WindowEvent::Resized(size) => {
+            WindowEvent::Destroyed => {
+                self.window.take();
+            }
+            WindowEvent::Resized(_size) => {
                 if let (Some(window), Some(webview)) = (&self.window, &self.webview) {
-                    let _ = window;
-                    let _ = webview;
-                    // wry child webviews track resize via the window; nothing required on all platforms.
-                    let _ = size;
+                    fit_child_webview(webview, window);
                 }
             }
             _ => {}

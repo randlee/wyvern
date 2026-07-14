@@ -8,7 +8,7 @@ use crate::error::ValidationError;
 pub(super) const LIFECYCLE_ACTIONS: &[&str] = &["show", "hide", "exit"];
 
 /// Allowed fields on a `chrome` command object.
-pub(super) const CHROME_FIELDS: &[&str] = &["type", "title", "status"];
+pub(super) const CHROME_FIELDS: &[&str] = &["type", "title", "status", "width", "height"];
 
 /// Allowed fields on a `message` command object (b.2 full surface).
 pub(super) const MESSAGE_FIELDS: &[&str] = &[
@@ -23,6 +23,8 @@ pub(super) const MESSAGE_FIELDS: &[&str] = &[
     "icon",
     "image",
     "markdown",
+    "width",
+    "height",
 ];
 
 /// Allowed fields on an `input` command object (b.4 full surface + c.11 password).
@@ -42,14 +44,17 @@ pub(super) const INPUT_FIELDS: &[&str] = &[
     "multiple",
     "start_path",
     "buttons",
+    "width",
+    "height",
 ];
 
 /// Allowed fields on a `markdown` command object (b.5 file subset).
-pub(super) const MARKDOWN_FIELDS: &[&str] =
-    &["type", "title", "file", "content", "status", "buttons"];
+pub(super) const MARKDOWN_FIELDS: &[&str] = &[
+    "type", "title", "file", "content", "status", "buttons", "width", "height",
+];
 
 /// Allowed fields on a `question` command object (b.7).
-pub(super) const QUESTION_FIELDS: &[&str] = &["type", "questions"];
+pub(super) const QUESTION_FIELDS: &[&str] = &["type", "questions", "width", "height"];
 
 /// Allowed fields on each question card.
 pub(super) const QUESTION_CARD_FIELDS: &[&str] = &["question", "header", "options", "multiSelect"];
@@ -174,6 +179,59 @@ pub(super) fn optional_bool_field(
             field,
             format!(
                 "field '{field}' expected boolean, got {}",
+                json_type_name(other)
+            ),
+        )),
+    }
+}
+
+/// Minimum viewer width (CSS px) — matches `wyvern-viewer` resize clamp.
+pub const VIEWER_WIDTH_MIN: u32 = 200;
+/// Maximum viewer width (CSS px).
+pub const VIEWER_WIDTH_MAX: u32 = 800;
+/// Minimum viewer height (CSS px).
+pub const VIEWER_HEIGHT_MIN: u32 = 96;
+/// Maximum viewer height (CSS px).
+pub const VIEWER_HEIGHT_MAX: u32 = 600;
+
+pub(super) fn optional_window_size_fields(
+    obj: &Map<String, Value>,
+) -> Result<(Option<u32>, Option<u32>), ValidationError> {
+    let width = optional_u32_field_bounded(obj, "width", VIEWER_WIDTH_MIN, VIEWER_WIDTH_MAX)?;
+    let height = optional_u32_field_bounded(obj, "height", VIEWER_HEIGHT_MIN, VIEWER_HEIGHT_MAX)?;
+    Ok((width, height))
+}
+
+pub(super) fn optional_u32_field_bounded(
+    obj: &Map<String, Value>,
+    field: &str,
+    min: u32,
+    max: u32,
+) -> Result<Option<u32>, ValidationError> {
+    match obj.get(field) {
+        None => Ok(None),
+        Some(Value::Number(n)) => {
+            let v = n
+                .as_u64()
+                .and_then(|u| u32::try_from(u).ok())
+                .ok_or_else(|| {
+                    ValidationError::validation(
+                        field,
+                        format!("field '{field}' expected positive integer"),
+                    )
+                })?;
+            if v < min || v > max {
+                return Err(ValidationError::validation(
+                    field,
+                    format!("field '{field}' must be between {min} and {max} (got {v})"),
+                ));
+            }
+            Ok(Some(v))
+        }
+        Some(other) => Err(ValidationError::validation(
+            field,
+            format!(
+                "field '{field}' expected positive integer, got {}",
                 json_type_name(other)
             ),
         )),

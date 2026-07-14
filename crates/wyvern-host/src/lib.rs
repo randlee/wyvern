@@ -24,6 +24,8 @@ mod handle;
 mod markdown;
 mod options;
 mod picker;
+#[cfg(target_os = "macos")]
+mod picker_dispatch;
 mod question;
 mod routes;
 mod server;
@@ -42,6 +44,8 @@ pub use options::{
     MIN_SESSION_TIMEOUT,
 };
 pub use picker::{MockPickerConfig, MockPickerSlotEvent, MockPickerSlotLog};
+#[cfg(target_os = "macos")]
+pub use picker_dispatch::MacosPickerPump;
 
 use wyvern_schema::{Command, CommandResult};
 
@@ -73,12 +77,64 @@ pub fn run(command: Command, options: HostOptions) -> Result<CommandResult, Host
 
     let type_name = dialog_type_name(&command);
 
-    let rt = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .map_err(|e| HostError::Internal {
-            message: format!("failed to create tokio runtime: {e}"),
-        })?;
+    #[cfg(target_os = "macos")]
+    {
+        use std::sync::mpsc;
+        use std::time::Duration;
 
-    rt.block_on(run_owned_async(command, options, type_name))
+        let picker_pump = MacosPickerPump::install();
+
+        let (done_tx, done_rx) = mpsc::channel();
+        let join = std::thread::spawn(move || {
+            let rt = match tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .build()
+            {
+                Ok(rt) => rt,
+                Err(e) => {
+                    let _ = done_tx.send(Err(HostError::Internal {
+                        message: format!("failed to create tokio runtime: {e}"),
+                    }));
+                    return;
+                }
+            };
+            let result = rt.block_on(run_owned_async(command, options, type_name));
+            let _ = done_tx.send(result);
+        });
+
+        loop {
+            picker_pump.drain(Duration::from_millis(10));
+            match done_rx.try_recv() {
+                Ok(result) => {
+                    let _ = join.join();
+                    return result;
+                }
+                Err(mpsc::TryRecvError::Empty) if !join.is_finished() => {}
+                Err(mpsc::TryRecvError::Empty) => {
+                    let _ = join.join();
+                    return Err(HostError::Internal {
+                        message: "host worker exited without a result".into(),
+                    });
+                }
+                Err(mpsc::TryRecvError::Disconnected) => {
+                    let _ = join.join();
+                    return Err(HostError::Internal {
+                        message: "host worker closed result channel".into(),
+                    });
+                }
+            }
+        }
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .map_err(|e| HostError::Internal {
+                message: format!("failed to create tokio runtime: {e}"),
+            })?;
+
+        rt.block_on(run_owned_async(command, options, type_name))
+    }
 }

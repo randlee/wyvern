@@ -1,0 +1,8 @@
+{
+  "type": "message",
+  "title": "Fixed size",
+  "message": "Explicit width/height in JSON — should NOT auto-shrink to content.",
+  "buttons": "ok",
+  "width": 520,
+  "height": 320
+}

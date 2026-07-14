@@ -108,6 +108,7 @@
       buttonsEl.appendChild(okBtn);
 
       dialogEl.hidden = false;
+      WyvernApi.applyDialogLayout(payload);
       window.addEventListener("beforeunload", onBeforeUnload);
     })
     .catch(showError);
