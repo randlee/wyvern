@@ -109,14 +109,14 @@ Phase B ──┬──► c.1 ──► c.2 ──┐
 | c.6 | Result propagation (no production panics) | [c6-result-propagation.md](phase-C/c6-result-propagation.md) | `integrate/phase-C-fixes` |
 | c.7 | CLI integration test hardening | [c7-cli-test-hardening.md](phase-C/c7-cli-test-hardening.md) | `integrate/phase-C-fixes` |
 | c.8 | Clippy deny unauthorized panics | [c8-clippy-deny-unwrap.md](phase-C/c8-clippy-deny-unwrap.md) | `integrate/phase-C-fixes` |
-| c.9 | Delete `wyvern-window` (compile optional) | [c9-deletion.md](phase-C/c9-deletion.md) | `integrate/phase-C` |
-| c.10 | `wyvern-host` + `message` | [c10-http-host-message.md](phase-C/c10-http-host-message.md) | `integrate/phase-C` |
-| c.11 | `input` on host | [c11-host-input.md](phase-C/c11-host-input.md) | `integrate/phase-C` |
-| c.12 | `markdown` on host | [c12-host-markdown.md](phase-C/c12-host-markdown.md) | `integrate/phase-C` |
-| c.13 | `question` on host | [c13-host-question.md](phase-C/c13-host-question.md) | `integrate/phase-C` |
-| c.14 | `chrome` on host | [c14-host-chrome.md](phase-C/c14-host-chrome.md) | `integrate/phase-C` |
-| c.15 | `wyvern-viewer` + browser registry | [c15-wyvern-viewer.md](phase-C/c15-wyvern-viewer.md) | `integrate/phase-C` |
-| c.16 | Release + v0.1.0 | [c16-release.md](phase-C/c16-release.md) | `integrate/phase-C` |
+| c.9 | Delete `wyvern-window` (compile optional) | [c9-deletion.md](phase-C/c9-deletion.md) | `integrate/phase-c-web-server` |
+| c.10 | `wyvern-host` + `message` | [c10-http-host-message.md](phase-C/c10-http-host-message.md) | `integrate/phase-c-web-server` |
+| c.11 | `input` on host | [c11-host-input.md](phase-C/c11-host-input.md) | `integrate/phase-c-web-server` |
+| c.12 | `markdown` on host | [c12-host-markdown.md](phase-C/c12-host-markdown.md) | `integrate/phase-c-web-server` |
+| c.13 | `question` on host | [c13-host-question.md](phase-C/c13-host-question.md) | `integrate/phase-c-web-server` |
+| c.14 | `chrome` on host | [c14-host-chrome.md](phase-C/c14-host-chrome.md) | `integrate/phase-c-web-server` |
+| c.15 | `wyvern-viewer` + browser registry | [c15-wyvern-viewer.md](phase-C/c15-wyvern-viewer.md) | `integrate/phase-c-web-server` |
+| c.16 | Release + v0.1.0 | [c16-release.md](phase-C/c16-release.md) | `integrate/phase-c-web-server` |
 
 ---
 

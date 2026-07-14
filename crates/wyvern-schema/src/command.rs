@@ -121,9 +121,9 @@ impl MessageLevel {
 pub enum InputMode {
     /// Free-text field (default when `mode` is omitted).
     Text,
-    /// Native file picker via `rfd` in `wyvern-host` (sprint c.11).
+    /// Native file picker via `rfd` on the HTTP host (`POST /api/picker/file`).
     File,
-    /// Native folder picker via `rfd` in `wyvern-host` (sprint c.11).
+    /// Native folder picker via `rfd` on the HTTP host (`POST /api/picker/folder`).
     Folder,
 }
 

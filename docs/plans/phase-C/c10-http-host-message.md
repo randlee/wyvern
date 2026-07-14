@@ -59,3 +59,8 @@ sc-lint check native --config .sc-lint.toml
 
 - [HTTP-TYPES.md](HTTP-TYPES.md) — `HostOptions`, `HostError`, `run()`
 - [http-dialog-contract.md](http-dialog-contract.md), [c9-testing-headless.md](c9-testing-headless.md) (strategy; harness owned here)
+
+## Supersession note (post-c.11)
+
+Sprint c.10 originally limited `wyvern` → `wyvern_host::run` routing to **`Command::Message` only**. That routing scope was **superseded by c.11** (`input` + picker routes). On `integrate/phase-c-web-server`, the host matrix includes `message` and `input`; remaining types still return `HostError::UnsupportedType` until c.12–c.14.
+

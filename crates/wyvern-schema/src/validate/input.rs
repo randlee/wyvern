@@ -8,8 +8,8 @@ use crate::error::ValidationError;
 use crate::field_name::FieldName;
 
 use super::helpers::{
-    closest_match, json_type_name, optional_bool_field, optional_string_field,
-    require_string_field, INPUT_FIELDS,
+    closest_match, json_type_name, optional_bool_field, optional_media_ref_field,
+    optional_string_field, require_string_field, INPUT_FIELDS,
 };
 
 pub(super) fn validate_input(obj: &Map<String, Value>) -> Result<Command, ValidationError> {
@@ -26,8 +26,8 @@ pub(super) fn validate_input(obj: &Map<String, Value>) -> Result<Command, Valida
     let title = require_string_field(obj, "title")?;
     let message = require_string_field(obj, "message")?;
     let status = optional_string_field(obj, "status")?;
-    // icon is an opaque string (path, URL, or UI template hint) — no catalog check.
-    let icon = optional_string_field(obj, "icon")?;
+    // icon: path / URL / data URI / named template hint (structural check; no catalog).
+    let icon = optional_media_ref_field(obj, "icon")?;
     let markdown = optional_bool_field(obj, "markdown")?.unwrap_or(false);
     let multiline = optional_bool_field(obj, "multiline")?.unwrap_or(false);
     let placeholder = optional_string_field(obj, "placeholder")?;
