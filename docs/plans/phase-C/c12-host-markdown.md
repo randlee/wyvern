@@ -1,8 +1,9 @@
 ---
 id: c.12
 title: Host + UI — markdown
-status: planning
+status: complete
 branch: feature/phase-C-c12-host-markdown
+worktree: /Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-C-c12-host-markdown
 target: integrate/phase-c-web-server
 ---
 

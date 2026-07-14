@@ -167,3 +167,80 @@ fn dialog_content_html_strips_script_tags() {
     let _ = handle.join().expect("host thread").expect("run ok");
     let _ = std::fs::remove_file(&url_file);
 }
+
+#[test]
+fn dialog_rejects_oversized_markdown_content() {
+    let url_file = unique_path("wyvern-host-md-oversize");
+    let options = host_options(url_file.clone());
+    let oversized = "x".repeat(wyvern_schema::MARKDOWN_CONTENT_MAX_BYTES + 1);
+    let handle = thread::spawn(move || run(markdown_command(&oversized), options));
+
+    let dialog_url = wait_for_url_file(&url_file);
+    let base = dialog_url
+        .trim_end_matches("/markdown/")
+        .trim_end_matches('/');
+
+    let client = reqwest::blocking::Client::new();
+    let response = client
+        .get(format!("{base}/api/dialog"))
+        .send()
+        .expect("GET dialog");
+    assert_eq!(response.status(), reqwest::StatusCode::BAD_REQUEST);
+    let body: serde_json::Value = response.json().expect("error json");
+    assert_eq!(body["error"], "bad_request");
+    assert!(body["message"]
+        .as_str()
+        .is_some_and(|m| m.contains("exceeds maximum")));
+    assert!(body["cause"].as_str().is_some_and(|s| !s.is_empty()));
+    assert!(body["recovery"].as_array().is_some_and(|a| !a.is_empty()));
+    assert!(body["docs"]
+        .as_str()
+        .is_some_and(|s| s.contains("c12-host-markdown")));
+
+    // Fail-safe dismiss so the host thread exits.
+    let _ = client
+        .post(format!("{base}/api/result"))
+        .json(&serde_json::json!({"button":"dismissed"}))
+        .send();
+    let _ = handle.join();
+    let _ = std::fs::remove_file(&url_file);
+}
+
+#[test]
+fn result_invalid_markdown_includes_cause_recovery_docs() {
+    let url_file = unique_path("wyvern-host-md-bad-result");
+    let options = host_options(url_file.clone());
+    let handle = thread::spawn(move || run(markdown_command("# Hello\n"), options));
+
+    let dialog_url = wait_for_url_file(&url_file);
+    let base = dialog_url
+        .trim_end_matches("/markdown/")
+        .trim_end_matches('/');
+
+    let client = reqwest::blocking::Client::new();
+    let response = client
+        .post(format!("{base}/api/result"))
+        .json(&serde_json::json!({}))
+        .send()
+        .expect("POST result");
+    assert_eq!(response.status(), reqwest::StatusCode::BAD_REQUEST);
+    let body: serde_json::Value = response.json().expect("error json");
+    assert_eq!(body["error"], "bad_request");
+    assert!(body["message"]
+        .as_str()
+        .is_some_and(|m| m.contains("button")));
+    assert!(body["cause"].as_str().is_some_and(|s| !s.is_empty()));
+    assert!(body["recovery"].as_array().is_some_and(|a| !a.is_empty()));
+    assert!(body["docs"]
+        .as_str()
+        .is_some_and(|s| s.contains("http-post-schema")));
+
+    let _ = client
+        .post(format!("{base}/api/result"))
+        .json(&serde_json::json!({"button":"ok"}))
+        .send()
+        .expect("POST result")
+        .error_for_status();
+    let _ = handle.join().expect("host thread").expect("run ok");
+    let _ = std::fs::remove_file(&url_file);
+}

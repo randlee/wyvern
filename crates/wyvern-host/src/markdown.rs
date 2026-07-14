@@ -24,6 +24,12 @@ pub(crate) fn markdown_to_html(source: &str) -> String {
 
 /// Render markdown to ammonia-sanitized HTML for dialog JSON `content_html`.
 pub(crate) fn render_content_html(source: &str) -> String {
+    #[cfg(test)]
+    {
+        if let Some(delay_ms) = test_render_delay_ms() {
+            std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+        }
+    }
     let html = markdown_to_html(source);
     sanitize_html(&html)
 }
@@ -60,6 +66,48 @@ fn content_cleaner() -> &'static Builder<'static> {
         builder
     })
 }
+
+#[cfg(test)]
+mod test_hooks {
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    use tokio::sync::{Mutex, MutexGuard};
+
+    static RENDER_DELAY_MS: AtomicU64 = AtomicU64::new(0);
+    static RENDER_TIMEOUT_MS: AtomicU64 = AtomicU64::new(0);
+    static HOOK_LOCK: Mutex<()> = Mutex::const_new(());
+
+    /// Serialize unit tests that mutate render delay/timeout hooks.
+    pub(crate) async fn lock_hooks() -> MutexGuard<'static, ()> {
+        HOOK_LOCK.lock().await
+    }
+
+    /// Artificial delay inside [`super::render_content_html`] (0 = off).
+    pub(crate) fn set_render_delay_ms(ms: u64) {
+        RENDER_DELAY_MS.store(ms, Ordering::SeqCst);
+    }
+
+    /// Override dialog render timeout for tests (0 = use production default).
+    pub(crate) fn set_render_timeout_ms(ms: u64) {
+        RENDER_TIMEOUT_MS.store(ms, Ordering::SeqCst);
+    }
+
+    pub(crate) fn test_render_delay_ms() -> Option<u64> {
+        let ms = RENDER_DELAY_MS.load(Ordering::SeqCst);
+        (ms > 0).then_some(ms)
+    }
+
+    pub(crate) fn test_render_timeout_ms() -> Option<u64> {
+        let ms = RENDER_TIMEOUT_MS.load(Ordering::SeqCst);
+        (ms > 0).then_some(ms)
+    }
+}
+
+#[cfg(test)]
+pub(crate) use test_hooks::{
+    lock_hooks, set_render_delay_ms, set_render_timeout_ms, test_render_delay_ms,
+    test_render_timeout_ms,
+};
 
 #[cfg(test)]
 mod tests {
