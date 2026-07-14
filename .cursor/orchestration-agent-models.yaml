@@ -22,15 +22,15 @@ agents:
 
   cursor-quality-mgr:
     model: composer-2.5-fast
-    notes: QA coordinator only; favor speed
+    notes: QA enforcer only — verify spawn proof, aggregate fenced JSON, publish PR report; no Task spawns
 
   req-qa:
     model: composer-2.5-fast
     notes: Structured deliverable checklist
 
   arch-qa:
-    model: claude-4.6-sonnet-medium-thinking
-    notes: Precision / boundary gate
+    model: claude-sonnet-5-thinking-high
+    notes: Precision / boundary gate; must be in Cursor Task model list
 
   rust-qa-agent:
     model: grok-4.5-fast-xhigh
