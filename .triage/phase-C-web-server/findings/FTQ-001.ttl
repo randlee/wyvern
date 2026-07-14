@@ -1,0 +1,51 @@
+@prefix triage: <urn:atm:triage:> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<urn:atm:triage:finding/FTQ-001>
+  a triage:Finding ;
+  triage:findingId "FTQ-001" ;
+  triage:title "unique_path can collide under parallel cargo test" ;
+  triage:description "http_input.rs/http_message.rs unique_path uses pid+nanos; collision risk without --test-threads=1" ;
+  triage:phaseId "phase-C-web-server" ;
+  triage:triageMode "initial_pass" ;
+  triage:category "FTQ" ;
+  triage:severity "minor" ;
+  triage:repeatable true ;
+  triage:sweepScope "file_only" ;
+  triage:status "open" ;
+  triage:dispatchReady true ;
+  triage:triagedAt "2026-07-14T12:43:00Z"^^xsd:dateTime ;
+  triage:originatingSprintDoc "docs/plans/phase-C/c11-host-input.md" ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/FTQ-001/c11/1> ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/FTQ-001/c11/2> ;
+  triage:openOn <urn:atm:triage:worktree/c11/209858f> ;
+  triage:promoteTo <urn:atm:triage:worktree/c11/209858f> .
+
+<urn:atm:triage:occurrence/FTQ-001/c11/1>
+  a triage:Occurrence ;
+  triage:file "crates/wyvern-host/tests/http_input.rs" ;
+  triage:line 17 ;
+  triage:snippet "fn unique_path(prefix: &str) -> PathBuf { std::env::temp_dir().join(format!(\"{prefix}-{}-{}\", std::process::id(), std::time::SystemTime::now().duration_since(...).as_nanos())) }" ;
+  triage:status "open" ;
+  triage:closed false ;
+  triage:branch "feature/phase-C-c11-reverify-fixes" ;
+  triage:headSha "209858f" ;
+  triage:occursIn <urn:atm:triage:worktree/c11/209858f> .
+
+<urn:atm:triage:occurrence/FTQ-001/c11/2>
+  a triage:Occurrence ;
+  triage:file "crates/wyvern-host/tests/http_message.rs" ;
+  triage:line 30 ;
+  triage:snippet "fn unique_path(prefix: &str) -> PathBuf { std::env::temp_dir().join(format!(\"{prefix}-{}-{}\", std::process::id(), std::time::SystemTime::now().duration_since(...).as_nanos())) }" ;
+  triage:status "open" ;
+  triage:closed false ;
+  triage:branch "feature/phase-C-c11-reverify-fixes" ;
+  triage:headSha "209858f" ;
+  triage:occursIn <urn:atm:triage:worktree/c11/209858f> .
+
+<urn:atm:triage:worktree/c11/209858f>
+  a triage:WorktreeSnapshot ;
+  triage:branch "feature/phase-C-c11-reverify-fixes" ;
+  triage:path "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-C-c11-reverify-fixes" ;
+  triage:headSha "209858f" ;
+  triage:orderIndex 11 .
