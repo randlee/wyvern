@@ -99,7 +99,8 @@ fn host_error_exit_code(err: &HostError) -> i32 {
 /// Read markdown `file` into `content` before the host opens (REQ-0071).
 ///
 /// Missing or unreadable paths return [`LoadError::Io`] so the CLI emits `io`
-/// stderr without opening a dialog.
+/// stderr without opening a dialog. Oversized file bodies are rejected at the
+/// CLI boundary using the same limit as schema validation.
 fn load_markdown_file(command: Command) -> Result<Command, LoadError> {
     match command {
         Command::Markdown {
@@ -113,6 +114,16 @@ fn load_markdown_file(command: Command) -> Result<Command, LoadError> {
                 field: FieldName::new("file"),
                 message: format!("could not read path '{path}': {err}"),
             })?;
+            if body.len() > wyvern_schema::MARKDOWN_CONTENT_MAX_BYTES {
+                return Err(LoadError::Io {
+                    field: FieldName::new("file"),
+                    message: format!(
+                        "markdown content exceeds maximum of {} bytes (got {} bytes)",
+                        wyvern_schema::MARKDOWN_CONTENT_MAX_BYTES,
+                        body.len()
+                    ),
+                });
+            }
             Ok(Command::Markdown {
                 title,
                 file: Some(path),
@@ -132,9 +143,11 @@ mod tests {
 
     #[test]
     fn load_markdown_file_missing_is_io() {
+        let tmp = tempfile::tempdir().expect("temp dir");
+        let missing = tmp.path().join("definitely-missing-wyvern-b5.md");
         let cmd = Command::Markdown {
             title: Some(ChromeTitle::new("missing.md")),
-            file: Some("/definitely/missing/wyvern-b5.md".into()),
+            file: Some(missing.to_string_lossy().into_owned()),
             content: None,
             status: None,
             buttons: ButtonsPreset::Ok,
@@ -151,14 +164,13 @@ mod tests {
 
     #[test]
     fn load_markdown_file_reads_utf8() {
-        let dir = std::env::temp_dir().join(format!("wyvern-b5-md-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join("sample.md");
+        let tmp = tempfile::tempdir().expect("temp dir");
+        let path = tmp.path().join("sample.md");
         std::fs::write(&path, "# Hello\n\n- a\n- b\n").unwrap();
 
         let cmd = Command::Markdown {
             title: Some(ChromeTitle::new("sample.md")),
-            file: Some(path.to_str().unwrap().to_string()),
+            file: Some(path.to_string_lossy().into_owned()),
             content: None,
             status: None,
             buttons: ButtonsPreset::Ok,
@@ -173,8 +185,6 @@ mod tests {
             }
             other => panic!("expected loaded Markdown, got {other:?}"),
         }
-
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -196,6 +206,30 @@ mod tests {
                 assert_eq!(body, "# Inline\n");
             }
             other => panic!("expected inline Markdown, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn load_markdown_file_rejects_oversized_body() {
+        let tmp = tempfile::tempdir().expect("temp dir");
+        let path = tmp.path().join("huge.md");
+        let body = "y".repeat(wyvern_schema::MARKDOWN_CONTENT_MAX_BYTES + 1);
+        std::fs::write(&path, &body).unwrap();
+
+        let cmd = Command::Markdown {
+            title: Some(ChromeTitle::new("huge.md")),
+            file: Some(path.to_string_lossy().into_owned()),
+            content: None,
+            status: None,
+            buttons: ButtonsPreset::Ok,
+        };
+        let err = load_markdown_file(cmd).expect_err("oversized");
+        match err {
+            LoadError::Io { field, message } => {
+                assert_eq!(field, "file");
+                assert!(message.contains("exceeds maximum"));
+            }
+            other => panic!("expected Io, got {other:?}"),
         }
     }
 }

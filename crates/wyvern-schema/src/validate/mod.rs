@@ -23,6 +23,9 @@ use markdown::validate_markdown;
 use message::validate_message;
 use question::validate_question;
 
+#[doc(inline)]
+pub use helpers::MARKDOWN_CONTENT_MAX_BYTES;
+
 /// Validate `value` as a Phase B command.
 ///
 /// # Errors

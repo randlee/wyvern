@@ -4,11 +4,16 @@ use axum::extract::State;
 use axum::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use wyvern_schema::{ButtonLabel, Command, CommandResult, InputResult, InputValue, MessageResult};
+use wyvern_schema::{
+    ButtonLabel, Command, CommandResult, InputResult, InputValue, MarkdownResult, MessageResult,
+};
 
 use crate::error::HostError;
 use crate::routes::api_error::ApiError;
 use crate::session::SessionState;
+
+/// Docs pointer for result route errors (RBP error-context contract).
+const RESULT_DOCS: &str = "docs/plans/phase-C/http-post-schema.md (POST /api/result)";
 
 /// Success ack returned to the page after accepting a result.
 #[derive(Debug, Serialize, Deserialize)]
@@ -25,13 +30,30 @@ pub async fn post_result(
     let command = session.command().await;
     let result = parse_result_for_command(&command, &body).map_err(|err| {
         // Surface the structured HostError::InvalidResult path (stable message
-        // for clients; CLI emit_host_error maps the same variant).
-        ApiError::bad_request(err.to_string())
+        // for clients; CLI emit_host_error maps the same variant) with RBP
+        // cause/recovery/docs (c.11 picker contract parity).
+        result_bad_request(
+            err.to_string(),
+            format!("POST /api/result body failed validation for the active dialog: {err}"),
+        )
     })?;
     if !session.complete(result).await {
-        return Err(ApiError::conflict("result already submitted"));
+        return Err(ApiError::conflict("result already submitted")
+            .cause("a result was already accepted for this one-shot dialog session")
+            .recovery("Do not POST /api/result more than once per dialog")
+            .docs(RESULT_DOCS));
     }
     Ok(Json(ResultAck { ok: true }))
+}
+
+fn result_bad_request(message: impl Into<String>, cause: impl Into<String>) -> ApiError {
+    ApiError::bad_request(message)
+        .cause(cause)
+        .recovery("POST a JSON body matching the active dialog's result wire shape")
+        .recovery(
+            "For markdown/message results include a string 'button' field (e.g. \"ok\" or \"dismissed\")",
+        )
+        .docs(RESULT_DOCS)
 }
 
 fn parse_result_for_command(command: &Command, body: &Value) -> Result<CommandResult, HostError> {
@@ -43,6 +65,16 @@ fn parse_result_for_command(command: &Command, body: &Value) -> Result<CommandRe
                 }
             })?;
             Ok(CommandResult::Message(MessageResult {
+                button: ButtonLabel::new(button),
+            }))
+        }
+        Command::Markdown { .. } => {
+            let button = body.get("button").and_then(Value::as_str).ok_or_else(|| {
+                HostError::InvalidResult {
+                    message: "missing string field 'button'".into(),
+                }
+            })?;
+            Ok(CommandResult::Markdown(MarkdownResult {
                 button: ButtonLabel::new(button),
             }))
         }
