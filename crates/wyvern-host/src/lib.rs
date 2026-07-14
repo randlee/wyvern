@@ -27,7 +27,7 @@ pub use error::{DialogTypeName, HostError};
 pub use options::{
     BrowserId, HostOptions, ViewerLaunchOptions, ViewerMode, DEFAULT_SESSION_TIMEOUT,
 };
-pub use picker::MockPickerConfig;
+pub use picker::{MockPickerConfig, MockPickerSlotEvent, MockPickerSlotLog};
 
 use tokio::sync::oneshot;
 use wyvern_schema::{Command, CommandResult};

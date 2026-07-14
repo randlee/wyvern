@@ -2,10 +2,13 @@
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
-use wyvern_host::{run, HostOptions, MockPickerConfig, ViewerMode};
+use wyvern_host::{
+    run, HostOptions, MockPickerConfig, MockPickerSlotEvent, MockPickerSlotLog, ViewerMode,
+};
 use wyvern_schema::{
     ButtonsPreset, ChromeTitle, Command, CommandResult, InputMode, InputResult, InputValue,
 };
@@ -15,14 +18,9 @@ fn workspace_ui_root() -> PathBuf {
 }
 
 fn unique_path(prefix: &str) -> PathBuf {
-    std::env::temp_dir().join(format!(
-        "{prefix}-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or(0)
-    ))
+    static SEQ: AtomicU64 = AtomicU64::new(0);
+    let n = SEQ.fetch_add(1, Ordering::Relaxed);
+    std::env::temp_dir().join(format!("{prefix}-{}-{n}", std::process::id()))
 }
 
 fn host_options(url_file: PathBuf) -> HostOptions {
@@ -571,16 +569,18 @@ fn picker_rejects_empty_start_path_override() {
 
 #[test]
 fn picker_slot_held_until_blocking_task_finishes() {
-    // Slow mock keeps the OwnedSemaphorePermit inside spawn_blocking after the
-    // first POST returns; a concurrent second POST must wait, not race a second
-    // native picker.
+    // Slow mock keeps the OwnedSemaphorePermit inside spawn_blocking; a concurrent
+    // second POST must wait. Prove serialization via enter/exit slot order, not
+    // wall-clock elapsed time.
     let fixture = unique_path("wyvern-picker-hold-fixture");
     std::fs::write(&fixture, b"hold").expect("write fixture");
 
+    let slot_log = MockPickerSlotLog::new();
     let url_file = unique_path("wyvern-host-picker-hold");
     let options = host_options_with_mock(
         url_file.clone(),
-        MockPickerConfig::path_with_delay(fixture.to_string_lossy(), Duration::from_millis(400)),
+        MockPickerConfig::path_with_delay(fixture.to_string_lossy(), Duration::from_millis(200))
+            .with_slot_log(slot_log.clone()),
     );
     let handle = thread::spawn(move || run(file_input_command(), options));
 
@@ -593,7 +593,6 @@ fn picker_slot_held_until_blocking_task_finishes() {
 
     let base_a = base.to_string();
     let base_b = base.to_string();
-    let started = Instant::now();
     let t1 = thread::spawn(move || {
         reqwest::blocking::Client::new()
             .post(format!("{base_a}/api/picker/file"))
@@ -605,6 +604,7 @@ fn picker_slot_held_until_blocking_task_finishes() {
             .json::<serde_json::Value>()
             .expect("picker 1 json")
     });
+    // Give the first request time to acquire the slot and enter the mock body.
     thread::sleep(Duration::from_millis(50));
     let t2 = thread::spawn(move || {
         reqwest::blocking::Client::new()
@@ -620,13 +620,18 @@ fn picker_slot_held_until_blocking_task_finishes() {
 
     let p1 = t1.join().expect("t1");
     let p2 = t2.join().expect("t2");
-    let elapsed = started.elapsed();
-    assert!(
-        elapsed >= Duration::from_millis(700),
-        "expected serialized pickers (~400ms each); elapsed={elapsed:?}"
-    );
     assert_eq!(p1["ok"], true);
     assert_eq!(p2["ok"], true);
+    assert_eq!(
+        slot_log.events(),
+        [
+            MockPickerSlotEvent::Enter,
+            MockPickerSlotEvent::Exit,
+            MockPickerSlotEvent::Enter,
+            MockPickerSlotEvent::Exit,
+        ],
+        "picker bodies must serialize (no overlapping enter before prior exit)"
+    );
 
     let _ = client
         .post(format!("{base}/api/result"))

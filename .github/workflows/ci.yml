@@ -114,6 +114,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - name: sc-lint-boundary check
-        run: echo "sc-lint-boundary enforcement — wired in Phase B"
+      - name: Enforce boundaries/*.toml against Cargo.toml
+        run: python3 scripts/check-boundaries.py

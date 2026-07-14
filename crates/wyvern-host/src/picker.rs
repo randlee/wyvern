@@ -12,12 +12,50 @@
 //! `#[ignore]` with reason `requires native picker UI`.
 
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use rfd::FileDialog;
 
 /// Test-only env var that bypasses the native picker UI (CLI / e2e children).
 pub const MOCK_PICKER_ENV: &str = "WYVERN_MOCK_PICKER_PATH";
+
+/// Ordered enter/exit events for mock picker bodies (serialization tests).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MockPickerSlotEvent {
+    /// Mock picker body started (holds the session picker permit).
+    Enter,
+    /// Mock picker body finished.
+    Exit,
+}
+
+/// Shared log of [`MockPickerSlotEvent`] for deterministic slot-order assertions.
+#[derive(Debug, Clone, Default)]
+pub struct MockPickerSlotLog {
+    events: Arc<Mutex<Vec<MockPickerSlotEvent>>>,
+}
+
+impl MockPickerSlotLog {
+    /// Create an empty event log.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Snapshot of recorded enter/exit events in order.
+    pub fn events(&self) -> Vec<MockPickerSlotEvent> {
+        self.events
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+    }
+
+    fn record(&self, event: MockPickerSlotEvent) {
+        self.events
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .push(event);
+    }
+}
 
 /// In-process mock for the native picker (integration tests / harnesses).
 ///
@@ -28,6 +66,8 @@ pub struct MockPickerConfig {
     pub path: String,
     /// Artificial delay before returning (exercises permit-hold / timeout).
     pub delay: Option<Duration>,
+    /// Optional enter/exit log for observing picker-slot serialization.
+    pub slot_log: Option<MockPickerSlotLog>,
 }
 
 impl MockPickerConfig {
@@ -36,6 +76,7 @@ impl MockPickerConfig {
         Self {
             path: path.into(),
             delay: None,
+            slot_log: None,
         }
     }
 
@@ -44,6 +85,7 @@ impl MockPickerConfig {
         Self {
             path: String::new(),
             delay: None,
+            slot_log: None,
         }
     }
 
@@ -52,7 +94,14 @@ impl MockPickerConfig {
         Self {
             path: path.into(),
             delay: Some(delay),
+            slot_log: None,
         }
+    }
+
+    /// Attach a slot event log (for serialization tests).
+    pub fn with_slot_log(mut self, log: MockPickerSlotLog) -> Self {
+        self.slot_log = Some(log);
+        self
     }
 }
 
@@ -124,10 +173,17 @@ fn filter_extensions(filter: &[String]) -> Vec<String> {
 /// Returns `Some(None)` = cancel, `Some(Some(paths))` = selection, `None` = use `rfd`.
 fn resolve_mock(mock: Option<&MockPickerConfig>) -> Option<Option<Vec<PathBuf>>> {
     if let Some(cfg) = mock {
+        if let Some(log) = &cfg.slot_log {
+            log.record(MockPickerSlotEvent::Enter);
+        }
         if let Some(delay) = cfg.delay {
             std::thread::sleep(delay);
         }
-        return Some(parse_mock_value(&cfg.path));
+        let result = Some(parse_mock_value(&cfg.path));
+        if let Some(log) = &cfg.slot_log {
+            log.record(MockPickerSlotEvent::Exit);
+        }
+        return result;
     }
     try_mock_env_paths()
 }
