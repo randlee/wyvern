@@ -40,8 +40,9 @@ While this skill governs the session:
    first is still running.
 5. Do not follow `codex-orchestration`, ATM team-lead QA handoffs, or any path
    that assigns ATM `quality-mgr` in parallel with this skill.
-6. Parent does **not** launch reviewers directly in the same round as
-   `cursor-quality-mgr` (coordinator owns reviewer spawn).
+6. Parent does **not** launch reviewers directly **unless** QA-SPAWN-001 applies
+   (nested coordinator cannot spawn Tasks — see below). Default: coordinator
+   owns reviewer spawn.
 7. Parent does **not** merge on narrative QA PASS alone — see **Reviewer spawn
    merge gate** below.
 
@@ -76,7 +77,30 @@ command, and `.cursor/agents/cursor-quality-mgr.md` must be portable:
   content must still use relative forms and placeholders like
   `{{ worktree_path }}`.
 
-## Spawning cursor-quality-mgr
+## QA-SPAWN-001 — nested coordinator cannot spawn reviewers
+
+When `cursor-quality-mgr` runs as a **nested Task subagent**, it may lack Task
+spawn capability (observed on c.11). Do **not** let the coordinator substitute
+foreground cargo/grep review. Use **parent delegation**:
+
+1. `cursor-quality-mgr` (or parent before spawn) renders reviewer assignments via
+   the fenced `sc-compose` recipes.
+2. **Parent orchestrator** spawns every required reviewer Task in parallel with
+   models from `.cursor/orchestration-agent-models.yaml`.
+3. Parent records each reviewer `agent` + `task_id` in the manifest.
+4. Parent awaits completion and forwards each reviewer's fenced JSON to
+   `cursor-quality-mgr` for aggregation, TODO scan, CI check, and PR publish —
+   **or** parent performs steps 4–14 of `cursor-quality-mgr.md` inline while
+   adopting that agent prompt (coordinator role unchanged).
+5. Machine Status JSON must include `"spawn_actor": "parent-orchestrator"` on
+   each `spawned_reviewers[]` entry when the parent spawned that reviewer.
+6. Parent merge gate still correlates every `task_id` to completed Tasks in
+   **this** session — spawn actor does not relax evidence requirements.
+
+**Preferred when possible:** run QA coordination from the **top-level**
+orchestrator session (not nested) so `cursor-quality-mgr` can spawn reviewers
+directly and omit `spawn_actor: parent-orchestrator`.
+
 
 Try in order; stop at the first success. Never fall through to `quality-mgr`.
 
@@ -261,7 +285,10 @@ Silent skips invalidate the evidence chain.
    `.cursor/skills/cursor-orchestration/qa-template.xml.j2`
    with coordinator = **`cursor-quality-mgr`**.
 6. Spawn **one** `cursor-quality-mgr` coordinator (see spawn rules above).
-7. `cursor-quality-mgr` launches the reviewer set (see that agent prompt).
+7. If nested spawn fails (QA-SPAWN-001), parent spawns reviewers per
+   **QA-SPAWN-001**; coordinator still owns aggregation and PR publish.
+   Otherwise `cursor-quality-mgr` launches the reviewer set (see that agent
+   prompt).
 8. On **FAIL** (any open finding or deliverable &lt; 100%): run
    `/triaging-findings`, then fix **all** findings via
    `.cursor/skills/cursor-orchestration/fix-assignment.xml.j2` →

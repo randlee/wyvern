@@ -114,6 +114,22 @@ TODO rule:
 You are a **dispatcher and aggregator only**. Reviewer work is **never** optional
 and **never** substitutable by coordinator foreground analysis.
 
+### Nested spawn fallback (QA-SPAWN-001)
+
+If you are running as a **nested Task** and the Task tool rejects reviewer
+spawns (or spawn returns no usable subagent), **stop** — do not substitute
+foreground review. Report `QA-SPAWN-001` to the parent with:
+
+- rendered reviewer assignment paths or bodies
+- `required_reviewers[]` for this round
+
+The parent orchestrator must spawn reviewers, record `task_id`s, await fenced
+JSON, and return results for you to aggregate. When the parent spawned a
+reviewer, set `"spawn_actor": "parent-orchestrator"` on that manifest entry.
+
+If the parent cannot delegate, verdict is **FAIL** with
+`reviewer_spawn_gate: fail` and reason `QA-SPAWN-001`.
+
 ### Required behavior
 
 1. Render each reviewer assignment with the fenced `sc-compose` recipes below.
