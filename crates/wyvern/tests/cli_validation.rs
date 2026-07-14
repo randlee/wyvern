@@ -1,8 +1,8 @@
 //! CLI integration: load → validate → run → emit.
 
-use std::net::TcpListener;
+use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, Stdio};
 use std::thread;
 use std::time::Duration;
 
@@ -70,12 +70,56 @@ fn stderr_json(stderr: &str) -> serde_json::Value {
     })
 }
 
-fn free_port() -> u16 {
-    TcpListener::bind("127.0.0.1:0")
-        .expect("bind")
-        .local_addr()
-        .expect("addr")
-        .port()
+/// Spawn wyvern with ephemeral bind; discover URL from `WYVERN_DIALOG_URL=` on stderr.
+/// Avoids TOCTOU from pre-binding a free port then rebinding in the child.
+fn spawn_wyvern_ephemeral(args: &[&str]) -> (Child, String, thread::JoinHandle<String>) {
+    let mut child = wyvern()
+        .args(args.iter().copied().chain(["--bind", "127.0.0.1:0"]))
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("spawn");
+
+    let stderr = child.stderr.take().expect("stderr");
+    let (url_tx, url_rx) = std::sync::mpsc::channel::<String>();
+    let stderr_handle = thread::spawn(move || {
+        let mut collected = String::new();
+        let reader = BufReader::new(stderr);
+        for line in reader.lines() {
+            let line = line.expect("stderr line");
+            collected.push_str(&line);
+            collected.push('\n');
+            if let Some(url) = line.strip_prefix("WYVERN_DIALOG_URL=") {
+                let _ = url_tx.send(url.to_string());
+            }
+        }
+        collected
+    });
+
+    let dialog_url = url_rx
+        .recv_timeout(Duration::from_secs(10))
+        .expect("timed out waiting for WYVERN_DIALOG_URL on stderr");
+    (child, dialog_url, stderr_handle)
+}
+
+fn wait_child_with_stderr(
+    mut child: Child,
+    stderr_handle: thread::JoinHandle<String>,
+) -> std::process::Output {
+    let stdout = child.stdout.take().expect("stdout");
+    let status = child.wait().expect("wait");
+    let mut stdout_buf = Vec::new();
+    {
+        use std::io::Read;
+        let mut stdout = stdout;
+        stdout.read_to_end(&mut stdout_buf).expect("read stdout");
+    }
+    let stderr = stderr_handle.join().expect("stderr thread");
+    std::process::Output {
+        status,
+        stdout: stdout_buf,
+        stderr: stderr.into_bytes(),
+    }
 }
 
 #[test]
@@ -252,19 +296,13 @@ fn cli_chrome_unsupported_type_at_runtime() {
 
 #[test]
 fn cli_message_viewer_none_posts_ok() {
-    let port = free_port();
-    let bind = format!("127.0.0.1:{port}");
     let json = r#"{"type":"message","title":"T","message":"Hi","buttons":"ok"}"#;
-    let child = wyvern()
-        .args([json, "--viewer", "none", "--bind", &bind])
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("spawn");
+    let (child, dialog_url, stderr_handle) = spawn_wyvern_ephemeral(&[json, "--viewer", "none"]);
+    let base = dialog_base_url(&dialog_url);
 
-    let client = wait_for_http(&format!("http://{bind}/api/dialog"));
+    let client = wait_for_http(&format!("{base}/api/dialog"));
     let dialog: serde_json::Value = client
-        .get(format!("http://{bind}/api/dialog"))
+        .get(format!("{base}/api/dialog"))
         .send()
         .expect("dialog")
         .json()
@@ -272,7 +310,7 @@ fn cli_message_viewer_none_posts_ok() {
     assert_eq!(dialog["type"], "message");
 
     let ack: serde_json::Value = client
-        .post(format!("http://{bind}/api/result"))
+        .post(format!("{base}/api/result"))
         .json(&serde_json::json!({"button":"ok"}))
         .send()
         .expect("post")
@@ -280,7 +318,7 @@ fn cli_message_viewer_none_posts_ok() {
         .expect("ack");
     assert_eq!(ack["ok"], true);
 
-    let output = child.wait_with_output().expect("wait");
+    let output = wait_child_with_stderr(child, stderr_handle);
     assert_child_ok(&output);
     assert_eq!(output.status.code(), Some(0));
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -289,28 +327,33 @@ fn cli_message_viewer_none_posts_ok() {
 
 #[test]
 fn cli_message_omitted_viewer_defaults_to_none() {
-    let port = free_port();
-    let bind = format!("127.0.0.1:{port}");
     let json = r#"{"type":"message","title":"T","message":"Hi","buttons":"ok"}"#;
-    let child = wyvern()
-        .args([json, "--bind", &bind])
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("spawn");
+    let (child, dialog_url, stderr_handle) = spawn_wyvern_ephemeral(&[json]);
+    let base = dialog_base_url(&dialog_url);
 
-    let client = wait_for_http(&format!("http://{bind}/api/dialog"));
+    let client = wait_for_http(&format!("{base}/api/dialog"));
     let _ = client
-        .post(format!("http://{bind}/api/result"))
+        .post(format!("{base}/api/result"))
         .json(&serde_json::json!({"button":"ok"}))
         .send()
         .expect("post");
 
-    let output = child.wait_with_output().expect("wait");
+    let output = wait_child_with_stderr(child, stderr_handle);
     assert_child_ok(&output);
     assert_eq!(output.status.code(), Some(0));
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert_eq!(stdout.trim(), r#"{"button":"ok"}"#);
+}
+
+/// Strip path suffix from published dialog URL (e.g. `http://127.0.0.1:PORT/message/`).
+fn dialog_base_url(dialog_url: &str) -> String {
+    dialog_url
+        .trim_end_matches('/')
+        .trim_end_matches("/message")
+        .trim_end_matches("/input")
+        .trim_end_matches("/markdown")
+        .trim_end_matches("/question")
+        .to_string()
 }
 
 fn wait_for_http(url: &str) -> reqwest::blocking::Client {
