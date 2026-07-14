@@ -11,13 +11,24 @@
 ## Quickstart
 
 1. Download the latest release for your platform from [GitHub Releases](https://github.com/randlee/wyvern/releases).
-2. Extract and add `wyvern` to your PATH.
-3. Try:
+2. Extract the archive. Keep `wyvern`, `wyvern-viewer`, and `share/wyvern/ui/` together (same layout as the tarball).
+3. Add the extract directory to your `PATH` (so both binaries resolve as siblings).
+4. Try (default viewer is **embedded** — launches `wyvern-viewer`):
 
 ```bash
 wyvern '{"type":"message","title":"Hello","message":"Wyvern works","level":"info","buttons":"ok"}'
 wyvern '{"type":"input","title":"Name","message":"Enter your name","default":""}'
 wyvern '{"type":"markdown","content":"# Hello\n\nFrom **Wyvern**."}'
+```
+
+**HTTP host notes**
+
+- Dialogs are served by an ephemeral local HTTP host (`wyvern-host`) from packaged `share/wyvern/ui/`.
+- Product default: `--viewer embedded` (optional `wyvern-viewer` sibling binary).
+- CI / agents / headless: set `WYVERN_VIEWER=none` or pass `--viewer none` (no native window).
+
+```bash
+WYVERN_VIEWER=none wyvern '{"type":"message","title":"CI","message":"headless","buttons":"ok"}'
 ```
 
 Release artifacts (no clone required):
@@ -28,6 +39,8 @@ Release artifacts (no clone required):
 | macOS Intel | `wyvern-macos-x86_64.tar.gz` |
 | Windows x86_64 | `wyvern-windows.zip` |
 | Linux x86_64 | `wyvern-linux.tar.gz` |
+
+Each archive contains `wyvern`, `wyvern-viewer`, and `share/wyvern/ui/` (message, input, markdown, question, chrome).
 
 ---
 
@@ -119,6 +132,17 @@ wyvern --mcp
 ## Docs
 
 - [PRD](docs/prd/wyvern-prd.md) — full product requirements and JSON schema reference
+
+## Phase acceptance criteria (smoke — delivery rewrite c.16)
+
+Phase C delivery rewrite (`c.9`–`c.16`) is complete when:
+
+1. Release tarball includes `wyvern` + `wyvern-viewer` + full `share/wyvern/ui/` (all five dialog types).
+2. Tag `v0.1.0` triggers the GitHub Actions release matrix (macOS aarch64/x86_64, Windows, Linux).
+3. `integrate/phase-c-web-server` CI is green (build, clippy, sc-lint, Playwright with `--viewer none`).
+4. Manual macOS smoke: extract release artifact and run a dialog with the default embedded viewer.
+
+v0.1.0 is authoritative only after this sprint; historical [c5-release](docs/plans/phase-C/c5-release.md) tooling is reused here.
 
 ## Deferred
 

@@ -1,0 +1,20 @@
+@prefix triage: <urn:atm:triage:> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<urn:atm:triage:finding/ATM-QA-003>
+  a triage:Finding ;
+  triage:findingId "ATM-QA-003" ;
+  triage:title "AC3 CI green evidenced" ;
+  triage:description "AC3 full CI green was incomplete at original req-qa review time. Coordinator/CI evidence: GitHub Actions run 29331240180 on PR #48 concluded success (all jobs pass) at https://github.com/randlee/wyvern/actions/runs/29331240180." ;
+  triage:phaseId "phase-C-web-server" ;
+  triage:triageMode "initial_pass" ;
+  triage:repeatable false ;
+  triage:sweepScope "none" ;
+  triage:category "ATM-QA" ;
+  triage:severity "blocking" ;
+  triage:status "closed" ;
+  triage:dispatchReady false ;
+  triage:originatingSprintDoc "docs/plans/phase-C/c16-release.md" ;
+  triage:evidence "https://github.com/randlee/wyvern/actions/runs/29331240180 conclusion=success" ;
+  triage:disposition "closed with CI green evidence (run 29331240180)" ;
+  triage:triagedAt "2026-07-14T16:30:00Z"^^xsd:dateTime .

@@ -15,9 +15,43 @@ pub const WYVERN_LOG_ENV: &str = "WYVERN_LOG";
 
 const SERVICE: &str = "wyvern";
 const TARGET: &str = "wyvern.pipeline";
+const OBSERVABILITY_DOCS: &str = "docs/observability.md";
 
 static LOGGER: OnceLock<Logger> = OnceLock::new();
 static SERVICE_NAME: OnceLock<ServiceName> = OnceLock::new();
+
+/// Structured failure from [`init`] with recovery steps (RBP-F004).
+#[derive(Debug, Clone)]
+pub struct ObservabilityInitError {
+    /// Human-readable failure summary.
+    pub message: String,
+    /// Underlying cause when available.
+    pub cause: Option<String>,
+    /// Actionable recovery steps.
+    pub recovery: Vec<&'static str>,
+}
+
+impl std::fmt::Display for ObservabilityInitError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.message)
+    }
+}
+
+impl std::error::Error for ObservabilityInitError {}
+
+impl ObservabilityInitError {
+    fn new(message: impl Into<String>, cause: Option<String>) -> Self {
+        Self {
+            message: message.into(),
+            cause,
+            recovery: vec![
+                "Unset WYVERN_LOG to disable structured logging, or set WYVERN_LOG=off",
+                "Use a valid level: off|error|warn|info|debug|trace",
+                "Ensure the process can write under the system temp dir for file sinks",
+            ],
+        }
+    }
+}
 
 /// Initialize structured logging from [`WYVERN_LOG_ENV`].
 ///
@@ -27,19 +61,30 @@ static SERVICE_NAME: OnceLock<ServiceName> = OnceLock::new();
 ///
 /// # Errors
 ///
-/// Returns an error string when the env value is invalid or logger construction fails.
-pub fn init() -> Result<(), String> {
+/// Returns [`ObservabilityInitError`] when the env value is invalid or logger
+/// construction fails.
+pub fn init() -> Result<(), ObservabilityInitError> {
     let raw = match std::env::var(WYVERN_LOG_ENV) {
         Ok(value) => value,
         Err(std::env::VarError::NotPresent) => return Ok(()),
-        Err(err) => return Err(format!("{WYVERN_LOG_ENV} is not valid Unicode: {err}")),
+        Err(err) => {
+            return Err(ObservabilityInitError::new(
+                format!("{WYVERN_LOG_ENV} is not valid Unicode"),
+                Some(err.to_string()),
+            ));
+        }
     };
 
     if raw.eq_ignore_ascii_case("off") {
         return Ok(());
     }
 
-    let service = ServiceName::new(SERVICE).map_err(|e| e.to_string())?;
+    let service = ServiceName::new(SERVICE).map_err(|e| {
+        ObservabilityInitError::new(
+            "failed to construct observability ServiceName",
+            Some(e.to_string()),
+        )
+    })?;
     let log_root = std::env::temp_dir().join("wyvern-observability");
     let mut config = LoggerConfig::default_for(service.clone(), log_root);
     apply_level(&mut config, &raw)?;
@@ -47,7 +92,9 @@ pub fn init() -> Result<(), String> {
     config.enable_console_sink = false;
     config.enable_file_sink = true;
 
-    let mut builder = Logger::builder(config).map_err(|e| e.to_string())?;
+    let mut builder = Logger::builder(config).map_err(|e| {
+        ObservabilityInitError::new("failed to build observability Logger", Some(e.to_string()))
+    })?;
     builder.register_sink(SinkRegistration::new(Arc::new(ConsoleSink::stderr())));
     let logger = builder.build();
 
@@ -57,7 +104,7 @@ pub fn init() -> Result<(), String> {
     // Library pipeline uses the tracing facade; bridge to stderr when enabled.
     let filter = EnvFilter::try_new(format!("wyvern={raw},wyvern_host={raw}"))
         .or_else(|_| EnvFilter::try_new("info"))
-        .map_err(|e| format!("invalid tracing filter: {e}"))?;
+        .map_err(|e| ObservabilityInitError::new("invalid tracing filter", Some(e.to_string())))?;
     let _ = tracing_subscriber::fmt()
         .with_env_filter(filter)
         .with_writer(std::io::stderr)
@@ -72,7 +119,25 @@ pub fn log_process_start() {
     emit("process_start", Level::Info, Some("ok"), Map::new());
 }
 
-fn apply_level(config: &mut LoggerConfig, raw: &str) -> Result<(), String> {
+/// Emit a structured stderr envelope for an [`ObservabilityInitError`] (best-effort).
+pub fn emit_init_error(err: &ObservabilityInitError) {
+    use wyvern_schema::{ErrorCode, StderrError};
+
+    let mut envelope = StderrError::new(ErrorCode::InternalError, err.message.clone())
+        .docs(OBSERVABILITY_DOCS.to_string());
+    if let Some(cause) = &err.cause {
+        envelope = envelope.cause(cause.clone());
+    }
+    for step in &err.recovery {
+        envelope = envelope.recovery((*step).to_string());
+    }
+    match envelope.to_json_string() {
+        Ok(json) => eprintln!("{json}"),
+        Err(_) => eprintln!("wyvern: {}", err.message),
+    }
+}
+
+fn apply_level(config: &mut LoggerConfig, raw: &str) -> Result<(), ObservabilityInitError> {
     // `LevelFilter` is not re-exported by `sc-observability`; deserialize into the field.
     config.level = match raw.to_ascii_lowercase().as_str() {
         "trace" => serde_json::from_value(json!("Trace")),
@@ -81,12 +146,15 @@ fn apply_level(config: &mut LoggerConfig, raw: &str) -> Result<(), String> {
         "warn" | "warning" => serde_json::from_value(json!("Warn")),
         "error" => serde_json::from_value(json!("Error")),
         other => {
-            return Err(format!(
-                "invalid {WYVERN_LOG_ENV}={other:?}; expected off|error|warn|info|debug|trace"
+            return Err(ObservabilityInitError::new(
+                format!(
+                    "invalid {WYVERN_LOG_ENV}={other:?}; expected off|error|warn|info|debug|trace"
+                ),
+                None,
             ));
         }
     }
-    .map_err(|e| format!("failed to parse log level: {e}"))?;
+    .map_err(|e| ObservabilityInitError::new("failed to parse log level", Some(e.to_string())))?;
     Ok(())
 }
 
@@ -151,6 +219,16 @@ mod tests {
         apply_level(&mut config, "debug").expect("debug level");
         let encoded = serde_json::to_value(config.level).expect("serialize level");
         assert_eq!(encoded, json!("Debug"));
+    }
+
+    #[test]
+    fn apply_level_rejects_unknown_with_recovery() {
+        let service = ServiceName::new("wyvern-test").expect("service");
+        let mut config =
+            LoggerConfig::default_for(service, std::env::temp_dir().join("wyvern-test-logs"));
+        let err = apply_level(&mut config, "nope").expect_err("level");
+        assert!(!err.recovery.is_empty());
+        assert!(err.message.contains("WYVERN_LOG"));
     }
 
     #[test]

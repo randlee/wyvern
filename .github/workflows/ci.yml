@@ -54,6 +54,17 @@ jobs:
       - name: sc-lint check
         run: sc-lint check native --config .sc-lint.toml
 
+  audit:
+    name: cargo audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+      - name: cargo audit
+        run: cargo audit
+
   playwright:
     name: Playwright L2 (${{ matrix.os }})
     strategy:

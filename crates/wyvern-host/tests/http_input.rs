@@ -138,16 +138,19 @@ fn folder_input_command() -> Command {
 }
 
 fn wait_for_url_file(path: &std::path::Path) -> String {
-    for _ in 0..200 {
+    let start = std::time::Instant::now();
+    loop {
         if let Ok(url) = std::fs::read_to_string(path) {
             let url = url.trim().to_string();
             if url.starts_with("http://") {
                 return url;
             }
         }
+        if start.elapsed() > Duration::from_secs(15) {
+            panic!("timed out waiting for dialog URL file {}", path.display());
+        }
         thread::sleep(Duration::from_millis(25));
     }
-    panic!("timed out waiting for dialog URL file {}", path.display());
 }
 
 /// Poll `GET /api/dialog` until HTTP 200 (URL file alone is not readiness).

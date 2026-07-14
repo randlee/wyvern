@@ -4,36 +4,16 @@
 <urn:atm:triage:finding/ATM-QA-001>
   a triage:Finding ;
   triage:findingId "ATM-QA-001" ;
-  triage:title "CI Playwright job omits input.spec.ts" ;
-  triage:description "CI runs only message.spec.ts, not input.spec.ts per c.11 deliverables." ;
+  triage:title "v0.1.0 tag / GitHub release absent" ;
+  triage:description "No origin v0.1.0 tag or GitHub release yet. Per c.16 sprint plan, tag push and release artifact smoke are post-merge integrate actions on integrate/phase-c-web-server after PR #48 merges." ;
   triage:phaseId "phase-C-web-server" ;
   triage:triageMode "initial_pass" ;
-  triage:repeatable true ;
-  triage:sweepScope "repo" ;
-  triage:category "ATM" ;
-  triage:severity "important" ;
-  triage:status "open" ;
-  triage:dispatchReady true ;
-  triage:originatingSprintDoc "docs/plans/phase-C/c11-host-input.md" ;
-  triage:hasOccurrence <urn:atm:triage:occurrence/ATM-QA-001/integrate-phase-c-web-server/1> ;
-  triage:openOn <urn:atm:triage:worktree/integrate-phase-c-web-server/bf18403> ;
-  triage:promoteTo <urn:atm:triage:worktree/integrate-phase-c-web-server/bf18403> ;
-  triage:triagedAt "2026-07-14T07:32:00Z"^^xsd:dateTime .
-
-<urn:atm:triage:occurrence/ATM-QA-001/integrate-phase-c-web-server/1>
-  a triage:Occurrence ;
-  triage:file ".github/workflows/ci.yml" ;
-  triage:line 96 ;
-  triage:snippet "run: npx playwright test message.spec.ts" ;
-  triage:status "open" ;
-  triage:closed false ;
-  triage:branch "integrate/phase-c-web-server" ;
-  triage:headSha "bf18403" ;
-  triage:occursIn <urn:atm:triage:worktree/integrate-phase-c-web-server/bf18403> .
-
-<urn:atm:triage:worktree/integrate-phase-c-web-server/bf18403>
-  a triage:WorktreeSnapshot ;
-  triage:branch "integrate/phase-c-web-server" ;
-  triage:path "/Volumes/Extreme Pro/github/wyvern-worktrees/integrate/phase-c-web-server" ;
-  triage:headSha "bf18403" ;
-  triage:orderIndex 11 .
+  triage:repeatable false ;
+  triage:sweepScope "none" ;
+  triage:category "ATM-QA" ;
+  triage:severity "blocking" ;
+  triage:status "deferred_post_merge" ;
+  triage:dispatchReady false ;
+  triage:originatingSprintDoc "docs/plans/phase-C/c16-release.md" ;
+  triage:disposition "post-merge on integrate/phase-c-web-server: smoke packaged layout, push annotated tag v0.1.0" ;
+  triage:triagedAt "2026-07-14T16:30:00Z"^^xsd:dateTime .

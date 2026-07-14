@@ -39,6 +39,7 @@ pub use error::{DialogTypeName, HostError};
 pub use handle::{begin, DialogHandle};
 pub use options::{
     BrowserId, HostOptions, ViewerLaunchOptions, ViewerMode, DEFAULT_SESSION_TIMEOUT,
+    MIN_SESSION_TIMEOUT,
 };
 pub use picker::{MockPickerConfig, MockPickerSlotEvent, MockPickerSlotLog};
 
@@ -60,6 +61,7 @@ use crate::handle::{dialog_type_name, run_owned_async};
 /// Returns [`HostError`] on unsupported embedded mode, bind/UI failures, viewer
 /// miss, or internal server faults.
 pub fn run(command: Command, options: HostOptions) -> Result<CommandResult, HostError> {
+    options.validate()?;
     match options.viewer {
         ViewerMode::None | ViewerMode::System | ViewerMode::Named(_) => {}
         ViewerMode::Embedded => {

@@ -9,6 +9,9 @@ use crate::picker::MockPickerConfig;
 /// Default one-shot session idle timeout before dismissed semantics (REQ-0097).
 pub const DEFAULT_SESSION_TIMEOUT: Duration = Duration::from_secs(600);
 
+/// Minimum allowed [`HostOptions::session_timeout`] (rejects zero / sub-second).
+pub const MIN_SESSION_TIMEOUT: Duration = Duration::from_secs(1);
+
 /// How the dialog URL is opened after bind.
 ///
 /// c.15 implements all modes. Product CLI default is [`ViewerMode::Embedded`];
@@ -120,6 +123,26 @@ impl Default for HostOptions {
     }
 }
 
+impl HostOptions {
+    /// Reject zero / sub-minimum [`Self::session_timeout`] at startup (RSH-005).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::HostError::Internal`] when `session_timeout` is below
+    /// [`MIN_SESSION_TIMEOUT`].
+    pub fn validate(&self) -> Result<(), crate::HostError> {
+        if self.session_timeout < MIN_SESSION_TIMEOUT {
+            return Err(crate::HostError::Internal {
+                message: format!(
+                    "session_timeout {:?} is below minimum {:?} (must be >= 1s; zero disables idle dismiss incorrectly)",
+                    self.session_timeout, MIN_SESSION_TIMEOUT
+                ),
+            });
+        }
+        Ok(())
+    }
+}
+
 /// Optional window hints for an embedded viewer (c.15).
 #[derive(Debug, Clone, Default)]
 pub struct ViewerLaunchOptions {
@@ -127,4 +150,34 @@ pub struct ViewerLaunchOptions {
     pub width: Option<u32>,
     /// Preferred window height in CSS pixels.
     pub height: Option<u32>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+
+    #[test]
+    fn validate_rejects_zero_session_timeout() {
+        let opts = HostOptions {
+            session_timeout: Duration::ZERO,
+            ..HostOptions::default()
+        };
+        let err = opts.validate().expect_err("zero");
+        assert!(err.to_string().contains("session_timeout"));
+    }
+
+    #[test]
+    fn validate_rejects_sub_minimum_session_timeout() {
+        let opts = HostOptions {
+            session_timeout: Duration::from_millis(500),
+            ..HostOptions::default()
+        };
+        assert!(opts.validate().is_err());
+    }
+
+    #[test]
+    fn validate_accepts_default_session_timeout() {
+        HostOptions::default().validate().expect("default ok");
+    }
 }

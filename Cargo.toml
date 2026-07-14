@@ -51,3 +51,10 @@ opt-level     = "z"
 lto           = true
 codegen-units = 1
 strip         = true
+
+# crates.io wayland-scanner 0.31.10 pins quick-xml ^0.39 (RUSTSEC-2026-0194/0195).
+# Do not patch from smithay/wayland-rs master: generated Proxy APIs diverge and
+# break wayland-client on Linux (E0277). Vendor crates.io 0.31.10 with a minimal
+# quick-xml 0.41 adapt instead — see third_party/wayland-scanner/VENDOR.md.
+[patch.crates-io]
+wayland-scanner = { path = "third_party/wayland-scanner" }

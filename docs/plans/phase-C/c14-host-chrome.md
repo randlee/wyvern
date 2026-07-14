@@ -1,7 +1,7 @@
 ---
 id: c.14
 title: Host + UI — chrome
-status: implemented
+status: complete
 branch: feature/phase-C-c14-host-chrome
 target: integrate/phase-c-web-server
 ---

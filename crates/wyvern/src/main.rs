@@ -26,7 +26,7 @@ mod main_observability;
 
 fn main() -> ExitCode {
     if let Err(err) = main_observability::init() {
-        eprintln!("wyvern: {err}");
+        main_observability::emit_init_error(&err);
     }
     main_observability::log_process_start();
 

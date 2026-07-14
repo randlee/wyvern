@@ -4,7 +4,7 @@
   "pr_target": "integrate/phase-c-web-server",
   "integrate_branch": "integrate/phase-c-web-server",
   "integrate_worktree": "/Volumes/Extreme Pro/github/wyvern-worktrees/integrate/phase-c-web-server",
-  "integrate_head": "9ab0f0e",
+  "integrate_head": "22daa77",
   "develop_head": "9cd332c",
   "planning_pr": 37,
   "sequence": [
@@ -17,7 +17,7 @@
     "c.15",
     "c.16"
   ],
-  "current_sprint": "c.15",
+  "current_sprint": "c.16",
   "sprints": {
     "c.9": {
       "id": "c.9",
@@ -107,14 +107,56 @@
       "worktree": "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-C-c15-wyvern-viewer",
       "sprint_doc": "docs/plans/phase-C/c15-wyvern-viewer.md",
       "pr_target": "integrate/phase-c-web-server",
-      "status": "in_progress",
-      "merged": false
+      "status": "merged",
+      "pr_number": 47,
+      "sha": "bb25913",
+      "merge_sha": "22daa77",
+      "qa_rounds": ["qa-c15-1", "qa-c15-2", "qa-c15-3", "qa-c15-4", "qa-c15-5"],
+      "merged": true,
+      "merged_at": "2026-07-14T11:56:15Z",
+      "pr_url": "https://github.com/randlee/wyvern/pull/47"
     },
     "c.16": {
       "id": "c.16",
+      "title": "Release bundle + v0.1.0 tag",
       "branch": "feature/phase-C-c16-release",
+      "worktree": "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-C-c16-release",
       "sprint_doc": "docs/plans/phase-C/c16-release.md",
-      "status": "pending"
+      "pr_target": "integrate/phase-c-web-server",
+      "status": "in_progress",
+      "pr_number": 48,
+      "sha": "036c60a",
+      "qa_rounds": ["qa-c16-1"],
+      "merged": false,
+      "pr_url": "https://github.com/randlee/wyvern/pull/48",
+      "qa_c16_1": {
+        "qa_pass": "qa-c16-1",
+        "commit": "036c60a",
+        "verdict": "FAIL",
+        "reviewer_spawn_gate": "pass",
+        "deliverables_complete": 7,
+        "deliverables_total": 15,
+        "deliverable_completion_percent": 46.7,
+        "findings": { "blocking": 4, "important": 5, "minor": 7 },
+        "open_finding_ids": [
+          "ATM-QA-001", "ATM-QA-002", "ATM-QA-003", "ATM-QA-004",
+          "ATM-QA-005", "ATM-QA-006", "QA-001", "RSH-004", "FTQ-004",
+          "ATM-QA-007", "RBP-F003", "RBP-F004", "RBP-F005", "RBP-F006",
+          "RSH-005", "FTQ-005"
+        ],
+        "next_action": "triage_and_fix",
+        "pr_comment_url": "https://github.com/randlee/wyvern/pull/48#issuecomment-4969105862",
+        "reviewer_task_ids": {
+          "req-qa": "1081507b-ef0b-4cf6-9e9f-f1ebd776cbec",
+          "arch-qa": "894c681e-d998-46ef-acd3-1ab2f6c21723",
+          "rust-qa-agent": "860b9de5-d821-4406-a53b-0966acd115f8",
+          "rust-best-practices-agent": "c77b2b11-de55-4ded-b915-910e5d2917d0",
+          "rust-service-hardening-agent": "b695fb06-c7f4-421a-a2bc-939264eecc7d",
+          "flaky-test-qa": "9d52ba83-1378-437d-9997-ad6d47f40eab"
+        },
+        "ci_status_at_closeout": "all_pass_run_29331240180",
+        "notes": "ATM-QA-001/002 may be post-merge integrate actions per sprint plan; aggregated as blocking per req-qa contract. TODO scan: 0 Rust TODO hits (find_todos.py absent; rg fallback)."
+      }
     }
   }
 }
