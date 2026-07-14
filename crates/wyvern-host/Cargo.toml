@@ -2,6 +2,9 @@
 name        = "wyvern-host"
 version     = "0.1.0"
 edition     = "2021"
+license    = { workspace = true }
+repository = { workspace = true }
+homepage   = { workspace = true }
 description = "Wyvern HTTP dialog host — bind, serve packaged UI, await POST /api/result"
 
 [dependencies]

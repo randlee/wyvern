@@ -2,6 +2,9 @@
 name        = "wyvern-wizard"
 version     = "0.1.0"
 edition     = "2021"
+license    = { workspace = true }
+repository = { workspace = true }
+homepage   = { workspace = true }
 description = "Wyvern wizard navigation state machine (browser-history cursor)"
 
 [dependencies]

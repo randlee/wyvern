@@ -8,7 +8,67 @@ on:
 permissions:
   contents: write
 
+env:
+  RELEASE_ARTIFACT_MANIFEST: release/publish-artifacts.toml
+
 jobs:
+  publish-crates:
+    name: Publish crates.io
+    runs-on: ubuntu-latest
+    environment: crates-io
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Resolve release version from tag
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag='${{ github.ref_name }}'
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Refusing to publish from non-semver tag: $tag" >&2
+            exit 1
+          fi
+          echo "release_tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "release_version=${tag#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish crates in dependency order (idempotent)
+        shell: bash
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          set -euo pipefail
+          version='${{ steps.meta.outputs.release_version }}'
+
+          crate_exists() {
+            local crate="$1"
+            cargo search "$crate" --limit 1 | grep -F "${crate} = \"${version}\"" >/dev/null
+          }
+
+          publish_if_missing() {
+            local crate="$1"
+            local wait_seconds="${2:-0}"
+            if crate_exists "$crate" "$version"; then
+              echo "${crate} ${version} already published; skipping"
+              return 0
+            fi
+            cargo publish -p "$crate" --locked
+            if [[ "$wait_seconds" -gt 0 ]]; then
+              sleep "$wait_seconds"
+            fi
+          }
+
+          while IFS='|' read -r crate wait_seconds; do
+            [[ -n "$crate" ]] || continue
+            publish_if_missing "$crate" "${wait_seconds:-0}"
+          done < <(
+            python3 scripts/release_artifacts.py list-publish-plan \
+              --manifest "${RELEASE_ARTIFACT_MANIFEST}"
+          )
+
   release:
     name: Release (${{ matrix.artifact }})
     strategy:
@@ -91,3 +151,69 @@ jobs:
           files: ${{ matrix.artifact }}.${{ matrix.ext }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  update-homebrew:
+    name: Update Homebrew tap
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout homebrew-tap
+        uses: actions/checkout@v4
+        with:
+          repository: randlee/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-tap
+
+      - name: Compute release tarball SHA256
+        id: sha
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag='${{ github.ref_name }}'
+          tarball_path="${RUNNER_TEMP:?RUNNER_TEMP is required}/release.tar.gz"
+          # Same HOMEBREW_TAP_TOKEN secret as atm-core; formula lives in randlee/homebrew-tap.
+          tarball_url="https://github.com/randlee/wyvern/releases/download/${tag}/wyvern-macos-aarch64.tar.gz"
+          echo "tarball_url=${tarball_url}" >> "$GITHUB_OUTPUT"
+          curl -fsSL --retry 5 --retry-delay 30 --retry-all-errors -o "${tarball_path}" "${tarball_url}"
+          sha256=$(sha256sum "${tarball_path}" | awk '{print $1}')
+          echo "sha256=${sha256}" >> "$GITHUB_OUTPUT"
+
+      - name: Update Homebrew formula
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag='${{ github.ref_name }}'
+          version="${tag#v}"
+          sha256='${{ steps.sha.outputs.sha256 }}'
+          tarball_url='${{ steps.sha.outputs.tarball_url }}'
+          formula="homebrew-tap/Formula/wyvern.rb"
+          sed -i "s|version \"[^\"]*\"|version \"${version}\"|g" "$formula"
+          sed -i "s|url \"[^\"]*\"|url \"${tarball_url}\"|g" "$formula"
+          sed -i "s|sha256 \"[^\"]*\"|sha256 \"${sha256}\"|g" "$formula"
+
+      - name: Commit and push to homebrew-tap
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag='${{ github.ref_name }}'
+          version="${tag#v}"
+          cd homebrew-tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/wyvern.rb
+          git diff --cached --quiet && echo "No changes to commit" && exit 0
+          git commit -m "chore: bump wyvern to v${version}"
+          git push
+
+  publish-winget:
+    name: Publish winget manifest
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish to winget
+        uses: vedantmgoyal2009/winget-releaser@v2
+        with:
+          identifier: randlee.wyvern
+          installers-regex: '^wyvern-windows\.zip$'
+          release-tag: ${{ github.ref_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}

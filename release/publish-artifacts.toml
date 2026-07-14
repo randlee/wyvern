@@ -1,0 +1,82 @@
+schema_version = 1
+
+# Publish order follows the dependency graph:
+#   wyvern-schema (no internal deps)
+#   wyvern-wizard → wyvern-schema
+#   wyvern-host   → wyvern-schema
+#   wyvern-viewer → (no internal deps — pure wry/winit binary)
+#   wyvern        → wyvern-schema, wyvern-host
+
+[[crates]]
+artifact              = "wyvern-schema"
+package               = "wyvern-schema"
+cargo_toml            = "crates/wyvern-schema/Cargo.toml"
+required              = true
+publish               = true
+publish_order         = 1
+preflight_check       = "full"
+wait_after_publish_seconds = 30
+verify_install        = false
+
+[[crates]]
+artifact              = "wyvern-wizard"
+package               = "wyvern-wizard"
+cargo_toml            = "crates/wyvern-wizard/Cargo.toml"
+required              = true
+publish               = true
+publish_order         = 2
+preflight_check       = "locked"
+wait_after_publish_seconds = 30
+verify_install        = false
+
+[[crates]]
+artifact              = "wyvern-host"
+package               = "wyvern-host"
+cargo_toml            = "crates/wyvern-host/Cargo.toml"
+required              = true
+publish               = true
+publish_order         = 3
+preflight_check       = "locked"
+wait_after_publish_seconds = 30
+verify_install        = false
+
+[[crates]]
+artifact              = "wyvern-viewer"
+package               = "wyvern-viewer"
+cargo_toml            = "crates/wyvern-viewer/Cargo.toml"
+required              = true
+publish               = true
+publish_order         = 4
+preflight_check       = "locked"
+wait_after_publish_seconds = 30
+verify_install        = true
+
+[[crates]]
+artifact              = "wyvern"
+package               = "wyvern"
+cargo_toml            = "crates/wyvern/Cargo.toml"
+required              = true
+publish               = true
+publish_order         = 5
+preflight_check       = "full"
+wait_after_publish_seconds = 0
+verify_install        = true
+
+# wyvern-mcp is a Phase-E stub; excluded from publish until complete.
+[[crates]]
+artifact              = "wyvern-mcp"
+package               = "wyvern-mcp"
+cargo_toml            = "crates/wyvern-mcp/Cargo.toml"
+required              = false
+publish               = false
+waiver_reason         = "Phase-E stub — MCP server not yet complete; publish = false in Cargo.toml"
+publish_order         = 99
+preflight_check       = "locked"
+wait_after_publish_seconds = 0
+verify_install        = false
+
+[[release_binaries]]
+name = "wyvern"
+
+[[release_binaries]]
+name = "wyvern-viewer"
