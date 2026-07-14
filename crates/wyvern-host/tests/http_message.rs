@@ -107,6 +107,39 @@ fn run_message_posts_ok_via_http() {
 }
 
 #[test]
+fn begin_viewer_exit_yields_dismissed_stdout_shape() {
+    // ATM-QA-004 / AC7: simulate embedded viewer OS-close via dismiss signal.
+    use wyvern_host::begin;
+    use wyvern_schema::ButtonLabel;
+
+    let options = HostOptions {
+        bind: SocketAddr::from(([127, 0, 0, 1], 0)),
+        ui_root: workspace_ui_root(),
+        viewer: ViewerMode::Embedded,
+        dialog_url_env: false,
+        dialog_url_file: None,
+        allow_non_loopback: false,
+        session_timeout: Duration::from_secs(30),
+        mock_picker: None,
+    };
+    let handle = begin(message_command(), options).expect("begin");
+    assert!(
+        handle.dialog_url.contains("127.0.0.1"),
+        "url={}",
+        handle.dialog_url
+    );
+    let result = handle
+        .viewer_exited_without_result()
+        .expect("dismissed result");
+    assert_eq!(
+        result,
+        CommandResult::Message(MessageResult {
+            button: ButtonLabel::dismissed(),
+        })
+    );
+}
+
+#[test]
 fn run_rejects_missing_ui_root() {
     let tmp = tempfile::tempdir().expect("temp dir");
     let mut options = host_options(unique_path("unused"));

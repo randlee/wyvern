@@ -69,11 +69,14 @@ pub fn find(id: &str) -> Option<&'static CatalogBrowser> {
 
 /// Catalog entry for a [`BrowserId`] (c.15 `--viewer` named set).
 pub fn for_browser_id(id: BrowserId) -> &'static CatalogBrowser {
-    match id {
-        BrowserId::Chrome => &catalog()[0],
-        BrowserId::Edge => &catalog()[1],
-        BrowserId::Firefox => &catalog()[2],
-        BrowserId::Safari => &catalog()[3],
+    // Resolve by catalog id (not slice index) so reordering cannot silently break --viewer.
+    if let Some(browser) = find(id.as_str()) {
+        return browser;
+    }
+    // BrowserId is a closed subset of catalog ids; this branch is a programming error.
+    #[allow(clippy::unreachable)]
+    {
+        unreachable!("BrowserId '{}' missing from catalog()", id.as_str())
     }
 }
 

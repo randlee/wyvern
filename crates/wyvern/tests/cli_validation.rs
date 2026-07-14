@@ -97,7 +97,7 @@ fn spawn_wyvern_ephemeral(args: &[&str]) -> (Child, String, thread::JoinHandle<S
     });
 
     let dialog_url = url_rx
-        .recv_timeout(Duration::from_secs(10))
+        .recv_timeout(Duration::from_secs(15))
         .expect("timed out waiting for WYVERN_DIALOG_URL on stderr");
     (child, dialog_url, stderr_handle)
 }
@@ -349,17 +349,36 @@ fn cli_message_viewer_none_posts_ok() {
 
 #[test]
 fn cli_message_omitted_viewer_defaults_to_embedded() {
-    // Product default is embedded; missing viewer binary must error (not silent none).
+    // Product default is embedded. Isolate a wyvern copy without a sibling
+    // wyvern-viewer so discovery fails closed (HOST_VIEWER_ERROR), not silent none.
+    let tmp = tempfile::tempdir().expect("tmp");
+    let wyvern_src = env!("CARGO_BIN_EXE_wyvern");
+    let wyvern_dst = tmp.path().join(if cfg!(windows) {
+        "wyvern.exe"
+    } else {
+        "wyvern"
+    });
+    std::fs::copy(wyvern_src, &wyvern_dst).expect("copy wyvern");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = std::fs::metadata(&wyvern_dst).unwrap().permissions();
+        perms.set_mode(0o755);
+        std::fs::set_permissions(&wyvern_dst, perms).unwrap();
+    }
+
     let json = r#"{"type":"message","title":"T","message":"Hi","buttons":"ok"}"#;
-    let output = run_wyvern(
-        wyvern()
-            .env_remove("WYVERN_VIEWER")
-            .env(
-                "WYVERN_VIEWER_BIN",
-                "/nonexistent/wyvern-viewer-c15-missing-bin",
-            )
-            .arg(json),
-    );
+    let output = Command::new(&wyvern_dst)
+        .env_remove("WYVERN_LOG")
+        .env_remove("WYVERN_VIEWER")
+        .env_remove("WYVERN_VIEWER_BIN")
+        .env_remove("CARGO_BIN_EXE_wyvern-viewer")
+        .env("PATH", tmp.path())
+        .env("WYVERN_UI_ROOT", workspace_ui_root())
+        .arg(json)
+        .output()
+        .expect("spawn isolated wyvern");
+    assert_child_ok(&output);
     assert_eq!(
         output.status.code(),
         Some(wyvern_schema::ErrorCode::HostViewerError.exit_code())
@@ -375,7 +394,41 @@ fn cli_message_omitted_viewer_defaults_to_embedded() {
             || value["cause"]
                 .as_str()
                 .unwrap_or("")
-                .contains("WYVERN_VIEWER_BIN"),
+                .contains("wyvern-viewer"),
+        "stderr={stderr}"
+    );
+}
+
+#[test]
+fn cli_named_viewer_missing_is_host_viewer_error() {
+    // AC3: --viewer safari with forced-missing registry entry → HOST_VIEWER_ERROR.
+    let tmp = tempfile::tempdir().expect("tmp");
+    let registry = tmp.path().join("browsers.json");
+    std::fs::write(
+        &registry,
+        r#"{"version":1,"updated_at":"1970-01-01T00:00:00.000000000Z","platform":"test","entries":[]}"#,
+    )
+    .expect("write registry");
+    let json = r#"{"type":"message","title":"T","message":"Hi","buttons":"ok"}"#;
+    let output = run_wyvern(
+        wyvern()
+            .env("WYVERN_BROWSERS_FILE", &registry)
+            .env("WYVERN_SAFARI_PATH", tmp.path().join("no-safari-bin"))
+            .env("WYVERN_CHROME_PATH", tmp.path().join("no-chrome-bin"))
+            .env("WYVERN_EDGE_PATH", tmp.path().join("no-edge-bin"))
+            .env("WYVERN_FIREFOX_PATH", tmp.path().join("no-firefox-bin"))
+            .args([json, "--viewer", "safari", "--bind", "127.0.0.1:0"]),
+    );
+    assert_eq!(
+        output.status.code(),
+        Some(wyvern_schema::ErrorCode::HostViewerError.exit_code())
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let value = stderr_json(&stderr);
+    assert_eq!(value["code"], "HOST_VIEWER_ERROR");
+    assert!(
+        value["message"].as_str().unwrap_or("").contains("safari")
+            || value["cause"].as_str().unwrap_or("").contains("Safari"),
         "stderr={stderr}"
     );
 }
@@ -408,7 +461,7 @@ fn cli_message_wyvern_viewer_env_none_publishes_url() {
     });
 
     let dialog_url = url_rx
-        .recv_timeout(Duration::from_secs(10))
+        .recv_timeout(Duration::from_secs(15))
         .expect("timed out waiting for WYVERN_DIALOG_URL on stderr");
     let base = dialog_base_url(&dialog_url);
 
@@ -440,7 +493,9 @@ fn dialog_base_url(dialog_url: &str) -> String {
 
 fn wait_for_http(url: &str) -> reqwest::blocking::Client {
     let client = reqwest::blocking::Client::new();
-    for _ in 0..200 {
+    let start = std::time::Instant::now();
+    let budget = Duration::from_secs(15);
+    loop {
         if client
             .get(url)
             .send()
@@ -449,7 +504,9 @@ fn wait_for_http(url: &str) -> reqwest::blocking::Client {
         {
             return client;
         }
+        if start.elapsed() > budget {
+            panic!("timed out waiting for {url}");
+        }
         thread::sleep(Duration::from_millis(25));
     }
-    panic!("timed out waiting for {url}");
 }

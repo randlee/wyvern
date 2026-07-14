@@ -92,6 +92,11 @@ pub enum HostError {
         /// Requested viewer mode.
         mode: ViewerMode,
     },
+    /// Browser registry I/O or cache failure (`HOST_ERROR` with registry recovery).
+    Registry {
+        /// Failure detail (path, parse, permissions).
+        message: String,
+    },
     /// Internal server fault.
     Internal {
         /// Failure detail.
@@ -124,6 +129,7 @@ impl fmt::Display for HostError {
                     mode.as_str()
                 )
             }
+            Self::Registry { message } => write!(f, "browser registry error: {message}"),
             Self::Internal { message } => write!(f, "internal host error: {message}"),
         }
     }

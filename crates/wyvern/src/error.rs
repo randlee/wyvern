@@ -325,6 +325,17 @@ pub fn emit_host_error(err: &wyvern_host::HostError) -> Result<String, EmitError
             ],
             "docs/plans/phase-C/http-viewer-contract.md",
         ),
+        HostError::Registry { message } => (
+            ErrorCode::HostError,
+            message.clone(),
+            "Browser registry cache read/write failed".to_string(),
+            vec![
+                "Run `wyvern browsers refresh` to rebuild the cache".into(),
+                "Check WYVERN_BROWSERS_FILE path and cache directory permissions".into(),
+                "Delete a corrupt browsers.json and retry".into(),
+            ],
+            "docs/plans/phase-C/http-viewer-contract.md",
+        ),
         HostError::Internal { message } => (
             ErrorCode::HostError,
             message.clone(),

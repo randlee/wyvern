@@ -178,9 +178,9 @@ fn host_error_exit_code(err: &HostError) -> i32 {
         HostError::ViewerNotFound { .. } | HostError::ViewerUnsupported { .. } => {
             wyvern_schema::ErrorCode::HostViewerError.exit_code()
         }
-        HostError::InvalidResult { .. } | HostError::Internal { .. } => {
-            wyvern_schema::ErrorCode::HostError.exit_code()
-        }
+        HostError::InvalidResult { .. }
+        | HostError::Registry { .. }
+        | HostError::Internal { .. } => wyvern_schema::ErrorCode::HostError.exit_code(),
     }
 }
 

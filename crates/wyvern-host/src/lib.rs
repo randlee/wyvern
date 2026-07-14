@@ -33,7 +33,7 @@ mod static_files;
 pub use browser_registry::{
     list_entries as list_browser_entries, load_or_refresh as load_or_refresh_browser_registry,
     refresh as refresh_browser_registry, registry_path as browser_registry_path,
-    BrowserRegistryEntry, BrowserRegistryFile,
+    BrowserRegistryEntry, BrowserRegistryFile, CatalogId,
 };
 pub use error::{DialogTypeName, HostError};
 pub use handle::{begin, DialogHandle};

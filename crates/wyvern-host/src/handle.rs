@@ -264,6 +264,9 @@ fn clone_host_error_message(err: &HostError) -> HostError {
         HostError::ViewerUnsupported { mode } => {
             HostError::ViewerUnsupported { mode: mode.clone() }
         }
+        HostError::Registry { message } => HostError::Registry {
+            message: message.clone(),
+        },
         HostError::Internal { message } => HostError::Internal {
             message: message.clone(),
         },
