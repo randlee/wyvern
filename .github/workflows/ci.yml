@@ -107,6 +107,10 @@ jobs:
         working-directory: tests/e2e
         run: npx playwright test question.spec.ts
 
+      - name: Run chrome.spec.ts
+        working-directory: tests/e2e
+        run: npx playwright test chrome.spec.ts
+
   fmt:
     name: Format check
     runs-on: ubuntu-latest

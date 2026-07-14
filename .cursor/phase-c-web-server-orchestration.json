@@ -4,7 +4,7 @@
   "pr_target": "integrate/phase-c-web-server",
   "integrate_branch": "integrate/phase-c-web-server",
   "integrate_worktree": "/Volumes/Extreme Pro/github/wyvern-worktrees/integrate/phase-c-web-server",
-  "integrate_head": "ba431e7",
+  "integrate_head": "3bccde4",
   "develop_head": "9cd332c",
   "planning_pr": 37,
   "sequence": [
@@ -17,7 +17,7 @@
     "c.15",
     "c.16"
   ],
-  "current_sprint": "c.10",
+  "current_sprint": "c.14",
   "sprints": {
     "c.9": {
       "id": "c.9",
@@ -42,32 +42,57 @@
       "branch": "feature/phase-C-c10-http-host-message",
       "sprint_doc": "docs/plans/phase-C/c10-http-host-message.md",
       "pr_target": "integrate/phase-c-web-server",
-      "status": "dev",
-      "merged": false
+      "status": "merged",
+      "pr_number": 40,
+      "merged": true,
+      "pr_url": "https://github.com/randlee/wyvern/pull/40"
     },
     "c.11": {
       "id": "c.11",
+      "title": "wyvern-host input + picker",
       "branch": "feature/phase-C-c11-host-input",
       "sprint_doc": "docs/plans/phase-C/c11-host-input.md",
-      "status": "pending"
+      "pr_target": "integrate/phase-c-web-server",
+      "status": "merged",
+      "pr_number": 42,
+      "merged": true,
+      "pr_url": "https://github.com/randlee/wyvern/pull/42"
     },
     "c.12": {
       "id": "c.12",
+      "title": "wyvern-host markdown",
       "branch": "feature/phase-C-c12-host-markdown",
       "sprint_doc": "docs/plans/phase-C/c12-host-markdown.md",
-      "status": "pending"
+      "pr_target": "integrate/phase-c-web-server",
+      "status": "merged",
+      "pr_number": 44,
+      "merged": true,
+      "pr_url": "https://github.com/randlee/wyvern/pull/44"
     },
     "c.13": {
       "id": "c.13",
+      "title": "wyvern-host question",
       "branch": "feature/phase-C-c13-host-question",
       "sprint_doc": "docs/plans/phase-C/c13-host-question.md",
-      "status": "pending"
+      "pr_target": "integrate/phase-c-web-server",
+      "status": "merged",
+      "pr_number": 45,
+      "sha": "aa36368",
+      "merge_sha": "3bccde4",
+      "qa_rounds": ["qa-c13-1", "qa-c13-2", "qa-c13-3"],
+      "merged": true,
+      "merged_at": "2026-07-14T09:00:00Z",
+      "pr_url": "https://github.com/randlee/wyvern/pull/45"
     },
     "c.14": {
       "id": "c.14",
+      "title": "wyvern-host chrome (full dialog matrix)",
       "branch": "feature/phase-C-c14-host-chrome",
+      "worktree": "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-C-c14-host-chrome",
       "sprint_doc": "docs/plans/phase-C/c14-host-chrome.md",
-      "status": "pending"
+      "pr_target": "integrate/phase-c-web-server",
+      "status": "in_progress",
+      "merged": false
     },
     "c.15": {
       "id": "c.15",

@@ -55,15 +55,11 @@ pub fn run(command: Command, options: HostOptions) -> Result<CommandResult, Host
     }
 
     let type_name = match &command {
+        Command::Chrome { .. } => DialogTypeName::Chrome,
         Command::Message { .. } => DialogTypeName::Message,
         Command::Input { .. } => DialogTypeName::Input,
         Command::Markdown { .. } => DialogTypeName::Markdown,
         Command::Question { .. } => DialogTypeName::Question,
-        Command::Chrome { .. } => {
-            return Err(HostError::UnsupportedType {
-                type_name: DialogTypeName::Chrome,
-            });
-        }
     };
 
     let rt = tokio::runtime::Builder::new_multi_thread()

@@ -1,8 +1,9 @@
-import { test, expect, Page } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 import { spawn, ChildProcessWithoutNullStreams } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { gotoDialog } from "./helpers";
 
 const REPO_ROOT = path.resolve(__dirname, "../..");
 const WYVERN_BIN =
@@ -42,21 +43,6 @@ function waitForDialogUrl(
     };
     tick();
   });
-}
-
-/** Retry page.goto for transient connection races before axum accepts. */
-async function gotoDialog(page: Page, url: string, attempts = 15): Promise<void> {
-  let lastError: unknown;
-  for (let i = 0; i < attempts; i++) {
-    try {
-      await page.goto(url, { waitUntil: "domcontentloaded" });
-      return;
-    } catch (err) {
-      lastError = err;
-      await new Promise((r) => setTimeout(r, 100));
-    }
-  }
-  throw lastError;
 }
 
 function waitForExit(child: ChildProcessWithoutNullStreams): Promise<number> {
