@@ -80,6 +80,22 @@ command, and `.cursor/agents/cursor-quality-mgr.md` must be portable:
   content must still use relative forms and placeholders like
   `{{ worktree_path }}`.
 
+## Top-level spawn requirement (critical)
+
+The **parent orchestrator session** (this chat / top-level agent) must run the
+full dev→QA loop. **Never** delegate the entire orchestration loop to a nested
+Task subagent — nested agents cannot spawn `rust-developer`, reviewers, or
+`cursor-quality-mgr` (same platform limit that drove parent reviewer spawn).
+
+| Who spawns | Allowed |
+|------------|---------|
+| Top-level parent session | `rust-developer`, reviewers, `cursor-quality-mgr`, `qa-triage` |
+| Nested Task subagent (orchestrator) | **Forbidden** — investigation/prep only |
+| `cursor-quality-mgr` | **Forbidden** — aggregation/publish only |
+
+Nested subagents may read skills, fetch PR comments, create triage directories,
+or draft assignments — then **return control** to the parent for all Task spawns.
+
 ## Parent reviewer spawn (default — every QA round)
 
 Nested `cursor-quality-mgr` Tasks cannot spawn reviewer Tasks in Cursor (c.11).
