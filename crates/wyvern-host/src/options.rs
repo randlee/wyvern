@@ -30,10 +30,7 @@ impl ViewerMode {
             Self::Embedded => "embedded",
             Self::None => "none",
             Self::System => "system",
-            Self::Named(BrowserId::Chrome) => "chrome",
-            Self::Named(BrowserId::Safari) => "safari",
-            Self::Named(BrowserId::Edge) => "edge",
-            Self::Named(BrowserId::Firefox) => "firefox",
+            Self::Named(id) => id.as_str(),
         }
     }
 
@@ -67,6 +64,24 @@ pub enum BrowserId {
     Firefox,
 }
 
+impl BrowserId {
+    /// Wire / catalog id for this browser.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Chrome => "chrome",
+            Self::Safari => "safari",
+            Self::Edge => "edge",
+            Self::Firefox => "firefox",
+        }
+    }
+}
+
+impl std::fmt::Display for BrowserId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 /// CLI / one-shot invocation options (from `--bind`, `--ui-root`, `--viewer`).
 #[derive(Debug, Clone)]
 pub struct HostOptions {
@@ -76,7 +91,7 @@ pub struct HostOptions {
     pub ui_root: PathBuf,
     /// Viewer launch mode (c.10: only [`ViewerMode::None`] is supported).
     pub viewer: ViewerMode,
-    /// When true, set `WYVERN_DIALOG_URL` after bind (typical for `none`).
+    /// When true, publish dialog URL via stderr / optional file after bind (typical for `none`).
     pub dialog_url_env: bool,
     /// Optional path to write the dialog URL (preferred over process-wide env for tests).
     pub dialog_url_file: Option<PathBuf>,

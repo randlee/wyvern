@@ -1,13 +1,13 @@
 //! `POST /api/result` — accept stdout-shaped JSON and complete the session.
 
 use axum::extract::State;
-use axum::http::StatusCode;
 use axum::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use wyvern_schema::{ButtonLabel, Command, CommandResult, InputResult, InputValue, MessageResult};
 
 use crate::error::HostError;
+use crate::routes::api_error::ApiError;
 use crate::session::SessionState;
 
 /// Success ack returned to the page after accepting a result.
@@ -21,15 +21,15 @@ pub struct ResultAck {
 pub async fn post_result(
     State(session): State<SessionState>,
     Json(body): Json<Value>,
-) -> Result<Json<ResultAck>, (StatusCode, String)> {
+) -> Result<Json<ResultAck>, ApiError> {
     let command = session.command().await;
     let result = parse_result_for_command(&command, &body).map_err(|err| {
         // Surface the structured HostError::InvalidResult path (stable message
         // for clients; CLI emit_host_error maps the same variant).
-        (StatusCode::BAD_REQUEST, err.to_string())
+        ApiError::bad_request(err.to_string())
     })?;
     if !session.complete(result).await {
-        return Err((StatusCode::CONFLICT, "result already submitted".to_string()));
+        return Err(ApiError::conflict("result already submitted"));
     }
     Ok(Json(ResultAck { ok: true }))
 }

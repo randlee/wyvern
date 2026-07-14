@@ -3,7 +3,7 @@
 use std::fmt;
 use std::path::PathBuf;
 
-use crate::options::ViewerMode;
+use crate::options::{BrowserId, ViewerMode};
 
 /// Closed set of dialog `type` wire names known to the host matrix.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -58,6 +58,8 @@ pub enum HostError {
     Bind {
         /// Human-readable bind failure detail.
         message: String,
+        /// Underlying IO failure when bind / local_addr failed.
+        source: Option<std::io::Error>,
     },
     /// UI root missing or required static file not found (maps to `host_error` / exit 6).
     UiNotFound {
@@ -82,7 +84,7 @@ pub enum HostError {
     /// by the c.10–c.14 host matrix; kept so CLI `emit_host_error` mapping stays stable.
     ViewerNotFound {
         /// Catalog / registry id.
-        id: String,
+        id: BrowserId,
         /// Install or fallback hint.
         hint: String,
     },
@@ -101,7 +103,10 @@ pub enum HostError {
 impl fmt::Display for HostError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Bind { message } => write!(f, "bind failed: {message}"),
+            Self::Bind { message, source } => match source {
+                Some(err) => write!(f, "bind failed: {message}: {err}"),
+                None => write!(f, "bind failed: {message}"),
+            },
             Self::UiNotFound { path, source } => match source {
                 Some(err) => write!(f, "UI not found: {}: {err}", path.display()),
                 None => write!(f, "UI not found: {}", path.display()),
@@ -124,7 +129,10 @@ impl fmt::Display for HostError {
 impl std::error::Error for HostError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::UiNotFound {
+            Self::Bind {
+                source: Some(err), ..
+            }
+            | Self::UiNotFound {
                 source: Some(err), ..
             } => Some(err),
             _ => None,

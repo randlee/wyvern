@@ -22,6 +22,13 @@ jobs:
         with:
           components: clippy, rustfmt
 
+      # rfd (xdg-portal/ashpd) needs wayland-client.pc on Linux.
+      - name: Install Linux build deps
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwayland-dev pkg-config
+
       - name: cargo build
         run: cargo build --workspace
 
@@ -50,6 +57,13 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+
+      # rfd (xdg-portal/ashpd) needs wayland-client.pc on Linux.
+      - name: Install Linux build deps
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwayland-dev pkg-config
 
       - name: cargo build -p wyvern
         run: cargo build -p wyvern

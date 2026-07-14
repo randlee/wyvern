@@ -253,16 +253,22 @@ pub fn emit_stdout(result: &wyvern_schema::CommandResult) -> Result<String, Emit
 pub fn emit_host_error(err: &wyvern_host::HostError) -> Result<String, EmitError> {
     use wyvern_host::HostError;
     let (code, message, cause, recovery, docs) = match err {
-        HostError::Bind { message } => (
-            ErrorCode::HostBindError,
-            message.clone(),
-            "Failed to bind the dialog HTTP server".to_string(),
-            vec![
-                "Check that --bind is a valid address".into(),
-                "Try --bind 127.0.0.1:0 for an ephemeral port".into(),
-            ],
-            "docs/wyvern-host/requirements.md (REQ-0091)",
-        ),
+        HostError::Bind { message, source } => {
+            let message = match source {
+                Some(err) => format!("{message}: {err}"),
+                None => message.clone(),
+            };
+            (
+                ErrorCode::HostBindError,
+                message,
+                "Failed to bind the dialog HTTP server".to_string(),
+                vec![
+                    "Check that --bind is a valid address".into(),
+                    "Try --bind 127.0.0.1:0 for an ephemeral port".into(),
+                ],
+                "docs/wyvern-host/requirements.md (REQ-0091)",
+            )
+        }
         HostError::UiNotFound { path, source } => {
             let message = match source {
                 Some(err) => format!("UI not found at '{}': {err}", path.display()),

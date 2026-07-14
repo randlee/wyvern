@@ -38,10 +38,12 @@ pub(crate) async fn bind_server(
     enforce_bind_policy(bind, allow_non_loopback)?;
     let ui_root = require_type_dir(ui_root, type_name)?;
     let listener = TcpListener::bind(bind).await.map_err(|e| HostError::Bind {
-        message: format!("failed to bind {bind}: {e}"),
+        message: format!("failed to bind {bind}"),
+        source: Some(e),
     })?;
     let local_addr = listener.local_addr().map_err(|e| HostError::Bind {
-        message: format!("failed to read local address: {e}"),
+        message: "failed to read local address".into(),
+        source: Some(e),
     })?;
     let dialog_url = format!("http://{local_addr}/{type_name}/");
     Ok((
@@ -63,6 +65,7 @@ fn enforce_bind_policy(bind: SocketAddr, allow_non_loopback: bool) -> Result<(),
             message: format!(
                 "refusing non-loopback bind {bind}; pass --allow-non-loopback (or HostOptions::allow_non_loopback) to opt in"
             ),
+            source: None,
         });
     }
     tracing::warn!(
@@ -164,10 +167,12 @@ fn dismissed_for_command(command: &Command) -> CommandResult {
     }
 }
 
-/// Publish dialog URL for headless harnesses (`WYVERN_DIALOG_URL`).
+/// Publish dialog URL for headless harnesses (stderr + optional file).
+///
+/// Does **not** call [`std::env::set_var`]: by the time this runs, the multi-thread
+/// Tokio runtime is already live, and mutating process env is unsound. Harnesses
+/// scrape `WYVERN_DIALOG_URL=…` from stderr or read [`HostOptions::dialog_url_file`].
 pub(crate) fn publish_dialog_url(url: &str, dialog_url_file: Option<&std::path::Path>) {
-    // Safety: one-shot CLI sets this before blocking; e2e reads via file/stderr.
-    std::env::set_var("WYVERN_DIALOG_URL", url);
     let file_path = dialog_url_file
         .map(std::path::PathBuf::from)
         .or_else(|| std::env::var_os("WYVERN_DIALOG_URL_FILE").map(std::path::PathBuf::from));

@@ -17,7 +17,7 @@
 mod cli_args;
 mod error;
 mod input;
-pub mod observability;
+mod observability;
 mod pipeline;
 
 #[doc(inline)]

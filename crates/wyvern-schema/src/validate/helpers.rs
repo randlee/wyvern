@@ -107,12 +107,12 @@ pub(super) fn optional_string_field(
 pub(super) fn optional_media_ref_field(
     obj: &Map<String, Value>,
     field: &str,
-) -> Result<Option<String>, ValidationError> {
+) -> Result<Option<crate::MediaRef>, ValidationError> {
     match optional_string_field(obj, field)? {
         None => Ok(None),
         Some(value) => {
             validate_media_ref(field, &value)?;
-            Ok(Some(value))
+            Ok(Some(crate::MediaRef::new(value)))
         }
     }
 }

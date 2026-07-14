@@ -36,7 +36,7 @@ use crate::session::SessionState;
 
 /// One-shot convenience for viewer modes the host owns (`None` in c.10).
 ///
-/// Binds HTTP, optionally publishes `WYVERN_DIALOG_URL`, serves static UI + API,
+/// Binds HTTP, optionally publishes the dialog URL (stderr / file), serves static UI + API,
 /// and returns when the page POSTs `/api/result`.
 ///
 /// # Errors

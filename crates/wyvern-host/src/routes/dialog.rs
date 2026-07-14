@@ -50,10 +50,10 @@ pub(crate) fn dialog_payload(command: &Command) -> Value {
                 obj["level"] = json!(level.as_str());
             }
             if let Some(icon) = icon {
-                obj["icon"] = json!(icon);
+                obj["icon"] = json!(icon.as_str());
             }
             if let Some(image) = image {
-                obj["image"] = json!(image);
+                obj["image"] = json!(image.as_str());
             }
             obj
         }
@@ -89,7 +89,7 @@ pub(crate) fn dialog_payload(command: &Command) -> Value {
                 obj["status"] = json!(status.as_str());
             }
             if let Some(icon) = icon {
-                obj["icon"] = json!(icon);
+                obj["icon"] = json!(icon.as_str());
             }
             if let Some(placeholder) = placeholder {
                 obj["placeholder"] = json!(placeholder);
