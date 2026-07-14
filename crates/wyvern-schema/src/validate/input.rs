@@ -8,8 +8,8 @@ use crate::error::ValidationError;
 use crate::field_name::FieldName;
 
 use super::helpers::{
-    closest_match, json_type_name, optional_bool_field, optional_string_field, require_string_field,
-    INPUT_FIELDS,
+    closest_match, json_type_name, optional_bool_field, optional_string_field,
+    require_string_field, INPUT_FIELDS,
 };
 
 pub(super) fn validate_input(obj: &Map<String, Value>) -> Result<Command, ValidationError> {
