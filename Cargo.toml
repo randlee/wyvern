@@ -51,3 +51,8 @@ opt-level     = "z"
 lto           = true
 codegen-units = 1
 strip         = true
+
+# crates.io wayland-scanner 0.31.10 pins quick-xml ^0.39 (RUSTSEC-2026-0194/0195).
+# Upstream bumped to 0.41 but has not republished; patch until a release lands.
+[patch.crates-io]
+wayland-scanner = { git = "https://github.com/smithay/wayland-rs", rev = "d07c4f91f28b42e5a485823ffd9d8d5a210b1053" }
