@@ -5,19 +5,20 @@ Run Wyvern sprint/phase orchestration **inside this Cursor session**.
 ## Mandatory
 
 1. Read and follow `.cursor/skills/cursor-orchestration/SKILL.md`.
-2. Quality-mgr role → **only** `cursor-quality-mgr` (see skill spawn rules;
+2. Quality-mgr role → **only** `cursor-quality-mgr` (aggregation/publish only;
    never `quality-mgr`).
-3. **Never** spawn `quality-mgr` (ATM/Claude agent) while this command is active.
-4. If any prompt or skill says `quality-mgr`, remap to `cursor-quality-mgr` and
+3. **Parent always spawns reviewers** before `cursor-quality-mgr` runs.
+4. **Never** spawn `quality-mgr` (ATM/Claude agent) while this command is active.
+5. If any prompt or skill says `quality-mgr`, remap to `cursor-quality-mgr` and
    launch once — do not dual-dispatch.
-5. Developer work → Task `rust-developer` with model from
+6. Developer work → Task `rust-developer` with model from
    `.cursor/orchestration-agent-models.yaml` (user override wins).
-6. Do not edit `.claude/skills/codex-orchestration/` or
+7. Do not edit `.claude/skills/codex-orchestration/` or
    `.claude/agents/quality-mgr.md` as part of this flow.
-7. Keep all authored paths repo-root-relative (see skill **Path portability**).
-8. Use ambient `git` / `gh` / `sc-compose` only — no account or login flags.
-9. Render assignments with the fenced `sc-compose` recipes in the skill.
-10. Pass reviewer models from `.cursor/orchestration-agent-models.yaml`; for
+8. Keep all authored paths repo-root-relative (see skill **Path portability**).
+9. Use ambient `git` / `gh` / `sc-compose` only — no account or login flags.
+10. Render assignments with the fenced `sc-compose` recipes in the skill.
+11. Pass reviewer models from `.cursor/orchestration-agent-models.yaml`; for
     phase-ending QA prefer `gpt-5.6-terra-medium` on `rust-qa-agent` when
     available (else YAML default).
 
@@ -42,7 +43,13 @@ sc-compose render \
 3b. **Pre-QA-1 RBP sweep** (codex parity): `rust-developer` runs
    `rust-best-practices-agent` on planned QA-1 `review_targets`; fixes all RBP
    findings; reports before first QA spawn.
-4. Render + assign QA to **`cursor-quality-mgr` only**:
+4. **Parent reviewer spawn** (before QA coordinator):
+   - Determine required reviewers per `.cursor/agents/cursor-quality-mgr.md`
+     Default reviewer set.
+   - Render each reviewer assignment (skill + agent Tool recipes).
+   - Spawn all reviewers as background Tasks in parallel; record `task_id`s.
+   - Await fenced JSON from every reviewer.
+5. Render QA assignment to **`cursor-quality-mgr`** with handoff filled:
 
 ```bash
 sc-compose render \
@@ -51,7 +58,11 @@ sc-compose render \
   --var-file "$_VARS"
 ```
 
-5. **Dev–QA loop** (repeat until both gates pass):
+`$_VARS` must include `reviewer_manifest_json` and `reviewer_handoff_json`.
+
+6. Spawn **one** `cursor-quality-mgr` with the rendered QA XML (handoff required).
+
+7. **Dev–QA loop** (repeat until both gates pass):
    - **QA gate:** PASS only with `reviewer_spawn_gate=pass`, fenced JSON from
      every required reviewer, **0 Blocking + 0 Important + 0 Minor** open
      findings, and 100% deliverable completion.
@@ -62,8 +73,8 @@ sc-compose render \
      to completed Task subagents; `pr_comment_url` present; FAIL rounds cite
      triage `.ttl` paths; orchestration state `qa_rounds[]` updated.
    - On FAIL: `/triaging-findings` → fix **all** finding ids + `.ttl` paths →
-     push → re-QA. Do not merge without triage evidence on the fix assignment.
-6. On **PASS + green CI + evidence chain complete**: merge; start next sprint.
+     push → re-QA (parent re-spawns reviewers, then `cursor-quality-mgr`).
+8. On **PASS + green CI + evidence chain complete**: merge; start next sprint.
 
 ```bash
 gh pr checks <PR> --watch
