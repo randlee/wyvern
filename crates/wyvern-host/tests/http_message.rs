@@ -107,24 +107,6 @@ fn run_message_posts_ok_via_http() {
 }
 
 #[test]
-fn run_rejects_unsupported_chrome() {
-    let err = run(
-        Command::Chrome {
-            title: ChromeTitle::new("T"),
-            status: None,
-        },
-        host_options(unique_path("unused")),
-    )
-    .expect_err("chrome unsupported");
-    match err {
-        HostError::UnsupportedType { type_name } => {
-            assert_eq!(type_name, wyvern_host::DialogTypeName::Chrome)
-        }
-        other => panic!("expected UnsupportedType, got {other:?}"),
-    }
-}
-
-#[test]
 fn run_rejects_missing_ui_root() {
     let tmp = tempfile::tempdir().expect("temp dir");
     let mut options = host_options(unique_path("unused"));

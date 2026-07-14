@@ -285,13 +285,35 @@ fn cli_wizard_still_validation_error() {
 }
 
 #[test]
-fn cli_chrome_unsupported_type_at_runtime() {
-    let (code, stdout, stderr) = run_json(r#"{"type":"chrome","title":"T"}"#);
-    assert_ne!(code, 0);
-    assert!(stdout.trim().is_empty(), "stdout={stdout}");
-    let value = stderr_json(&stderr);
-    assert_eq!(value["error"], "host_error");
-    assert_eq!(value["code"], "UNSUPPORTED_TYPE");
+fn cli_chrome_viewer_none_posts_ok() {
+    let json = r#"{"type":"chrome","title":"T"}"#;
+    let (child, dialog_url, stderr_handle) = spawn_wyvern_ephemeral(&[json, "--viewer", "none"]);
+    let base = dialog_base_url(&dialog_url);
+
+    let client = wait_for_http(&format!("{base}/api/dialog"));
+    let dialog: serde_json::Value = client
+        .get(format!("{base}/api/dialog"))
+        .send()
+        .expect("dialog")
+        .json()
+        .expect("json");
+    assert_eq!(dialog["type"], "chrome");
+    assert_eq!(dialog["title"], "T");
+
+    let ack: serde_json::Value = client
+        .post(format!("{base}/api/result"))
+        .json(&serde_json::json!({"button": "ok"}))
+        .send()
+        .expect("result")
+        .json()
+        .expect("ack json");
+    assert_eq!(ack["ok"], true);
+
+    let output = child.wait_with_output().expect("wait");
+    let _ = stderr_handle.join();
+    assert_eq!(output.status.code(), Some(0));
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert_eq!(stdout.trim(), r#"{"button":"ok"}"#);
 }
 
 #[test]
@@ -349,6 +371,7 @@ fn cli_message_omitted_viewer_defaults_to_none() {
 fn dialog_base_url(dialog_url: &str) -> String {
     dialog_url
         .trim_end_matches('/')
+        .trim_end_matches("/chrome")
         .trim_end_matches("/message")
         .trim_end_matches("/input")
         .trim_end_matches("/markdown")

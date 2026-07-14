@@ -7,7 +7,6 @@ use axum::Json;
 use serde_json::{json, Value};
 use wyvern_schema::{ButtonsPreset, Command, QuestionCard, MARKDOWN_CONTENT_MAX_BYTES};
 
-use crate::error::DialogTypeName;
 use crate::routes::api_error::ApiError;
 use crate::session::SessionState;
 
@@ -169,10 +168,16 @@ pub(crate) async fn dialog_payload(command: &Command) -> Result<Value, ApiError>
                 "questions": questions_payload,
             }))
         }
-        other => Ok(json!({
-            "type": command_type_name(other),
-            "error": "unsupported_type",
-        })),
+        Command::Chrome { title, status } => {
+            let mut obj = json!({
+                "type": "chrome",
+                "title": title.as_str(),
+            });
+            if let Some(status) = status {
+                obj["status"] = json!(status.as_str());
+            }
+            Ok(obj)
+        }
     }
 }
 
@@ -320,16 +325,6 @@ fn button_list(preset: ButtonsPreset, custom: Option<&[String]>) -> Vec<Value> {
         .zip(display)
         .map(|(id, label)| json!({ "id": id, "label": label }))
         .collect()
-}
-
-fn command_type_name(command: &Command) -> &'static str {
-    match command {
-        Command::Chrome { .. } => DialogTypeName::Chrome.as_str(),
-        Command::Message { .. } => DialogTypeName::Message.as_str(),
-        Command::Input { .. } => DialogTypeName::Input.as_str(),
-        Command::Markdown { .. } => DialogTypeName::Markdown.as_str(),
-        Command::Question { .. } => DialogTypeName::Question.as_str(),
-    }
 }
 
 #[cfg(test)]

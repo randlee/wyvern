@@ -7,8 +7,8 @@ use axum::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use wyvern_schema::{
-    ButtonLabel, Command, CommandResult, InputResult, InputValue, MarkdownResult, MessageResult,
-    QuestionCard, QuestionResult,
+    ButtonLabel, ChromeResult, Command, CommandResult, InputResult, InputValue, MarkdownResult,
+    MessageResult, QuestionCard, QuestionResult,
 };
 
 use crate::error::HostError;
@@ -67,6 +67,16 @@ fn result_bad_request(message: impl Into<String>, cause: impl Into<String>) -> A
 
 fn parse_result_for_command(command: &Command, body: &Value) -> Result<CommandResult, HostError> {
     match command {
+        Command::Chrome { .. } => {
+            let button = body.get("button").and_then(Value::as_str).ok_or_else(|| {
+                HostError::InvalidResult {
+                    message: "missing string field 'button'".into(),
+                }
+            })?;
+            Ok(CommandResult::Chrome(ChromeResult {
+                button: ButtonLabel::new(button),
+            }))
+        }
         Command::Message { .. } => {
             let button = body.get("button").and_then(Value::as_str).ok_or_else(|| {
                 HostError::InvalidResult {
@@ -92,9 +102,6 @@ fn parse_result_for_command(command: &Command, body: &Value) -> Result<CommandRe
             questions,
             questions_raw,
         } => parse_question_result(questions, questions_raw, body),
-        _ => Err(HostError::InvalidResult {
-            message: "active dialog type does not accept results yet".into(),
-        }),
     }
 }
 
