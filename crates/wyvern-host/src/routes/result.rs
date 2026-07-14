@@ -1,11 +1,14 @@
 //! `POST /api/result` — accept stdout-shaped JSON and complete the session.
 
+use std::collections::HashMap;
+
 use axum::extract::State;
 use axum::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use wyvern_schema::{
     ButtonLabel, Command, CommandResult, InputResult, InputValue, MarkdownResult, MessageResult,
+    QuestionResult,
 };
 
 use crate::error::HostError;
@@ -53,6 +56,9 @@ fn result_bad_request(message: impl Into<String>, cause: impl Into<String>) -> A
         .recovery(
             "For markdown/message results include a string 'button' field (e.g. \"ok\" or \"dismissed\")",
         )
+        .recovery(
+            "For question submit omit 'button' and include questions, non-empty answers, and response",
+        )
         .docs(RESULT_DOCS)
 }
 
@@ -79,10 +85,71 @@ fn parse_result_for_command(command: &Command, body: &Value) -> Result<CommandRe
             }))
         }
         Command::Input { .. } => parse_input_result(body),
+        Command::Question { questions_raw, .. } => parse_question_result(questions_raw, body),
         _ => Err(HostError::InvalidResult {
             message: "active dialog type does not accept results yet".into(),
         }),
     }
+}
+
+/// Parse question POST body per http-post-schema.md (REQ-0067 / REQ-0068).
+///
+/// - Normal submit: omit `button`, non-empty `answers`, `response` present.
+/// - Presence of `button`, or empty `answers` without submit → fail-safe dismiss.
+/// - Stdout `questions` always echo the validated command `questions_raw`.
+fn parse_question_result(
+    questions_raw: &[Value],
+    body: &Value,
+) -> Result<CommandResult, HostError> {
+    if !body.get("questions").map(Value::is_array).unwrap_or(false) {
+        return Err(HostError::InvalidResult {
+            message: "missing array field 'questions'".into(),
+        });
+    }
+    if body.get("response").and_then(Value::as_str).is_none() {
+        return Err(HostError::InvalidResult {
+            message: "missing string field 'response'".into(),
+        });
+    }
+    let answers = parse_question_answers(body)?;
+    let has_button = body.get("button").is_some();
+
+    // Fail-safe dismiss: any `button` field, or empty answers on "submit".
+    if has_button || answers.is_empty() {
+        return Ok(CommandResult::Question(QuestionResult::dismissed(
+            questions_raw.to_vec(),
+        )));
+    }
+
+    Ok(CommandResult::Question(QuestionResult::submitted(
+        questions_raw.to_vec(),
+        answers,
+    )))
+}
+
+fn parse_question_answers(body: &Value) -> Result<HashMap<String, String>, HostError> {
+    let Some(obj) = body.get("answers").and_then(Value::as_object) else {
+        return Err(HostError::InvalidResult {
+            message: "missing object field 'answers'".into(),
+        });
+    };
+    let mut answers = HashMap::with_capacity(obj.len());
+    for (key, value) in obj {
+        match value {
+            Value::String(s) => {
+                answers.insert(key.clone(), s.clone());
+            }
+            other => {
+                return Err(HostError::InvalidResult {
+                    message: format!(
+                        "answers[{key:?}] expected string, got {}",
+                        json_type_name(other)
+                    ),
+                });
+            }
+        }
+    }
+    Ok(answers)
 }
 
 fn parse_input_result(body: &Value) -> Result<CommandResult, HostError> {

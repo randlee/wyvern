@@ -5,7 +5,7 @@ use std::time::Duration;
 use axum::extract::State;
 use axum::Json;
 use serde_json::{json, Value};
-use wyvern_schema::{ButtonsPreset, Command, MARKDOWN_CONTENT_MAX_BYTES};
+use wyvern_schema::{ButtonsPreset, Command, QuestionCard, MARKDOWN_CONTENT_MAX_BYTES};
 
 use crate::error::DialogTypeName;
 use crate::routes::api_error::ApiError;
@@ -14,6 +14,10 @@ use crate::session::SessionState;
 /// Docs pointer for markdown dialog render errors (RBP error-context contract).
 const MARKDOWN_DOCS: &str =
     "docs/plans/phase-C/c12-host-markdown.md (GET /api/dialog content_html)";
+
+/// Docs pointer for question preview render errors (RBP error-context contract).
+const QUESTION_DOCS: &str =
+    "docs/plans/phase-C/c13-host-question.md (GET /api/dialog preview_html)";
 
 /// Max wall time for `pulldown-cmark` + `ammonia` on a `spawn_blocking` worker.
 ///
@@ -146,11 +150,80 @@ pub(crate) async fn dialog_payload(command: &Command) -> Result<Value, ApiError>
             }
             Ok(obj)
         }
+        Command::Question { questions, .. } => {
+            let questions_payload = render_question_payload_async(questions.clone()).await?;
+            Ok(json!({
+                "type": "question",
+                "title": "Question",
+                "questions": questions_payload,
+            }))
+        }
         other => Ok(json!({
             "type": command_type_name(other),
             "error": "unsupported_type",
         })),
     }
+}
+
+/// Build question cards with server-side `preview_html` off the async executor.
+async fn render_question_payload_async(questions: Vec<QuestionCard>) -> Result<Value, ApiError> {
+    let join = tokio::task::spawn_blocking(move || question_payload_value(&questions));
+    match tokio::time::timeout(markdown_render_timeout(), join).await {
+        Ok(Ok(value)) => Ok(value),
+        Ok(Err(join_err)) => Err(question_internal(format!(
+            "question preview render task failed: {join_err}"
+        ))),
+        Err(_elapsed) => Err(question_timeout(format!(
+            "question preview render exceeded {}s",
+            markdown_render_timeout().as_secs()
+        ))),
+    }
+}
+
+fn question_payload_value(questions: &[QuestionCard]) -> Value {
+    let cards: Vec<Value> = questions
+        .iter()
+        .map(|card| {
+            let options: Vec<Value> = card
+                .options
+                .iter()
+                .map(|opt| {
+                    let mut obj = json!({
+                        "label": opt.label,
+                        "description": opt.description,
+                    });
+                    if let Some(preview) = &opt.preview {
+                        obj["preview"] = json!(preview);
+                        obj["preview_html"] = json!(crate::question::render_preview_html(preview));
+                    }
+                    obj
+                })
+                .collect();
+            json!({
+                "question": card.question,
+                "header": card.header,
+                "options": options,
+                "multiSelect": card.multi_select,
+            })
+        })
+        .collect();
+    Value::Array(cards)
+}
+
+fn question_timeout(message: impl Into<String>) -> ApiError {
+    ApiError::gateway_timeout(message)
+        .cause("pulldown-cmark + ammonia did not finish within the question preview render timeout")
+        .recovery("Simplify or shorten option preview fields and retry GET /api/dialog")
+        .recovery("Report a bug if small previews consistently time out")
+        .docs(QUESTION_DOCS)
+}
+
+fn question_internal(message: impl Into<String>) -> ApiError {
+    ApiError::internal(message)
+        .cause("spawn_blocking question preview render task joined with an error")
+        .recovery("Retry GET /api/dialog")
+        .recovery("Report a bug if the failure persists for valid preview markdown")
+        .docs(QUESTION_DOCS)
 }
 
 /// Run CPU-bound markdown render off the async executor (picker `spawn_blocking` pattern).
