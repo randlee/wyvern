@@ -1,7 +1,7 @@
 ---
 id: c.16
 title: Release bundle + v0.1.0 tag
-status: planning
+status: in_progress
 branch: feature/phase-C-c16-release
 target: integrate/phase-c-web-server
 ---

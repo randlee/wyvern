@@ -87,7 +87,7 @@ c.8 ──► c.9 ──► c.10 ──► c.11 ──► c.12 ──► c.13 �
 | c.13 | `question` | [c13-host-question.md](c13-host-question.md) | implemented |
 | c.14 | `chrome` — full dialog matrix | [c14-host-chrome.md](c14-host-chrome.md) | implemented |
 | c.15 | `wyvern-viewer` + browser registry | [c15-wyvern-viewer.md](c15-wyvern-viewer.md), [http-viewer-contract.md](http-viewer-contract.md) | implemented |
-| c.16 | Release bundle + **v0.1.0** (final Phase C) | [c16-release.md](c16-release.md) | planned |
+| c.16 | Release bundle + **v0.1.0** (final Phase C) | [c16-release.md](c16-release.md) | in_progress |
 
 **c.9 merge gate:** deletion inventory passes; `wyvern-window` absent. **`cargo build` not required.**
 

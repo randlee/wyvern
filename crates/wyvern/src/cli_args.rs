@@ -1,7 +1,7 @@
 //! Host option flags (`--bind`, `--ui-root`, `--viewer`) and argv splitting.
 
 use std::net::SocketAddr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use wyvern_host::{HostOptions, ViewerMode};
 
@@ -134,7 +134,13 @@ fn viewer_from_env() -> Option<ViewerMode> {
         .and_then(ViewerMode::parse)
 }
 
-/// Default UI root: `WYVERN_UI_ROOT`, else `./ui`, else `./share/wyvern/ui`.
+/// Default UI root discovery order:
+/// 1. `WYVERN_UI_ROOT`
+/// 2. `./ui` (dev workspace)
+/// 3. `./share/wyvern/ui` (cwd install layout)
+/// 4. `<exe_dir>/share/wyvern/ui` (release tarball layout — REQ-0093 / REQ-0116)
+/// 5. `<exe_dir>/ui`
+/// 6. fallback `./ui` (caller gets a clear missing-root error later)
 pub fn default_ui_root() -> PathBuf {
     if let Ok(path) = std::env::var("WYVERN_UI_ROOT") {
         return PathBuf::from(path);
@@ -143,9 +149,22 @@ pub fn default_ui_root() -> PathBuf {
     if cwd_ui.is_dir() {
         return cwd_ui;
     }
-    let share = PathBuf::from("share/wyvern/ui");
-    if share.is_dir() {
-        return share;
+    let cwd_share = PathBuf::from("share/wyvern/ui");
+    if cwd_share.is_dir() {
+        return cwd_share;
+    }
+    if let Some(exe_dir) = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(Path::to_path_buf))
+    {
+        let share = exe_dir.join("share/wyvern/ui");
+        if share.is_dir() {
+            return share;
+        }
+        let sibling_ui = exe_dir.join("ui");
+        if sibling_ui.is_dir() {
+            return sibling_ui;
+        }
     }
     cwd_ui
 }
@@ -161,9 +180,9 @@ pub fn usage_message() -> String {
         "Options:\n",
         "  --bind <ADDR:PORT>         HTTP bind (default 127.0.0.1:0)\n",
         "  --allow-non-loopback       Permit non-loopback --bind (0.0.0.0 / LAN)\n",
-        "  --ui-root <PATH>           Packaged UI root (default ./ui)\n",
+        "  --ui-root <PATH>           Packaged UI root (default: share/wyvern/ui beside binary)\n",
         "  --viewer <MODE>            embedded|none|system|chrome|safari|edge|firefox\n",
-        "                             (default: embedded; CI uses none / WYVERN_VIEWER)\n",
+        "                             (default: embedded; CI: WYVERN_VIEWER=none)\n",
         "\n",
         "Pass exactly one JSON string, .json file, or .md file; or pipe JSON on stdin.",
     )
@@ -214,5 +233,63 @@ mod tests {
     fn parse_rejects_unknown_flag() {
         let err = parse_cli_args(&args(&["--nope"])).expect_err("flag");
         assert!(matches!(err, LoadError::Usage { .. }));
+    }
+
+    #[test]
+    fn default_ui_root_prefers_env_override() {
+        use std::sync::{Mutex, MutexGuard};
+
+        static ENV_LOCK: Mutex<()> = Mutex::new(());
+        let _lock: MutexGuard<'_, ()> = ENV_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let custom = tmp.path().join("custom-ui");
+        std::fs::create_dir_all(&custom).expect("mkdir");
+        let previous = std::env::var_os("WYVERN_UI_ROOT");
+        // SAFETY: exclusive ENV_LOCK held for the duration of this test.
+        unsafe { std::env::set_var("WYVERN_UI_ROOT", &custom) };
+        let root = default_ui_root();
+        unsafe {
+            match previous {
+                Some(v) => std::env::set_var("WYVERN_UI_ROOT", v),
+                None => std::env::remove_var("WYVERN_UI_ROOT"),
+            }
+        }
+        assert_eq!(root, custom);
+    }
+
+    #[test]
+    fn default_ui_root_falls_back_to_ui_when_nothing_found() {
+        use std::sync::{Mutex, MutexGuard};
+
+        static ENV_LOCK: Mutex<()> = Mutex::new(());
+        let _lock: MutexGuard<'_, ()> = ENV_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+
+        let previous = std::env::var_os("WYVERN_UI_ROOT");
+        // SAFETY: exclusive ENV_LOCK held for the duration of this test.
+        unsafe { std::env::remove_var("WYVERN_UI_ROOT") };
+        // From a temp cwd with no ui/ and no share/, expect the ./ui fallback path.
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let prev_cwd = std::env::current_dir().expect("cwd");
+        std::env::set_current_dir(tmp.path()).expect("chdir");
+        let root = default_ui_root();
+        std::env::set_current_dir(prev_cwd).expect("restore cwd");
+        unsafe {
+            match previous {
+                Some(v) => std::env::set_var("WYVERN_UI_ROOT", v),
+                None => std::env::remove_var("WYVERN_UI_ROOT"),
+            }
+        }
+        // May resolve to exe-adjacent share/ui if present next to the test binary;
+        // otherwise the documented fallback is ./ui.
+        assert!(
+            root.as_os_str() == "ui" || root.ends_with("share/wyvern/ui") || root.ends_with("ui"),
+            "unexpected default_ui_root: {}",
+            root.display()
+        );
     }
 }

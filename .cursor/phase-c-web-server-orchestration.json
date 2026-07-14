@@ -4,7 +4,7 @@
   "pr_target": "integrate/phase-c-web-server",
   "integrate_branch": "integrate/phase-c-web-server",
   "integrate_worktree": "/Volumes/Extreme Pro/github/wyvern-worktrees/integrate/phase-c-web-server",
-  "integrate_head": "9ab0f0e",
+  "integrate_head": "22daa77",
   "develop_head": "9cd332c",
   "planning_pr": 37,
   "sequence": [
@@ -17,7 +17,7 @@
     "c.15",
     "c.16"
   ],
-  "current_sprint": "c.15",
+  "current_sprint": "c.16",
   "sprints": {
     "c.9": {
       "id": "c.9",
@@ -107,14 +107,24 @@
       "worktree": "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-C-c15-wyvern-viewer",
       "sprint_doc": "docs/plans/phase-C/c15-wyvern-viewer.md",
       "pr_target": "integrate/phase-c-web-server",
-      "status": "in_progress",
-      "merged": false
+      "status": "merged",
+      "pr_number": 47,
+      "sha": "bb25913",
+      "merge_sha": "22daa77",
+      "qa_rounds": ["qa-c15-1", "qa-c15-2", "qa-c15-3", "qa-c15-4", "qa-c15-5"],
+      "merged": true,
+      "merged_at": "2026-07-14T11:56:15Z",
+      "pr_url": "https://github.com/randlee/wyvern/pull/47"
     },
     "c.16": {
       "id": "c.16",
+      "title": "Release bundle + v0.1.0 tag",
       "branch": "feature/phase-C-c16-release",
+      "worktree": "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-C-c16-release",
       "sprint_doc": "docs/plans/phase-C/c16-release.md",
-      "status": "pending"
+      "pr_target": "integrate/phase-c-web-server",
+      "status": "in_progress",
+      "merged": false
     }
   }
 }
