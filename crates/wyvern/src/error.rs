@@ -245,6 +245,90 @@ pub fn emit_stdout(result: &wyvern_schema::CommandResult) -> Result<String, Emit
     })
 }
 
+/// Serialize a [`wyvern_host::HostError`] as stderr JSON (REQ-0073).
+///
+/// # Errors
+///
+/// Returns [`EmitError::Serialize`] when the envelope cannot be serialized.
+pub fn emit_host_error(err: &wyvern_host::HostError) -> Result<String, EmitError> {
+    use wyvern_host::HostError;
+    let (code, message, cause, recovery, docs) = match err {
+        HostError::Bind { message } => (
+            ErrorCode::HostBindError,
+            message.clone(),
+            "Failed to bind the dialog HTTP server".to_string(),
+            vec![
+                "Check that --bind is a valid address".into(),
+                "Try --bind 127.0.0.1:0 for an ephemeral port".into(),
+            ],
+            "docs/wyvern-host/requirements.md (REQ-0091)",
+        ),
+        HostError::UiNotFound { path } => (
+            ErrorCode::UiNotFound,
+            format!("UI not found at '{}'", path.display()),
+            "Packaged UI root or dialog template is missing".to_string(),
+            vec![
+                "Pass --ui-root pointing at a directory with message/index.html".into(),
+                "Ensure ui/message/ exists in the workspace for development".into(),
+            ],
+            "docs/wyvern-host/requirements.md (REQ-0093)",
+        ),
+        HostError::UnsupportedType { type_name } => (
+            ErrorCode::UnsupportedType,
+            format!("dialog type '{type_name}' is not implemented on the HTTP host yet"),
+            "Schema validation passed; host matrix does not handle this type yet".to_string(),
+            vec![
+                "Use type \"message\" (c.10)".into(),
+                "Later types land in c.11–c.14".into(),
+            ],
+            "docs/plans/phase-C/c10-http-host-message.md",
+        ),
+        HostError::InvalidResult { message } => (
+            ErrorCode::HostError,
+            message.clone(),
+            "POST /api/result body was invalid for the active dialog".to_string(),
+            vec!["Submit a body matching the dialog CommandResult wire shape".into()],
+            "docs/plans/phase-C/http-post-schema.md",
+        ),
+        HostError::ViewerNotFound { id, hint } => (
+            ErrorCode::HostViewerError,
+            format!("viewer '{id}' not found"),
+            hint.clone(),
+            vec![
+                format!("Install {id} or use --viewer system"),
+                "Use --viewer none for headless / CI".into(),
+            ],
+            "docs/plans/phase-C/http-viewer-contract.md",
+        ),
+        HostError::ViewerUnsupported { mode } => (
+            ErrorCode::HostViewerError,
+            format!("viewer mode '{mode}' is not implemented yet"),
+            "c.10 implements --viewer none only".to_string(),
+            vec![
+                "Use --viewer none (or omit --viewer until c.15)".into(),
+                "Named and embedded viewers arrive in c.15".into(),
+            ],
+            "docs/plans/phase-C/c10-http-host-message.md",
+        ),
+        HostError::Internal { message } => (
+            ErrorCode::HostError,
+            message.clone(),
+            "Internal HTTP host failure".to_string(),
+            vec![
+                "Retry the command".into(),
+                "Report a bug if it persists".into(),
+            ],
+            "docs/wyvern-host/architecture.md",
+        ),
+    };
+
+    let mut envelope = StderrError::new(code, message).cause(cause).docs(docs);
+    for step in recovery {
+        envelope = envelope.recovery(step);
+    }
+    envelope.to_json_string().map_err(EmitError::Serialize)
+}
+
 /// Emit static internal stderr JSON and exit with code 8 (REQ-0078).
 ///
 /// Uses a hand-built JSON string so a serialize failure cannot recurse.

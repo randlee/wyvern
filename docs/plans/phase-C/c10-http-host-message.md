@@ -1,8 +1,9 @@
 ---
 id: c.10
 title: wyvern-host scaffold + message + workspace green
-status: planning
+status: complete
 branch: feature/phase-C-c10-http-host-message
+worktree: /Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-C-c10-http-host-message
 target: integrate/phase-c-web-server
 ---
 
