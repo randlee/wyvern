@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use wyvern_schema::{Command, InputMode};
 
 use crate::picker::{pick_file, pick_folder};
-use crate::session::SessionState;
+use crate::session::{SessionState, PICKER_TIMEOUT};
 
 /// Request body for `POST /api/picker/file`.
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -98,16 +98,33 @@ pub async fn post_picker_file(
         }
     };
 
+    let _permit = session.acquire_picker_slot().await.map_err(|_| {
+        (
+            StatusCode::SERVICE_UNAVAILABLE,
+            "dialog session closed".to_string(),
+        )
+    })?;
+
     let start = start_path.as_ref().map(PathBuf::from);
-    let picked =
-        tokio::task::spawn_blocking(move || pick_file(&filter, multiple, start.as_deref()))
-            .await
-            .map_err(|e| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    format!("picker task failed: {e}"),
-                )
-            })?;
+    let join = tokio::task::spawn_blocking(move || pick_file(&filter, multiple, start.as_deref()));
+    let picked = match tokio::time::timeout(PICKER_TIMEOUT, join).await {
+        Ok(Ok(paths)) => paths,
+        Ok(Err(e)) => {
+            return Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("picker task failed: {e}"),
+            ));
+        }
+        Err(_) => {
+            return Err((
+                StatusCode::GATEWAY_TIMEOUT,
+                format!(
+                    "file picker timed out after {} seconds",
+                    PICKER_TIMEOUT.as_secs()
+                ),
+            ));
+        }
+    };
 
     Ok(Json(match picked {
         Some(paths) => PickerResponse::selected(paths_to_strings(paths)),
@@ -144,15 +161,33 @@ pub async fn post_picker_folder(
         }
     };
 
+    let _permit = session.acquire_picker_slot().await.map_err(|_| {
+        (
+            StatusCode::SERVICE_UNAVAILABLE,
+            "dialog session closed".to_string(),
+        )
+    })?;
+
     let start = start_path.as_ref().map(PathBuf::from);
-    let picked = tokio::task::spawn_blocking(move || pick_folder(start.as_deref()))
-        .await
-        .map_err(|e| {
-            (
+    let join = tokio::task::spawn_blocking(move || pick_folder(start.as_deref()));
+    let picked = match tokio::time::timeout(PICKER_TIMEOUT, join).await {
+        Ok(Ok(path)) => path,
+        Ok(Err(e)) => {
+            return Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("picker task failed: {e}"),
-            )
-        })?;
+            ));
+        }
+        Err(_) => {
+            return Err((
+                StatusCode::GATEWAY_TIMEOUT,
+                format!(
+                    "folder picker timed out after {} seconds",
+                    PICKER_TIMEOUT.as_secs()
+                ),
+            ));
+        }
+    };
 
     Ok(Json(match picked {
         Some(path) => PickerResponse::selected(vec![path_to_string(path)]),

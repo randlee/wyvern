@@ -1,17 +1,17 @@
 //! `GET /api/dialog` — JSON payload for the active command.
 
 use axum::extract::State;
-use axum::http::StatusCode;
 use axum::Json;
 use serde_json::{json, Value};
 use wyvern_schema::{ButtonsPreset, Command};
 
+use crate::error::DialogTypeName;
 use crate::session::SessionState;
 
 /// Serialize active command fields for the packaged UI.
-pub async fn get_dialog(State(session): State<SessionState>) -> Result<Json<Value>, StatusCode> {
+pub async fn get_dialog(State(session): State<SessionState>) -> Json<Value> {
     let command = session.command().await;
-    Ok(Json(dialog_payload(&command)))
+    Json(dialog_payload(&command))
 }
 
 /// Build the `/api/dialog` JSON object for `command`.
@@ -134,10 +134,10 @@ fn button_list(preset: ButtonsPreset, custom: Option<&[String]>) -> Vec<Value> {
 
 fn command_type_name(command: &Command) -> &'static str {
     match command {
-        Command::Chrome { .. } => "chrome",
-        Command::Message { .. } => "message",
-        Command::Input { .. } => "input",
-        Command::Markdown { .. } => "markdown",
-        Command::Question { .. } => "question",
+        Command::Chrome { .. } => DialogTypeName::Chrome.as_str(),
+        Command::Message { .. } => DialogTypeName::Message.as_str(),
+        Command::Input { .. } => DialogTypeName::Input.as_str(),
+        Command::Markdown { .. } => DialogTypeName::Markdown.as_str(),
+        Command::Question { .. } => DialogTypeName::Question.as_str(),
     }
 }

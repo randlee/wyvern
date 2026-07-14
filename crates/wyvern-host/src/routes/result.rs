@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use wyvern_schema::{ButtonLabel, Command, CommandResult, InputResult, InputValue, MessageResult};
 
+use crate::error::HostError;
 use crate::session::SessionState;
 
 /// Success ack returned to the page after accepting a result.
@@ -22,11 +23,10 @@ pub async fn post_result(
     Json(body): Json<Value>,
 ) -> Result<Json<ResultAck>, (StatusCode, String)> {
     let command = session.command().await;
-    let result = parse_result_for_command(&command, &body).map_err(|message| {
-        (
-            StatusCode::BAD_REQUEST,
-            format!("invalid result: {message}"),
-        )
+    let result = parse_result_for_command(&command, &body).map_err(|err| {
+        // Surface the structured HostError::InvalidResult path (stable message
+        // for clients; CLI emit_host_error maps the same variant).
+        (StatusCode::BAD_REQUEST, err.to_string())
     })?;
     if !session.complete(result).await {
         return Err((StatusCode::CONFLICT, "result already submitted".to_string()));
@@ -34,27 +34,32 @@ pub async fn post_result(
     Ok(Json(ResultAck { ok: true }))
 }
 
-fn parse_result_for_command(command: &Command, body: &Value) -> Result<CommandResult, String> {
+fn parse_result_for_command(command: &Command, body: &Value) -> Result<CommandResult, HostError> {
     match command {
         Command::Message { .. } => {
-            let button = body
-                .get("button")
-                .and_then(Value::as_str)
-                .ok_or_else(|| "missing string field 'button'".to_string())?;
+            let button = body.get("button").and_then(Value::as_str).ok_or_else(|| {
+                HostError::InvalidResult {
+                    message: "missing string field 'button'".into(),
+                }
+            })?;
             Ok(CommandResult::Message(MessageResult {
                 button: ButtonLabel::new(button),
             }))
         }
         Command::Input { .. } => parse_input_result(body),
-        _ => Err("active dialog type does not accept results yet".into()),
+        _ => Err(HostError::InvalidResult {
+            message: "active dialog type does not accept results yet".into(),
+        }),
     }
 }
 
-fn parse_input_result(body: &Value) -> Result<CommandResult, String> {
-    let button = body
-        .get("button")
-        .and_then(Value::as_str)
-        .ok_or_else(|| "missing string field 'button'".to_string())?;
+fn parse_input_result(body: &Value) -> Result<CommandResult, HostError> {
+    let button =
+        body.get("button")
+            .and_then(Value::as_str)
+            .ok_or_else(|| HostError::InvalidResult {
+                message: "missing string field 'button'".into(),
+            })?;
     let input = match body.get("input") {
         None | Some(Value::Null) => None,
         Some(Value::String(s)) => Some(InputValue::Text(s.clone())),
@@ -64,20 +69,24 @@ fn parse_input_result(body: &Value) -> Result<CommandResult, String> {
                 match item {
                     Value::String(s) => paths.push(s.clone()),
                     other => {
-                        return Err(format!(
-                            "input[{i}] expected string, got {}",
-                            json_type_name(other)
-                        ));
+                        return Err(HostError::InvalidResult {
+                            message: format!(
+                                "input[{i}] expected string, got {}",
+                                json_type_name(other)
+                            ),
+                        });
                     }
                 }
             }
             Some(InputValue::Paths(paths))
         }
         Some(other) => {
-            return Err(format!(
-                "field 'input' expected string or array, got {}",
-                json_type_name(other)
-            ));
+            return Err(HostError::InvalidResult {
+                message: format!(
+                    "field 'input' expected string or array, got {}",
+                    json_type_name(other)
+                ),
+            });
         }
     };
     Ok(CommandResult::Input(InputResult {

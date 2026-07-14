@@ -2,6 +2,10 @@
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use std::time::Duration;
+
+/// Default one-shot session idle timeout before dismissed semantics (REQ-0097).
+pub const DEFAULT_SESSION_TIMEOUT: Duration = Duration::from_secs(600);
 
 /// How the dialog URL is opened after bind.
 ///
@@ -76,6 +80,10 @@ pub struct HostOptions {
     pub dialog_url_env: bool,
     /// Optional path to write the dialog URL (preferred over process-wide env for tests).
     pub dialog_url_file: Option<PathBuf>,
+    /// Allow non-loopback binds (`0.0.0.0`, LAN IPs). Default false (ADR-0016).
+    pub allow_non_loopback: bool,
+    /// Idle timeout waiting for `POST /api/result`; expiry → dismissed (REQ-0097).
+    pub session_timeout: Duration,
 }
 
 impl Default for HostOptions {
@@ -86,6 +94,8 @@ impl Default for HostOptions {
             viewer: ViewerMode::None,
             dialog_url_env: true,
             dialog_url_file: None,
+            allow_non_loopback: false,
+            session_timeout: DEFAULT_SESSION_TIMEOUT,
         }
     }
 }

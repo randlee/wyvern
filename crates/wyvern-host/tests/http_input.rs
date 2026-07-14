@@ -33,6 +33,8 @@ fn host_options(url_file: PathBuf) -> HostOptions {
         viewer: ViewerMode::None,
         dialog_url_env: true,
         dialog_url_file: Some(url_file),
+        allow_non_loopback: false,
+        session_timeout: wyvern_host::DEFAULT_SESSION_TIMEOUT,
     }
 }
 
