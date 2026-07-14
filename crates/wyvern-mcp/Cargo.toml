@@ -5,5 +5,5 @@ edition     = "2021"
 description = "Wyvern MCP server — persistent native webview via Model Context Protocol"
 
 [dependencies]
-wyvern-window = { path = "../wyvern-window" }
+# c.9: wyvern-window removed. Phase E rewires to wyvern-host (c.10+).
 wyvern-schema = { path = "../wyvern-schema" }

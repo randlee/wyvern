@@ -1,11 +1,8 @@
 //! Shared validation helpers and field constants.
 
-use std::path::Path;
-
 use serde_json::{Map, Value};
 
 use crate::error::ValidationError;
-use crate::icons;
 
 /// Known lifecycle actions that require `--interactive` (REQ-0060).
 pub(super) const LIFECYCLE_ACTIONS: &[&str] = &["show", "hide", "exit"];
@@ -64,48 +61,6 @@ pub(super) const QUESTION_HEADER_MAX_CHARS: usize = 12;
 
 /// Phase B executable `type` values (through b.7).
 pub(super) const VALID_TYPES: &[&str] = &["chrome", "message", "input", "markdown", "question"];
-
-/// True when `spec` is a named icon (`role` / `role:N`), not a path or data URI.
-pub(super) fn is_named_icon_spec(spec: &str) -> bool {
-    if spec.starts_with("data:") {
-        return false;
-    }
-    if spec.contains('/') || spec.contains('\\') || spec.starts_with('.') {
-        return false;
-    }
-    // Same filesystem-extension heuristic as b.2 `looks_like_path`.
-    Path::new(spec).extension().is_none()
-}
-
-/// Validate a named icon / image spec against the schema catalog (REQ-0031).
-pub(super) fn validate_named_icon(
-    field: &str,
-    spec: &str,
-) -> Result<(String, u32), ValidationError> {
-    let (role, variant) = icons::parse_icon_spec(spec).map_err(|()| {
-        ValidationError::validation(
-            field,
-            format!("invalid icon variant in '{spec}'; expected numeric suffix like ':2'"),
-        )
-    })?;
-    if !icons::ROLES.contains(&role.as_str()) {
-        return Err(ValidationError::validation(
-            field,
-            format!(
-                "unknown icon '{role}'; valid names: {}",
-                icons::ROLES.join(", ")
-            ),
-        ));
-    }
-    let max = icons::variant_count(&role);
-    if variant < 1 || variant > max {
-        return Err(ValidationError::validation(
-            field,
-            format!("variant {variant} out of range for '{role}' (valid: 1–{max})"),
-        ));
-    }
-    Ok((role, variant))
-}
 
 pub(super) fn require_string_field(
     obj: &Map<String, Value>,

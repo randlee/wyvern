@@ -8,8 +8,8 @@ use crate::error::ValidationError;
 use crate::field_name::FieldName;
 
 use super::helpers::{
-    closest_match, is_named_icon_spec, json_type_name, optional_bool_field, optional_string_field,
-    require_string_field, validate_named_icon, MESSAGE_FIELDS,
+    closest_match, json_type_name, optional_bool_field, optional_string_field,
+    require_string_field, MESSAGE_FIELDS,
 };
 
 pub(super) fn validate_message(obj: &Map<String, Value>) -> Result<Command, ValidationError> {
@@ -165,18 +165,9 @@ pub(super) fn validate_message(obj: &Map<String, Value>) -> Result<Command, Vali
         }
     };
 
+    // icon / image are opaque strings (path, URL, or UI template hint) — no catalog check.
     let icon = optional_string_field(obj, "icon")?;
     let image = optional_string_field(obj, "image")?;
-    if let Some(spec) = icon.as_deref() {
-        if is_named_icon_spec(spec) {
-            validate_named_icon("icon", spec)?;
-        }
-    }
-    if let Some(spec) = image.as_deref() {
-        if is_named_icon_spec(spec) {
-            validate_named_icon("image", spec)?;
-        }
-    }
     let markdown = optional_bool_field(obj, "markdown")?.unwrap_or(false);
 
     Ok(Command::Message {

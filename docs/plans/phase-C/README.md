@@ -67,6 +67,8 @@ c.5 (release) ──► c.6 ──► c.7
 
 ## Delivery rewrite (c.9–c.16) — HTTP host
 
+Implementation PRs for **c.9–c.16** target **`integrate/phase-c-web-server`** (not `integrate/phase-C`).
+
 The embedded `wyvern-window` stack is **removed in c.9** (clean break; compile optional). **Principle: delete → verify → rebuild** — no refactor-in-place. Replacement: `wyvern-host` + packaged `ui/` (c.10–c.14) + `wyvern-viewer` (c.15) + release (c.16).
 
 ```
@@ -117,7 +119,7 @@ All commands use `--viewer none` in CI unless noted.
 2. `input`, `markdown`, `question`, `chrome` — each passes headless e2e (c.11–c.14)
 3. `wyvern '{"type":"message",...}'` (default) — embedded viewer smoke on macOS (c.15)
 4. Tag `v0.1.0` produces binary + `share/wyvern/ui/**` on macOS, Windows, Linux (c.16)
-5. `wyvern-window` absent; `cargo build --workspace` green on `integrate/phase-C` head
+5. `wyvern-window` absent; `cargo build --workspace` green on `integrate/phase-c-web-server` head
 
 ### Historical (c.1–c.5 — pre-deletion stack)
 

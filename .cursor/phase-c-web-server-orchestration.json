@@ -1,0 +1,83 @@
+{
+  "phase": "C-web-server",
+  "started_at": "2026-07-14T03:40:00Z",
+  "pr_target": "integrate/phase-c-web-server",
+  "integrate_branch": "integrate/phase-c-web-server",
+  "integrate_worktree": "/Volumes/Extreme Pro/github/wyvern-worktrees/integrate/phase-c-web-server",
+  "integrate_head": "9cd332c",
+  "develop_head": "9cd332c",
+  "planning_pr": 37,
+  "sequence": [
+    "c.9",
+    "c.10",
+    "c.11",
+    "c.12",
+    "c.13",
+    "c.14",
+    "c.15",
+    "c.16"
+  ],
+  "current_sprint": "c.9",
+  "sprints": {
+    "c.9": {
+      "id": "c.9",
+      "title": "Delete wyvern-window stack (compile optional)",
+      "branch": "feature/phase-C-c9-deletion",
+      "worktree": "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-C-c9-deletion",
+      "sprint_doc": "docs/plans/phase-C/c9-deletion.md",
+      "pr_target": "integrate/phase-c-web-server",
+      "status": "qa",
+      "pr_number": 38,
+      "sha": "1bf342f17daf2596612b2a44d732d9fbf25d924c",
+      "qa_rounds": [],
+      "merged": false,
+      "notes": "verify-c9-deletion.sh exit 0; cargo build not required",
+      "pr_url": "https://github.com/randlee/wyvern/pull/38"
+    },
+    "c.10": {
+      "id": "c.10",
+      "title": "wyvern-host + message + workspace green",
+      "branch": "feature/phase-C-c10-http-host-message",
+      "sprint_doc": "docs/plans/phase-C/c10-http-host-message.md",
+      "pr_target": "integrate/phase-c-web-server",
+      "status": "pending",
+      "merged": false
+    },
+    "c.11": {
+      "id": "c.11",
+      "branch": "feature/phase-C-c11-host-input",
+      "sprint_doc": "docs/plans/phase-C/c11-host-input.md",
+      "status": "pending"
+    },
+    "c.12": {
+      "id": "c.12",
+      "branch": "feature/phase-C-c12-host-markdown",
+      "sprint_doc": "docs/plans/phase-C/c12-host-markdown.md",
+      "status": "pending"
+    },
+    "c.13": {
+      "id": "c.13",
+      "branch": "feature/phase-C-c13-host-question",
+      "sprint_doc": "docs/plans/phase-C/c13-host-question.md",
+      "status": "pending"
+    },
+    "c.14": {
+      "id": "c.14",
+      "branch": "feature/phase-C-c14-host-chrome",
+      "sprint_doc": "docs/plans/phase-C/c14-host-chrome.md",
+      "status": "pending"
+    },
+    "c.15": {
+      "id": "c.15",
+      "branch": "feature/phase-C-c15-wyvern-viewer",
+      "sprint_doc": "docs/plans/phase-C/c15-wyvern-viewer.md",
+      "status": "pending"
+    },
+    "c.16": {
+      "id": "c.16",
+      "branch": "feature/phase-C-c16-release",
+      "sprint_doc": "docs/plans/phase-C/c16-release.md",
+      "status": "pending"
+    }
+  }
+}

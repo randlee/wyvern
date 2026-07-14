@@ -1,13 +1,12 @@
 //! CLI pipeline: validate → load markdown files → run → emit (argv load stays in `main`).
+//!
+//! c.9: `wyvern-window` deleted. Delivery resumes in c.10 via `wyvern-host`.
 
 use serde_json::Value;
 
-use wyvern_schema::{Command, ErrorCode, FieldName};
-use wyvern_window::RunError;
+use wyvern_schema::{Command, ErrorCode, FieldName, StderrError};
 
-use crate::error::{
-    emit_io_error, emit_run_error, emit_stdout, emit_validation_error, EmitError, LoadError,
-};
+use crate::error::{emit_io_error, emit_validation_error, EmitError, LoadError};
 use crate::observability;
 
 /// Pipeline failure after load: stage stderr + exit, or emit-boundary serialize failure.
@@ -19,13 +18,13 @@ pub enum PipelineError {
     Emit(EmitError),
 }
 
-/// Validate `value`, run the window, and return stdout JSON on success.
+/// Validate `value`, run the host, and return stdout JSON on success.
 ///
 /// # Errors
 ///
 /// Returns [`PipelineError::Stage`] with stderr JSON and a non-zero exit code on
-/// validation, markdown I/O, or run failure. Returns [`PipelineError::Emit`] when
-/// structured JSON serialization fails (REQ-0078).
+/// validation, markdown I/O, or (until c.10) missing host. Returns
+/// [`PipelineError::Emit`] when structured JSON serialization fails (REQ-0078).
 pub fn run_from_loaded(value: Value) -> Result<String, PipelineError> {
     observability::log_command_received(&value);
     let command = match wyvern_schema::validate(&value) {
@@ -56,30 +55,28 @@ pub fn run_from_loaded(value: Value) -> Result<String, PipelineError> {
         }
     };
 
-    observability::log_window_open();
-    let result = match wyvern_window::run(command) {
-        Ok(r) => {
-            observability::log_window_close();
-            r
-        }
-        Err(e) => {
-            observability::log_error("run", &format!("{e:?}"));
-            let stderr = emit_run_error(&e).map_err(PipelineError::Emit)?;
-            let exit_code = match &e {
-                RunError::WindowCreate { .. } => ErrorCode::WindowCreateError.exit_code(),
-                RunError::EventLoop { .. } => ErrorCode::EventLoopError.exit_code(),
-            };
-            return Err(PipelineError::Stage { stderr, exit_code });
-        }
-    };
-    observability::log_result_emitted();
-    emit_stdout(&result).map_err(PipelineError::Emit)
+    // c.9 demolition: no delivery stack until wyvern-host (c.10).
+    let _ = command;
+    observability::log_error("run", "wyvern-window deleted; wyvern-host arrives in c.10");
+    let stderr = StderrError::new(
+        ErrorCode::InternalError,
+        "wyvern-window deleted; dialog delivery returns in c.10 via wyvern-host",
+    )
+    .cause("Embedded wry/winit stack removed in sprint c.9")
+    .recovery("Wait for wyvern-host (sprint c.10) or use validation-only flows")
+    .docs("docs/plans/phase-C/c9-deletion.md")
+    .to_json_string()
+    .map_err(|e| PipelineError::Emit(EmitError::Serialize(e)))?;
+    Err(PipelineError::Stage {
+        stderr,
+        exit_code: ErrorCode::InternalError.exit_code(),
+    })
 }
 
-/// Read markdown `file` into `content` before the window opens (REQ-0071).
+/// Read markdown `file` into `content` before the host opens (REQ-0071).
 ///
 /// Missing or unreadable paths return [`LoadError::Io`] so the CLI emits `io`
-/// stderr without opening a window.
+/// stderr without opening a dialog.
 fn load_markdown_file(command: Command) -> Result<Command, LoadError> {
     match command {
         Command::Markdown {

@@ -79,7 +79,7 @@ pub fn log_validation_result(ok: bool) {
     emit("validation_result", Level::Info, Some(outcome), fields);
 }
 
-/// Emit normative `window_open` before `wyvern_window::run`.
+/// Emit normative `window_open` before dialog delivery (host from c.10).
 pub fn log_window_open() {
     emit("window_open", Level::Info, Some("ok"), Map::new());
 }

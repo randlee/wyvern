@@ -3,7 +3,7 @@ id: c.14
 title: Host + UI — chrome
 status: planning
 branch: feature/phase-C-c14-host-chrome
-target: integrate/phase-C
+target: integrate/phase-c-web-server
 ---
 
 # Sprint c.14 — `chrome` on HTTP host (full dialog matrix)

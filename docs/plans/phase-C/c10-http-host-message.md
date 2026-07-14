@@ -3,7 +3,7 @@ id: c.10
 title: wyvern-host scaffold + message + workspace green
 status: planning
 branch: feature/phase-C-c10-http-host-message
-target: integrate/phase-C
+target: integrate/phase-c-web-server
 ---
 
 # Sprint c.10 — `wyvern-host` + `message` (workspace compiles)
