@@ -47,6 +47,25 @@ fn host_options(url_file: PathBuf) -> HostOptions {
     }
 }
 
+/// Poll `GET /api/dialog` until HTTP 200 (URL file alone is not readiness).
+fn wait_for_dialog_ready(client: &reqwest::blocking::Client, base: &str) -> serde_json::Value {
+    let url = format!("{base}/api/dialog");
+    let start = std::time::Instant::now();
+    loop {
+        match client.get(&url).send() {
+            Ok(resp) if resp.status() == reqwest::StatusCode::OK => {
+                return resp.json().expect("dialog json");
+            }
+            Ok(_) | Err(_) => {
+                if start.elapsed() > Duration::from_secs(15) {
+                    panic!("timed out waiting for GET /api/dialog at {url}");
+                }
+                thread::sleep(Duration::from_millis(20));
+            }
+        }
+    }
+}
+
 #[test]
 fn run_message_posts_ok_via_http() {
     let url_file = unique_path("wyvern-host-url");
@@ -59,14 +78,7 @@ fn run_message_posts_ok_via_http() {
         .trim_end_matches('/');
 
     let client = reqwest::blocking::Client::new();
-    let dialog: serde_json::Value = client
-        .get(format!("{base}/api/dialog"))
-        .send()
-        .expect("GET dialog")
-        .error_for_status()
-        .expect("dialog status")
-        .json()
-        .expect("dialog json");
+    let dialog = wait_for_dialog_ready(&client, base);
     assert_eq!(dialog["type"], "message");
     assert_eq!(dialog["title"], "T");
     assert_eq!(dialog["message"], "Hi");
@@ -177,6 +189,7 @@ fn run_serves_custom_ui_root() {
         .trim_end_matches('/');
 
     let client = reqwest::blocking::Client::new();
+    let _ = wait_for_dialog_ready(&client, base);
     let html = client
         .get(&dialog_url)
         .send()

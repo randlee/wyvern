@@ -3,6 +3,7 @@ import { spawn, ChildProcessWithoutNullStreams } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { gotoDialog } from "./helpers";
 
 const REPO_ROOT = path.resolve(__dirname, "../..");
 const WYVERN_BIN =
@@ -80,7 +81,7 @@ test("input text ok via --viewer none", async ({ page }) => {
     const exitPromise = waitForExit(child);
 
     const dialogUrl = await waitForUrlFile(urlFile);
-    await page.goto(dialogUrl);
+    await gotoDialog(page, dialogUrl);
     await expect(page.getByTestId("input-field")).toBeVisible();
     await page.getByTestId("input-field").fill("Ada Lovelace");
     await page.getByTestId("btn-ok").click();
@@ -143,7 +144,7 @@ test("input file mode with WYVERN_MOCK_PICKER_PATH", async ({ page }) => {
     const exitPromise = waitForExit(child);
 
     const dialogUrl = await waitForUrlFile(urlFile);
-    await page.goto(dialogUrl);
+    await gotoDialog(page, dialogUrl);
     await expect(page.getByTestId("btn-ok")).toBeVisible();
     await page.getByTestId("btn-ok").click();
 
@@ -207,7 +208,7 @@ test("input password mode masks field and returns plaintext stdout", async ({
     const exitPromise = waitForExit(child);
 
     const dialogUrl = await waitForUrlFile(urlFile);
-    await page.goto(dialogUrl);
+    await gotoDialog(page, dialogUrl);
     const field = page.getByTestId("input-field");
     await expect(field).toBeVisible();
     await expect(field).toHaveAttribute("type", "password");
@@ -279,7 +280,7 @@ test("input multi-file mode returns paths array stdout", async ({ page }) => {
     const exitPromise = waitForExit(child);
 
     const dialogUrl = await waitForUrlFile(urlFile);
-    await page.goto(dialogUrl);
+    await gotoDialog(page, dialogUrl);
     await expect(page.getByTestId("btn-ok")).toBeVisible();
     await page.getByTestId("btn-ok").click();
 
