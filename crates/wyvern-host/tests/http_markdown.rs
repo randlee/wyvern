@@ -1,8 +1,7 @@
 //! L1 HTTP tests for markdown dialog — content_html + result shape.
 
 use std::net::SocketAddr;
-use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::path::{Path, PathBuf};
 use std::thread;
 use std::time::Duration;
 
@@ -11,12 +10,6 @@ use wyvern_schema::{ButtonsPreset, ChromeTitle, Command, CommandResult, Markdown
 
 fn workspace_ui_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../ui")
-}
-
-fn unique_path(prefix: &str) -> PathBuf {
-    static SEQ: AtomicU64 = AtomicU64::new(0);
-    let n = SEQ.fetch_add(1, Ordering::Relaxed);
-    std::env::temp_dir().join(format!("{prefix}-{}-{n}", std::process::id()))
 }
 
 fn host_options(url_file: PathBuf) -> HostOptions {
@@ -42,7 +35,7 @@ fn markdown_command(content: &str) -> Command {
     }
 }
 
-fn wait_for_url_file(path: &PathBuf) -> String {
+fn wait_for_url_file(path: &Path) -> String {
     let start = std::time::Instant::now();
     loop {
         if let Ok(url) = std::fs::read_to_string(path) {
@@ -60,7 +53,8 @@ fn wait_for_url_file(path: &PathBuf) -> String {
 
 #[test]
 fn run_markdown_posts_ok_via_http() {
-    let url_file = unique_path("wyvern-host-md-url");
+    let tmp = tempfile::tempdir().expect("temp dir");
+    let url_file = tmp.path().join("dialog-url");
     let options = host_options(url_file.clone());
     let handle = thread::spawn(move || run(markdown_command("# Hello\n\nBody"), options));
 
@@ -123,13 +117,12 @@ fn run_markdown_posts_ok_via_http() {
             button: wyvern_schema::ButtonLabel::new("ok"),
         })
     );
-
-    let _ = std::fs::remove_file(&url_file);
 }
 
 #[test]
 fn dialog_content_html_strips_script_tags() {
-    let url_file = unique_path("wyvern-host-md-xss");
+    let tmp = tempfile::tempdir().expect("temp dir");
+    let url_file = tmp.path().join("dialog-url");
     let options = host_options(url_file.clone());
     let source = "Hi <script>alert(1)</script>\n\n<img src=x onerror=alert(2)>";
     let handle = thread::spawn(move || run(markdown_command(source), options));
@@ -165,12 +158,12 @@ fn dialog_content_html_strips_script_tags() {
         .expect("POST result")
         .error_for_status();
     let _ = handle.join().expect("host thread").expect("run ok");
-    let _ = std::fs::remove_file(&url_file);
 }
 
 #[test]
 fn dialog_rejects_oversized_markdown_content() {
-    let url_file = unique_path("wyvern-host-md-oversize");
+    let tmp = tempfile::tempdir().expect("temp dir");
+    let url_file = tmp.path().join("dialog-url");
     let options = host_options(url_file.clone());
     let oversized = "x".repeat(wyvern_schema::MARKDOWN_CONTENT_MAX_BYTES + 1);
     let handle = thread::spawn(move || run(markdown_command(&oversized), options));
@@ -203,12 +196,12 @@ fn dialog_rejects_oversized_markdown_content() {
         .json(&serde_json::json!({"button":"dismissed"}))
         .send();
     let _ = handle.join();
-    let _ = std::fs::remove_file(&url_file);
 }
 
 #[test]
 fn result_invalid_markdown_includes_cause_recovery_docs() {
-    let url_file = unique_path("wyvern-host-md-bad-result");
+    let tmp = tempfile::tempdir().expect("temp dir");
+    let url_file = tmp.path().join("dialog-url");
     let options = host_options(url_file.clone());
     let handle = thread::spawn(move || run(markdown_command("# Hello\n"), options));
 
@@ -242,5 +235,4 @@ fn result_invalid_markdown_includes_cause_recovery_docs() {
         .expect("POST result")
         .error_for_status();
     let _ = handle.join().expect("host thread").expect("run ok");
-    let _ = std::fs::remove_file(&url_file);
 }
