@@ -46,15 +46,15 @@ mod tests {
 
     #[test]
     fn safe_join_rejects_parent() {
-        let root = Path::new("/tmp/ui");
-        assert!(safe_join(root, "../etc/passwd").is_none());
-        assert!(safe_join(root, "message/../../etc").is_none());
+        let root = std::env::temp_dir().join("ui");
+        assert!(safe_join(&root, "../etc/passwd").is_none());
+        assert!(safe_join(&root, "message/../../etc").is_none());
     }
 
     #[test]
     fn safe_join_allows_nested() {
-        let root = Path::new("/tmp/ui");
-        let joined = safe_join(root, "message/app.js").expect("ok");
-        assert_eq!(joined, PathBuf::from("/tmp/ui/message/app.js"));
+        let root = std::env::temp_dir().join("ui");
+        let joined = safe_join(&root, "message/app.js").expect("ok");
+        assert_eq!(joined, root.join("message").join("app.js"));
     }
 }
