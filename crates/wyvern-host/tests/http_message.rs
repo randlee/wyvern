@@ -47,6 +47,7 @@ fn host_options(url_file: PathBuf) -> HostOptions {
         dialog_url_file: Some(url_file),
         allow_non_loopback: false,
         session_timeout: wyvern_host::DEFAULT_SESSION_TIMEOUT,
+        mock_picker: None,
     }
 }
 
@@ -155,6 +156,7 @@ fn run_serves_custom_ui_root() {
         dialog_url_file: Some(url_file.clone()),
         allow_non_loopback: false,
         session_timeout: wyvern_host::DEFAULT_SESSION_TIMEOUT,
+        mock_picker: None,
     };
     let handle = thread::spawn(move || run(message_command(), options));
     let dialog_url = wait_for_url_file(&url_file);

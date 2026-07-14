@@ -27,6 +27,7 @@ pub use error::{DialogTypeName, HostError};
 pub use options::{
     BrowserId, HostOptions, ViewerLaunchOptions, ViewerMode, DEFAULT_SESSION_TIMEOUT,
 };
+pub use picker::MockPickerConfig;
 
 use tokio::sync::oneshot;
 use wyvern_schema::{Command, CommandResult};
@@ -87,7 +88,7 @@ async fn run_async(
     type_name: DialogTypeName,
 ) -> Result<CommandResult, HostError> {
     let (result_tx, result_rx) = oneshot::channel();
-    let session = SessionState::new(command, result_tx);
+    let session = SessionState::new(command, result_tx, options.mock_picker.clone());
     let (bound, ui_root) = bind_server(
         options.bind,
         options.allow_non_loopback,

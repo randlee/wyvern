@@ -3,10 +3,9 @@
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
-use serial_test::serial;
-use wyvern_host::{run, HostOptions, ViewerMode};
+use wyvern_host::{run, HostOptions, MockPickerConfig, ViewerMode};
 use wyvern_schema::{
     ButtonsPreset, ChromeTitle, Command, CommandResult, InputMode, InputResult, InputValue,
 };
@@ -35,7 +34,14 @@ fn host_options(url_file: PathBuf) -> HostOptions {
         dialog_url_file: Some(url_file),
         allow_non_loopback: false,
         session_timeout: wyvern_host::DEFAULT_SESSION_TIMEOUT,
+        mock_picker: None,
     }
+}
+
+fn host_options_with_mock(url_file: PathBuf, mock: MockPickerConfig) -> HostOptions {
+    let mut options = host_options(url_file);
+    options.mock_picker = Some(mock);
+    options
 }
 
 fn text_input_command() -> Command {
@@ -49,6 +55,25 @@ fn text_input_command() -> Command {
         placeholder: Some("hint".into()),
         default: None,
         password: false,
+        mode: InputMode::Text,
+        filter: None,
+        multiple: false,
+        start_path: None,
+        buttons: ButtonsPreset::OkCancel,
+    }
+}
+
+fn password_input_command() -> Command {
+    Command::Input {
+        title: ChromeTitle::new("Secret"),
+        message: "Enter password".into(),
+        status: None,
+        icon: None,
+        markdown: false,
+        multiline: false,
+        placeholder: None,
+        default: None,
+        password: true,
         mode: InputMode::Text,
         filter: None,
         multiple: false,
@@ -71,6 +96,25 @@ fn file_input_command() -> Command {
         mode: InputMode::File,
         filter: Some(vec!["*.txt".into()]),
         multiple: false,
+        start_path: None,
+        buttons: ButtonsPreset::OkCancel,
+    }
+}
+
+fn multi_file_input_command() -> Command {
+    Command::Input {
+        title: ChromeTitle::new("Files"),
+        message: "Pick files".into(),
+        status: None,
+        icon: None,
+        markdown: false,
+        multiline: false,
+        placeholder: None,
+        default: None,
+        password: false,
+        mode: InputMode::File,
+        filter: Some(vec!["*.txt".into()]),
+        multiple: true,
         start_path: None,
         buttons: ButtonsPreset::OkCancel,
     }
@@ -129,6 +173,7 @@ fn run_input_text_posts_ok_via_http() {
     assert_eq!(dialog["type"], "input");
     assert_eq!(dialog["mode"], "text");
     assert_eq!(dialog["title"], "Name");
+    assert_eq!(dialog["password"], false);
 
     let ack: serde_json::Value = client
         .post(format!("{base}/api/result"))
@@ -154,18 +199,61 @@ fn run_input_text_posts_ok_via_http() {
 }
 
 #[test]
-#[serial]
+fn run_input_password_posts_ok_via_http() {
+    let url_file = unique_path("wyvern-host-input-password-url");
+    let options = host_options(url_file.clone());
+    let handle = thread::spawn(move || run(password_input_command(), options));
+
+    let dialog_url = wait_for_url_file(&url_file);
+    let base = dialog_url.trim_end_matches("/input/").trim_end_matches('/');
+
+    let client = reqwest::blocking::Client::new();
+    let dialog: serde_json::Value = client
+        .get(format!("{base}/api/dialog"))
+        .send()
+        .expect("GET dialog")
+        .error_for_status()
+        .expect("dialog status")
+        .json()
+        .expect("dialog json");
+    assert_eq!(dialog["type"], "input");
+    assert_eq!(dialog["password"], true);
+    assert_eq!(dialog["mode"], "text");
+
+    let secret = "s3cret-value";
+    let ack: serde_json::Value = client
+        .post(format!("{base}/api/result"))
+        .json(&serde_json::json!({"button":"ok","input": secret}))
+        .send()
+        .expect("POST result")
+        .error_for_status()
+        .expect("result status")
+        .json()
+        .expect("ack json");
+    assert_eq!(ack["ok"], true);
+
+    let result = handle.join().expect("host thread").expect("run ok");
+    assert_eq!(
+        result,
+        CommandResult::Input(InputResult {
+            button: wyvern_schema::ButtonLabel::new("ok"),
+            input: Some(InputValue::Text(secret.into())),
+        })
+    );
+
+    let _ = std::fs::remove_file(&url_file);
+}
+
+#[test]
 fn picker_file_returns_picker_response_json() {
     let fixture = unique_path("wyvern-picker-fixture");
     std::fs::write(&fixture, b"fixture").expect("write fixture");
 
-    // SAFETY: #[serial] owns the mock env for this test's duration.
-    unsafe {
-        std::env::set_var("WYVERN_MOCK_PICKER_PATH", &fixture);
-    }
-
     let url_file = unique_path("wyvern-host-picker-url");
-    let options = host_options(url_file.clone());
+    let options = host_options_with_mock(
+        url_file.clone(),
+        MockPickerConfig::path(fixture.to_string_lossy()),
+    );
     let handle = thread::spawn(move || run(file_input_command(), options));
 
     let dialog_url = wait_for_url_file(&url_file);
@@ -215,23 +303,14 @@ fn picker_file_returns_picker_response_json() {
         other => panic!("unexpected result: {other:?}"),
     }
 
-    unsafe {
-        std::env::remove_var("WYVERN_MOCK_PICKER_PATH");
-    }
     let _ = std::fs::remove_file(&url_file);
     let _ = std::fs::remove_file(&fixture);
 }
 
 #[test]
-#[serial]
 fn picker_file_cancelled_returns_cancelled_json() {
-    // SAFETY: #[serial] owns the mock env for this test's duration.
-    unsafe {
-        std::env::set_var("WYVERN_MOCK_PICKER_PATH", "");
-    }
-
     let url_file = unique_path("wyvern-host-picker-cancel");
-    let options = host_options(url_file.clone());
+    let options = host_options_with_mock(url_file.clone(), MockPickerConfig::cancel());
     let handle = thread::spawn(move || run(file_input_command(), options));
 
     let dialog_url = wait_for_url_file(&url_file);
@@ -256,25 +335,94 @@ fn picker_file_cancelled_returns_cancelled_json() {
         .send();
     let _ = handle.join();
 
-    unsafe {
-        std::env::remove_var("WYVERN_MOCK_PICKER_PATH");
-    }
     let _ = std::fs::remove_file(&url_file);
 }
 
 #[test]
-#[serial]
+fn picker_multi_file_returns_paths_array_via_result() {
+    let fixture_a = unique_path("wyvern-picker-multi-a");
+    let fixture_b = unique_path("wyvern-picker-multi-b");
+    std::fs::write(&fixture_a, b"a").expect("write a");
+    std::fs::write(&fixture_b, b"b").expect("write b");
+    let joined = std::env::join_paths([&fixture_a, &fixture_b]).expect("join paths");
+
+    let url_file = unique_path("wyvern-host-picker-multi-url");
+    let options = host_options_with_mock(
+        url_file.clone(),
+        MockPickerConfig::path(joined.to_string_lossy()),
+    );
+    let handle = thread::spawn(move || run(multi_file_input_command(), options));
+
+    let dialog_url = wait_for_url_file(&url_file);
+    let base = dialog_url.trim_end_matches("/input/").trim_end_matches('/');
+
+    let client = reqwest::blocking::Client::new();
+    let dialog: serde_json::Value = client
+        .get(format!("{base}/api/dialog"))
+        .send()
+        .expect("GET dialog")
+        .error_for_status()
+        .expect("dialog status")
+        .json()
+        .expect("dialog json");
+    assert_eq!(dialog["multiple"], true);
+
+    let picker: serde_json::Value = client
+        .post(format!("{base}/api/picker/file"))
+        .json(&serde_json::json!({"multiple": true}))
+        .send()
+        .expect("POST picker")
+        .error_for_status()
+        .expect("picker status")
+        .json()
+        .expect("picker json");
+    assert_eq!(picker["ok"], true);
+    let paths = picker["paths"].as_array().expect("paths array");
+    assert_eq!(paths.len(), 2);
+
+    let ack: serde_json::Value = client
+        .post(format!("{base}/api/result"))
+        .json(&serde_json::json!({
+            "button": "ok",
+            "input": paths,
+        }))
+        .send()
+        .expect("POST result")
+        .error_for_status()
+        .expect("result status")
+        .json()
+        .expect("ack");
+    assert_eq!(ack["ok"], true);
+
+    let result = handle.join().expect("host thread").expect("run ok");
+    match result {
+        CommandResult::Input(InputResult {
+            button,
+            input: Some(InputValue::Paths(p)),
+        }) => {
+            assert_eq!(button.as_str(), "ok");
+            assert_eq!(p.len(), 2);
+            assert_eq!(PathBuf::from(&p[0]), fixture_a);
+            assert_eq!(PathBuf::from(&p[1]), fixture_b);
+        }
+        other => panic!("unexpected result: {other:?}"),
+    }
+
+    let _ = std::fs::remove_file(&url_file);
+    let _ = std::fs::remove_file(&fixture_a);
+    let _ = std::fs::remove_file(&fixture_b);
+}
+
+#[test]
 fn picker_folder_returns_picker_response_json() {
     let fixture = unique_path("wyvern-picker-folder-fixture");
     std::fs::create_dir_all(&fixture).expect("create fixture dir");
 
-    // SAFETY: #[serial] owns the mock env for this test's duration.
-    unsafe {
-        std::env::set_var("WYVERN_MOCK_PICKER_PATH", &fixture);
-    }
-
     let url_file = unique_path("wyvern-host-picker-folder-url");
-    let options = host_options(url_file.clone());
+    let options = host_options_with_mock(
+        url_file.clone(),
+        MockPickerConfig::path(fixture.to_string_lossy()),
+    );
     let handle = thread::spawn(move || run(folder_input_command(), options));
 
     let dialog_url = wait_for_url_file(&url_file);
@@ -324,23 +472,14 @@ fn picker_folder_returns_picker_response_json() {
         other => panic!("unexpected result: {other:?}"),
     }
 
-    unsafe {
-        std::env::remove_var("WYVERN_MOCK_PICKER_PATH");
-    }
     let _ = std::fs::remove_file(&url_file);
     let _ = std::fs::remove_dir_all(&fixture);
 }
 
 #[test]
-#[serial]
 fn picker_folder_cancelled_returns_cancelled_json() {
-    // SAFETY: #[serial] owns the mock env for this test's duration.
-    unsafe {
-        std::env::set_var("WYVERN_MOCK_PICKER_PATH", "");
-    }
-
     let url_file = unique_path("wyvern-host-picker-folder-cancel");
-    let options = host_options(url_file.clone());
+    let options = host_options_with_mock(url_file.clone(), MockPickerConfig::cancel());
     let handle = thread::spawn(move || run(folder_input_command(), options));
 
     let dialog_url = wait_for_url_file(&url_file);
@@ -365,8 +504,135 @@ fn picker_folder_cancelled_returns_cancelled_json() {
         .send();
     let _ = handle.join();
 
-    unsafe {
-        std::env::remove_var("WYVERN_MOCK_PICKER_PATH");
-    }
     let _ = std::fs::remove_file(&url_file);
+}
+
+#[test]
+fn picker_rejects_empty_filter_override_with_recovery_fields() {
+    let url_file = unique_path("wyvern-host-picker-bad-filter");
+    let options = host_options_with_mock(url_file.clone(), MockPickerConfig::cancel());
+    let handle = thread::spawn(move || run(file_input_command(), options));
+
+    let dialog_url = wait_for_url_file(&url_file);
+    let base = dialog_url.trim_end_matches("/input/").trim_end_matches('/');
+
+    let client = reqwest::blocking::Client::new();
+    let resp = client
+        .post(format!("{base}/api/picker/file"))
+        .json(&serde_json::json!({"filter": [""]}))
+        .send()
+        .expect("POST picker");
+    assert_eq!(resp.status(), 400);
+    let body: serde_json::Value = resp.json().expect("error json");
+    assert_eq!(body["ok"], false);
+    assert_eq!(body["error"], "bad_request");
+    assert!(body["cause"].as_str().is_some_and(|s| !s.is_empty()));
+    assert!(body["recovery"].as_array().is_some_and(|a| !a.is_empty()));
+    assert!(body["docs"]
+        .as_str()
+        .is_some_and(|s| s.contains("http-post-schema")));
+
+    let _ = client
+        .post(format!("{base}/api/result"))
+        .json(&serde_json::json!({"button":"cancel"}))
+        .send();
+    let _ = handle.join();
+    let _ = std::fs::remove_file(&url_file);
+}
+
+#[test]
+fn picker_rejects_empty_start_path_override() {
+    let url_file = unique_path("wyvern-host-picker-bad-start");
+    let options = host_options_with_mock(url_file.clone(), MockPickerConfig::cancel());
+    let handle = thread::spawn(move || run(file_input_command(), options));
+
+    let dialog_url = wait_for_url_file(&url_file);
+    let base = dialog_url.trim_end_matches("/input/").trim_end_matches('/');
+
+    let client = reqwest::blocking::Client::new();
+    let resp = client
+        .post(format!("{base}/api/picker/file"))
+        .json(&serde_json::json!({"start_path": ""}))
+        .send()
+        .expect("POST picker");
+    assert_eq!(resp.status(), 400);
+    let body: serde_json::Value = resp.json().expect("error json");
+    assert_eq!(body["error"], "bad_request");
+    assert!(body.get("cause").is_some());
+    assert!(body["recovery"].as_array().is_some_and(|a| !a.is_empty()));
+
+    let _ = client
+        .post(format!("{base}/api/result"))
+        .json(&serde_json::json!({"button":"cancel"}))
+        .send();
+    let _ = handle.join();
+    let _ = std::fs::remove_file(&url_file);
+}
+
+#[test]
+fn picker_slot_held_until_blocking_task_finishes() {
+    // Slow mock keeps the OwnedSemaphorePermit inside spawn_blocking after the
+    // first POST returns; a concurrent second POST must wait, not race a second
+    // native picker.
+    let fixture = unique_path("wyvern-picker-hold-fixture");
+    std::fs::write(&fixture, b"hold").expect("write fixture");
+
+    let url_file = unique_path("wyvern-host-picker-hold");
+    let options = host_options_with_mock(
+        url_file.clone(),
+        MockPickerConfig::path_with_delay(fixture.to_string_lossy(), Duration::from_millis(400)),
+    );
+    let handle = thread::spawn(move || run(file_input_command(), options));
+
+    let dialog_url = wait_for_url_file(&url_file);
+    let base = dialog_url.trim_end_matches("/input/").trim_end_matches('/');
+    let client = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(5))
+        .build()
+        .expect("client");
+
+    let base_a = base.to_string();
+    let base_b = base.to_string();
+    let started = Instant::now();
+    let t1 = thread::spawn(move || {
+        reqwest::blocking::Client::new()
+            .post(format!("{base_a}/api/picker/file"))
+            .json(&serde_json::json!({}))
+            .send()
+            .expect("POST picker 1")
+            .error_for_status()
+            .expect("picker 1 status")
+            .json::<serde_json::Value>()
+            .expect("picker 1 json")
+    });
+    thread::sleep(Duration::from_millis(50));
+    let t2 = thread::spawn(move || {
+        reqwest::blocking::Client::new()
+            .post(format!("{base_b}/api/picker/file"))
+            .json(&serde_json::json!({}))
+            .send()
+            .expect("POST picker 2")
+            .error_for_status()
+            .expect("picker 2 status")
+            .json::<serde_json::Value>()
+            .expect("picker 2 json")
+    });
+
+    let p1 = t1.join().expect("t1");
+    let p2 = t2.join().expect("t2");
+    let elapsed = started.elapsed();
+    assert!(
+        elapsed >= Duration::from_millis(700),
+        "expected serialized pickers (~400ms each); elapsed={elapsed:?}"
+    );
+    assert_eq!(p1["ok"], true);
+    assert_eq!(p2["ok"], true);
+
+    let _ = client
+        .post(format!("{base}/api/result"))
+        .json(&serde_json::json!({"button":"cancel"}))
+        .send();
+    let _ = handle.join();
+    let _ = std::fs::remove_file(&url_file);
+    let _ = std::fs::remove_file(&fixture);
 }
