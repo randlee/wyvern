@@ -156,24 +156,63 @@ fn is_executable_file(path: &Path) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::ffi::{OsStr, OsString};
+    use std::sync::{Mutex, MutexGuard};
 
+    /// Serializes tests that mutate process-global env (parallel `cargo test` safe).
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    struct EnvLock {
+        _guard: MutexGuard<'static, ()>,
+    }
+
+    impl EnvLock {
+        fn acquire() -> Self {
+            Self {
+                _guard: ENV_LOCK
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner),
+            }
+        }
+    }
+
+    /// RAII env mutation: restores the prior value (or absence) on drop.
     struct EnvGuard {
         key: &'static str,
+        previous: Option<OsString>,
+    }
+
+    impl EnvGuard {
+        fn set(key: &'static str, value: impl AsRef<OsStr>) -> Self {
+            let previous = std::env::var_os(key);
+            // SAFETY: callers hold [`EnvLock`] so no concurrent env mutation.
+            unsafe { std::env::set_var(key, value) };
+            Self { key, previous }
+        }
+
+        fn remove(key: &'static str) -> Self {
+            let previous = std::env::var_os(key);
+            // SAFETY: callers hold [`EnvLock`] so no concurrent env mutation.
+            unsafe { std::env::remove_var(key) };
+            Self { key, previous }
+        }
     }
 
     impl Drop for EnvGuard {
         fn drop(&mut self) {
-            std::env::remove_var(self.key);
+            // SAFETY: same exclusive [`EnvLock`] as set/remove; restore prior state.
+            unsafe {
+                match &self.previous {
+                    Some(v) => std::env::set_var(self.key, v),
+                    None => std::env::remove_var(self.key),
+                }
+            }
         }
-    }
-
-    fn set_env(key: &'static str, value: impl AsRef<std::ffi::OsStr>) -> EnvGuard {
-        std::env::set_var(key, value);
-        EnvGuard { key }
     }
 
     #[test]
     fn resolve_respects_wyvern_viewer_bin_when_no_sibling() {
+        let _lock = EnvLock::acquire();
         let tmp = tempfile::tempdir().expect("tmp");
         let fake = tmp.path().join(viewer_bin_name());
         std::fs::write(&fake, b"#!/bin/sh\n").expect("write");
@@ -185,11 +224,8 @@ mod tests {
             std::fs::set_permissions(&fake, perms).unwrap();
         }
         // Clear cargo bin env so WYVERN_VIEWER_BIN is reached when sibling is absent.
-        let _cargo = EnvGuard {
-            key: "CARGO_BIN_EXE_wyvern-viewer",
-        };
-        std::env::remove_var("CARGO_BIN_EXE_wyvern-viewer");
-        let _guard = set_env("WYVERN_VIEWER_BIN", &fake);
+        let _cargo = EnvGuard::remove("CARGO_BIN_EXE_wyvern-viewer");
+        let _guard = EnvGuard::set("WYVERN_VIEWER_BIN", &fake);
 
         // Sibling of the test harness may exist (target/debug/wyvern-viewer). Prefer
         // asserting that an explicit env override is accepted when resolve reaches it,
@@ -207,15 +243,13 @@ mod tests {
 
     #[test]
     fn missing_bin_env_errors_when_override_points_nowhere() {
+        let _lock = EnvLock::acquire();
         let tmp = tempfile::tempdir().expect("tmp");
         let missing = tmp.path().join("no-such-viewer");
         // Force override path and clear cargo bin; sibling may still win — only assert
         // NotFound when the override is the sole candidate that resolve would use.
-        let _cargo = EnvGuard {
-            key: "CARGO_BIN_EXE_wyvern-viewer",
-        };
-        std::env::remove_var("CARGO_BIN_EXE_wyvern-viewer");
-        let _guard = set_env("WYVERN_VIEWER_BIN", &missing);
+        let _cargo = EnvGuard::remove("CARGO_BIN_EXE_wyvern-viewer");
+        let _guard = EnvGuard::set("WYVERN_VIEWER_BIN", &missing);
 
         // If a sibling binary exists next to the test exe, resolve succeeds via sibling
         // (documented order). Otherwise the missing override must error.
@@ -234,6 +268,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn non_executable_bin_env_errors() {
+        let _lock = EnvLock::acquire();
         let tmp = tempfile::tempdir().expect("tmp");
         let fake = tmp.path().join("not-exec-viewer");
         std::fs::write(&fake, b"#!/bin/sh\n").expect("write");
@@ -244,13 +279,10 @@ mod tests {
 
         // Call the permission helper directly — resolve may short-circuit on sibling.
         assert!(!is_executable_file(&fake));
-        let _cargo = EnvGuard {
-            key: "CARGO_BIN_EXE_wyvern-viewer",
-        };
-        std::env::remove_var("CARGO_BIN_EXE_wyvern-viewer");
+        let _cargo = EnvGuard::remove("CARGO_BIN_EXE_wyvern-viewer");
         // Isolate PATH so which() cannot find a real viewer after the override fails.
-        let _path = set_env("PATH", tmp.path());
-        let _guard = set_env("WYVERN_VIEWER_BIN", &fake);
+        let _path = EnvGuard::set("PATH", tmp.path());
+        let _guard = EnvGuard::set("WYVERN_VIEWER_BIN", &fake);
 
         if sibling_viewer_bin()
             .as_ref()

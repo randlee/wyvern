@@ -14,6 +14,12 @@ Ownership note:
     the owner crate sources so regressions like host spawning wyvern-viewer
     or viewer gaining an HTTP server are caught in the boundaries CI job.
 
+Aspirational lint_rules:
+  - [enforcement].lint_rules entries (e.g. LINT-BOUNDARY-*) are aspirational
+    metadata until those rules are implemented in sc-lint / .sc-lint.toml.
+  - This script does not enforce lint_rules; the current mechanical gate for
+    ownership forbids is the io_forbidden greps above (plus Cargo dep checks).
+
 Exits 0 on success, 1 on violation or parse error.
 """
 

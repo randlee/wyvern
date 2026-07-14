@@ -123,7 +123,8 @@ fn registry_shape_ok(file: &BrowserRegistryFile) -> bool {
     if file.version != REGISTRY_VERSION {
         return false;
     }
-    if file.platform.trim().is_empty() {
+    // Soft platform validation: wrong/empty tag → cache miss so callers refresh.
+    if file.platform != platform_tag() {
         return false;
     }
     file.entries.iter().all(|e| {
@@ -362,7 +363,7 @@ mod tests {
         let empty = BrowserRegistryFile {
             version: REGISTRY_VERSION,
             updated_at: now_rfc3339(),
-            platform: "test".into(),
+            platform: platform_tag(),
             entries: vec![],
         };
         write_registry(&path, &empty).expect("write");
@@ -390,11 +391,37 @@ mod tests {
         let bad = BrowserRegistryFile {
             version: REGISTRY_VERSION + 99,
             updated_at: now_rfc3339(),
-            platform: "test".into(),
+            platform: platform_tag(),
             entries: vec![],
         };
         write_registry(&path, &bad).expect("write");
         assert!(load(&path).expect("load").is_none());
+    }
+
+    #[test]
+    fn platform_mismatch_is_cache_miss_then_refresh() {
+        let tmp = tempfile::tempdir().expect("tmp");
+        let path = tmp.path().join("browsers.json");
+        let current = platform_tag();
+        let foreign = if current == "linux-x86_64" {
+            "macos-aarch64".to_string()
+        } else {
+            "linux-x86_64".to_string()
+        };
+        assert_ne!(foreign, current);
+        let cross = BrowserRegistryFile {
+            version: REGISTRY_VERSION,
+            updated_at: now_rfc3339(),
+            platform: foreign,
+            entries: vec![],
+        };
+        write_registry(&path, &cross).expect("write");
+        assert!(
+            load(&path).expect("load").is_none(),
+            "cross-platform cache must soft-miss"
+        );
+        let refreshed = load_or_refresh(&path).expect("refresh on mismatch");
+        assert_eq!(refreshed.platform, current);
     }
 
     #[test]
@@ -414,7 +441,7 @@ mod tests {
         let stale = BrowserRegistryFile {
             version: REGISTRY_VERSION,
             updated_at: now_rfc3339(),
-            platform: "test".into(),
+            platform: platform_tag(),
             entries: vec![BrowserRegistryEntry {
                 id: CatalogId::new("chrome").unwrap(),
                 name: "Google Chrome".into(),
