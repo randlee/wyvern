@@ -39,6 +39,9 @@ sc-compose render \
 ```
 
 3. On push (branch + SHA): open/update PR with ambient `gh`.
+3b. **Pre-QA-1 RBP sweep** (codex parity): `rust-developer` runs
+   `rust-best-practices-agent` on planned QA-1 `review_targets`; fixes all RBP
+   findings; reports before first QA spawn.
 4. Render + assign QA to **`cursor-quality-mgr` only**:
 
 ```bash
@@ -48,9 +51,19 @@ sc-compose render \
   --var-file "$_VARS"
 ```
 
-5. On FAIL: triage → fix Task (with owning-branch `sprint_doc`, REQ/ADR ids,
-   triage `.ttl` paths) → re-QA via `cursor-quality-mgr`.
-6. On PASS + green CI: merge to sprint `pr_target`.
+5. **Dev–QA loop** (repeat until both gates pass):
+   - **QA gate:** PASS only with `reviewer_spawn_gate=pass`, fenced JSON from
+     every required reviewer, **0 Blocking + 0 Important + 0 Minor** open
+     findings, and 100% deliverable completion.
+   - **PR gate:** every QA round posts **all** findings to the PR via
+     `findings-report.md.j2` or `quality-report.md.j2` (see skill).
+   - **CI gate:** all required PR checks green.
+   - **Evidence gate:** parent correlates every `task_id` in PR Machine Status
+     to completed Task subagents; `pr_comment_url` present; FAIL rounds cite
+     triage `.ttl` paths; orchestration state `qa_rounds[]` updated.
+   - On FAIL: `/triaging-findings` → fix **all** finding ids + `.ttl` paths →
+     push → re-QA. Do not merge without triage evidence on the fix assignment.
+6. On **PASS + green CI + evidence chain complete**: merge; start next sprint.
 
 ```bash
 gh pr checks <PR> --watch

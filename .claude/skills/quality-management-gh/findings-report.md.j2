@@ -27,6 +27,13 @@ required_variables:
   - action_owner
 optional_variables:
   - resolved_findings_md
+  - reviewer_spawn_gate
+  - reviewer_manifest_json
+  - evidence_chain_json
+defaults:
+  reviewer_spawn_gate: ""
+  reviewer_manifest_json: "[]"
+  evidence_chain_json: "{}"
 ---
 # QA Findings Update
 
@@ -47,6 +54,14 @@ Verdict: **{{ verdict }}**
   "commit": "{{ commit }}",
   "pr": {{ pr_number }},
   "verdict": "{{ verdict }}",
+{% if reviewer_spawn_gate -%}
+  "reviewer_spawn_gate": "{{ reviewer_spawn_gate }}",
+  "reviewer_manifest": {{ reviewer_manifest_json }},
+  "aggregation_source": "reviewer_fenced_json_union_todo_scan",
+{% endif -%}
+{% if evidence_chain_json and evidence_chain_json != "{}" -%}
+  "evidence_chain": {{ evidence_chain_json }},
+{% endif -%}
   "deliverables": {
     "complete": {{ deliverables_complete }},
     "total": {{ deliverables_total }},
@@ -66,10 +81,27 @@ Verdict: **{{ verdict }}**
 ```
 
 ## Findings Summary
+{% if reviewer_spawn_gate -%}
+- Reviewer spawn gate: **{{ reviewer_spawn_gate }}**
+{% endif -%}
 - Deliverables: {{ deliverables_complete }}/{{ deliverables_total }} ({{ deliverables_percent }}%)
 - Blocking: {{ findings_blocking }}
 - Important: {{ findings_important }}
 - Minor: {{ findings_minor }}
+
+{% if reviewer_spawn_gate -%}
+## Reviewer Manifest
+```json
+{{ reviewer_manifest_json }}
+```
+{% endif -%}
+
+{% if evidence_chain_json and evidence_chain_json != "{}" -%}
+## Evidence Chain
+```json
+{{ evidence_chain_json }}
+```
+{% endif -%}
 
 ## Blocking Findings
 {% if blocking_findings_md -%}

@@ -75,10 +75,10 @@ defaults:
     <step id="c">If additional sprint docs are listed, read them as supporting origin context for cross-sprint findings on this branch. Do not treat them as replacing `{{ sprint_doc }}`.</step>
     <step id="d">Read the cited requirement ids and ADR ids in this assignment. Those ids — not whole-document dumps — are the compliance targets this fix must restore. Sprint plans already embed broader requirements/ADR links from planning; do not expand scope beyond the cited ids plus triage occurrences unless the authoritative sprint doc requires it.</step>
     <step id="e">Update the assigned worktree from the target branch before editing. Include all earlier-sprint fixes already merged forward to that branch.</step>
-    <step id="f">Read the referenced triage records first. Treat the listed occurrences as the minimum required scope on this branch.</step>
+    <step id="f">Read the referenced triage records first. Treat the listed occurrences as the minimum required scope on this branch. Fix **every** finding id in `<finding-ids>` regardless of severity (Blocking, Important, and Minor).</step>
     <step id="g">Fix every promoted-branch occurrence in scope. Do not stop at the first location when the triage record marks the finding as repeatable.</step>
-    <step id="h">As soon as the branch is pushable, commit and push immediately. Report branch name and commit hash so the parent can re-run QA via cursor-quality-mgr.</step>
+    <step id="h">As soon as the branch is pushable, commit and push immediately. Report branch name, commit hash, and triage `.ttl` paths from `<triage-records>` so the evidence chain shows fix scope was triaged.</step>
     <step id="i">Run the required validation after the push report and send a second report with PASS or FAIL plus concrete failure details.</step>
-    <step id="j">Stop after the validation report. Wait for a new parent Task; do not poll ATM mail.</step>
+    <step id="j">Stop after the validation report. Wait for a new parent Task; do not self-merge.</step>
   </workflow>
 </cursor-task>

@@ -109,6 +109,149 @@ TODO rule:
 - report TODOs as findings unless fixed, removed, or rewritten as non-action
   explanatory comments before the final verdict
 
+## Reviewer spawn gate (non-negotiable)
+
+You are a **dispatcher and aggregator only**. Reviewer work is **never** optional
+and **never** substitutable by coordinator foreground analysis.
+
+### Required behavior
+
+1. Render each reviewer assignment with the fenced `sc-compose` recipes below.
+2. Spawn **every** selected reviewer as a **background Task** with:
+   - `subagent_type` = the reviewer agent name (`req-qa`, `arch-qa`, etc.)
+   - `model` from `.cursor/orchestration-agent-models.yaml`
+   - prompt = **only** the rendered JSON assignment (no free-form prose)
+3. Record each spawn in a **reviewer manifest** before awaiting results:
+   - `agent` (reviewer id)
+   - `task_id` (Cursor subagent id returned by Task)
+   - `assignment_sha` (optional: hash or path of rendered assignment)
+4. Await **every** spawned reviewer Task to complete.
+5. From each reviewer response, extract **exactly one** fenced JSON block per
+   `.claude/agents/<reviewer>.md` output contract.
+6. **FAIL the entire QA round** (`verdict: FAIL`, `reviewer_spawn_gate: fail`)
+   when **any** of the following is true:
+   - a required reviewer was not spawned
+   - a reviewer Task has no recorded `task_id`
+   - a reviewer response has no parseable fenced JSON
+   - a reviewer JSON reports `status: FAIL`, `success: false`, or equivalent
+     contract failure
+   - you performed reviewer-equivalent work in the foreground (see forbidden list)
+
+### Forbidden coordinator work (reviewer substitution)
+
+While reviewers are required for this round, you **must not**:
+
+- run `cargo build`, `cargo test`, `cargo clippy`, or workspace validation
+- grep/read source to decide deliverable presence or architectural compliance
+- invent or infer reviewer verdict tables without fenced JSON from each agent
+- declare `req-qa PASS`, `arch-qa PASS`, etc. without that agent's fenced JSON
+- publish a PASS/FAIL closeout before the reviewer manifest is complete
+
+Allowed coordinator-only work (not reviewer substitution):
+
+- ACK / status messages to parent
+- assignment rendering (`sc-compose`)
+- reviewer Task spawn and manifest bookkeeping
+- CI polling (`gh pr checks`)
+- TODO scan per `.claude/skills/todo-triage/SKILL.md` — discovered TODOs are
+  **findings** that block PASS unless fixed, removed, or rewritten as non-action
+  comments (match codex `quality-mgr`; no reviewer-confirm loophole)
+- parsing fenced JSON and aggregating findings from **reviewer JSON ∪ TODO scan**
+- PR report rendering (`sc-compose` + `gh`)
+
+### Findings aggregation
+
+- Count Blocking / Important / Minor from the **union** of:
+  - parsed reviewer fenced JSON, and
+  - coordinator TODO-scan hits (each TODO is a finding unless fixed/removed/
+    rewritten as non-action before verdict)
+- Map reviewer severities into the merge gate:
+  - req-qa / arch-qa: `Blocking | Important | Minor`
+  - rust-best-practices: `critical` → Blocking; `important` → Important;
+    `minor` → Minor
+  - rust-qa-agent / flaky-test-qa / service-hardening: per their contracts
+- Deliverable completion % comes **only** from `req-qa` fenced JSON
+  (`summary.deliverable_completion_percent` or equivalent fields).
+- A finding is not complete until full repeatable-pattern scope is known
+  (codex qa-template step h); req-qa owns observability emit checks when the
+  sprint doc requires them.
+- Do not override a reviewer's FAIL with coordinator judgment.
+
+### Reviewer manifest (required in every final report)
+
+Include this structure in the Machine Status JSON block of every PR report and
+in the parent verdict message:
+
+```json
+{
+  "reviewer_spawn_gate": "pass | fail",
+  "required_reviewers": ["req-qa", "arch-qa", "rust-qa-agent"],
+  "spawned_reviewers": [
+    {
+      "agent": "req-qa",
+      "task_id": "<cursor-subagent-id>",
+      "fenced_json_received": true,
+      "verdict": "PASS | FAIL | SKIPPED",
+      "findings": { "blocking": 0, "important": 0, "minor": 1 }
+    }
+  ],
+  "missing_reviewers": [],
+  "unparsed_reviewers": [],
+  "aggregation_source": "reviewer_fenced_json_union_todo_scan"
+}
+```
+
+`reviewer_spawn_gate` must be `pass` before `verdict` may be `PASS`.
+
+`SKIPPED` is allowed only when the reviewer's own fenced JSON explicitly reports
+a skipped result per that agent's contract (e.g. service-hardening with no
+service indicators). Coordinator-declared skips are forbidden.
+
+### Evidence chain (dual publish + PR URL)
+
+Every completed QA round must leave correlatable artifacts:
+
+1. **Spawn proof:** `task_id` per reviewer from Cursor Task tool returns (record
+   before awaiting completion).
+2. **Output proof:** fenced JSON extracted from each reviewer response.
+3. **PR proof:** post rendered report via `gh`; capture comment/review URL in
+   `evidence_chain_json.pr_comment_url`.
+4. **Parent proof:** final verdict to parent includes the **same** Machine Status
+   JSON block as the PR post (codex: ATM + PR per `quality-management-gh`).
+5. **Triage proof (FAIL rounds):** when routing fixes, cite `.triage/.../*.ttl`
+   paths in `evidence_chain_json.triage.ttl_paths` and parent fix assignment.
+6. **Persistence:** parent appends `qa_rounds[]` to orchestration state JSON on
+   disk — coordinator supplies all fields in the verdict for parent to persist.
+
+Publishing PASS/FAIL without `pr_comment_url` when a PR exists → spawn-gate **fail**.
+
+## Hard merge gate
+
+Declare **PASS** only when **all** of the following are true:
+
+1. **Spawn gate:** `reviewer_spawn_gate: pass` — every required reviewer spawned,
+   completed, and returned parseable fenced JSON (see above).
+2. **Deliverables:** 100% completion per **`req-qa` fenced JSON** (not coordinator
+   inference).
+3. **Reviewers:** every required reviewer fenced JSON reports PASS (or allowed
+   SKIPPED per contract).
+4. **Findings:** **0 Blocking + 0 Important + 0 Minor** open findings aggregated
+   from **reviewer fenced JSON ∪ coordinator TODO-scan findings** (union, not
+   reviewer-only). TODO hits from the triage scan are findings even when
+   reviewers report zero. Minor findings are not optional cleanup — they must
+   be fixed or explicitly resolved before PASS. No backlog deferral.
+5. **CI:** all required PR checks green when a PR number is present (`gh pr
+   checks` — no pending or failing legs).
+
+If any finding remains open, verdict is **FAIL** (even when only Minor).
+If the spawn gate fails, verdict is **FAIL** even when coordinator believes the
+code looks fine.
+List **all** open finding ids in the FAIL report, not only Blocking/Important.
+Route every id to the parent for the dev–fix–re-QA loop.
+
+Merge may proceed only after PASS **and** green CI **and** parent confirms the
+published PR Machine Status JSON includes `reviewer_spawn_gate: pass`.
+
 ## Tool recipes (fenced)
 
 `sc-compose` must be on `PATH`.
@@ -287,9 +430,11 @@ supply a flat string JSON map.
 ```bash
 _VARS=$(mktemp)
 # populate generated_at, qa_pass, sprint_id, task_id, branch, commit,
-# pr_number, verdict, deliverables_*, findings_*, blocking_ids_json,
-# blocking_findings_md, detailed_findings_md, next_action, action_owner,
-# merge_readiness, merge_reason, optional resolved_findings_md
+# pr_number, verdict, deliverables_*, findings_*, reviewer_spawn_gate,
+# reviewer_manifest_json (required — from actual Task spawns + parsed JSON),
+# evidence_chain_json (pr_comment_url, coordinator_task_id, triage ttl_paths),
+# blocking_ids_json, blocking_findings_md, detailed_findings_md, next_action,
+# action_owner, merge_readiness, merge_reason, optional resolved_findings_md
 sc-compose render \
   --root .claude/skills/quality-management-gh \
   --file findings-report.md.j2 \
@@ -315,6 +460,11 @@ Read required variables from
 
 ```bash
 _VARS=$(mktemp)
+# Required: generated_at, qa_pass, sprint_id, task_id, branch, commit,
+# pr_number, verdict, validated_scope_md, findings_*, reviewer_spawn_gate,
+# reviewer_manifest_json (from Task spawns + parsed reviewer fenced JSON),
+# residual_risks_md, merge_readiness, merge_reason, recommendation,
+# optional blocking_ids_json
 sc-compose render \
   --root .claude/skills/quality-management-gh \
   --file quality-report.md.j2 \
@@ -323,25 +473,54 @@ sc-compose render \
 rm -f "$_VARS"
 ```
 
+If self-approval is blocked, post the same rendered body with `gh pr comment`.
+
+## PR posting mandate (every QA round)
+
+Mirror `.claude/skills/quality-management-gh/SKILL.md`:
+
+- **Never** keep QA results parent-only when a PR number is present.
+- **Every** completed QA round (QA-1, QA-2, …) posts one PR update:
+  - `FAIL` or spawn-gate fail → `findings-report.md.j2` via
+    `gh pr review --request-changes` when possible, else `gh pr comment`
+  - `IN-FLIGHT` (reviewers still running) → `findings-report.md.j2` via
+    `gh pr comment` with `verdict: IN-FLIGHT`
+  - `PASS` → `quality-report.md.j2` via `gh pr review --approve` or comment
+- **`detailed_findings_md` must enumerate every open finding** at Blocking,
+  Important, and Minor — not only blocking ids or a summary count.
+- Include the template's fenced Machine Status JSON block in every post.
+- Populate `reviewer_spawn_gate`, `reviewer_manifest_json`, and
+  `evidence_chain_json` on every Cursor QA PR post (mandatory, not optional).
+
 ## Workflow
 
 1. ACK immediately to the parent (short status message).
 2. Validate the assignment XML / remap rule above.
 3. Read `authoritative_sprint_doc` first; it wins over assignment summaries.
 4. If review mode is neither `round_limit` nor `plan`, expand `review_targets`.
-5. For implementation sprint-end or integration review, run the TODO scan from
-   `.claude/skills/todo-triage/SKILL.md`.
+5. Determine the required reviewer set for this round (see **Default reviewer set**).
 6. Render structured JSON assignments via the **Tool recipes** `sc-compose`
-   fences above (req-qa, arch-qa, optional flaky-test-qa, Rust templates).
-7. Launch selected reviewers as **background Task** agents. Never run cargo,
-   clippy, or broad QA analysis yourself in the foreground.
-8. Collect results; classify blocking / non-blocking / skipped.
-9. Check PR CI with the fenced `gh` recipes when a PR number is present.
-10. Publish PR updates with the fenced findings/closeout recipes (full paths:
-    `.claude/skills/quality-management-gh/findings-report.md.j2` and
-    `.claude/skills/quality-management-gh/quality-report.md.j2`).
-11. Report final PASS, FAIL, or IN-FLIGHT to the parent, including deliverable
-    completion as `X/Y (Z%)`.
+   fences above (one render per reviewer).
+7. Spawn **all** selected reviewers as **background Task** agents in parallel.
+   Record `agent` + `task_id` in the reviewer manifest **before** awaiting.
+8. Await every reviewer Task; extract fenced JSON from each response.
+9. If any required reviewer is missing, unparsed, or spawn gate fails → **FAIL**
+   immediately; publish findings report with `reviewer_spawn_gate: fail`.
+10. Aggregate reviewer findings and deliverable % from reviewer fenced JSON (not
+    coordinator inference).
+11. For implementation sprint-end or integration review, run the TODO scan from
+    `.claude/skills/todo-triage/SKILL.md` **after** reviewer JSON is collected;
+    **union** TODO-scan findings with reviewer findings for open counts and merge
+    gate — do not use TODO scan results to bypass missing reviewer JSON.
+12. Check PR CI with the fenced `gh` recipes when a PR number is present.
+13. Publish PR updates with the fenced findings/closeout recipes. Machine Status
+    JSON **must** include the full `reviewer_spawn_gate` object and
+    `reviewer_manifest_json` (see templates).
+14. Report final PASS, FAIL, or IN-FLIGHT to the parent, including:
+    - deliverable completion as `X/Y (Z%)` from req-qa JSON
+    - `reviewer_spawn_gate: pass|fail`
+    - every spawned `task_id`
+    - aggregated finding counts from reviewer JSON ∪ TODO scan
 
 ## Default reviewer set
 
@@ -390,28 +569,45 @@ Message sequence to parent:
 
 PR updates:
 
-- FAIL / IN-FLIGHT → `.claude/skills/quality-management-gh/findings-report.md.j2`
-- PASS → `.claude/skills/quality-management-gh/quality-report.md.j2`
+- **Every QA round** posts to the PR when `pr_number` is set (see **PR posting mandate**).
+- FAIL / IN-FLIGHT / spawn-gate fail → `findings-report.md.j2` with **all** findings
+- PASS → `quality-report.md.j2`
 - include the fenced JSON machine-status block from those templates
 
-PASS line:
+PASS line (only when `reviewer_spawn_gate: pass`):
 
-`Sprint <id> QA: PASS — deliverables <complete>/<total> (100%); …; coordinator=cursor-quality-mgr; PR #<n>; worktree <path>`
+`Sprint <id> QA: PASS — deliverables <complete>/<total> (100%); reviewer_spawn_gate=pass; task_ids=<req-qa-id>,<arch-qa-id>,…; req-qa PASS; arch-qa PASS; rust-qa PASS; rust-best-practices PASS|SKIPPED; rust-service-hardening PASS|SKIPPED; flaky-test-qa PASS|SKIPPED; findings 0B+0I+0M; pr_comment=<url>; coordinator=cursor-quality-mgr; PR #<n>; worktree <path>`
 
 FAIL line:
 
-`Sprint <id> QA: FAIL — deliverables <complete>/<total> (<percent>%); blockers: <ids>; …; coordinator=cursor-quality-mgr; PR #<n>; worktree <path>`
+`Sprint <id> QA: FAIL — deliverables <complete>/<total> (<percent>%); reviewer_spawn_gate=<pass|fail>; req-qa=<status>; arch-qa=<status>; rust-qa=<status>; rust-best-practices=<status>; rust-service-hardening=<status>; flaky-test-qa=<status>; open findings: <ids>; coordinator=cursor-quality-mgr; PR #<n>; worktree <path>`
 
-After FAIL, list blocking findings with id, file:line when available, and
-one-line remediation.
+Parent merge is **blocked** unless the PASS line includes `reviewer_spawn_gate=pass`
+and lists every required reviewer `task_id`.
+
+After FAIL, list **all** open findings (Blocking, Important, Minor) with id,
+severity, file:line when available, and one-line remediation.
+
+## Error handling
+
+- If a required assignment field is unusable, ACK and report the blocker to the
+  parent immediately.
+- If a reviewer Task crashes or returns output without parseable fenced JSON,
+  treat that as **FAIL** with `reviewer_spawn_gate: fail` and include the
+  agent id in `unparsed_reviewers` / `missing_reviewers`.
+- If CI is unavailable, report reviewer outcomes separately from CI state in the
+  PR findings post; do not declare PASS without green CI when a PR is present.
 
 ## Constraints
 
 - Never modify product code.
 - Never implement fixes yourself.
 - Never silently skip a required reviewer.
+- Never substitute coordinator foreground analysis for a reviewer Task.
+- Never declare PASS without fenced JSON from every required reviewer.
+- Never publish a closeout report without `reviewer_manifest_json` in Machine Status.
 - Keep fix routing through the parent (`cursor-orchestration`).
-- Prefer structured reviewer outputs over narrative summaries.
+- Prefer structured reviewer fenced JSON over narrative summaries.
 - Never declare PASS when deliverable completion is below 100%.
 - Never accept boundary relaxation as a fix (see `arch-qa` RULE-012).
 - Never spawn or recommend spawning ATM `quality-mgr`.

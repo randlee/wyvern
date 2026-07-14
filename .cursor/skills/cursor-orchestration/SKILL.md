@@ -36,10 +36,14 @@ While this skill governs the session:
    once. Do not dual-dispatch.
 4. Per QA round: **at most one** QA coordinator Task, and it must be
    `cursor-quality-mgr` (or the fallback that loads that prompt only).
+   **Never** spawn a second QA Task for the same `task_id` / `qa_pass` while the
+   first is still running.
 5. Do not follow `codex-orchestration`, ATM team-lead QA handoffs, or any path
    that assigns ATM `quality-mgr` in parallel with this skill.
 6. Parent does **not** launch reviewers directly in the same round as
    `cursor-quality-mgr` (coordinator owns reviewer spawn).
+7. Parent does **not** merge on narrative QA PASS alone — see **Reviewer spawn
+   merge gate** below.
 
 ## Parent constraints
 
@@ -121,6 +125,126 @@ Other phase-end reviewers stay on their YAML defaults.
    - `.claude/assets/sc-rust/quality-mgr/quality-mgr.rust.md`
 4. `sc-compose` is on `PATH` and usable (see **Tool recipes**).
 
+## Dev–QA loop (mandatory per sprint)
+
+Every sprint runs the same closed loop until **both** gates pass:
+
+```
+dev → push → PR → QA → [FAIL → triage → fix → push → re-QA]* → PASS + green CI → merge
+```
+
+| Gate | Requirement |
+|------|-------------|
+| **QA** | `cursor-quality-mgr` declares **PASS** only when deliverables are 100% complete, **`reviewer_spawn_gate: pass`**, every required reviewer returned **fenced JSON**, every required reviewer PASSes, **TODO scan clean or TODO findings included in open counts**, and **zero open findings** at any severity (**0 Blocking + 0 Important + 0 Minor**) from **reviewer JSON ∪ TODO scan**. |
+| **CI** | All required PR checks green (`gh pr checks <PR> --watch`). Merge is blocked while any check fails or is pending. |
+
+### Reviewer spawn merge gate (parent — non-negotiable)
+
+Do **not** merge a sprint PR unless **all** of the following are true:
+
+1. Latest PR QA comment Machine Status JSON includes `"reviewer_spawn_gate": "pass"`.
+2. `reviewer_manifest` lists every required reviewer with non-empty `task_id`
+   correlatable to **completed Task subagents in this parent session**.
+3. `evidence_chain_json` (or equivalent fields) includes `pr_comment_url` for
+   this `qa_pass` and triage `.ttl` paths when the round was FAIL→fix.
+4. Parent QA verdict duplicates the PR Machine Status JSON (dual publish).
+5. `.cursor/<phase>-orchestration.json` has a `qa_rounds[]` entry for this pass.
+6. Finding counts match **reviewer fenced JSON ∪ TODO-scan** union.
+
+If the PR report lacks `reviewer_spawn_gate` / `reviewer_manifest`, treat QA as
+**INCOMPLETE** — re-run `cursor-quality-mgr` for that `qa_pass`; do not merge.
+
+If two conflicting QA comments exist on the same PR (e.g. PASS then FAIL),
+**FAIL wins**; require fix + QA-2 before merge.
+
+**Fix scope on FAIL:** route **every** finding id (Blocking, Important, and Minor) back to `rust-developer` via `fix-assignment.xml.j2`. Do not merge after fixing only Important/Blocking findings while Minors remain open.
+
+**QA rounds:** QA-1 runs the full reviewer set (incl. RBP + service-hardening). QA-2+ omits RBP and service-hardening but the merge gate stays **0B+0I+0m** — prior-round findings must be fixed before re-QA.
+
+**Sequence:** one sprint at a time. Do not start sprint N+1 until sprint N is merged to `integrate/phase-N` (or the sprint's `pr_target`).
+
+## Chain of evidence (non-negotiable)
+
+Merge is blocked unless an auditable evidence chain exists for the **latest**
+`qa_pass` on that PR. Self-attested prose without correlatable artifacts is
+invalid (c.9-class failure).
+
+### Evidence layers
+
+| Layer | What proves it | Required artifact |
+|-------|----------------|-------------------|
+| **Reviewer spawn** | Sub-agents actually ran | `reviewer_manifest[].task_id` per required reviewer — ids from Cursor Task tool returns, not invented |
+| **Reviewer output** | Findings came from reviewers | Parseable fenced JSON per agent; aggregated counts match **reviewer JSON ∪ TODO scan** |
+| **Triage** | Findings were correlated before fix | `.triage/<phase_id>/findings/<finding_id>.ttl` paths; `qa-triage` Task ids when triage ran |
+| **Fix** | Dev addressed triaged scope | Fix assignment lists every finding id + triage `.ttl` paths; push SHA after fix |
+| **PR publish** | Stakeholders can audit QA | `gh pr comment` or review URL for **each** QA round; `detailed_findings_md` lists **all** severities |
+| **Coordinator handoff** | Parent/ATM received same facts | Parent verdict + persisted orchestration state contain **identical** Machine Status JSON as PR post |
+
+### Parent correlation (fail-closed)
+
+Before merge, the parent orchestrator must:
+
+1. Read the latest PR QA comment Machine Status JSON for this `qa_pass`.
+2. Confirm every `reviewer_manifest[].task_id` matches a **completed** Task
+   subagent from this session (notification id or transcript correlation).
+3. If any required `task_id` is missing, empty, or uncorrelatable → **QA
+   INCOMPLETE** — do not merge; re-run `cursor-quality-mgr`.
+4. On FAIL rounds, confirm `/triaging-findings` produced `.ttl` records before
+   fix dispatch; fix assignment must cite those paths.
+5. Append a `qa_rounds[]` entry to `.cursor/<phase>-orchestration.json` (or
+   sprint-local orchestration state) with: `qa_pass`, `commit`, `verdict`,
+   `pr_comment_url`, `reviewer_manifest`, `triage_ttl_paths`, `finding_ids`,
+   `coordinator_task_id`.
+
+### Dual publish (PR + coordinator)
+
+`cursor-quality-mgr` must publish the **same** rendered report body to:
+
+1. **PR** — `gh pr comment` or `gh pr review` (every QA round)
+2. **Parent** — final verdict message includes the same Machine Status JSON block
+
+Codex `quality-mgr` equivalent: PR + ATM message per `quality-management-gh`.
+
+### `evidence_chain_json` (mandatory on Cursor QA PR posts)
+
+`cursor-quality-mgr` must populate on every Cursor QA report (FAIL, IN-FLIGHT,
+PASS). Missing or empty `evidence_chain_json` / `reviewer_spawn_gate` /
+`reviewer_manifest_json` → spawn-gate **fail** / QA **INCOMPLETE**.
+
+```json
+{
+  "qa_pass": "qa-c10-1",
+  "commit": "<sha>",
+  "pr_number": 39,
+  "pr_comment_url": "<url from gh after post>",
+  "coordinator_task_id": "<cursor-quality-mgr Task id>",
+  "reviewer_tasks": [
+    {"agent": "req-qa", "task_id": "<id>", "fenced_json_received": true, "verdict": "PASS"}
+  ],
+  "triage": {
+    "phase_id": "phase-C-web-server",
+    "ttl_paths": [".triage/phase-C-web-server/findings/REQ-QA-001.ttl"],
+    "qa_triage_task_ids": ["<id>"]
+  },
+  "parent_correlation_required": true
+}
+```
+
+## Required message sequence
+
+Every orchestration handoff follows codex ACK → Work → Completion → receiver ACK:
+
+| Hop | Parties | Required messages |
+|-----|---------|-------------------|
+| Dev | parent → `rust-developer` | assignment → ACK → push+SHA → validation PASS/FAIL |
+| Pre-QA RBP | parent → `rust-developer` | RBP sweep assignment → report with finding ids fixed or none |
+| QA | parent → `cursor-quality-mgr` | QA XML → ACK → (optional IN-FLIGHT) → verdict + PR URL |
+| Triage | parent → `qa-triage` (per finding) | triage JSON → fenced JSON → `.ttl` path |
+| Fix | parent → `rust-developer` | fix XML with finding ids + `.ttl` paths → push+SHA |
+
+Parent must not spawn the next hop until the prior completion message exists.
+Silent skips invalidate the evidence chain.
+
 ## Sprint flow
 
 1. Render a dev assignment with `sc-compose` from
@@ -129,16 +253,20 @@ Other phase-end reviewers stay on their YAML defaults.
 2. Spawn Task `rust-developer` with the rendered assignment and planned model.
 3. On push report (branch + SHA): open or update the PR targeting
    `integrate/phase-N` (or the sprint's `pr_target`).
-4. Render QA assignment with `sc-compose` from
+4. **Before QA-1** (codex parity): `rust-developer` runs a self-directed
+   `rust-best-practices-agent` sweep on the same `review_targets` planned for
+   QA-1 and fixes all RBP findings before the first QA assignment. This is dev
+   cleanup, not a substitute for QA-1 RBP review.
+5. Render QA assignment with `sc-compose` from
    `.cursor/skills/cursor-orchestration/qa-template.xml.j2`
    with coordinator = **`cursor-quality-mgr`**.
-5. Spawn **one** `cursor-quality-mgr` coordinator (see spawn rules above).
-6. `cursor-quality-mgr` launches the reviewer set (see that agent prompt).
-7. QA-2+: omit RBP and service-hardening reviewers; merge gate remains
-   0B+0I+0m with no backlog deferral.
-8. On FAIL: run `/triaging-findings`, then fix via
+6. Spawn **one** `cursor-quality-mgr` coordinator (see spawn rules above).
+7. `cursor-quality-mgr` launches the reviewer set (see that agent prompt).
+8. On **FAIL** (any open finding or deliverable &lt; 100%): run
+   `/triaging-findings`, then fix **all** findings via
    `.cursor/skills/cursor-orchestration/fix-assignment.xml.j2` →
-   `rust-developer`, then re-QA via `cursor-quality-mgr` only.
+   `rust-developer`, push, then re-QA via `cursor-quality-mgr` only.
+   Repeat until QA PASS **and** CI green.
    Fix assignments must include:
    - authoritative `sprint_doc` = owning/promoted branch sprint plan (plus
      additional sprint docs when findings span multiple sprint origins)
@@ -146,9 +274,39 @@ Other phase-end reviewers stay on their YAML defaults.
      requirements/architecture dumps; planning already embeds those in the
      sprint plan)
    - triage `.ttl` paths and concrete occurrences
+   - **every** finding id from the FAIL round (all severities)
    Fresh `rust-developer` Tasks have no prior sprint memory — never omit
    these fields.
-9. On PASS + green CI: merge may proceed.
+9. On **PASS + green CI + reviewer_spawn_gate pass**: merge to `pr_target`; then start the next sprint.
+
+## Parity with codex-orchestration
+
+Cursor orchestration is a **transport adapter** (parent + Task vs team-lead +
+ATM). It must preserve codex gate semantics:
+
+| Codex | Cursor equivalent |
+|-------|-------------------|
+| `team-lead` | parent session |
+| `cwy` | `rust-developer` |
+| `quality-mgr` | **`cursor-quality-mgr` only** (never ATM `quality-mgr`) |
+| `codex-orchestration/*.j2` | `.cursor/skills/cursor-orchestration/*.j2` |
+| Shared reviewers | same `.claude/agents/*` Task types |
+| `quality-management-gh` reports | same templates + SKILL |
+| Pre-QA-1 RBP dev sweep | `rust-developer` before first QA |
+| Reviewer spawn in background | `cursor-quality-mgr` Task spawns only |
+| Multi-pass QA on PR | every round posts all findings to PR |
+| 0B+0I+0m merge gate | unchanged |
+
+**Cursor-only additions** (do not weaken codex):
+
+- `reviewer_spawn_gate` + `reviewer_manifest_json` in PR Machine Status when
+  Cursor QA runs (proves reviewers spawned and returned fenced JSON)
+- Parent merge blocked without manifest proof (prevents coordinator self-review)
+- Single QA coordinator per round (no duplicate `qa-c9-1` Tasks)
+
+**Do not edit** `.claude/skills/codex-orchestration/` or
+`.claude/agents/quality-mgr.md` from this skill. Shared report templates may
+gain **optional** Cursor fields; codex callers omit them.
 
 ## Plan review flow
 

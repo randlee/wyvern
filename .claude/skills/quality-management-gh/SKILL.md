@@ -68,8 +68,9 @@ Use fenced JSON for machine-readable status payloads:
 2. Fix passes: `IN-FLIGHT` or `FAIL` while fixes are in progress.
    - QA-2 and later rounds must not re-run Rust best-practices review on the
      same sprint branch.
-   - Unresolved QA-1 RBP findings that are not fixed in the first fix round
-     carry to the next phase backlog instead of being re-raised in later rounds.
+   - Unresolved QA-1 RBP or service-hardening findings **block merge** under the
+     **0B+0I+0m** gate — fix before QA-2. **No backlog deferral** to a later
+     phase or sprint.
 3. Final pass: `PASS` with final quality report and merge recommendation.
 
 Do not treat QA as single-shot.
@@ -133,14 +134,18 @@ Use the final template only for `PASS` closeout.
 
 ## PR Update Conventions
 
-- First QA pass posts detailed findings with `FAIL` and should use
-  `--request-changes`.
-- Fix-pass updates revise status and open findings.
-- Final pass posts `PASS` closeout with residual risk and readiness and should
-  use `--approve`.
-- Do not keep QA results ATM-only when a PR exists; append every completed QA
-  update to the PR.
-- Rendered reports must include a fenced JSON block for machine parsing.
+- **Every completed QA round** posts to the PR when a PR exists — QA-1, QA-2,
+  and later. Do not keep results coordinator-only, ATM-only, or parent-only.
+- **Chain of evidence:** each PR post must be auditable — Machine Status JSON
+  plus human tables listing **all** open findings (Blocking, Important, Minor).
+  Codex path also sends the same payload to ATM (see **ATM Coordination**).
+- First QA pass usually posts `FAIL` with full findings — use
+  `--request-changes` when appropriate.
+- Fix-pass updates post revised status and the **full** remaining finding list.
+- Final pass posts `PASS` closeout with residual risks and readiness.
+- Rendered reports must include a fenced JSON Machine Status block.
+- Finding tables must not omit Important or Minor rows when those findings are
+  open — counts alone are insufficient.
 
 ## ATM Coordination Protocol
 
@@ -151,3 +156,8 @@ For each task:
 4. receiver acknowledgement
 
 No silent processing.
+
+**Chain of evidence (dual publish):** when a PR exists, the completion summary
+sent to the coordinator (ATM in Codex; parent session in Cursor) must carry the
+**same** Machine Status JSON and finding tables as the PR comment for that
+`qa_pass`. PR-only or coordinator-only QA is invalid.
