@@ -46,6 +46,32 @@ fn host_options(url_file: PathBuf) -> HostOptions {
     }
 }
 
+/// Poll `GET /api/dialog` until HTTP 200 (URL file alone is not readiness).
+fn wait_for_dialog_ready(client: &reqwest::blocking::Client, base: &str) -> serde_json::Value {
+    let url = format!("{base}/api/dialog");
+    let start = std::time::Instant::now();
+    loop {
+        match client.get(&url).send() {
+            Ok(resp) if resp.status() == reqwest::StatusCode::OK => {
+                return resp.json().expect("dialog json");
+            }
+            Ok(_) | Err(_) => {
+                if start.elapsed() > Duration::from_secs(15) {
+                    panic!("timed out waiting for GET /api/dialog at {url}");
+                }
+                thread::sleep(Duration::from_millis(20));
+            }
+        }
+    }
+}
+
+fn dialog_base(dialog_url: &str) -> String {
+    dialog_url
+        .trim_end_matches("/chrome/")
+        .trim_end_matches('/')
+        .to_string()
+}
+
 #[test]
 fn run_chrome_posts_ok_via_http() {
     let url_file = unique_path("wyvern-chrome-url");
@@ -53,20 +79,10 @@ fn run_chrome_posts_ok_via_http() {
     let handle = thread::spawn(move || run(chrome_command(), options));
 
     let dialog_url = wait_for_url_file(&url_file);
-    let base = dialog_url
-        .trim_end_matches("/chrome/")
-        .trim_end_matches('/');
+    let base = dialog_base(&dialog_url);
 
     let client = reqwest::blocking::Client::new();
-
-    let dialog: serde_json::Value = client
-        .get(format!("{base}/api/dialog"))
-        .send()
-        .expect("GET dialog")
-        .error_for_status()
-        .expect("dialog status")
-        .json()
-        .expect("dialog json");
+    let dialog = wait_for_dialog_ready(&client, &base);
     assert_eq!(dialog["type"], "chrome");
     assert_eq!(dialog["title"], "Test Chrome");
     assert!(dialog.get("status").is_none() || dialog["status"].is_null());
@@ -112,11 +128,10 @@ fn run_chrome_dismissed_via_beacon() {
     let handle = thread::spawn(move || run(chrome_command(), options));
 
     let dialog_url = wait_for_url_file(&url_file);
-    let base = dialog_url
-        .trim_end_matches("/chrome/")
-        .trim_end_matches('/');
+    let base = dialog_base(&dialog_url);
 
     let client = reqwest::blocking::Client::new();
+    let _ = wait_for_dialog_ready(&client, &base);
 
     let _ = client
         .post(format!("{base}/api/result"))
@@ -142,20 +157,10 @@ fn run_chrome_dialog_payload_includes_status() {
     let handle = thread::spawn(move || run(chrome_command_with_status("Ready"), options));
 
     let dialog_url = wait_for_url_file(&url_file);
-    let base = dialog_url
-        .trim_end_matches("/chrome/")
-        .trim_end_matches('/');
+    let base = dialog_base(&dialog_url);
 
     let client = reqwest::blocking::Client::new();
-
-    let dialog: serde_json::Value = client
-        .get(format!("{base}/api/dialog"))
-        .send()
-        .expect("GET dialog")
-        .error_for_status()
-        .expect("dialog status")
-        .json()
-        .expect("dialog json");
+    let dialog = wait_for_dialog_ready(&client, &base);
     assert_eq!(dialog["type"], "chrome");
     assert_eq!(dialog["title"], "Test Chrome");
     assert_eq!(dialog["status"], "Ready");
@@ -176,11 +181,10 @@ fn run_chrome_result_rejects_missing_button() {
     let handle = thread::spawn(move || run(chrome_command(), options));
 
     let dialog_url = wait_for_url_file(&url_file);
-    let base = dialog_url
-        .trim_end_matches("/chrome/")
-        .trim_end_matches('/');
+    let base = dialog_base(&dialog_url);
 
     let client = reqwest::blocking::Client::new();
+    let _ = wait_for_dialog_ready(&client, &base);
 
     let status = client
         .post(format!("{base}/api/result"))

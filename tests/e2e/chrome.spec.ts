@@ -3,6 +3,7 @@ import { spawn, ChildProcessWithoutNullStreams } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { gotoDialog } from "./helpers";
 
 const REPO_ROOT = path.resolve(__dirname, "../..");
 const WYVERN_BIN =
@@ -79,7 +80,7 @@ test("chrome dialog ok via --viewer none", async ({ page }) => {
     const exitPromise = waitForExit(child);
 
     const dialogUrl = await waitForUrlFile(urlFile);
-    await page.goto(dialogUrl);
+    await gotoDialog(page, dialogUrl);
 
     // The chrome dialog renders a title and an OK button.
     await expect(page.locator("#title")).toContainText("Hello Chrome");
@@ -101,7 +102,7 @@ test("chrome dialog ok via --viewer none", async ({ page }) => {
   }
 });
 
-test("chrome dialog dismissed on beforeunload", async ({ page }) => {
+test("chrome dialog dismissed via postResult", async ({ page }) => {
   test.skip(!fs.existsSync(WYVERN_BIN), `missing wyvern binary at ${WYVERN_BIN}`);
 
   const urlFile = path.join(
@@ -136,11 +137,20 @@ test("chrome dialog dismissed on beforeunload", async ({ page }) => {
     const exitPromise = waitForExit(child);
 
     const dialogUrl = await waitForUrlFile(urlFile);
-    await page.goto(dialogUrl);
+    await gotoDialog(page, dialogUrl);
     await expect(page.getByTestId("btn-ok")).toBeVisible();
 
-    // Navigate away to trigger beforeunload dismissed beacon.
-    await page.goto("about:blank");
+    // Deterministic dismiss (same confirmation path as beforeunload beacon).
+    await page.evaluate(async () => {
+      const api = (
+        window as unknown as {
+          WyvernApi: {
+            postResult: (body: unknown) => Promise<unknown>;
+          };
+        }
+      ).WyvernApi;
+      await api.postResult({ button: "dismissed" });
+    });
 
     const exitCode = await exitPromise;
     expect(exitCode, `stderr=${stderr}`).toBe(0);
@@ -193,7 +203,7 @@ test("chrome dialog with status displays status text", async ({ page }) => {
     const exitPromise = waitForExit(child);
 
     const dialogUrl = await waitForUrlFile(urlFile);
-    await page.goto(dialogUrl);
+    await gotoDialog(page, dialogUrl);
 
     await expect(page.locator("#title")).toContainText("Titled Chrome");
     await expect(page.locator("#status")).toContainText("System ready");

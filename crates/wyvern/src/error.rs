@@ -279,21 +279,21 @@ pub fn emit_host_error(err: &wyvern_host::HostError) -> Result<String, EmitError
                 message,
                 "Packaged UI root or dialog template is missing".to_string(),
                 vec![
-                    "Pass --ui-root pointing at a directory with message/index.html".into(),
-                    "Ensure ui/message/ exists in the workspace for development".into(),
+                    "Pass --ui-root pointing at a directory with message/, input/, markdown/, question/, and chrome/ templates".into(),
+                    "Ensure ui/{message,input,markdown,question,chrome}/ exist in the workspace for development".into(),
                 ],
-                "docs/wyvern-host/requirements.md (REQ-0093)",
+                "docs/wyvern-host/requirements.md (REQ-0093, REQ-0100)",
             )
         }
         HostError::UnsupportedType { type_name } => (
             ErrorCode::UnsupportedType,
             format!("dialog type '{type_name}' is not implemented on the HTTP host yet"),
-            "Schema validation passed; host matrix does not handle this type yet".to_string(),
+            "Schema validation passed; host matrix supports message, input, markdown, question, and chrome only".to_string(),
             vec![
-                "Use type \"message\" (c.10)".into(),
-                "Later types land in c.11–c.14".into(),
+                "Use one of: message, input, markdown, question, chrome".into(),
+                "wizard lands in Phase D (docs/plans/phase-D/)".into(),
             ],
-            "docs/plans/phase-C/c10-http-host-message.md",
+            "docs/plans/phase-C/c14-host-chrome.md",
         ),
         HostError::InvalidResult { message } => (
             ErrorCode::HostError,

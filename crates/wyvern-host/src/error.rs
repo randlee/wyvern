@@ -8,7 +8,7 @@ use crate::options::{BrowserId, ViewerMode};
 /// Closed set of dialog `type` wire names known to the host matrix.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum DialogTypeName {
-    /// `chrome` frame (Phase A; not on HTTP host matrix yet).
+    /// `chrome` frame (on HTTP host matrix as of c.14).
     Chrome,
     /// `message` dialog.
     Message,
