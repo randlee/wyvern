@@ -1,8 +1,9 @@
 ---
 id: c.6
 title: Result propagation — eliminate production unwrap/expect
-status: pending
+status: complete
 branch: feature/phase-C-c6-result-propagation
+worktree: /Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-C-c6-result-propagation
 target: integrate/phase-C-fixes
 ---
 

@@ -1,8 +1,9 @@
 ---
 id: c.7
 title: CLI integration test hardening
-status: pending
+status: complete
 branch: feature/phase-C-c7-cli-test-hardening
+worktree: /Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-C-c7-cli-test-hardening
 target: integrate/phase-C-fixes
 ---
 
@@ -110,14 +111,9 @@ Always pass `--test-threads=1` for workspace tests on macOS (winit/objc races wh
 multiple webview children spawn). CI already enforces this; local runs must match.
 ```
 
-### 4. Known flake (this doc — §Known flakes)
+### 4. Known flakes section (this doc)
 
-```bash
-# Fails on macOS without --test-threads=1 (winit macos/view.rs, objc2 weak_id)
-cargo test -p wyvern -- --test-threads=8
-```
-
-Expected signature: `uninitialized instance variable`, `misaligned pointer dereference`, or child exit `-1`.
+Document the macOS multi-thread flake under [§Known flakes](#known-flakes).
 
 ## This Sprint Does Not Close
 
@@ -139,3 +135,16 @@ Expected signature: `uninitialized instance variable`, `misaligned pointer deref
 - `cargo test --workspace -- --test-threads=1`
 - `cargo test -p wyvern child_failed_detects_panic_marker -- --test-threads=1`
 - `cargo clippy --workspace -- -D warnings`
+
+## Known flakes
+
+Without `--test-threads=1`, GUI-spawning CLI tests can race on macOS (winit `macos/view.rs`, objc2 `weak_id`):
+
+```bash
+# Fails on macOS without --test-threads=1 (winit macos/view.rs, objc2 weak_id)
+cargo test -p wyvern -- --test-threads=8
+```
+
+Expected signature: `uninitialized instance variable`, `misaligned pointer dereference`, or child exit `-1`.
+
+Mitigation in this sprint: `#[serial]` on all nine GUI tests, `run_wyvern`/`assert_child_ok` child-failure detection, and the `docs/linting.md` local `--test-threads=1` policy. CI already enforces `--test-threads=1`.

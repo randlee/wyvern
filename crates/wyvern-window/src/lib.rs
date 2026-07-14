@@ -3,6 +3,18 @@
 //! The sole public entry point is [`run`]. Size constants describe chrome
 //! (Phase A fixed) and modal dialog (Phase B auto-size) geometry.
 
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::panic,
+        clippy::unreachable,
+        clippy::todo,
+        clippy::unimplemented
+    )
+)]
+
 mod chrome;
 mod error;
 pub mod icons;

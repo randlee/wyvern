@@ -1,8 +1,9 @@
 ---
 id: c.8
 title: Clippy deny unauthorized panics in lib src
-status: pending
+status: complete
 branch: feature/phase-C-c8-clippy-deny-unwrap
+worktree: /Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-C-c8-clippy-deny-unwrap
 target: integrate/phase-C-fixes
 ---
 

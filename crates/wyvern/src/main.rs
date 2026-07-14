@@ -1,10 +1,26 @@
 //! Wyvern CLI — thin wrapper around load → pipeline (validate → run → emit).
 
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::panic,
+        clippy::unreachable,
+        clippy::todo,
+        clippy::unimplemented
+    )
+)]
+
 use std::io::{self, IsTerminal, Write};
 use std::process::ExitCode;
 
 use wyvern::observability;
-use wyvern::{emit_load_error, load_command_input, run_from_loaded, usage_message, LoadError};
+use wyvern::{
+    emit_fatal_internal, emit_io_error, emit_parse_error, load_command_input, run_from_loaded,
+    usage_message, EmitError, LoadError, PipelineError,
+};
+use wyvern_schema::SerializeError;
 
 fn main() -> ExitCode {
     if let Err(err) = observability::init() {
@@ -31,10 +47,7 @@ fn main() -> ExitCode {
             eprintln!("{message}");
             return ExitCode::from(1);
         }
-        Err(err) => {
-            eprintln!("{}", emit_load_error(&err));
-            return ExitCode::from(u8::try_from(err.exit_code()).unwrap_or(1));
-        }
+        Err(err) => return emit_load_stage_failure(&err),
     };
 
     match run_from_loaded(value) {
@@ -43,9 +56,33 @@ fn main() -> ExitCode {
             let _ = writeln!(out, "{stdout}");
             ExitCode::SUCCESS
         }
-        Err((stderr_json, code)) => {
-            eprintln!("{stderr_json}");
-            ExitCode::from(u8::try_from(code).unwrap_or(1))
+        Err(PipelineError::Stage { stderr, exit_code }) => {
+            eprintln!("{stderr}");
+            ExitCode::from(u8::try_from(exit_code).unwrap_or(1))
         }
+        Err(PipelineError::Emit(e)) => emit_fatal_internal(&e),
+    }
+}
+
+fn emit_load_stage_failure(err: &LoadError) -> ExitCode {
+    debug_assert!(matches!(
+        err,
+        LoadError::Parse { .. } | LoadError::Io { .. }
+    ));
+    let emit_result = match err {
+        LoadError::Parse { .. } => emit_parse_error(err),
+        LoadError::Io { .. } => emit_io_error(err),
+        LoadError::Usage { .. } => {
+            emit_fatal_internal(&EmitError::Serialize(SerializeError {
+                message: "miswired Usage in emit_load_stage_failure".into(),
+            }));
+        }
+    };
+    match emit_result {
+        Ok(stderr) => {
+            eprintln!("{stderr}");
+            ExitCode::from(u8::try_from(err.exit_code()).unwrap_or(1))
+        }
+        Err(e) => emit_fatal_internal(&e),
     }
 }

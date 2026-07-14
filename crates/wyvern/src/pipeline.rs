@@ -2,20 +2,31 @@
 
 use serde_json::Value;
 
-use wyvern_schema::{Command, FieldName};
+use wyvern_schema::{Command, ErrorCode, FieldName};
+use wyvern_window::RunError;
 
 use crate::error::{
-    emit_load_error, emit_stdout, emit_validation_error, handle_run_failure, LoadError,
+    emit_io_error, emit_run_error, emit_stdout, emit_validation_error, EmitError, LoadError,
 };
 use crate::observability;
+
+/// Pipeline failure after load: stage stderr + exit, or emit-boundary serialize failure.
+#[derive(Debug)]
+pub enum PipelineError {
+    /// Stage failed after structured stderr was built successfully.
+    Stage { stderr: String, exit_code: i32 },
+    /// Stdout or stage stderr JSON could not be serialized.
+    Emit(EmitError),
+}
 
 /// Validate `value`, run the window, and return stdout JSON on success.
 ///
 /// # Errors
 ///
-/// On validation, markdown file I/O, or run failure, returns `(stderr_json, exit_code)`
-/// with `exit_code != 0`.
-pub fn run_from_loaded(value: Value) -> Result<String, (String, i32)> {
+/// Returns [`PipelineError::Stage`] with stderr JSON and a non-zero exit code on
+/// validation, markdown I/O, or run failure. Returns [`PipelineError::Emit`] when
+/// structured JSON serialization fails (REQ-0078).
+pub fn run_from_loaded(value: Value) -> Result<String, PipelineError> {
     observability::log_command_received(&value);
     let command = match wyvern_schema::validate(&value) {
         Ok(cmd) => {
@@ -25,7 +36,11 @@ pub fn run_from_loaded(value: Value) -> Result<String, (String, i32)> {
         Err(e) => {
             observability::log_validation_result(false);
             observability::log_error("validate", &format!("{e:?}"));
-            return Err((emit_validation_error(&e), e.exit_code()));
+            let stderr = emit_validation_error(&e).map_err(PipelineError::Emit)?;
+            return Err(PipelineError::Stage {
+                stderr,
+                exit_code: e.exit_code(),
+            });
         }
     };
 
@@ -33,7 +48,11 @@ pub fn run_from_loaded(value: Value) -> Result<String, (String, i32)> {
         Ok(cmd) => cmd,
         Err(e) => {
             observability::log_error("load_markdown", &format!("{e:?}"));
-            return Err((emit_load_error(&e), e.exit_code()));
+            let stderr = emit_io_error(&e).map_err(PipelineError::Emit)?;
+            return Err(PipelineError::Stage {
+                stderr,
+                exit_code: e.exit_code(),
+            });
         }
     };
 
@@ -45,11 +64,16 @@ pub fn run_from_loaded(value: Value) -> Result<String, (String, i32)> {
         }
         Err(e) => {
             observability::log_error("run", &format!("{e:?}"));
-            return Err(handle_run_failure(&e));
+            let stderr = emit_run_error(&e).map_err(PipelineError::Emit)?;
+            let exit_code = match &e {
+                RunError::WindowCreate { .. } => ErrorCode::WindowCreateError.exit_code(),
+                RunError::EventLoop { .. } => ErrorCode::EventLoopError.exit_code(),
+            };
+            return Err(PipelineError::Stage { stderr, exit_code });
         }
     };
     observability::log_result_emitted();
-    Ok(emit_stdout(&result))
+    emit_stdout(&result).map_err(PipelineError::Emit)
 }
 
 /// Read markdown `file` into `content` before the window opens (REQ-0071).

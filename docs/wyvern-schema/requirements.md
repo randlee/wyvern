@@ -76,12 +76,25 @@
 
 ## Error Model (REQ-0069 – REQ-0072)
 
-**REQ-0069** — JSON parse failures: `LoadError::Parse` in `crates/wyvern` → stderr `{ "error": "parse", "message": "..." }`, exit non-zero.
+Structured stderr uses the shared [`StderrError`](../../crates/wyvern-schema/src/stderr.rs) envelope. In addition to the historical `error` slug + `message` (and `field` when applicable), emit helpers attach:
 
-**REQ-0070** — Schema/cross-field failures: `ValidationError::Validation` → stderr `{ "error": "validation", "field": "...", "message": "..." }`, exit non-zero.
+| Field | When present | Purpose |
+|-------|--------------|---------|
+| `code` | always | Stable SCREAMING_SNAKE_CASE machine code (`PARSE_ERROR`, …) |
+| `cause` | when set by emit helper | Why the failure occurred |
+| `recovery` | non-empty array | Actionable recovery steps |
+| `docs` | when set | Repo-relative requirements / architecture pointer |
 
-**REQ-0071** — File/path load failures: `LoadError::Io` in `crates/wyvern` → stderr `{ "error": "io", "field": "...", "message": "..." }`, exit non-zero.
+Empty optional fields are omitted from JSON (`skip_serializing_if`).
 
-**REQ-0072** — Mode/state failures: `ValidationError::State` → stderr `{ "error": "state", "field": "...", "message": "..." }`, exit non-zero.
+**REQ-0069** — JSON parse failures: `LoadError::Parse` in `crates/wyvern` → stderr `{ "error": "parse", "code": "PARSE_ERROR", "message": "...", "cause": "...", "recovery": [...], "docs": "..." }` via `emit_parse_error`, exit `2`.
 
-**REQ-0073** — Window/run failures: `RunError` in `wyvern-window` → stderr `{ "error": "window_create" | "event_loop", "message": "..." }` via `emit_run_error` in `crates/wyvern`, exit non-zero.
+**REQ-0070** — Schema/cross-field failures: `ValidationError::Validation` → stderr `{ "error": "validation", "code": "VALIDATION_ERROR", "field": "...", "message": "...", "cause": "...", "recovery": [...], "docs": "..." }` via `emit_validation_error`, exit `4`.
+
+**REQ-0071** — File/path load failures: `LoadError::Io` in `crates/wyvern` → stderr `{ "error": "io", "code": "IO_ERROR", "field": "...", "message": "...", "cause": "...", "recovery": [...], "docs": "..." }` via `emit_io_error`, exit `3`.
+
+**REQ-0072** — Mode/state failures: `ValidationError::State` → stderr `{ "error": "state", "code": "STATE_ERROR", "field": "...", "message": "...", "cause": "...", "recovery": [...], "docs": "..." }` via `emit_validation_error`, exit `5`.
+
+**REQ-0073** — Window/run failures: `RunError` in `wyvern-window` → stderr `{ "error": "window_create" | "event_loop", "code": "WINDOW_CREATE_ERROR" | "EVENT_LOOP_ERROR", "message": "...", "cause": "...", "recovery": [...], "docs": "..." }` via `emit_run_error` in `crates/wyvern`, exit `6` / `7`. Icon/media defense-in-depth failures still use the `window_create` slug but attach media-specific `cause`/`recovery` (distinct from display-server construction failures).
+
+**REQ-0078** — Emit-stage failures: when stdout or stderr JSON serialization fails at the CLI boundary (`EmitError::Serialize`), Wyvern emits `{ "error": "internal", "code": "INTERNAL_ERROR", "message": "...", "cause": "...", "recovery": [...], "docs": "..." }` (static JSON via `emit_fatal_internal`; no recursive serialize) and exits `8`. Applies only to emit helpers in `crates/wyvern`; does not change load/validate/run slugs. (Distinct from MCP **REQ-0074** in `docs/wyvern-mcp/requirements.md`.)

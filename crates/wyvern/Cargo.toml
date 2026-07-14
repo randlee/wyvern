@@ -13,3 +13,6 @@ wyvern-schema    = { path = "../wyvern-schema" }
 wyvern-window    = { path = "../wyvern-window" }
 serde_json       = { workspace = true }
 sc-observability = { workspace = true }
+
+[dev-dependencies]
+serial_test = "3"

@@ -19,7 +19,7 @@ Legend:
 | `src/` in `#[cfg(test)]` | many | many | many | 0 |
 | `tests/` integration | ~120+ | ~80+ | ~40+ | 0 |
 
-**Production violations (must fix in c.6):** 4 `expect` + 1 `unreachable!` (see §1).
+**Production violations (must fix in c.6):** ~~4 `expect` + 1 `unreachable!`~~ → **0** (FIXED in c.6).
 
 ---
 
@@ -27,13 +27,13 @@ Legend:
 
 | File | Line | Code | Verdict | Replacement |
 |------|------|------|---------|---------------|
-| `wyvern-window/src/message/media.rs` | 22 | `icons::svg_markup(...).expect(...)` | **REMOVE** | `RunError::WindowCreate` via `?` |
-| `wyvern-window/src/message/media.rs` | 113–114 | `parse_icon_spec(...).expect(...)` + `svg_markup(...).expect(...)` | **REMOVE** | `Result<&'static str, RunError>` → `WindowCreate` |
-| `wyvern/src/error.rs` | 183 | `serde_json::to_string(result).expect(...)` | **REMOVE** | `emit_stdout` → `Result<String, EmitError>` |
-| `wyvern-schema/src/stderr.rs` | 95 | `serde_json::to_string(self).expect(...)` | **REMOVE** | `to_json_string` → `Result<String, SerializeError>` |
-| `wyvern/src/error.rs` | 60 | `unreachable!("Usage handled in main")` | **REFACTOR** | `emit_parse_error` / `emit_io_error`; Usage only in `main` |
+| `wyvern-window/src/message/media.rs` | 22 | `icons::svg_markup(...).expect(...)` | **FIXED** | `RunError::WindowCreate` via `?` |
+| `wyvern-window/src/message/media.rs` | 113–114 | `parse_icon_spec(...).expect(...)` + `svg_markup(...).expect(...)` | **FIXED** | `Result<&'static str, RunError>` → `WindowCreate` |
+| `wyvern/src/error.rs` | 183 | `serde_json::to_string(result).expect(...)` | **FIXED** | `emit_stdout` → `Result<String, EmitError>` |
+| `wyvern-schema/src/stderr.rs` | 95 | `serde_json::to_string(self).expect(...)` | **FIXED** | `to_json_string` → `Result<String, SerializeError>` |
+| `wyvern/src/error.rs` | 60 | `unreachable!("Usage handled in main")` | **FIXED** | `emit_parse_error` / `emit_io_error`; Usage only in `main` |
 
-**Authoritative closure checklist:** c.6 Deliverables §1 table (this section is audit trail only).
+**Authoritative closure checklist:** c.6 Deliverables §1 table (this section is audit trail only). Fixed in sprint c.6 commit `f4ec5254a000faded457ecbb9327fb4e1ebccfc2`.
 
 ### Production `src/` — safe non-panic APIs (no change)
 

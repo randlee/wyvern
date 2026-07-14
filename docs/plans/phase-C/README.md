@@ -1,8 +1,8 @@
 # Phase C — Polish & Release v0.1.0 (`integrate/phase-C`)
 
-Phase C implementation PRs target **`integrate/phase-C`**. This directory is the **sole authority** for sprint-level deliverables, acceptance criteria, and validation. `docs/plans/project-plan.md` carries phase-level goals and acceptance criteria only.
+Phase C release implementation PRs (**c.1–c.5**) target **`integrate/phase-C`**. Post-release error-handling fix PRs (**c.6–c.8**) target **`integrate/phase-C-fixes`**. This directory is the **sole authority** for sprint-level deliverables, acceptance criteria, and validation. `docs/plans/project-plan.md` carries phase-level goals and acceptance criteria only.
 
-Sprints are **sequentially numbered** `c.1` → `c.5`. Dependency graph:
+Release sprints are **sequentially numbered** `c.1` → `c.5`. Dependency graph:
 
 ```
 Phase B ──┬──► c.1 ──► c.2 ──┐
@@ -38,6 +38,25 @@ Phase B ──┬──► c.1 ──► c.2 ──┐
 - MCP server — **Phase E**
 - AI-generated icons — post-MVP (PRD)
 - Homebrew formula tap (optional stretch; README documents install from GitHub release as minimum bar)
+
+## Post-release fixes (`integrate/phase-C-fixes`)
+
+After v0.1.0 release merge, error-handling hardening continues on **`integrate/phase-C-fixes`** (not `integrate/phase-C`):
+
+```
+c.5 (release) ──► c.6 ──► c.7
+                     └──► c.8
+```
+
+| Sprint | Title | Doc | Status |
+|--------|-------|-----|--------|
+| c.6 | Result propagation — eliminate production unwrap/expect | [c6-result-propagation.md](c6-result-propagation.md) | complete |
+| c.7 | CLI integration test hardening (`serial_test` for GUI-spawning CLI tests) | [c7-cli-test-hardening.md](c7-cli-test-hardening.md) | complete |
+| c.8 | Clippy deny unauthorized panics in lib/`main` src | [c8-clippy-deny-unwrap.md](c8-clippy-deny-unwrap.md) | complete |
+
+- **c.6:** production `Result` propagation + structured stderr emit boundary (REQ-0078)
+- **c.7:** depends on c.6; local macOS CLI test serialization (CI already uses `--test-threads=1`)
+- **c.8:** depends on c.6; clippy deny regression gate (parallel with c.7)
 
 ## Phase B → Phase C handoff (authoritative)
 
