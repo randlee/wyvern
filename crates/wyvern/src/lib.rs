@@ -21,8 +21,8 @@ mod pipeline;
 
 #[doc(inline)]
 pub use error::{
-    emit_fatal_internal, emit_io_error, emit_parse_error, emit_run_error, emit_stdout,
-    emit_validation_error, EmitError, LoadError,
+    emit_fatal_internal, emit_io_error, emit_parse_error, emit_stdout, emit_validation_error,
+    EmitError, LoadError,
 };
 #[doc(inline)]
 pub use input::{load_command_input, usage_message};

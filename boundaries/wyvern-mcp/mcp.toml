@@ -4,8 +4,8 @@ name = "WyvernMcp"
 
 [dependencies]
 allowed_dependencies = ["wyvern-schema", "wyvern-host", "tokio"]
-forbidden_dependencies = ["wyvern", "wyvern-wizard", "wyvern-window"]
-forbidden_edges = ["wyvern-mcp -> wyvern", "wyvern-mcp -> wyvern-wizard", "wyvern-mcp -> wyvern-window"]
+forbidden_dependencies = ["wyvern", "wyvern-wizard"]
+forbidden_edges = ["wyvern-mcp -> wyvern", "wyvern-mcp -> wyvern-wizard"]
 
 [ownership]
 io_owns = ["mcp_stdio_transport", "tool_registration", "persistent_host_lifecycle"]

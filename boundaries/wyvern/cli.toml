@@ -5,8 +5,8 @@ name = "WyvernCli"
 [dependencies]
 # wyvern-viewer: optional dep for dev binary-path helpers; embedded spawn uses subprocess (no wry in CLI)
 allowed_dependencies = ["wyvern-schema", "wyvern-host", "wyvern-viewer"]
-forbidden_dependencies = ["wyvern-wizard", "wyvern-mcp", "wyvern-window"]
-forbidden_edges = ["wyvern -> wyvern-mcp", "wyvern -> wyvern-window"]
+forbidden_dependencies = ["wyvern-wizard", "wyvern-mcp"]
+forbidden_edges = ["wyvern -> wyvern-mcp"]
 
 [ownership]
 io_owns = ["stdin_reading", "stdout_writing", "stderr_writing", "arg_parsing", "host_options", "viewer_flag", "embedded_viewer_spawn", "viewer_show_hide"]

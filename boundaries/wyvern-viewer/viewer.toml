@@ -5,7 +5,7 @@ status = "planned"
 
 [dependencies]
 allowed_dependencies = ["wry", "winit", "url"]
-forbidden_dependencies = ["wyvern", "wyvern-mcp", "wyvern-host", "wyvern-schema", "wyvern-window"]
+forbidden_dependencies = ["wyvern", "wyvern-mcp", "wyvern-host", "wyvern-schema"]
 forbidden_edges = ["wyvern-viewer -> wyvern-host", "wyvern-viewer -> wyvern-schema"]
 
 [ownership]

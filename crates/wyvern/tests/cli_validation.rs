@@ -2,8 +2,6 @@
 
 use std::process::Command;
 
-use serial_test::serial;
-
 fn wyvern() -> Command {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_wyvern"));
     // Auto-dismiss so chrome GUI paths do not block the test harness.
@@ -71,15 +69,6 @@ fn child_failed_detects_signal_exit() {
 }
 
 #[test]
-#[serial]
-fn cli_valid_chrome_emits_dismissed() {
-    let (code, stdout, stderr) = run_json(r#"{"type":"chrome","title":"T"}"#);
-    assert_eq!(code, 0, "stderr={stderr}");
-    assert_eq!(stdout.trim(), r#"{"button":"dismissed"}"#);
-    assert!(stderr.trim().is_empty(), "stderr={stderr}");
-}
-
-#[test]
 fn cli_chrome_missing_title_validation_error() {
     let (code, _stdout, stderr) = run_json(r#"{"type":"chrome"}"#);
     assert_ne!(code, 0);
@@ -117,16 +106,6 @@ fn cli_unknown_field_validation_error() {
 }
 
 #[test]
-#[serial]
-fn cli_type_message_level_accepted() {
-    let (code, stdout, stderr) =
-        run_json(r#"{"type":"message","title":"T","message":"Hi","buttons":"ok","level":"info"}"#);
-    assert_eq!(code, 0, "stderr={stderr}");
-    assert_eq!(stdout.trim(), r#"{"button":"dismissed"}"#);
-    assert!(stderr.trim().is_empty(), "stderr={stderr}");
-}
-
-#[test]
 fn cli_type_message_level_invalid_validation_error() {
     let (code, stdout, stderr) = run_json(
         r#"{"type":"message","title":"T","message":"Hi","buttons":"ok","level":"critical"}"#,
@@ -149,35 +128,6 @@ fn cli_type_message_missing_buttons_validation_error() {
     let value = stderr_json(&stderr);
     assert_eq!(value["error"], "validation");
     assert_eq!(value["field"], "buttons");
-}
-
-#[test]
-#[serial]
-fn cli_valid_message_emits_dismissed() {
-    let (code, stdout, stderr) =
-        run_json(r#"{"type":"message","title":"T","message":"Hi","buttons":"ok"}"#);
-    assert_eq!(code, 0, "stderr={stderr}");
-    assert_eq!(stdout.trim(), r#"{"button":"dismissed"}"#);
-    assert!(stderr.trim().is_empty(), "stderr={stderr}");
-}
-
-#[test]
-#[serial]
-fn cli_valid_input_emits_dismissed() {
-    let (code, stdout, stderr) = run_json(r#"{"type":"input","title":"Name","message":"Enter"}"#);
-    assert_eq!(code, 0, "stderr={stderr}");
-    assert_eq!(stdout.trim(), r#"{"button":"dismissed"}"#);
-    assert!(stderr.trim().is_empty(), "stderr={stderr}");
-}
-
-#[test]
-#[serial]
-fn cli_valid_input_file_mode_emits_dismissed() {
-    let (code, stdout, stderr) =
-        run_json(r#"{"type":"input","title":"T","message":"M","mode":"file"}"#);
-    assert_eq!(code, 0, "stderr={stderr}");
-    assert_eq!(stdout.trim(), r#"{"button":"dismissed"}"#);
-    assert!(stderr.trim().is_empty(), "stderr={stderr}");
 }
 
 #[test]
@@ -212,49 +162,6 @@ fn cli_type_unknown_validation_error() {
 }
 
 #[test]
-#[serial]
-fn cli_valid_markdown_file_emits_dismissed() {
-    let dir = std::env::temp_dir().join(format!("wyvern-b5-cli-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
-    let path = dir.join("doc.md");
-    std::fs::write(
-        &path,
-        "# Hello\n\n- list\n\n```\ncode\n```\n\n| A | B |\n|---|---|\n| 1 | 2 |\n",
-    )
-    .unwrap();
-
-    let json = format!(
-        r#"{{"type":"markdown","file":"{}"}}"#,
-        path.to_str().unwrap().replace('\\', "\\\\")
-    );
-    let (code, stdout, stderr) = run_json(&json);
-    assert_eq!(code, 0, "stderr={stderr}");
-    assert_eq!(stdout.trim(), r#"{"button":"dismissed"}"#);
-    assert!(stderr.trim().is_empty(), "stderr={stderr}");
-
-    let _ = std::fs::remove_dir_all(&dir);
-}
-
-#[test]
-#[serial]
-fn cli_markdown_md_shorthand_emits_dismissed() {
-    let dir = std::env::temp_dir().join(format!("wyvern-b5-sh-{}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
-    let path = dir.join("notes.md");
-    std::fs::write(&path, "# Notes\n\nBody\n").unwrap();
-
-    let output = run_wyvern(wyvern().arg(path.to_str().unwrap()));
-    let code = output.status.code().unwrap_or(-1);
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert_eq!(code, 0, "stderr={stderr}");
-    assert_eq!(stdout.trim(), r#"{"button":"dismissed"}"#);
-    assert!(stderr.trim().is_empty(), "stderr={stderr}");
-
-    let _ = std::fs::remove_dir_all(&dir);
-}
-
-#[test]
 fn cli_markdown_missing_file_is_io() {
     let (code, stdout, stderr) =
         run_json(r#"{"type":"markdown","file":"/definitely/missing/wyvern-b5.md"}"#);
@@ -263,15 +170,6 @@ fn cli_markdown_missing_file_is_io() {
     let value = stderr_json(&stderr);
     assert_eq!(value["error"], "io");
     assert_eq!(value["field"], "file");
-}
-
-#[test]
-#[serial]
-fn cli_markdown_content_inline_emits_dismissed() {
-    let (code, stdout, stderr) = run_json(r##"{"type":"markdown","content":"# Hi"}"##);
-    assert_eq!(code, 0, "stderr={stderr}");
-    assert_eq!(stdout.trim(), r#"{"button":"dismissed"}"#);
-    assert!(stderr.trim().is_empty(), "stderr={stderr}");
 }
 
 #[test]
@@ -308,26 +206,6 @@ fn cli_wrong_title_type_expected_got() {
     let message = value["message"].as_str().unwrap();
     assert!(message.contains("expected string"));
     assert!(message.contains("number"));
-}
-
-/// README Phase B acceptance #4 — question opens; OS close → REQ-0068 shape.
-#[test]
-#[serial]
-fn cli_question_auto_dismiss_emits_req_0068() {
-    let (code, stdout, stderr) = run_json(
-        r#"{"type":"question","questions":[{"question":"Output format?","header":"Format","options":[{"label":"JSON","description":"Structured","preview":"<pre>{\"ok\":true}</pre>"},{"label":"Plain","description":"Text only"}],"multiSelect":false}]}"#,
-    );
-    assert_eq!(code, 0, "stderr={stderr}");
-    assert!(stderr.trim().is_empty(), "stderr={stderr}");
-    let value: serde_json::Value = serde_json::from_str(stdout.trim()).expect("stdout json");
-    assert_eq!(value["button"], "dismissed");
-    assert_eq!(value["answers"], serde_json::json!({}));
-    assert_eq!(value["response"], "");
-    assert_eq!(value["questions"][0]["question"], "Output format?");
-    assert_eq!(
-        value["questions"][0]["options"][0]["preview"],
-        r#"<pre>{"ok":true}</pre>"#
-    );
 }
 
 /// README Phase B acceptance #5 — wizard still Phase D validation error.

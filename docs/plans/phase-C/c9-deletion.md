@@ -1,9 +1,10 @@
 ---
 id: c.9
 title: Delete wyvern-window stack (compile optional)
-status: planning
+status: complete
 branch: feature/phase-C-c9-deletion
-target: integrate/phase-C
+worktree: /Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-C-c9-deletion
+target: integrate/phase-c-web-server
 ---
 
 # Sprint c.9 — Delete `wyvern-window` (compile optional)

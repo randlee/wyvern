@@ -3,7 +3,7 @@ id: c.16
 title: Release bundle + v0.1.0 tag
 status: planning
 branch: feature/phase-C-c16-release
-target: integrate/phase-C
+target: integrate/phase-c-web-server
 ---
 
 # Sprint c.16 — Release + v0.1.0 (final Phase C delivery sprint)

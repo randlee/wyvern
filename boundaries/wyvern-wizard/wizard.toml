@@ -4,7 +4,7 @@ name = "WyvernWizard"
 
 [dependencies]
 allowed_dependencies = ["wyvern-schema"]
-forbidden_dependencies = ["wyvern", "wyvern-window", "wyvern-mcp", "wry", "winit", "rfd"]
+forbidden_dependencies = ["wyvern", "wyvern-mcp", "wry", "winit", "rfd"]
 
 [ownership]
 io_owns = ["history_cursor", "page_resolution", "stack_management", "navigation_signals"]

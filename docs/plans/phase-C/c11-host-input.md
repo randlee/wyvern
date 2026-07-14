@@ -3,7 +3,7 @@ id: c.11
 title: Host + UI — input (incl. picker)
 status: planning
 branch: feature/phase-C-c11-host-input
-target: integrate/phase-C
+target: integrate/phase-c-web-server
 ---
 
 # Sprint c.11 — `input` on HTTP host

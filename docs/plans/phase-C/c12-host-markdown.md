@@ -3,7 +3,7 @@ id: c.12
 title: Host + UI — markdown
 status: planning
 branch: feature/phase-C-c12-host-markdown
-target: integrate/phase-C
+target: integrate/phase-c-web-server
 ---
 
 # Sprint c.12 — `markdown` on HTTP host
