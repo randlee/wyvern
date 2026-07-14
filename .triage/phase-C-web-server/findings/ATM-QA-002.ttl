@@ -1,0 +1,63 @@
+@prefix triage: <urn:atm:triage:> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<urn:atm:triage:finding/ATM-QA-002>
+  a triage:Finding ;
+  triage:findingId "ATM-QA-002" ;
+  triage:title "Multi-file and password input modes lack dedicated e2e" ;
+  triage:description "ui/input/app.js supports multi-file/password but no dedicated e2e coverage." ;
+  triage:phaseId "phase-C-web-server" ;
+  triage:triageMode "initial_pass" ;
+  triage:category "ATM" ;
+  triage:severity "minor" ;
+  triage:repeatable true ;
+  triage:sweepScope "ui" ;
+  triage:status "open" ;
+  triage:dispatchReady true ;
+  triage:originatingSprintDoc "docs/plans/phase-C/c11-host-input.md" ;
+  triage:triagedAt "2026-07-14T00:32:22Z"^^xsd:dateTime ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/ATM-QA-002/c11/password> ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/ATM-QA-002/c11/multifile1> ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/ATM-QA-002/c11/multifile2> ;
+  triage:openOn <urn:atm:triage:worktree/c11/bf18403> ;
+  triage:promoteTo <urn:atm:triage:worktree/c11/bf18403> .
+
+<urn:atm:triage:occurrence/ATM-QA-002/c11/password>
+  a triage:Occurrence ;
+  triage:file "ui/input/app.js" ;
+  triage:line 39 ;
+  triage:snippet "fieldEl.type = payload.password ? \"password\" : \"text\";" ;
+  triage:status "open" ;
+  triage:closed false ;
+  triage:branch "integrate/phase-c-web-server" ;
+  triage:headSha "bf18403" ;
+  triage:occursIn <urn:atm:triage:worktree/c11/bf18403> .
+
+<urn:atm:triage:occurrence/ATM-QA-002/c11/multifile1>
+  a triage:Occurrence ;
+  triage:file "ui/input/app.js" ;
+  triage:line 78 ;
+  triage:snippet "if (payload.multiple) pickerBody.multiple = true;" ;
+  triage:status "open" ;
+  triage:closed false ;
+  triage:branch "integrate/phase-c-web-server" ;
+  triage:headSha "bf18403" ;
+  triage:occursIn <urn:atm:triage:worktree/c11/bf18403> .
+
+<urn:atm:triage:occurrence/ATM-QA-002/c11/multifile2>
+  a triage:Occurrence ;
+  triage:file "ui/input/app.js" ;
+  triage:line 89 ;
+  triage:snippet "payload.multiple || paths.length > 1 ? paths : paths[0] || \"\"" ;
+  triage:status "open" ;
+  triage:closed false ;
+  triage:branch "integrate/phase-c-web-server" ;
+  triage:headSha "bf18403" ;
+  triage:occursIn <urn:atm:triage:worktree/c11/bf18403> .
+
+<urn:atm:triage:worktree/c11/bf18403>
+  a triage:WorktreeSnapshot ;
+  triage:branch "integrate/phase-c-web-server" ;
+  triage:path "/Volumes/Extreme Pro/github/wyvern-worktrees/integrate/phase-c-web-server" ;
+  triage:headSha "bf18403" ;
+  triage:orderIndex 11 .

@@ -19,6 +19,7 @@ mod error;
 mod markdown;
 mod options;
 mod picker;
+mod question;
 mod routes;
 mod server;
 mod session;
@@ -57,14 +58,10 @@ pub fn run(command: Command, options: HostOptions) -> Result<CommandResult, Host
         Command::Message { .. } => DialogTypeName::Message,
         Command::Input { .. } => DialogTypeName::Input,
         Command::Markdown { .. } => DialogTypeName::Markdown,
+        Command::Question { .. } => DialogTypeName::Question,
         Command::Chrome { .. } => {
             return Err(HostError::UnsupportedType {
                 type_name: DialogTypeName::Chrome,
-            });
-        }
-        Command::Question { .. } => {
-            return Err(HostError::UnsupportedType {
-                type_name: DialogTypeName::Question,
             });
         }
     };

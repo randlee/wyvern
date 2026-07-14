@@ -1,0 +1,75 @@
+@prefix triage: <urn:atm:triage:> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<urn:atm:triage:finding/QA-002>
+  a triage:Finding ;
+  triage:findingId "QA-002" ;
+  triage:title "http_input tests mutate global env WYVERN_MOCK_PICKER_PATH" ;
+  triage:description "http_input.rs tests use env::set_var on global process env causing cross-test pollution." ;
+  triage:phaseId "phase-C-web-server" ;
+  triage:triageMode "initial_pass" ;
+  triage:category "QA" ;
+  triage:severity "important" ;
+  triage:repeatable true ;
+  triage:sweepScope "crate" ;
+  triage:status "open" ;
+  triage:dispatchReady true ;
+  triage:originatingSprintDoc "docs/plans/phase-C/c11-host-input.md" ;
+  triage:triagedAt "2026-07-14T00:32:00Z"^^xsd:dateTime ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/QA-002/integrate-c-web/1> ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/QA-002/integrate-c-web/2> ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/QA-002/integrate-c-web/3> ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/QA-002/integrate-c-web/4> ;
+  triage:openOn <urn:atm:triage:worktree/integrate-c-web/bf18403> ;
+  triage:promoteTo <urn:atm:triage:worktree/integrate-c-web/bf18403> .
+
+<urn:atm:triage:occurrence/QA-002/integrate-c-web/1>
+  a triage:Occurrence ;
+  triage:file "crates/wyvern-host/tests/http_input.rs" ;
+  triage:line 164 ;
+  triage:snippet "std::env::set_var(\"WYVERN_MOCK_PICKER_PATH\", &fixture);" ;
+  triage:status "open" ;
+  triage:closed false ;
+  triage:branch "integrate/phase-c-web-server" ;
+  triage:headSha "bf18403" ;
+  triage:occursIn <urn:atm:triage:worktree/integrate-c-web/bf18403> .
+
+<urn:atm:triage:occurrence/QA-002/integrate-c-web/2>
+  a triage:Occurrence ;
+  triage:file "crates/wyvern-host/tests/http_input.rs" ;
+  triage:line 230 ;
+  triage:snippet "std::env::set_var(\"WYVERN_MOCK_PICKER_PATH\", \"\");" ;
+  triage:status "open" ;
+  triage:closed false ;
+  triage:branch "integrate/phase-c-web-server" ;
+  triage:headSha "bf18403" ;
+  triage:occursIn <urn:atm:triage:worktree/integrate-c-web/bf18403> .
+
+<urn:atm:triage:occurrence/QA-002/integrate-c-web/3>
+  a triage:Occurrence ;
+  triage:file "crates/wyvern-host/tests/http_input.rs" ;
+  triage:line 273 ;
+  triage:snippet "std::env::set_var(\"WYVERN_MOCK_PICKER_PATH\", &fixture);" ;
+  triage:status "open" ;
+  triage:closed false ;
+  triage:branch "integrate/phase-c-web-server" ;
+  triage:headSha "bf18403" ;
+  triage:occursIn <urn:atm:triage:worktree/integrate-c-web/bf18403> .
+
+<urn:atm:triage:occurrence/QA-002/integrate-c-web/4>
+  a triage:Occurrence ;
+  triage:file "crates/wyvern-host/tests/http_input.rs" ;
+  triage:line 339 ;
+  triage:snippet "std::env::set_var(\"WYVERN_MOCK_PICKER_PATH\", \"\");" ;
+  triage:status "open" ;
+  triage:closed false ;
+  triage:branch "integrate/phase-c-web-server" ;
+  triage:headSha "bf18403" ;
+  triage:occursIn <urn:atm:triage:worktree/integrate-c-web/bf18403> .
+
+<urn:atm:triage:worktree/integrate-c-web/bf18403>
+  a triage:WorktreeSnapshot ;
+  triage:branch "integrate/phase-c-web-server" ;
+  triage:path "/Volumes/Extreme Pro/github/wyvern-worktrees/integrate/phase-c-web-server" ;
+  triage:headSha "bf18403" ;
+  triage:orderIndex 11 .

@@ -1,11 +1,14 @@
 //! `POST /api/result` — accept stdout-shaped JSON and complete the session.
 
+use std::collections::HashMap;
+
 use axum::extract::State;
 use axum::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use wyvern_schema::{
     ButtonLabel, Command, CommandResult, InputResult, InputValue, MarkdownResult, MessageResult,
+    QuestionCard, QuestionResult,
 };
 
 use crate::error::HostError;
@@ -53,6 +56,12 @@ fn result_bad_request(message: impl Into<String>, cause: impl Into<String>) -> A
         .recovery(
             "For markdown/message results include a string 'button' field (e.g. \"ok\" or \"dismissed\")",
         )
+        .recovery(
+            "For question submit omit 'button' and include questions, non-empty answers, and response",
+        )
+        .recovery(
+            "Question answer keys must match the active dialog's question prompts",
+        )
         .docs(RESULT_DOCS)
 }
 
@@ -79,10 +88,123 @@ fn parse_result_for_command(command: &Command, body: &Value) -> Result<CommandRe
             }))
         }
         Command::Input { .. } => parse_input_result(body),
+        Command::Question {
+            questions,
+            questions_raw,
+        } => parse_question_result(questions, questions_raw, body),
         _ => Err(HostError::InvalidResult {
             message: "active dialog type does not accept results yet".into(),
         }),
     }
+}
+
+/// Allowed top-level keys for `question` `POST /api/result` (http-post-schema.md).
+const QUESTION_RESULT_KEYS: &[&str] = &["questions", "answers", "response", "button"];
+
+/// Parse question POST body per http-post-schema.md (REQ-0067 / REQ-0068).
+///
+/// - Normal submit: omit `button`, non-empty `answers`, `response` present.
+/// - Presence of `button`, or empty `answers` without submit → fail-safe dismiss.
+/// - Stdout `questions` always echo the validated command `questions_raw`.
+/// - Answer map keys must be prompts from the active [`QuestionCard`] set.
+/// - Unknown top-level keys → 400 (Extra fields convention).
+fn parse_question_result(
+    questions: &[QuestionCard],
+    questions_raw: &[Value],
+    body: &Value,
+) -> Result<CommandResult, HostError> {
+    reject_unknown_keys(body, QUESTION_RESULT_KEYS)?;
+    if !body.get("questions").map(Value::is_array).unwrap_or(false) {
+        return Err(HostError::InvalidResult {
+            message: "missing array field 'questions'".into(),
+        });
+    }
+    if body.get("response").and_then(Value::as_str).is_none() {
+        return Err(HostError::InvalidResult {
+            message: "missing string field 'response'".into(),
+        });
+    }
+    let answers = parse_question_answers(body)?;
+    validate_answer_keys(questions, &answers)?;
+    let has_button = body.get("button").is_some();
+
+    // Fail-safe dismiss: any `button` field, or empty answers on "submit".
+    if has_button || answers.is_empty() {
+        return Ok(CommandResult::Question(QuestionResult::dismissed(
+            questions_raw.to_vec(),
+        )));
+    }
+
+    Ok(CommandResult::Question(QuestionResult::submitted(
+        questions_raw.to_vec(),
+        answers,
+    )))
+}
+
+/// Reject unknown top-level object keys (http-post-schema.md Extra fields → 400).
+fn reject_unknown_keys(body: &Value, allowed: &[&str]) -> Result<(), HostError> {
+    let Some(obj) = body.as_object() else {
+        return Err(HostError::InvalidResult {
+            message: "result body must be a JSON object".into(),
+        });
+    };
+    for key in obj.keys() {
+        if !allowed.contains(&key.as_str()) {
+            return Err(HostError::InvalidResult {
+                message: format!("unknown field '{key}'"),
+            });
+        }
+    }
+    Ok(())
+}
+
+/// Reject answer keys that are not prompts on the active question cards.
+fn validate_answer_keys(
+    questions: &[QuestionCard],
+    answers: &HashMap<String, String>,
+) -> Result<(), HostError> {
+    if answers.is_empty() {
+        return Ok(());
+    }
+    let allowed: std::collections::HashSet<&str> = questions
+        .iter()
+        .map(|card| card.question.as_str())
+        .collect();
+    for key in answers.keys() {
+        if !allowed.contains(key.as_str()) {
+            return Err(HostError::InvalidResult {
+                message: format!(
+                    "answers key {key:?} is not a question prompt on the active dialog"
+                ),
+            });
+        }
+    }
+    Ok(())
+}
+
+fn parse_question_answers(body: &Value) -> Result<HashMap<String, String>, HostError> {
+    let Some(obj) = body.get("answers").and_then(Value::as_object) else {
+        return Err(HostError::InvalidResult {
+            message: "missing object field 'answers'".into(),
+        });
+    };
+    let mut answers = HashMap::with_capacity(obj.len());
+    for (key, value) in obj {
+        match value {
+            Value::String(s) => {
+                answers.insert(key.clone(), s.clone());
+            }
+            other => {
+                return Err(HostError::InvalidResult {
+                    message: format!(
+                        "answers[{key:?}] expected string, got {}",
+                        json_type_name(other)
+                    ),
+                });
+            }
+        }
+    }
+    Ok(answers)
 }
 
 fn parse_input_result(body: &Value) -> Result<CommandResult, HostError> {
