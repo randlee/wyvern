@@ -9,6 +9,8 @@ worktree: /Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-C-c2-icon-r
 
 # Sprint c.2 — Full icon field resolution and validation
 
+> **Historical (merged)** — `icons.rs` catalog for deleted stack. Superseded: opaque `icon` string in schema (c.9); templates own icons.
+
 ## Goal
 
 - Complete REQ-0031: named icons with variant index, file path, and base64 data URI.

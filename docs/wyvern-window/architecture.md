@@ -1,12 +1,14 @@
 # `wyvern-window` — Architecture
 
+> **DEPRECATED (c.9+)** — Superseded by [`wyvern-host`](../wyvern-host/architecture.md). Crate **deleted in c.9**. ADRs below are **archival** — see principal [Superseded ADRs](../architecture.md#superseded-adrs-wyvern-window--archival-only).
+
 *Part of the [principal architecture](../architecture.md).*
 
 ---
 
 ## ADR-0001: Use `wry` as the webview engine
 
-**Status:** Accepted
+**Status:** Superseded (c.15) — `wry` only in optional `wyvern-viewer`; not in `wyvern-host`.
 
 **Context:** Options: Electron (~150MB), OS-native dialogs (no HTML), egui (no HTML authoring), wry (OS webview wrapper, ~5MB binary).
 
@@ -18,7 +20,7 @@
 
 ## ADR-0002: All UI rendered as HTML — no OS-native widgets
 
-**Status:** Accepted
+**Status:** Superseded (c.10+) — UI in packaged `share/wyvern/ui/`; host serves bytes only.
 
 **Context:** Dialog chrome could be OS-native widgets or HTML-rendered.
 
@@ -30,7 +32,7 @@
 
 ## ADR-0010: Transparent title bar with full-size content view (macOS)
 
-**Status:** Accepted
+**Status:** Superseded (HTTP delivery) — platform attrs lifted to `wyvern-viewer` (c.15); templates own safe zones in `ui/`.
 
 **Decision:** `with_titlebar_transparent(true)` + `with_fullsize_content_view(true)`. Traffic lights float over HTML. HTML title bar reserves ~72px left safe zone. Window draggable via `-webkit-app-region: drag`.
 
@@ -40,7 +42,7 @@
 
 ## ADR-0010a: Full-size content view extended to all platforms
 
-**Status:** Implemented (Win/Linux in Phase C c.3; macOS in Phase A)
+**Status:** Superseded (HTTP delivery) — Win/Linux/macOS chrome in packaged `ui/` (c.14); optional `wyvern-viewer` platform attrs (c.15). IPC chrome contract is historical.
 
 **Decision:** All platforms use full-size content view with no OS title bar.
 - **macOS** — transparent title bar + full-size content view; native traffic lights; HTML title bar reserves **72px left safe zone** (ADR-0010)
@@ -63,30 +65,15 @@ ADR-0010a was the **target** cross-platform chrome. During **Phase B**, Windows 
 
 ## ADR-0014: Native file/folder picker via `rfd`
 
-**Status:** Accepted
+**Status:** Superseded (HTTP delivery) — `rfd` in **`wyvern-host`** only (c.11); HTTP picker routes (REQ-0113/0114). Historical detail below.
 
-**Context:** `input` type `mode: file` and `mode: folder` require OS-native pickers. Options: custom GTK/Win32/Cocoa code in `wyvern-window`, or the `rfd` crate (cross-platform native dialogs).
-
-**Decision:**
-- Use the **`rfd`** crate **only** in `wyvern-window` for file and folder selection (b.4).
-- `wyvern-schema` validates picker-related fields (`filter`, `multiple`, `start_path`) but never depends on `rfd`.
-- Selected paths are returned as **plain strings** in `InputResult.input` (single path) or a **JSON array of strings** when `multiple: true` (REQ-0065).
-
-**Headless CI strategy (authoritative):**
-- All CI platforms: picker tests set test-only env `WYVERN_MOCK_PICKER_PATH` to a fixture path; `picker.rs` skips `rfd` UI when set.
-- Linux CI (xvfb): mock env required for non-ignored picker tests; real picker UI tests are `#[ignore]` when mock unset.
-- macOS/Windows CI: same mock env pattern.
-- Boundary enforcement: `sc-lint` confirms `rfd` appears only in `wyvern-window` dependency graph.
-
-**Picker UX (Phase B):** file/folder modes use picker-on-OK — page sends `input_submitted` without `value`; host opens `rfd` synchronously. See [ipc-dialog-contract.md](../plans/phase-B/ipc-dialog-contract.md).
-
-**Consequences:** Small dependency footprint; native look-and-feel per OS. Picker logic is not unit-testable in `wyvern-schema`; integration tests live in `wyvern-window` with mocks.
+**Former decision (archival):** `rfd` only in `wyvern-window`; picker-on-OK via wry IPC. Replaced by `POST /api/picker/file` and `POST /api/picker/folder`. Mock env `WYVERN_MOCK_PICKER_PATH` may be retained for host picker tests in c.11.
 
 ---
 
 ## ADR-0015: Built-in icon asset layout (Phase C)
 
-**Status:** Accepted (implementation in Phase C c.1–c.2)
+**Status:** Superseded (c.9+) — Rust icon catalog and `include_bytes!` embed removed; icons live in packaged `ui/` ([REQ-0103](../wyvern-host/requirements.md)). Historical for c.1–c.2 embedded stack only.
 
 **Context:** Phase B ships four **placeholder** SVGs under `assets/icons/placeholder/` for `MessageLevel` values only (b.2). REQ-0030 requires a full curated bundle with multiple variants per semantic role. REQ-0031 requires named resolution with variant index.
 

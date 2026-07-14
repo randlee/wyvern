@@ -15,21 +15,28 @@ Phase B ──┬──► c.1 ──► c.2 ──┐
 - **c.4:** depends on c.1, c.2, and c.3
 - **c.5:** depends on c.4
 
-## What Phase C closes
+## What Phase C closes (delivery rewrite c.9–c.16)
 
-- Full shipped icon bundle (REQ-0030, REQ-0031) replacing Phase B **placeholder** SVGs at `assets/icons/placeholder/`
-- Named icon resolution with variant index (`"warning:2"`), path, and base64 — unknown named icons → **validation error** (replacing b.2 run-time info fallback)
-- Windows/Linux platform chrome: `decorations: false` + HTML close/minimize via IPC (ADR-0010a, REQ-0085, REQ-0086, REQ-0087)
-- macOS NFR verification (NFR-0001–NFR-0003) and cross-platform rendering regression pass
-- v0.1.0 release: GitHub Actions binary matrix, README quickstart, `CHANGELOG.md`
+**Authoritative after c.8.** Prior c.1–c.5 work shipped on `wyvern-window`; that stack is **deleted in c.9**. v0.1.0 tag is valid only after **c.16**.
 
-## What Phase C inherits from Phase B (unchanged)
+- HTTP dialog host (`wyvern-host`) + packaged `share/wyvern/ui/` for all dialog types
+- Headless CI via Playwright/Puppeteer (`--viewer none`); embedded viewer default (c.15)
+- `wyvern-window` entirely removed; no wry IPC, no inline HTML in Rust
+- v0.1.0 release tarball with binary + UI bundle
 
-- All four dialog types executable end-to-end (`message`, `input`, `markdown`, `question`)
-- Window auto-size bounds: **min 320×200**, **max 800×600** (REQ-0041) — dialog types only; `chrome` keeps Phase A fixed **480×360** open with **800×600** max
-- Modal window attributes: minimize/maximize disabled (REQ-0083)
-- Dialog IPC contract ([../phase-B/ipc-dialog-contract.md](../phase-B/ipc-dialog-contract.md)) for button/input/question events
-- macOS transparent title bar + 72px safe zone (ADR-0010, REQ-0080–REQ-0082)
+### Historical (c.1–c.5 — merged on old stack, superseded)
+
+- Icon bundle + named-icon validation (REQ-0030/0031) — **deprecated** on HTTP path; icons live in `ui/`
+- Win/Linux wry chrome IPC (c.3) — **deleted** with `wyvern-window`; chrome in `ui/chrome/` (c.14)
+- c.5 release tag tooling — reused in c.16 with updated artifacts
+
+## What Phase C inherits from Phase B (semantics — transport changes at c.10)
+
+- All four dialog types remain executable end-to-end (`message`, `input`, `markdown`, `question`) — **HTTP transport** replaces wry IPC (c.10+)
+- Dialog sizing hints: **min 320×200**, **max 800×600** (REQ-0041) — enforced in template CSS / viewer hints, not wry attrs
+- `chrome` fixed **480×360** open, **800×600** max — product constants in `ui/chrome/` (c.14)
+- Modal behavior unchanged — minimize/maximize policy in template JS + viewer config (REQ-0083 semantics)
+- Phase B [ipc-dialog-contract.md](../phase-B/ipc-dialog-contract.md) — **historical**; HTTP contracts authoritative after c.10
 
 ## What Phase C does not close
 
@@ -58,33 +65,65 @@ c.5 (release) ──► c.6 ──► c.7
 - **c.7:** depends on c.6; local macOS CLI test serialization (CI already uses `--test-threads=1`)
 - **c.8:** depends on c.6; clippy deny regression gate (parallel with c.7)
 
-## Phase B → Phase C handoff (authoritative)
+## Delivery rewrite (c.9–c.16) — HTTP host
 
-| Area | Phase B reality (merged) | Phase C completes |
-|------|--------------------------|-------------------|
-| Level icons | Four placeholder SVGs in `assets/icons/placeholder/` mapped by `MessageLevel` | Production icons per role; `level` renders variant 1 from bundle |
-| Named `icon` field | Resolves only to placeholder set; `:variant` syntax accepted but **ignored**; unknown names fall back to info placeholder at run time | Full role catalog incl. `success`, `loading`; variant index honored; unknown → validation error |
-| Win/Linux frame | `with_decorations(true)` in `window.rs` — native OS title bar | `decorations: false` + HTML window controls ([chrome-ipc-contract.md](chrome-ipc-contract.md)) |
-| NFR targets | Not measured in Phase B | macOS benchmarks in c.4; binary size monitored after icon bundle lands |
-| Release CI | `.github/workflows/ci.yml` only (build/test/clippy/sc-lint) | c.5 adds release workflow on tag push |
+The embedded `wyvern-window` stack is **removed in c.9** (clean break; compile optional). **Principle: delete → verify → rebuild** — no refactor-in-place. Replacement: `wyvern-host` + packaged `ui/` (c.10–c.14) + `wyvern-viewer` (c.15) + release (c.16).
 
-## Platform policy after Phase C
+```
+c.8 ──► c.9 ──► c.10 ──► c.11 ──► c.12 ──► c.13 ──► c.14 ──► c.15 ──► c.16 ──► v0.1.0
+        │         │         │         │         │         │         │
+        delete    message   input     md        question  chrome    viewer   release
+        only      +host
+```
 
-| Platform | Window chrome | Window controls |
-|----------|---------------|-----------------|
-| macOS | Transparent title bar (ADR-0010), HTML shell | Native traffic lights; no HTML close/minimize |
-| Windows | `decorations: false`, full-size HTML chrome (ADR-0010a) | HTML close; HTML minimize on **non-modal** types only (`chrome`; wizard in Phase D) |
+| Sprint | Title | Doc | Status |
+|--------|-------|-----|--------|
+| c.9 | **Delete** `wyvern-window` (compile optional) | [c9-deletion.md](c9-deletion.md), [c9-deletion-and-rework.md](c9-deletion-and-rework.md) | planning |
+| c.10 | `wyvern-host` + `message` + workspace green | [c10-http-host-message.md](c10-http-host-message.md), [c9-testing-headless.md](c9-testing-headless.md) | planned |
+| c.11 | `input` (+ picker) | [c11-host-input.md](c11-host-input.md) | planned |
+| c.12 | `markdown` | [c12-host-markdown.md](c12-host-markdown.md) | planned |
+| c.13 | `question` | [c13-host-question.md](c13-host-question.md) | planned |
+| c.14 | `chrome` — full dialog matrix | [c14-host-chrome.md](c14-host-chrome.md) | planned |
+| c.15 | `wyvern-viewer` + browser registry | [c15-wyvern-viewer.md](c15-wyvern-viewer.md), [http-viewer-contract.md](http-viewer-contract.md) | planned |
+| c.16 | Release bundle + **v0.1.0** (final Phase C) | [c16-release.md](c16-release.md) | planned |
+
+**c.9 merge gate:** deletion inventory passes; `wyvern-window` absent. **`cargo build` not required.**
+
+**c.10+ merge gate:** workspace compile + CI green; each type sprint adds one headless e2e spec.
+
+**Viewer default:** product CLI uses `embedded` (c.15); CI/e2e use `none`. See [http-viewer-contract.md](http-viewer-contract.md).
+
+- **Contracts:** [HTTP-TYPES.md](HTTP-TYPES.md), [http-dialog-contract.md](http-dialog-contract.md), [http-post-schema.md](http-post-schema.md), [http-viewer-contract.md](http-viewer-contract.md), [http-wizard-contract.md](http-wizard-contract.md), [http-interactive-mcp-contract.md](http-interactive-mcp-contract.md)
+- **Crate:** `wyvern-host` — see [../../wyvern-host/architecture.md](../../wyvern-host/architecture.md)
+- **c.1–c.3, c.7 GUI flock:** historical; not extended. Icons/chrome REQ-0030/0080+ deprecated for host path.
+
+## Platform policy (HTTP delivery — c.14+)
+
+| Platform | Viewer | Chrome |
+|----------|--------|--------|
+| macOS | `wyvern-viewer`: transparent title bar; native traffic lights | Template + viewer attrs |
+| Windows | `wyvern-viewer` or system browser | `ui/` HTML close/minimize |
 | Linux | Same as Windows | Same as Windows |
 
-Modal types (`message`, `input`, `markdown`, `question`) keep REQ-0083: minimize disabled at window-attribute layer — HTML minimize hidden or inert on Win/Linux.
+Modal minimize policy lives in **template JS** and viewer configuration — not wry IPC.
 
-## Phase acceptance criteria (smoke)
+## Phase B → Phase C handoff (historical — pre-c.9)
 
-1. `wyvern '{"type":"message","title":"T","message":"Hi","level":"warning","buttons":"ok"}'` → production warning icon (not placeholder marker); OK → `{"button":"ok"}`
-2. `wyvern '{"type":"message","title":"T","message":"Hi","icon":"success:2","buttons":"ok"}'` → second success variant
-3. `wyvern '{"type":"message","title":"T","message":"Hi","icon":"nonexistent","buttons":"ok"}'` → validation stderr listing valid icon names, exit ≠ 0, no window
-4. All Phase B README smoke checks pass on **ubuntu, macos, and windows** CI legs (no manual Win/Linux E2E required)
-5. Tag `v0.1.0` produces attached macOS (aarch64 + x86_64), Windows, and Linux release binaries
+## Phase acceptance criteria (smoke) — delivery rewrite (c.16)
+
+All commands use `--viewer none` in CI unless noted.
+
+1. `wyvern '{"type":"message",...}' --viewer none` → headless e2e; OK → `{"button":"ok"}`
+2. `input`, `markdown`, `question`, `chrome` — each passes headless e2e (c.11–c.14)
+3. `wyvern '{"type":"message",...}'` (default) — embedded viewer smoke on macOS (c.15)
+4. Tag `v0.1.0` produces binary + `share/wyvern/ui/**` on macOS, Windows, Linux (c.16)
+5. `wyvern-window` absent; `cargo build --workspace` green on `integrate/phase-C` head
+
+### Historical (c.1–c.5 — pre-deletion stack)
+
+1. Production warning icon via Rust catalog — **superseded** by template-owned icons in `ui/`
+2. Named icon validation against Rust catalog — **superseded**; `icon` is opaque string (REQ-0102)
+3. xvfb + wry GUI matrix — **removed**; HTTP headless replaces
 
 ## Sprint index (c.1–c.5)
 
@@ -100,23 +139,28 @@ Modal types (`message`, `input`, `markdown`, `question`) keep REQ-0083: minimize
 
 | Doc | Purpose |
 |-----|---------|
-| [chrome-ipc-contract.md](chrome-ipc-contract.md) | Win/Linux HTML window control IPC (extends Phase B dialog IPC) |
-| [../phase-B/ipc-dialog-contract.md](../phase-B/ipc-dialog-contract.md) | Dialog button/input/question IPC (unchanged) |
-| [../../wyvern-window/architecture.md](../../wyvern-window/architecture.md) | ADR-0010a deferral closure; ADR-0015 icon asset layout |
+| [chrome-ipc-contract.md](chrome-ipc-contract.md) | **Historical** — wry chrome IPC (deleted with `wyvern-window`) |
+| [../phase-B/ipc-dialog-contract.md](../phase-B/ipc-dialog-contract.md) | **Historical** — Phase B dialog IPC |
+| [HTTP-TYPES.md](HTTP-TYPES.md) | Rust types for host, viewer, registry, wizard |
+| [../../wyvern-host/architecture.md](../../wyvern-host/architecture.md) | ADR-0016/0017 crate detail |
 
 ## CI validation (authoritative)
 
-Inherits Phase B matrix from [../phase-B/README.md](../phase-B/README.md):
+**After c.10 (HTTP host):**
 
-| Leg | Commands |
-|-----|----------|
-| `ubuntu-latest` | xvfb + software GL flags → `cargo test --workspace -- --test-threads=1` |
-| `macos-latest` | `cargo test --workspace -- --test-threads=1` |
-| `windows-latest` | `cargo test --workspace -- --test-threads=1` |
+| Leg | L1 | L2 headless |
+|-----|----|-------------|
+| `ubuntu-latest` | `cargo test -p wyvern-host` + workspace unit tests | Playwright (`--viewer none`) |
+| `macos-latest` | same | Playwright |
+| `windows-latest` | same | Playwright |
 
 All legs: `cargo build --workspace`, `cargo clippy --workspace -- -D warnings`, `sc-lint check native --config .sc-lint.toml`.
 
-After c.5: release workflow (see [c5-release.md](c5-release.md)) validates on tag push — not on every PR.
+No `xvfb`, no `--test-threads=1` gate for dialog tests once GUI tests are deleted (c.9).
+
+**Historical (c.1–c.8 — pre-deletion):** xvfb + `cargo test --workspace -- --test-threads=1` on all legs.
+
+After c.16: release workflow (see [c16-release.md](c16-release.md)) validates on tag push — not on every PR.
 
 ## Post–Phase C follow-up (error handling)
 
@@ -148,4 +192,6 @@ NFR-0004–NFR-0007 remain satisfied by existing architecture; c.4 confirms no r
 
 ## sc-lint-boundary
 
-Review `boundaries/*.toml` at sprint planning for c.1 (new asset module paths) and c.3 (`PlatformChrome` + `run.rs` IPC handler surface). No new crate deps expected.
+- **c.10:** add `boundaries/wyvern-host/host.toml`; remove `wyvern-window` boundary
+- **c.15:** add `wyvern-viewer` boundary when crate lands
+- **Historical c.1/c.3:** asset paths and `PlatformChrome` IPC — deleted with `wyvern-window`

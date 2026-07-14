@@ -9,6 +9,8 @@ target: integrate/phase-C-fixes
 
 # Sprint c.6 — Result propagation (no production panics)
 
+> **Historical** — targeted deleted `wyvern-window` (merged c.6). Crate removed c.9; error model moves to `HostError` (c.10+). Retained as audit trail.
+
 ## Goal
 
 - Eliminate all production `unwrap()`, `expect()`, and `unreachable!` in lib `src/` per the §1 checklist below.

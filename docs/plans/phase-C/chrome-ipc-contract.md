@@ -1,4 +1,6 @@
-# Chrome Window Control IPC (Phase C)
+# Chrome Window Control IPC — **HISTORICAL**
+
+> **Superseded** by HTTP host + packaged `ui/` (c.14). Applied only to deleted `wyvern-window` stack (Phase C c.3). Do not implement for `wyvern-host`.
 
 Extends [Phase B dialog IPC](../phase-B/ipc-dialog-contract.md) with **HTML window chrome** messages for Windows and Linux (ADR-0010a, REQ-0085–REQ-0087).
 

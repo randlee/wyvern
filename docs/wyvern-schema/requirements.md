@@ -12,7 +12,7 @@
 
 ## Validation (REQ-0050 – REQ-0057)
 
-**REQ-0050** — Validate all input JSON before opening any window. Validation scope matches the current phase's executable surface (Phase A: `chrome` only).
+**REQ-0050** — Validate all input JSON before starting the dialog host (or opening any viewer). Validation scope matches the current phase's executable surface.
 
 **REQ-0051** — Write validation errors to stderr as structured JSON: `{ "error": "validation", "field": "...", "message": "..." }`.
 
@@ -72,6 +72,18 @@
 - `message`, `input`, `markdown`, `wizard` return `{ "button": "dismissed", ... }` in their normal shape
 - `question` returns `{ "button": "dismissed", "questions": [...], "answers": {}, "response": "" }` as an explicit Wyvern extension for abnormal termination
 
+**Rust types:** [HTTP-TYPES.md](../plans/phase-C/HTTP-TYPES.md) (`CommandResult`, per-variant result structs).
+
+---
+
+## Icon fields (amendment c.9 — HTTP delivery)
+
+**REQ-0030** and **REQ-0031** (Rust built-in icon catalog, named-icon validation) are **deprecated** when `icons.rs` is deleted in c.9.
+
+- `icon` and `image` on `message` / `input` remain optional **opaque strings** (path, URL, or template hint).
+- Templates in `ui/` interpret `level`, `icon`, and `image` — not `wyvern-schema`.
+- Unknown named icons are **not** validation errors on the HTTP path (contrast with historical c.2 behavior).
+
 ---
 
 ## Error Model (REQ-0069 – REQ-0072)
@@ -95,6 +107,8 @@ Empty optional fields are omitted from JSON (`skip_serializing_if`).
 
 **REQ-0072** — Mode/state failures: `ValidationError::State` → stderr `{ "error": "state", "code": "STATE_ERROR", "field": "...", "message": "...", "cause": "...", "recovery": [...], "docs": "..." }` via `emit_validation_error`, exit `5`.
 
-**REQ-0073** — Window/run failures: `RunError` in `wyvern-window` → stderr `{ "error": "window_create" | "event_loop", "code": "WINDOW_CREATE_ERROR" | "EVENT_LOOP_ERROR", "message": "...", "cause": "...", "recovery": [...], "docs": "..." }` via `emit_run_error` in `crates/wyvern`, exit `6` / `7`. Icon/media defense-in-depth failures still use the `window_create` slug but attach media-specific `cause`/`recovery` (distinct from display-server construction failures).
+**REQ-0073** — Host/run failures (c.10+): `HostError` in `wyvern-host` → stderr `{ "error": "host_error" | "host_bind" | "host_viewer", "code": "HOST_ERROR" | "HOST_BIND_ERROR" | "HOST_VIEWER_ERROR", ... }` via `emit_host_error` in `crates/wyvern`, exit `6` / `7` per [HTTP-TYPES.md](../plans/phase-C/HTTP-TYPES.md).
+
+**REQ-0073a (historical — wyvern-window, pre-c.9)** — `RunError` in `wyvern-window` → `window_create` / `event_loop` slugs. Removed with crate deletion; do not implement in new code.
 
 **REQ-0078** — Emit-stage failures: when stdout or stderr JSON serialization fails at the CLI boundary (`EmitError::Serialize`), Wyvern emits `{ "error": "internal", "code": "INTERNAL_ERROR", "message": "...", "cause": "...", "recovery": [...], "docs": "..." }` (static JSON via `emit_fatal_internal`; no recursive serialize) and exits `8`. Applies only to emit helpers in `crates/wyvern`; does not change load/validate/run slugs. (Distinct from MCP **REQ-0074** in `docs/wyvern-mcp/requirements.md`.)

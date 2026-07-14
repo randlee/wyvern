@@ -3,13 +3,14 @@ owner_package = "wyvern"
 name = "WyvernCli"
 
 [dependencies]
-allowed_dependencies = ["wyvern-schema", "wyvern-window"]
-forbidden_dependencies = ["wyvern-wizard", "wyvern-mcp"]
-forbidden_edges = ["wyvern -> wyvern-mcp"]
+# wyvern-viewer: optional dep for dev binary-path helpers; embedded spawn uses subprocess (no wry in CLI)
+allowed_dependencies = ["wyvern-schema", "wyvern-host", "wyvern-viewer"]
+forbidden_dependencies = ["wyvern-wizard", "wyvern-mcp", "wyvern-window"]
+forbidden_edges = ["wyvern -> wyvern-mcp", "wyvern -> wyvern-window"]
 
 [ownership]
-io_owns = ["stdin_reading", "stdout_writing", "stderr_writing", "arg_parsing"]
-io_forbidden = ["webview_creation", "window_lifecycle"]
+io_owns = ["stdin_reading", "stdout_writing", "stderr_writing", "arg_parsing", "host_options", "viewer_flag", "embedded_viewer_spawn", "viewer_show_hide"]
+io_forbidden = ["http_server", "webview_creation", "static_file_serve", "dialog_content_html"]
 
 [enforcement]
 lint_rules = ["LINT-BOUNDARY-CLI-NO-WINDOW-DIRECT"]

@@ -9,6 +9,8 @@ target: integrate/phase-C
 
 # Sprint c.5 — Release tooling and v0.1.0
 
+> **Historical (merged)** — release workflow tooling. **v0.1.0 tag not valid** until c.16 on HTTP stack; reuse workflow in c.16.
+
 ## Goal
 
 - Ship Wyvern v0.1.0: GitHub Actions release matrix, README quickstart, `CHANGELOG.md`, tag `v0.1.0`.

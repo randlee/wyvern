@@ -20,14 +20,24 @@
 
 **REQ-0007** — `show`, `hide`, and `exit` are valid only inside the `--interactive` command loop. They are not valid as single-shot CLI commands.
 
+## Host options (c.10+)
+
+**REQ-0115** — `--bind <ADDR:PORT>` sets the dialog HTTP bind address (default `127.0.0.1:0`). Passed to `wyvern-host`.
+
+**REQ-0116** — `--ui-root <PATH>` sets the static UI directory (default: packaged `share/wyvern/ui/`). Passed to `wyvern-host`.
+
+**REQ-0117** — `--viewer <embedded|none|system|chrome|safari|edge|firefox>`. **Default: `embedded`** (c.15). Env `WYVERN_VIEWER` overrides. CI uses `none`. c.10: parse enum, implement `none` only. Registry: [http-viewer-contract.md](../plans/phase-C/http-viewer-contract.md).
+
+**REQ-0118** — `wyvern browsers list` / `wyvern browsers refresh` (c.15).
+
 ---
 
-## Interactive Mode
+## Interactive Mode (Phase E)
 
-**REQ-0100** — In `--interactive` mode, commands are processed sequentially. Blocking dialog commands retain normal modal behavior inside the loop.
+**REQ-0120** — In `--interactive` mode, commands are processed sequentially. Blocking dialog commands retain normal modal behavior inside the loop.
 
-**REQ-0101** — In `--interactive` mode, a blocking dialog command writes its normal JSON result to stdout on completion, then the loop continues.
+**REQ-0121** — In `--interactive` mode, a blocking dialog command writes its normal JSON result to stdout on completion, then the loop continues.
 
-**REQ-0102** — `{"action":"show"}` and `{"action":"hide"}` toggle window visibility; return `{"action":"show|hide","ok":true}`.
+**REQ-0122** — `{"action":"show"}` and `{"action":"hide"}` toggle **`wyvern-viewer`** visibility via **`wyvern` CLI** (when embedded); return `{"action":"show|hide","ok":true}`. Host HTTP server stays up. Not `HostSession` methods.
 
-**REQ-0103** — `{"action":"exit"}` closes the window and terminates cleanly, returning `{"action":"exit","ok":true}` before shutdown.
+**REQ-0123** — `{"action":"exit"}` shuts down `HostSession` (host) and CLI-owned viewer, returning `{"action":"exit","ok":true}` before shutdown.

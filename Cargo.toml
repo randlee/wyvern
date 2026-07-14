@@ -1,10 +1,14 @@
 [workspace]
+# Target: wyvern-host (c.10); wyvern-viewer (c.15); wyvern-window deleted in c.9.
+# Planning: docs/plans/phase-C/c9-deletion.md, c10-http-host-message.md
 members = [
     "crates/wyvern",
     "crates/wyvern-schema",
-    "crates/wyvern-window",
+    "crates/wyvern-window",   # remove in c.9
     "crates/wyvern-wizard",
     "crates/wyvern-mcp",
+    # "crates/wyvern-host",   # add c.10
+    # "crates/wyvern-viewer", # add c.15
 ]
 resolver = "2"
 
