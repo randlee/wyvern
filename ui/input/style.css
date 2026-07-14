@@ -154,3 +154,10 @@ html.wyvern-embedded .dialog--fill .path-row {
 html.wyvern-embedded .dialog--fill #input-field {
   width: 100%;
 }
+
+#input-field.path-multi {
+  resize: vertical;
+  min-height: 2.5rem;
+  white-space: pre-wrap;
+  word-break: break-all;
+}

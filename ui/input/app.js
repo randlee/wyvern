@@ -48,8 +48,15 @@
     const row = document.createElement("div");
     row.className = "path-row";
 
-    fieldEl = document.createElement("input");
-    fieldEl.type = "text";
+    fieldEl = document.createElement(
+      payload.mode === "file" && payload.multiple ? "textarea" : "input",
+    );
+    if (fieldEl.tagName === "TEXTAREA") {
+      fieldEl.rows = 2;
+      fieldEl.className = "path-multi";
+    } else {
+      fieldEl.type = "text";
+    }
     fieldEl.id = "input-field";
     fieldEl.setAttribute("data-testid", "input-field");
     fieldEl.value = payload.default || "";
