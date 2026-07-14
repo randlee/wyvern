@@ -16,8 +16,10 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use tokio::sync::{oneshot, Mutex, Semaphore};
+use tokio::sync::{oneshot, Mutex, OwnedSemaphorePermit, Semaphore};
 use wyvern_schema::Command;
+
+use crate::picker::MockPickerConfig;
 
 /// Max time a native `rfd` picker may block a `spawn_blocking` worker.
 pub(crate) const PICKER_TIMEOUT: Duration = Duration::from_secs(300);
@@ -28,6 +30,8 @@ pub(crate) struct SessionState {
     inner: Arc<Mutex<SessionInner>>,
     /// Caps concurrent native pickers (one dialog → one picker at a time).
     picker_slots: Arc<Semaphore>,
+    /// Optional in-process picker mock (tests); env mock remains for CLI/e2e.
+    mock_picker: Option<MockPickerConfig>,
 }
 
 struct SessionInner {
@@ -40,6 +44,7 @@ impl SessionState {
     pub(crate) fn new(
         command: Command,
         result_tx: oneshot::Sender<wyvern_schema::CommandResult>,
+        mock_picker: Option<MockPickerConfig>,
     ) -> Self {
         Self {
             inner: Arc::new(Mutex::new(SessionInner {
@@ -49,6 +54,7 @@ impl SessionState {
             // Serialize picker spawn_blocking so repeated POSTs cannot exhaust
             // the blocking pool (RSH-006).
             picker_slots: Arc::new(Semaphore::new(1)),
+            mock_picker,
         }
     }
 
@@ -57,12 +63,21 @@ impl SessionState {
         self.inner.lock().await.command.clone()
     }
 
+    /// In-process mock picker config, if any.
+    pub(crate) fn mock_picker(&self) -> Option<&MockPickerConfig> {
+        self.mock_picker.as_ref()
+    }
+
     /// Acquire the single picker permit for this session.
+    ///
+    /// Returns an [`OwnedSemaphorePermit`] so the caller can move it into
+    /// `spawn_blocking` and hold it until the native (or mock) picker returns —
+    /// including after an HTTP timeout drops the async handler.
     pub(crate) async fn acquire_picker_slot(
         &self,
-    ) -> Result<tokio::sync::SemaphorePermit<'_>, HostSessionClosed> {
-        self.picker_slots
-            .acquire()
+    ) -> Result<OwnedSemaphorePermit, HostSessionClosed> {
+        Arc::clone(&self.picker_slots)
+            .acquire_owned()
             .await
             .map_err(|_| HostSessionClosed)
     }

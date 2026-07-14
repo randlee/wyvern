@@ -100,6 +100,7 @@ pub fn parse_cli_args(args: &[String]) -> Result<CliArgs, LoadError> {
             dialog_url_file: std::env::var_os("WYVERN_DIALOG_URL_FILE").map(PathBuf::from),
             allow_non_loopback,
             session_timeout: wyvern_host::DEFAULT_SESSION_TIMEOUT,
+            mock_picker: None,
         },
         positionals,
     })
