@@ -4,7 +4,7 @@
   "pr_target": "integrate/phase-c-web-server",
   "integrate_branch": "integrate/phase-c-web-server",
   "integrate_worktree": "/Volumes/Extreme Pro/github/wyvern-worktrees/integrate/phase-c-web-server",
-  "integrate_head": "9cd332c",
+  "integrate_head": "ba431e7",
   "develop_head": "9cd332c",
   "planning_pr": 37,
   "sequence": [
@@ -17,7 +17,7 @@
     "c.15",
     "c.16"
   ],
-  "current_sprint": "c.9",
+  "current_sprint": "c.10",
   "sprints": {
     "c.9": {
       "id": "c.9",
@@ -26,12 +26,14 @@
       "worktree": "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-C-c9-deletion",
       "sprint_doc": "docs/plans/phase-C/c9-deletion.md",
       "pr_target": "integrate/phase-c-web-server",
-      "status": "qa",
+      "status": "merged",
       "pr_number": 38,
-      "sha": "1bf342f17daf2596612b2a44d732d9fbf25d924c",
-      "qa_rounds": [],
-      "merged": false,
-      "notes": "verify-c9-deletion.sh exit 0; cargo build not required",
+      "sha": "980632d",
+      "merge_sha": "ba431e7",
+      "qa_rounds": ["qa-c9-1"],
+      "merged": true,
+      "merged_at": "2026-07-14T03:46:09Z",
+      "notes": "verify-c9-deletion.sh exit 0; CI green; post-merge fix REQ-QA-001 README status",
       "pr_url": "https://github.com/randlee/wyvern/pull/38"
     },
     "c.10": {
@@ -40,7 +42,7 @@
       "branch": "feature/phase-C-c10-http-host-message",
       "sprint_doc": "docs/plans/phase-C/c10-http-host-message.md",
       "pr_target": "integrate/phase-c-web-server",
-      "status": "pending",
+      "status": "dev",
       "merged": false
     },
     "c.11": {
