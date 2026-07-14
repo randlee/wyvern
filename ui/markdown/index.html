@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Wyvern Markdown</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="dialog" id="dialog" hidden>
+      <header class="chrome">
+        <h1 id="title"></h1>
+        <p id="status" class="status" hidden></p>
+      </header>
+      <div id="content" class="content" data-testid="markdown-content">
+        <div id="markdown-body" class="markdown-body"></div>
+      </div>
+      <div class="buttons" id="buttons" role="group"></div>
+    </main>
+    <p id="error" class="error" hidden></p>
+    <script src="/shared/wyvern-api.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>

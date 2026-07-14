@@ -4,7 +4,9 @@ use axum::extract::State;
 use axum::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use wyvern_schema::{ButtonLabel, Command, CommandResult, InputResult, InputValue, MessageResult};
+use wyvern_schema::{
+    ButtonLabel, Command, CommandResult, InputResult, InputValue, MarkdownResult, MessageResult,
+};
 
 use crate::error::HostError;
 use crate::routes::api_error::ApiError;
@@ -43,6 +45,16 @@ fn parse_result_for_command(command: &Command, body: &Value) -> Result<CommandRe
                 }
             })?;
             Ok(CommandResult::Message(MessageResult {
+                button: ButtonLabel::new(button),
+            }))
+        }
+        Command::Markdown { .. } => {
+            let button = body.get("button").and_then(Value::as_str).ok_or_else(|| {
+                HostError::InvalidResult {
+                    message: "missing string field 'button'".into(),
+                }
+            })?;
+            Ok(CommandResult::Markdown(MarkdownResult {
                 button: ButtonLabel::new(button),
             }))
         }

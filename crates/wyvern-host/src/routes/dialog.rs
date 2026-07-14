@@ -105,6 +105,30 @@ pub(crate) fn dialog_payload(command: &Command) -> Value {
             }
             obj
         }
+        Command::Markdown {
+            title,
+            content,
+            status,
+            buttons,
+            ..
+        } => {
+            let raw = content.as_deref().unwrap_or("");
+            let mut obj = json!({
+                "type": "markdown",
+                "title": title
+                    .as_ref()
+                    .map(|t| t.as_str())
+                    .unwrap_or("Markdown"),
+                "content": raw,
+                "content_html": crate::markdown::render_content_html(raw),
+                "buttons": buttons_wire(*buttons),
+                "button_list": button_list(*buttons, None),
+            });
+            if let Some(status) = status {
+                obj["status"] = json!(status.as_str());
+            }
+            obj
+        }
         other => json!({
             "type": command_type_name(other),
             "error": "unsupported_type",
