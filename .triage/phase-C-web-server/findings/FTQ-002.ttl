@@ -5,31 +5,32 @@
   a triage:Finding ;
   triage:findingId "FTQ-002" ;
   triage:title "picker_slot test uses wall-clock timing assertion" ;
-  triage:description "picker_slot_held_until_blocking_task_finishes uses elapsed>=700ms; flaky under load" ;
-  triage:triageMode "initial_pass" ;
+  triage:description "picker_slot_held_until_blocking_task_finishes used elapsed>=700ms; flaky under load. Closed by wait_for_dialog_ready polling before GET /api/dialog and deterministic slot-order asserts (0800872), verified on PR head 5509343." ;
+  triage:triageMode "followup_pass" ;
   triage:category "FTQ" ;
   triage:phaseId "phase-C-web-server" ;
   triage:severity "minor" ;
   triage:repeatable false ;
   triage:sweepScope "file_only" ;
-  triage:status "open" ;
-  triage:dispatchReady true ;
+  triage:status "closed" ;
+  triage:dispatchReady false ;
   triage:originatingSprintDoc "docs/plans/phase-C/c11-host-input.md" ;
-  triage:hasOccurrence <urn:atm:triage:occurrence/FTQ-002/c11/1> ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/FTQ-002/c15/1> ;
   triage:openOn <urn:atm:triage:worktree/c11/209858f> ;
-  triage:promoteTo <urn:atm:triage:worktree/c11/209858f> ;
-  triage:triagedAt "2026-07-14T00:43:00Z"^^xsd:dateTime .
+  triage:fixedOn <urn:atm:triage:worktree/c15/5509343> ;
+  triage:promoteTo <urn:atm:triage:worktree/c15/5509343> ;
+  triage:triagedAt "2026-07-14T11:26:24Z"^^xsd:dateTime .
 
-<urn:atm:triage:occurrence/FTQ-002/c11/1>
+<urn:atm:triage:occurrence/FTQ-002/c15/1>
   a triage:Occurrence ;
   triage:file "crates/wyvern-host/tests/http_input.rs" ;
-  triage:line 625 ;
-  triage:snippet "elapsed >= Duration::from_millis(700)" ;
-  triage:status "open" ;
-  triage:closed false ;
-  triage:branch "feature/phase-C-c11-reverify-fixes" ;
-  triage:headSha "209858f" ;
-  triage:occursIn <urn:atm:triage:worktree/c11/209858f> .
+  triage:line 154 ;
+  triage:snippet "fn wait_for_dialog_ready(...); wait_for_picker_enter(&slot_log); // slot-order assert, not wall-clock" ;
+  triage:status "closed" ;
+  triage:closed true ;
+  triage:branch "feature/phase-C-c15-wyvern-viewer" ;
+  triage:headSha "5509343" ;
+  triage:occursIn <urn:atm:triage:worktree/c15/5509343> .
 
 <urn:atm:triage:worktree/c11/209858f>
   a triage:WorktreeSnapshot ;
@@ -37,3 +38,10 @@
   triage:path "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-C-c11-reverify-fixes" ;
   triage:headSha "209858f" ;
   triage:orderIndex 11 .
+
+<urn:atm:triage:worktree/c15/5509343>
+  a triage:WorktreeSnapshot ;
+  triage:branch "feature/phase-C-c15-wyvern-viewer" ;
+  triage:path "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-C-c15-wyvern-viewer" ;
+  triage:headSha "5509343" ;
+  triage:orderIndex 15 .
