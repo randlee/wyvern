@@ -161,3 +161,29 @@ No silent processing.
 sent to the coordinator (ATM in Codex; parent session in Cursor) must carry the
 **same** Machine Status JSON and finding tables as the PR comment for that
 `qa_pass`. PR-only or coordinator-only QA is invalid.
+
+## Cursor orchestration overlay (`cursor-quality-mgr`)
+
+When `.cursor/skills/cursor-orchestration` governs the session:
+
+- Parent spawns all reviewers; `cursor-quality-mgr` enforces spawn proof only.
+- **Spawn gate fail** → `next_action: parent_respawn_reviewers`
+- **Finding fail** (valid reviewer JSON, open findings) → `next_action: triage_and_fix`
+- **PASS** → `next_action: none`
+
+Machine Status rendered keys (PR + parent):
+
+| Key | Type | Notes |
+|-----|------|-------|
+| `reviewer_spawn_gate` | string | `pass` \| `fail` |
+| `reviewer_manifest` | array | `{agent, task_id, spawn_actor, verdict, findings}` |
+| `missing_reviewers` | array | spawn-gate fail only |
+| `unparsed_reviewers` | array | spawn-gate fail only |
+| `evidence_chain` | object | `pr_comment_url`, `coordinator_task_id`, `triage.ttl_paths` |
+
+sc-compose input vars use `reviewer_manifest_json` and `evidence_chain_json`
+(render inputs); templates emit `reviewer_manifest` and `evidence_chain`.
+
+Cursor `$_VARS` for PR posts must always populate `reviewer_spawn_gate`,
+`reviewer_manifest_json` (array string), and `evidence_chain_json` — optional
+template defaults are for codex-only callers.

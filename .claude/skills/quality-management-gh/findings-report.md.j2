@@ -30,10 +30,14 @@ optional_variables:
   - reviewer_spawn_gate
   - reviewer_manifest_json
   - evidence_chain_json
+  - missing_reviewers_json
+  - unparsed_reviewers_json
 defaults:
   reviewer_spawn_gate: ""
   reviewer_manifest_json: "[]"
   evidence_chain_json: "{}"
+  missing_reviewers_json: "[]"
+  unparsed_reviewers_json: "[]"
 ---
 # QA Findings Update
 
@@ -57,6 +61,8 @@ Verdict: **{{ verdict }}**
 {% if reviewer_spawn_gate -%}
   "reviewer_spawn_gate": "{{ reviewer_spawn_gate }}",
   "reviewer_manifest": {{ reviewer_manifest_json }},
+  "missing_reviewers": {{ missing_reviewers_json }},
+  "unparsed_reviewers": {{ unparsed_reviewers_json }},
   "aggregation_source": "reviewer_fenced_json_union_todo_scan",
 {% endif -%}
 {% if evidence_chain_json and evidence_chain_json != "{}" -%}

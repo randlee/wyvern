@@ -22,7 +22,7 @@ agents:
 
   cursor-quality-mgr:
     model: composer-2.5-fast
-    notes: QA coordinator only; favor speed
+    notes: QA enforcer only — verify spawn proof, aggregate fenced JSON, publish PR report; no Task spawns
 
   req-qa:
     model: composer-2.5-fast

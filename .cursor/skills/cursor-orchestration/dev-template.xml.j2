@@ -1,7 +1,7 @@
 ---
 name: dev-task
 version: 1.0.0
-description: Parent sprint assignment template for cursor-orchestration development work (rust-developer Task).
+description: Parent sprint assignment template for cursor-orchestration development work. Parent spawns rust-developer Task — assignee does not spawn child Tasks.
 format: xml
 required_variables:
   - task_id
@@ -48,9 +48,8 @@ required_variables:
     <step id="c">Read `{{ sprint_doc }}` before coding. Treat it as the authoritative source for scope, deliverables, deletion targets, validation, and acceptance criteria. If this assignment summary and the sprint doc differ, the sprint doc wins and the mismatch must be reported.</step>
     <step id="d">Before coding, update the worktree from the sprint target branch and include prior fixes already merged to that target.</step>
     <step id="e">As soon as the development changes are complete and the branch is pushable, commit and push immediately. Report branch name and commit hash so the parent can open/update the PR.</step>
-    <step id="e2">**Before first QA-1** (codex parity): run a self-directed `rust-best-practices-agent` Task on the same `review_targets` the parent will use for QA-1; fix all RBP findings; report sweep PASS with finding ids fixed or none found. Parent must not spawn QA-1 until this report exists.</step>
     <step id="f">After the push report, run the required validation and tests. Do not wait for PR creation before starting validation.</step>
     <step id="g">When validation completes, send a second report with PASS or FAIL, concrete failure details if any, and whether follow-up fixes are required.</step>
-    <step id="h">Stop after the validation report. Wait for a new parent Task for fixes or QA; do not self-merge.</step>
+    <step id="h">Stop after the validation report. Wait for parent Tasks (QA reviewers are spawned by parent, not by you). Do not self-merge. Do not spawn child Tasks (no rust-best-practices-agent, reviewers, or cursor-quality-mgr from this session).</step>
   </workflow>
 </cursor-task>

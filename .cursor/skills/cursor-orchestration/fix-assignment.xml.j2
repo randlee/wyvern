@@ -1,7 +1,7 @@
 ---
 name: fix-task
 version: 1.1.0
-description: Parent post-triage fix assignment template for cursor-orchestration QA findings (rust-developer Task).
+description: Parent post-triage fix assignment. Parent spawns rust-developer Task — assignee does not spawn child Tasks.
 format: xml
 required_variables:
   - task_id
@@ -79,6 +79,6 @@ defaults:
     <step id="g">Fix every promoted-branch occurrence in scope. Do not stop at the first location when the triage record marks the finding as repeatable.</step>
     <step id="h">As soon as the branch is pushable, commit and push immediately. Report branch name, commit hash, and triage `.ttl` paths from `<triage-records>` so the evidence chain shows fix scope was triaged.</step>
     <step id="i">Run the required validation after the push report and send a second report with PASS or FAIL plus concrete failure details.</step>
-    <step id="j">Stop after the validation report. Wait for a new parent Task; do not self-merge.</step>
+    <step id="j">Stop after the validation report. Wait for a new parent Task; do not self-merge. Do not spawn child Tasks (reviewers, cursor-quality-mgr, or follow-on dev Tasks).</step>
   </workflow>
 </cursor-task>

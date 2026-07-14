@@ -2,8 +2,9 @@
 name: cursor-orchestration
 description: >-
   Orchestrate Wyvern sprint/phase work inside a single Cursor session.
-  Parent coordinates and spawns reviewers; Task(cursor-quality-mgr) aggregates,
-  publishes, and owns the QA gate. Use when the user asks for
+  Parent spawns reviewers and rust-developer; Task(cursor-quality-mgr) enforces
+  spawn proof, aggregates fenced JSON evidence, triages findings, publishes PR
+  reports, and owns the QA gate. Use when the user asks for
   /cursor-orchestration, Cursor-session phase/sprint orchestration, or
   same-session QA via cursor-quality-mgr. Never use ATM quality-mgr or
   codex-orchestration while this skill governs the session.
@@ -20,10 +21,10 @@ Does **not** modify `.claude/skills/codex-orchestration/` or
 
 | Role | Agent | Invocation |
 |------|-------|------------|
-| Orchestrator | this parent session | spawns reviewers + dispatches work |
-| Developer | `rust-developer` | Task `subagent_type: rust-developer` |
-| Quality manager | **`cursor-quality-mgr` only** | aggregation/publish only — see **Spawning cursor-quality-mgr** |
-| Reviewers | shared `.claude` agents | **Parent** Task spawns: `req-qa`, `arch-qa`, `rust-qa-agent`, `rust-best-practices-agent`, `rust-service-hardening-agent`, `flaky-test-qa` |
+| Orchestrator | this parent session | spawns `rust-developer`, reviewers, `cursor-quality-mgr`, `qa-triage` |
+| Developer | `rust-developer` | parent Task `subagent_type: rust-developer` |
+| Quality manager | **`cursor-quality-mgr` only** | parent Task — **spawn/evidence enforcer** (see **cursor-quality-mgr enforcer role**) |
+| Reviewers | shared `.claude` agents | **parent** Task spawns: `req-qa`, `arch-qa`, `rust-qa-agent`, `rust-best-practices-agent`, `rust-service-hardening-agent`, `flaky-test-qa` |
 
 ### Quality-mgr binding (critical)
 
@@ -41,9 +42,32 @@ While this skill governs the session:
 5. Do not follow `codex-orchestration`, ATM team-lead QA handoffs, or any path
    that assigns ATM `quality-mgr` in parallel with this skill.
 6. **Parent always spawns reviewers** before `cursor-quality-mgr` runs (see
-   **Parent reviewer spawn**). `cursor-quality-mgr` never spawns reviewer Tasks.
+   **Parent reviewer spawn**). `cursor-quality-mgr` enforces spawn proof and
+   never spawns reviewer Tasks.
 7. Parent does **not** merge on narrative QA PASS alone — see **Reviewer spawn
    merge gate** below.
+
+## cursor-quality-mgr enforcer role (critical)
+
+`cursor-quality-mgr` is **not** a reviewer dispatcher. It is the **spawn and
+evidence enforcer** for each QA round:
+
+1. **Verify spawn proof** — handoff manifest lists every required reviewer with
+   non-empty `task_id` and `spawn_actor: parent-orchestrator`.
+2. **Collect evidence** — parse fenced JSON from each reviewer response in
+   `<parent-reviewer-handoff>` (no coordinator inference).
+3. **Analyze and correlate** — union reviewer findings with TODO-scan hits;
+   correlate prior triage `.ttl` records on follow-up rounds (parent owns
+   `/triaging-findings` after finding FAIL).
+4. **Publish findings report** — render `findings-report.md.j2` or
+   `quality-report.md.j2` and post to the PR on **every** QA round.
+5. **Reject incomplete rounds** — if the parent failed to spawn the proper
+   reviewer set or any fenced JSON is missing/unparsed, FAIL with
+   `reviewer_spawn_gate: fail` and `next_action: parent_respawn_reviewers`.
+   Parent must spawn missing reviewers and re-submit a complete handoff.
+
+Forbidden for `cursor-quality-mgr`: spawning any Task, cargo/clippy/test review,
+grep-based deliverable verification, inventing reviewer verdicts.
 
 ## Parent constraints
 
@@ -91,7 +115,7 @@ Task subagent — nested agents cannot spawn `rust-developer`, reviewers, or
 |------------|---------|
 | Top-level parent session | `rust-developer`, reviewers, `cursor-quality-mgr`, `qa-triage` |
 | Nested Task subagent (orchestrator) | **Forbidden** — investigation/prep only |
-| `cursor-quality-mgr` | **Forbidden** — aggregation/publish only |
+| `cursor-quality-mgr` | **Forbidden** — spawn/evidence enforcer only (no Task spawns) |
 
 Nested subagents may read skills, fetch PR comments, create triage directories,
 or draft assignments — then **return control** to the parent for all Task spawns.
@@ -99,8 +123,8 @@ or draft assignments — then **return control** to the parent for all Task spaw
 ## Parent reviewer spawn (default — every QA round)
 
 Nested `cursor-quality-mgr` Tasks cannot spawn reviewer Tasks in Cursor (c.11).
-**Parent orchestrator always spawns reviewers**; `cursor-quality-mgr` is
-aggregation/publish-only.
+**Parent orchestrator always spawns reviewers**; `cursor-quality-mgr` enforces
+spawn proof and publishes findings — it never spawns reviewers.
 
 ### Required parent behavior
 
@@ -128,9 +152,11 @@ aggregation/publish-only.
 Every `spawned_reviewers[]` entry must include
 `"spawn_actor": "parent-orchestrator"`.
 
-## Spawning cursor-quality-mgr
+## Running cursor-quality-mgr
 
 Try in order; stop at the first success. Never fall through to `quality-mgr`.
+Parent must complete **Parent reviewer spawn** and fill `<parent-reviewer-handoff>`
+before launching the enforcer.
 
 1. **Preferred:** Cursor Task with `subagent_type: cursor-quality-mgr` and the
    rendered QA XML **including** `<parent-reviewer-handoff>` (manifest + fenced
@@ -141,6 +167,10 @@ Try in order; stop at the first success. Never fall through to `quality-mgr`.
    `subagent_type: quality-mgr`.
 3. **Custom subagent:** if the product exposes project agents by name, invoke
    the `cursor-quality-mgr` agent with the same QA XML payload.
+
+If `cursor-quality-mgr` returns `reviewer_spawn_gate: fail`, parent spawns the
+listed missing reviewers, rebuilds the handoff, and re-runs the enforcer — do
+not merge and do not skip reviewers.
 
 ## Agent model defaults
 
@@ -198,8 +228,8 @@ Do **not** merge a sprint PR unless **all** of the following are true:
 1. Latest PR QA comment Machine Status JSON includes `"reviewer_spawn_gate": "pass"`.
 2. `reviewer_manifest` lists every required reviewer with non-empty `task_id`
    correlatable to **completed Task subagents in this parent session**.
-3. `evidence_chain_json` (or equivalent fields) includes `pr_comment_url` for
-   this `qa_pass` and triage `.ttl` paths when the round was FAIL→fix.
+3. `evidence_chain` includes `pr_comment_url` for this `qa_pass` (after successful
+   `gh` post) and triage `.ttl` paths when the round was finding FAIL→fix.
 4. Parent QA verdict duplicates the PR Machine Status JSON (dual publish).
 5. `.cursor/<phase>-orchestration.json` has a `qa_rounds[]` entry for this pass.
 6. Finding counts match **reviewer fenced JSON ∪ TODO-scan** union.
@@ -258,11 +288,23 @@ Before merge, the parent orchestrator must:
 
 Codex `quality-mgr` equivalent: PR + ATM message per `quality-management-gh`.
 
-### `evidence_chain_json` (mandatory on Cursor QA PR posts)
+### Machine Status vs sc-compose vars
 
-`cursor-quality-mgr` must populate on every Cursor QA report (FAIL, IN-FLIGHT,
-PASS). Missing or empty `evidence_chain_json` / `reviewer_spawn_gate` /
-`reviewer_manifest_json` → spawn-gate **fail** / QA **INCOMPLETE**.
+| sc-compose `$_VARS` key (render input) | Rendered Machine Status key |
+|---------------------------------------|----------------------------|
+| `reviewer_spawn_gate` | `reviewer_spawn_gate` |
+| `reviewer_manifest_json` | `reviewer_manifest` (JSON **array**) |
+| `evidence_chain_json` | `evidence_chain` (JSON object) |
+
+Cursor QA posts must include all three rendered keys. Parent merge gate and
+correlation use **rendered** keys only. Missing `reviewer_spawn_gate` or
+`reviewer_manifest` in a PR Machine Status block → QA **INCOMPLETE**.
+
+### `evidence_chain` (mandatory on Cursor QA PR posts)
+
+Populate `evidence_chain` on every Cursor QA report (FAIL, IN-FLIGHT, PASS).
+The sc-compose input var is `evidence_chain_json`; the rendered key is
+`evidence_chain`.
 
 ```json
 {
@@ -290,8 +332,9 @@ Every orchestration handoff follows codex ACK → Work → Completion → receiv
 | Hop | Parties | Required messages |
 |-----|---------|-------------------|
 | Dev | parent → `rust-developer` | assignment → ACK → push+SHA → validation PASS/FAIL |
-| Pre-QA RBP | parent → `rust-developer` | RBP sweep assignment → report with finding ids fixed or none |
-| QA | parent → reviewers → `cursor-quality-mgr` | parent spawns reviewers + manifest → QA XML handoff → ACK → verdict + PR URL |
+| Pre-QA RBP (optional dev fix) | parent → `rust-best-practices-agent` **or** parent → `rust-developer` fix pass | parent spawns RBP reviewer before QA-1; dev fixes findings if any |
+| QA reviewers | parent → each reviewer | parallel background Tasks → fenced JSON per agent |
+| QA enforcer | parent → `cursor-quality-mgr` | complete handoff → ACK → spawn-gate verify → aggregate → PR report → verdict |
 | Triage | parent → `qa-triage` (per finding) | triage JSON → fenced JSON → `.ttl` path |
 | Fix | parent → `rust-developer` | fix XML with finding ids + `.ttl` paths → push+SHA |
 
@@ -306,26 +349,29 @@ Silent skips invalidate the evidence chain.
 2. Spawn Task `rust-developer` with the rendered assignment and planned model.
 3. On push report (branch + SHA): open or update the PR targeting
    `integrate/phase-N` (or the sprint's `pr_target`).
-4. **Before QA-1** (codex parity): `rust-developer` runs a self-directed
-   `rust-best-practices-agent` sweep on the same `review_targets` planned for
-   QA-1 and fixes all RBP findings before the first QA assignment. This is dev
-   cleanup, not a substitute for QA-1 RBP review.
+4. **Before QA-1** (codex parity): parent may run a pre-QA `rust-best-practices-agent`
+   Task on planned `review_targets` and route any findings to `rust-developer`
+   for fix before the first full QA round. QA-1 still includes RBP in the
+   required reviewer set — pre-QA sweep is optional dev cleanup, not a substitute.
 5. Render QA assignment metadata with `sc-compose` from
    `.cursor/skills/cursor-orchestration/qa-template.xml.j2`
-   with coordinator = **`cursor-quality-mgr`** (handoff block filled after step 7).
+   with enforcer = **`cursor-quality-mgr`** (handoff block filled after step 7).
 6. **Parent reviewer spawn** — follow **Parent reviewer spawn** above: render
    assignments, spawn all required reviewers in parallel, await fenced JSON,
    build `reviewer_manifest_json`.
 7. Re-render or augment the QA assignment with `<parent-reviewer-handoff>`
    containing manifest + each reviewer's fenced JSON.
-8. Spawn **one** `cursor-quality-mgr` coordinator with the completed handoff
-   (see spawn rules above). Coordinator aggregates, TODO-scans, checks CI,
-   publishes PR report, and returns verdict — **never** spawns reviewers.
-9. On **FAIL** (any open finding or deliverable &lt; 100%): run
+8. Spawn **one** `cursor-quality-mgr` enforcer with the completed handoff
+   (see **Running cursor-quality-mgr**). Enforcer verifies spawn proof, parses
+   fenced JSON, TODO-scans, checks CI, publishes PR findings report, returns
+   verdict — **never** spawns reviewers.
+9. On **spawn-gate FAIL** (`next_action: parent_respawn_reviewers`): spawn missing
+   reviewers, rebuild handoff, re-run `cursor-quality-mgr` — do not merge.
+10. On **finding FAIL** (any open finding or deliverable &lt; 100%): run
    `/triaging-findings`, then fix **all** findings via
    `.cursor/skills/cursor-orchestration/fix-assignment.xml.j2` →
-   `rust-developer`, push, then re-QA via `cursor-quality-mgr` only.
-   Repeat until QA PASS **and** CI green.
+   `rust-developer`, push, then parent re-spawns reviewers and re-runs
+   `cursor-quality-mgr`. Repeat until QA PASS **and** CI green.
    Fix assignments must include:
    - authoritative `sprint_doc` = owning/promoted branch sprint plan (plus
      additional sprint docs when findings span multiple sprint origins)
@@ -336,7 +382,7 @@ Silent skips invalidate the evidence chain.
    - **every** finding id from the FAIL round (all severities)
    Fresh `rust-developer` Tasks have no prior sprint memory — never omit
    these fields.
-10. On **PASS + green CI + reviewer_spawn_gate pass**: merge to `pr_target`; then start the next sprint.
+11. On **PASS + green CI + reviewer_spawn_gate pass**: merge to `pr_target`; then start the next sprint.
 
 ## Parity with codex-orchestration
 
@@ -347,18 +393,18 @@ ATM). It must preserve codex gate semantics:
 |-------|-------------------|
 | `team-lead` | parent session |
 | `cwy` | `rust-developer` |
-| `quality-mgr` | **`cursor-quality-mgr` only** (never ATM `quality-mgr`) |
+| `quality-mgr` | **`cursor-quality-mgr` only** (never ATM `quality-mgr`) — spawn/evidence enforcer |
 | `codex-orchestration/*.j2` | `.cursor/skills/cursor-orchestration/*.j2` |
-| Shared reviewers | same `.claude/agents/*` Task types |
-| `quality-management-gh` reports | same templates + SKILL |
-| Pre-QA-1 RBP dev sweep | `rust-developer` before first QA |
-| Reviewer spawn in background | **parent** Task spawns; `cursor-quality-mgr` aggregates only |
+| Shared reviewers | same `.claude/agents/*` Task types — **parent spawns** |
+| `quality-management-gh` reports | same templates + SKILL — **cursor-quality-mgr publishes** |
+| Pre-QA-1 RBP (optional) | parent spawns `rust-best-practices-agent` before QA-1 |
+| Reviewer spawn | **parent** Task spawns; `cursor-quality-mgr` enforces proof + aggregates |
 | Multi-pass QA on PR | every round posts all findings to PR |
 | 0B+0I+0m merge gate | unchanged |
 
 **Cursor-only additions** (do not weaken codex):
 
-- `reviewer_spawn_gate` + `reviewer_manifest_json` in PR Machine Status when
+- `reviewer_spawn_gate` + `reviewer_manifest` (rendered Machine Status keys) when
   Cursor QA runs (proves parent spawned reviewers and returned fenced JSON)
 - Parent merge blocked without manifest proof (prevents coordinator self-review)
 - Single QA coordinator per round (no duplicate `qa-c9-1` Tasks)
@@ -370,9 +416,12 @@ gain **optional** Cursor fields; codex callers omit them.
 ## Plan review flow
 
 1. Complete `/plan-hardening` steps 1–5 when applicable.
-2. Assign plan QA to **`cursor-quality-mgr`** with `review_mode: plan` and the
-   phase-plan path as `sprint_doc`.
-3. Never also assign ATM `quality-mgr` for the same plan review.
+2. **Parent reviewer spawn** — same as sprint QA: determine plan reviewers per
+   `cursor-quality-mgr.md` Default reviewer set (`review_mode: plan`), spawn
+   all required reviewers, collect fenced JSON, fill `<parent-reviewer-handoff>`.
+3. Render QA assignment to **`cursor-quality-mgr`** with handoff; enforcer
+   verifies spawn proof and publishes plan QA report.
+4. Never also assign ATM `quality-mgr` for the same plan review.
 
 ## QA coverage rule
 
@@ -424,8 +473,11 @@ rm -f "$_VARS"
 
 ### Render QA assignment
 
-Parent fills `reviewer_manifest_json` and `reviewer_handoff_json` **after**
-spawning reviewers and collecting fenced JSON.
+Parent fills `reviewer_manifest_json` (JSON **array** of spawn records) and
+`reviewer_handoff_json` (fenced JSON blocks) **after** spawning reviewers.
+
+Cursor `$_VARS` for PR report render must always set non-empty `reviewer_spawn_gate`,
+`reviewer_manifest_json`, and `evidence_chain_json` (codex callers may omit).
 
 ```bash
 _VARS=$(mktemp)
@@ -444,8 +496,8 @@ cat > "$_VARS" <<'JSON'
   "references": "- docs/requirements.md",
   "changed_files": "",
   "triage_records": "",
-  "reviewer_manifest_json": "<manifest-json>",
-  "reviewer_handoff_json": "<per-reviewer-fenced-json>"
+  "reviewer_manifest_json": "[{\"agent\":\"req-qa\",\"task_id\":\"<id>\",\"spawn_actor\":\"parent-orchestrator\"}]",
+  "reviewer_handoff_json": "<fenced JSON blocks, one per manifest entry>"
 }
 JSON
 sc-compose render \
