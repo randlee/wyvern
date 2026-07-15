@@ -164,6 +164,12 @@ impl SessionState {
 
     /// Run `finish` and complete the one-shot session with the derived result.
     ///
+    /// Holds the session mutex through result derivation and
+    /// [`ResultSubmitToken`] consumption so a concurrent navigate cannot mutate
+    /// wizard state after the terminal result is fixed but before the session is
+    /// marked complete (QA-001). The oneshot is sent only after the lock is
+    /// released.
+    ///
     /// Returns `Ok(None)` when a result was already submitted (HTTP 409).
     pub(crate) async fn wizard_finish(
         &self,
@@ -171,18 +177,21 @@ impl SessionState {
         data: serde_json::Value,
         stack: Vec<WizardStackEntry>,
     ) -> Result<Option<WizardResult>, WizardError> {
-        let result = {
-            let guard = self.inner.lock().await;
+        let prepared = {
+            let mut guard = self.inner.lock().await;
             let session = guard
                 .wizard
                 .as_ref()
                 .ok_or(WizardError::SessionNotInitialized)?;
-            session.finish(button, data, stack)?
+            let result = session.finish(button, data, stack)?;
+            guard.result_token.take().map(|token| (result, token))
         };
-        if self.complete(CommandResult::Wizard(result.clone())).await {
-            Ok(Some(result))
-        } else {
-            Ok(None)
+        match prepared {
+            Some((result, token)) => {
+                token.submit(CommandResult::Wizard(result.clone()));
+                Ok(Some(result))
+            }
+            None => Ok(None),
         }
     }
 
@@ -377,5 +386,70 @@ mod tests {
             .await
             .expect_err("origin required");
         assert_eq!(err, WizardError::PublicOriginNotSet);
+    }
+
+    /// Finish with a stack matching the initial page only; navigate tries to leave
+    /// that page. With an atomic finish+complete path, the outcomes are mutually
+    /// exclusive: either finish wins (`ResultAlreadySubmitted` on navigate) or
+    /// navigate wins first (`StackMismatch` on finish). Both succeeding would mean
+    /// navigate ran in the gap between result derivation and token consumption.
+    #[tokio::test]
+    async fn concurrent_navigate_and_finish_are_mutually_exclusive() {
+        let page_a = WizardPageDescriptor {
+            id: WizardPageId::new("a"),
+            title: WizardPageTitle::new("a"),
+            html: WizardPageHtml::new("pages/a.html"),
+            layout: None,
+        };
+        let page_b = WizardPageDescriptor {
+            id: WizardPageId::new("b"),
+            title: WizardPageTitle::new("b"),
+            html: WizardPageHtml::new("pages/b.html"),
+            layout: None,
+        };
+        let finish_data = serde_json::json!({});
+        let finish_stack = vec![WizardStackEntry {
+            page: page_a,
+            data: finish_data.clone(),
+        }];
+
+        for _ in 0..200 {
+            let (tx, _rx) = oneshot::channel();
+            let session = SessionState::new(wizard_cmd(), tx, None);
+            session.set_public_origin("http://127.0.0.1:9".into()).await;
+
+            let session_finish = session.clone();
+            let session_nav = session.clone();
+            let stack = finish_stack.clone();
+            let data = finish_data.clone();
+            let next = page_b.clone();
+
+            let (finish_res, nav_res) = tokio::join!(
+                async move {
+                    session_finish
+                        .wizard_finish(WizardTerminalButton::Finish, data, stack)
+                        .await
+                },
+                async move {
+                    session_nav
+                        .wizard_navigate_next(serde_json::json!({}), next)
+                        .await
+                }
+            );
+
+            match (finish_res, nav_res) {
+                (Ok(Some(_)), Err(WizardError::ResultAlreadySubmitted)) => {}
+                (Err(WizardError::StackMismatch { .. }), Ok(_)) => {}
+                (Ok(Some(_)), Ok(_)) => {
+                    panic!(
+                        "navigate must not succeed alongside successful finish \
+                         (QA-001 race between derive and token take)"
+                    );
+                }
+                (finish, nav) => {
+                    panic!("unexpected concurrent outcomes: finish={finish:?} nav={nav:?}");
+                }
+            }
+        }
     }
 }
