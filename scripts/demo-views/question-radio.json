@@ -1,0 +1,14 @@
+{
+  "type": "question",
+  "questions": [
+    {
+      "question": "Pick output format",
+      "header": "Format",
+      "options": [
+        { "label": "JSON", "description": "Structured stdout" },
+        { "label": "Plain", "description": "Text only" }
+      ],
+      "multiSelect": false
+    }
+  ]
+}

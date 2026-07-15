@@ -3,5 +3,12 @@
 Cargo.lock
 **/*.rs.bk
 *.pdb
-.DS_Store
+**/.DS_Store
+**/__pycache__/
 .env
+.sc/
+.sc-compose/
+tests/e2e/node_modules/
+tests/e2e/test-results/
+tests/e2e/playwright-report/
+

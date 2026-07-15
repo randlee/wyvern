@@ -1,0 +1,21 @@
+{
+  "type": "question",
+  "questions": [
+    {
+      "question": "Choose layout",
+      "header": "Layout",
+      "options": [
+        {
+          "label": "Cards",
+          "description": "Two-column card grid",
+          "preview": "### Cards\n\nWide preview text to exercise auto-size height."
+        },
+        {
+          "label": "List",
+          "description": "Compact vertical list"
+        }
+      ],
+      "multiSelect": false
+    }
+  ]
+}

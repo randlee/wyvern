@@ -1,0 +1,39 @@
+@prefix triage: <urn:atm:triage:> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<urn:atm:triage:finding/ARCH-001>
+  a triage:Finding ;
+  triage:findingId "ARCH-001" ;
+  triage:title "CI boundaries job is no-op stub" ;
+  triage:description ".github/workflows/ci.yml boundaries job echoes placeholder; does not enforce boundaries/*.toml" ;
+  triage:phaseId "phase-C-web-server" ;
+  triage:triageMode "initial_pass" ;
+  triage:category "ARCH" ;
+  triage:severity "important" ;
+  triage:repeatable true ;
+  triage:sweepScope "repo" ;
+  triage:status "open" ;
+  triage:dispatchReady true ;
+  triage:originatingSprintDoc "docs/plans/phase-C/c11-host-input.md" ;
+  triage:triagedAt "2026-07-14T19:43:00Z"^^xsd:dateTime ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/ARCH-001/c11/1> ;
+  triage:openOn <urn:atm:triage:worktree/c11/209858f> ;
+  triage:promoteTo <urn:atm:triage:worktree/c11/209858f> .
+
+<urn:atm:triage:occurrence/ARCH-001/c11/1>
+  a triage:Occurrence ;
+  triage:file ".github/workflows/ci.yml" ;
+  triage:line 119 ;
+  triage:snippet "run: echo \"sc-lint-boundary enforcement — wired in Phase B\"" ;
+  triage:status "open" ;
+  triage:closed false ;
+  triage:branch "feature/phase-C-c11-reverify-fixes" ;
+  triage:headSha "209858f" ;
+  triage:occursIn <urn:atm:triage:worktree/c11/209858f> .
+
+<urn:atm:triage:worktree/c11/209858f>
+  a triage:WorktreeSnapshot ;
+  triage:branch "feature/phase-C-c11-reverify-fixes" ;
+  triage:path "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-C-c11-reverify-fixes" ;
+  triage:headSha "209858f" ;
+  triage:orderIndex 11 .

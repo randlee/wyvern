@@ -22,14 +22,123 @@ jobs:
         with:
           components: clippy, rustfmt
 
+      # rfd (xdg-portal/ashpd) needs wayland-client.pc; wry needs webkit2gtk (c.15 viewer).
+      - name: Install Linux build deps
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwayland-dev \
+            pkg-config \
+            libwebkit2gtk-4.1-dev \
+            libxkbcommon-x11-0 \
+            libgl1-mesa-dri \
+            mesa-utils \
+            at-spi2-core \
+            dbus-x11 \
+            xvfb
+
       - name: cargo build
         run: cargo build --workspace
 
+      # Workspace includes wyvern-viewer (wry); headless e2e still uses --viewer none.
       - name: cargo test
-        run: cargo test --workspace
+        run: cargo test --workspace -- --test-threads=1
 
       - name: cargo clippy
         run: cargo clippy --workspace -- -D warnings
+
+      - name: Install sc-lint from crates.io
+        run: cargo install sc-lint --version 0.4.0 --locked
+
+      - name: sc-lint check
+        run: sc-lint check native --config .sc-lint.toml
+
+  audit:
+    name: cargo audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+      - name: cargo audit
+        run: cargo audit
+
+  playwright:
+    name: Playwright L2 (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      # rfd (xdg-portal/ashpd) needs wayland-client.pc; wry needs webkit2gtk (c.15 viewer).
+      - name: Install Linux build deps
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwayland-dev \
+            pkg-config \
+            libwebkit2gtk-4.1-dev \
+            libxkbcommon-x11-0 \
+            libgl1-mesa-dri \
+            mesa-utils \
+            at-spi2-core \
+            dbus-x11 \
+            xvfb
+
+      - name: cargo build -p wyvern
+        run: cargo build -p wyvern
+
+      - name: Set WYVERN_BIN
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            echo "WYVERN_BIN=${GITHUB_WORKSPACE}/target/debug/wyvern.exe" >> "$GITHUB_ENV"
+          else
+            echo "WYVERN_BIN=${GITHUB_WORKSPACE}/target/debug/wyvern" >> "$GITHUB_ENV"
+          fi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install e2e npm deps
+        working-directory: tests/e2e
+        run: npm install
+
+      - name: Install Playwright Chromium
+        working-directory: tests/e2e
+        run: npx playwright install --with-deps chromium
+
+      # message + input specs spawn wyvern with --viewer none (CI/agent headless path).
+      - name: Run message.spec.ts
+        working-directory: tests/e2e
+        run: npx playwright test message.spec.ts
+
+      - name: Run input.spec.ts
+        working-directory: tests/e2e
+        run: npx playwright test input.spec.ts
+
+      - name: Run markdown.spec.ts
+        working-directory: tests/e2e
+        run: npx playwright test markdown.spec.ts
+
+      - name: Run question.spec.ts
+        working-directory: tests/e2e
+        run: npx playwright test question.spec.ts
+
+      - name: Run chrome.spec.ts
+        working-directory: tests/e2e
+        run: npx playwright test chrome.spec.ts
 
   fmt:
     name: Format check
@@ -46,6 +155,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - name: sc-lint-boundary check
-        run: echo "sc-lint-boundary enforcement — wired in Phase 2"
+      - name: Enforce boundaries/*.toml against Cargo.toml
+        run: python3 scripts/check-boundaries.py

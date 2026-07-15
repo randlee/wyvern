@@ -22,8 +22,14 @@ required_variables:
   - recommendation
 optional_variables:
   - blocking_ids_json
+  - reviewer_spawn_gate
+  - reviewer_manifest_json
+  - evidence_chain_json
 defaults:
   blocking_ids_json: "[]"
+  reviewer_spawn_gate: ""
+  reviewer_manifest_json: "[]"
+  evidence_chain_json: "{}"
 ---
 # Final Quality Report
 
@@ -44,6 +50,14 @@ Final Verdict: **{{ verdict }}**
   "commit": "{{ commit }}",
   "pr": {{ pr_number }},
   "verdict": "{{ verdict }}",
+{% if reviewer_spawn_gate -%}
+  "reviewer_spawn_gate": "{{ reviewer_spawn_gate }}",
+  "reviewer_manifest": {{ reviewer_manifest_json }},
+  "aggregation_source": "reviewer_fenced_json_union_todo_scan",
+{% endif -%}
+{% if evidence_chain_json and evidence_chain_json != "{}" -%}
+  "evidence_chain": {{ evidence_chain_json }},
+{% endif -%}
   "findings": {
     "blocking": {{ findings_blocking }},
     "important": {{ findings_important }},
@@ -66,9 +80,26 @@ Final Verdict: **{{ verdict }}**
 {% endif %}
 
 ## Findings Summary (Final)
+{% if reviewer_spawn_gate -%}
+- Reviewer spawn gate: **{{ reviewer_spawn_gate }}**
+{% endif -%}
 - Blocking: {{ findings_blocking }}
 - Important: {{ findings_important }}
 - Minor: {{ findings_minor }}
+
+{% if reviewer_spawn_gate -%}
+## Reviewer Manifest
+```json
+{{ reviewer_manifest_json }}
+```
+{% endif -%}
+
+{% if evidence_chain_json and evidence_chain_json != "{}" -%}
+## Evidence Chain
+```json
+{{ evidence_chain_json }}
+```
+{% endif -%}
 
 ## Residual Risks
 {% if residual_risks_md -%}

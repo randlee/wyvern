@@ -1,0 +1,19 @@
+@prefix triage: <urn:atm:triage:> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<urn:atm:triage:finding/ATM-QA-004>
+  a triage:Finding ;
+  triage:findingId "ATM-QA-004" ;
+  triage:title "Manual macOS embedded-viewer smoke template" ;
+  triage:description "AC4 manual macOS embedded-viewer smoke was unverified. Checklist template added at docs/plans/phase-C/macos-embedded-viewer-smoke.md. Execution remains post-merge after release binary / tag assets are available." ;
+  triage:phaseId "phase-C-web-server" ;
+  triage:triageMode "initial_pass" ;
+  triage:repeatable false ;
+  triage:sweepScope "none" ;
+  triage:category "ATM-QA" ;
+  triage:severity "blocking" ;
+  triage:status "template_ready_pending_execution" ;
+  triage:dispatchReady false ;
+  triage:originatingSprintDoc "docs/plans/phase-C/c16-release.md" ;
+  triage:disposition "checklist template committed; run smoke post-merge using docs/plans/phase-C/macos-embedded-viewer-smoke.md" ;
+  triage:triagedAt "2026-07-14T16:30:00Z"^^xsd:dateTime .

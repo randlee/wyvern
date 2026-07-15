@@ -3,13 +3,13 @@ owner_package = "wyvern-mcp"
 name = "WyvernMcp"
 
 [dependencies]
-allowed_dependencies = ["wyvern-schema", "wyvern-window", "tokio"]
+allowed_dependencies = ["wyvern-schema", "wyvern-host", "tokio"]
 forbidden_dependencies = ["wyvern", "wyvern-wizard"]
 forbidden_edges = ["wyvern-mcp -> wyvern", "wyvern-mcp -> wyvern-wizard"]
 
 [ownership]
-io_owns = ["mcp_stdio_transport", "tool_registration", "persistent_window_lifecycle"]
-io_forbidden = ["arg_parsing", "stdin_readline_loop", "direct_wizard_navigation"]
+io_owns = ["mcp_stdio_transport", "tool_registration", "persistent_host_lifecycle"]
+io_forbidden = ["arg_parsing", "stdin_readline_loop", "direct_wizard_navigation", "http_server_impl"]
 
 [enforcement]
 lint_rules = ["LINT-BOUNDARY-MCP-NO-CLI", "LINT-BOUNDARY-MCP-WINDOW-VIA-API-ONLY"]

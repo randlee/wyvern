@@ -77,9 +77,16 @@ Before starting a sprint:
 9. If QA fails, `team-lead` first runs `/triaging-findings` to correlate the
    findings across worktrees and determine the promoted fix branch.
 10. After triage completes, `team-lead` routes concrete fixes back to
-   `cwy` using `fix-assignment.xml.j2`. Fix assignments must also include
-   `sprint_doc`, and the sprint document remains authoritative if the task
-   summary omits or compresses details.
+    `cwy` using `fix-assignment.xml.j2`. Fix assignments must include:
+    - authoritative `sprint_doc` = owning/promoted branch sprint plan (plus
+      additional sprint docs when findings span multiple sprint origins)
+    - specific requirement ids and ADR ids the fix must address (not whole
+      requirements/architecture dumps; planning already embeds those in the
+      sprint plan)
+    - triage `.ttl` paths and concrete occurrences
+    The authoritative sprint document remains scope authority if the task
+    summary omits or compresses details. Do not omit sprint/REQ/ADR context
+    because the developer already worked the original sprint.
 
 ## Plan Review Flow
 

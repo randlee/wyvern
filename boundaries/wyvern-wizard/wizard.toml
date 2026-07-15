@@ -3,8 +3,8 @@ owner_package = "wyvern-wizard"
 name = "WyvernWizard"
 
 [dependencies]
-allowed_dependencies = ["wyvern-schema"]
-forbidden_dependencies = ["wyvern", "wyvern-window", "wyvern-mcp", "wry", "winit"]
+allowed_dependencies = ["wyvern-schema", "serde_json"]
+forbidden_dependencies = ["wyvern", "wyvern-mcp", "wry", "winit", "rfd"]
 
 [ownership]
 io_owns = ["history_cursor", "page_resolution", "stack_management", "navigation_signals"]

@@ -16,14 +16,28 @@
 
 **REQ-0005** — Support `--interactive` (alias `--persistent`) to enter a readline loop on stdin, processing one JSON command per line until `{"action":"exit"}` or window close.
 
+**REQ-0006** — Support `--mcp` to start Wyvern as an MCP server using stdio transport.
+
+**REQ-0007** — `show`, `hide`, and `exit` are valid only inside the `--interactive` command loop. They are not valid as single-shot CLI commands.
+
+## Host options (c.10+)
+
+**REQ-0115** — `--bind <ADDR:PORT>` sets the dialog HTTP bind address (default `127.0.0.1:0`). Passed to `wyvern-host`.
+
+**REQ-0116** — `--ui-root <PATH>` sets the static UI directory (default: packaged `share/wyvern/ui/`). Passed to `wyvern-host`.
+
+**REQ-0117** — `--viewer <embedded|none|system|chrome|safari|edge|firefox>`. **Default: `embedded`** (c.15). Env `WYVERN_VIEWER` overrides. CI uses `none`. c.10: parse enum, implement `none` only. Registry: [http-viewer-contract.md](../plans/phase-C/http-viewer-contract.md).
+
+**REQ-0118** — `wyvern browsers list` / `wyvern browsers refresh` (c.15).
+
 ---
 
-## Interactive Mode
+## Interactive Mode (Phase E)
 
-**REQ-0070** — In `--interactive` mode, display commands (`message`, `markdown`, `image`) shall be fire-and-forget — the loop immediately awaits the next command.
+**REQ-0120** — In `--interactive` mode, commands are processed sequentially. Blocking dialog commands retain normal modal behavior inside the loop.
 
-**REQ-0071** — In `--interactive` mode, `question` commands shall block the loop until the user answers, then write the result to stdout before continuing.
+**REQ-0121** — In `--interactive` mode, a blocking dialog command writes its normal JSON result to stdout on completion, then the loop continues.
 
-**REQ-0072** — `{"action":"show"}` and `{"action":"hide"}` shall toggle window visibility without terminating the process.
+**REQ-0122** — `{"action":"show"}` and `{"action":"hide"}` toggle **`wyvern-viewer`** visibility via **`wyvern` CLI** (when embedded); return `{"action":"show|hide","ok":true}`. Host HTTP server stays up. Not `HostSession` methods.
 
-**REQ-0073** — `{"action":"exit"}` shall close the window and terminate the process cleanly.
+**REQ-0123** — `{"action":"exit"}` shuts down `HostSession` (host) and CLI-owned viewer, returning `{"action":"exit","ok":true}` before shutdown.

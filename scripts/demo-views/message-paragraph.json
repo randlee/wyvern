@@ -1,0 +1,6 @@
+{
+  "type": "message",
+  "title": "Paragraph",
+  "message": "Line one stays short.\n\nLine two is another short row.\n\nLine three adds a much longer sentence so you can see how pre-wrapped paragraphs and auto-height interact when the dialog grows vertically.",
+  "buttons": "ok"
+}

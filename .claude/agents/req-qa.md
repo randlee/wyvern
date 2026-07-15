@@ -18,7 +18,7 @@ detect inconsistencies or conflicts across docs and implementation.
 Always read these repository-relative files before analysis:
 - `docs/requirements.md` (authoritative requirements baseline)
 - `docs/architecture.md` (overall design baseline)
-- `docs/project-plan.md` (phase and sprint sequencing baseline)
+- `docs/plans/project-plan.md` (phase and sprint sequencing baseline)
 
 ## Input Contract (Required)
 
@@ -84,7 +84,7 @@ Rules:
      plan.
 
 3. Plan Compliance
-   - Validate phase and sprint alignment with `docs/project-plan.md`.
+   - Validate phase and sprint alignment with `docs/plans/project-plan.md`.
    - Flag work assigned out of sequence, missing dependencies, or unverifiable
      acceptance criteria.
 
@@ -187,7 +187,7 @@ Return fenced JSON only.
   "baselines_read": [
     "docs/requirements.md",
     "docs/architecture.md",
-    "docs/project-plan.md"
+    "docs/plans/project-plan.md"
   ],
   "phase_or_sprint_docs_read": [
     "docs/path/from-input.md"
@@ -211,7 +211,7 @@ Return fenced JSON only.
       "category": "requirements | design | plan | deliverable-missing | acceptance-gap | cross-doc-conflict | implementation-drift",
       "source_refs": [
         "docs/requirements.md:123",
-        "docs/project-plan.md:45"
+        "docs/plans/project-plan.md:45"
       ],
       "target_refs": [
         "docs/architecture.md:67"
