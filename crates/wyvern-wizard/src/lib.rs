@@ -18,4 +18,4 @@ mod history;
 mod session;
 
 #[doc(inline)]
-pub use session::{WizardError, WizardSession, WizardSnapshot};
+pub use session::{NavigateOutcome, WizardError, WizardSession, WizardSnapshot};

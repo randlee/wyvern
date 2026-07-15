@@ -83,17 +83,9 @@ macro_rules! wizard_page_newtype {
             }
         }
 
-        impl From<String> for $name {
-            fn from(value: String) -> Self {
-                Self::new(value)
-            }
-        }
-
-        impl From<&str> for $name {
-            fn from(value: &str) -> Self {
-                Self::new(value)
-            }
-        }
+        // No infallible `From<String>` / `From<&str>` — those bypass `try_new`
+        // non-empty validation. Use `try_new` at trust boundaries; `new` only
+        // after validation (e.g. `crate::validate`).
 
         impl PartialEq<str> for $name {
             fn eq(&self, other: &str) -> bool {
@@ -257,6 +249,80 @@ impl WizardStateResponse {
     }
 }
 
+/// Wire: `"next"` | `"back"` only. Cancel/finish/dismissed use `POST /api/wizard/finish`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum WizardNavAction {
+    /// Advance to an explicit next page descriptor.
+    Next,
+    /// Move the cursor back without truncating forward history.
+    Back,
+}
+
+/// Wire DTO for `POST /api/wizard/navigate` (HTTP-TYPES.md).
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct WizardNavigateRequest {
+    /// `"next"` or `"back"` only — terminal actions use `/finish`.
+    pub action: WizardNavAction,
+    /// Opaque page payload for the current entry (whole-blob replace).
+    #[serde(default)]
+    pub data: serde_json::Value,
+    /// Optional validation hint; when set on `next`, must equal `next.id`.
+    #[serde(default)]
+    pub page_id: Option<WizardPageId>,
+    /// Required when `action` is `next` — destination page descriptor.
+    #[serde(default)]
+    pub next: Option<WizardPageDescriptor>,
+}
+
+/// Terminal finish buttons accepted by `POST /api/wizard/finish`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum WizardTerminalButton {
+    /// Complete successfully with full visited stack.
+    Finish,
+    /// Abort — empty stack and empty data on stdout.
+    Cancel,
+    /// Viewer dismissed — full visited stack, empty data.
+    Dismissed,
+}
+
+impl WizardTerminalButton {
+    /// Wire name for this button.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Finish => "finish",
+            Self::Cancel => "cancel",
+            Self::Dismissed => "dismissed",
+        }
+    }
+
+    /// Convert to the stdout [`ButtonLabel`] shape.
+    pub fn to_button_label(self) -> ButtonLabel {
+        ButtonLabel::new(self.as_str())
+    }
+}
+
+/// Successful navigate response — viewer reloads `url`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct WizardNavigateResponse {
+    /// Always `true` on HTTP 200.
+    pub ok: bool,
+    /// Absolute URL of the destination wizard page under `/wizard/`.
+    pub url: String,
+}
+
+/// Wire DTO for `POST /api/wizard/finish` (HTTP-TYPES.md).
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct WizardFinishRequest {
+    /// Terminal button (`finish` | `cancel` | `dismissed`).
+    pub button: WizardTerminalButton,
+    /// Opaque final page data (ignored for cancel / dismissed stdout `data`).
+    pub data: serde_json::Value,
+    /// Client-supplied full visited stack (validated for finish / dismissed).
+    pub stack: Vec<WizardStackEntry>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -302,5 +368,40 @@ mod tests {
     fn page_id_try_new_rejects_empty() {
         assert_eq!(WizardPageId::try_new(""), Err(WizardPageFieldError));
         assert_eq!(WizardPageId::try_new("ok").unwrap().as_str(), "ok");
+    }
+
+    #[test]
+    fn navigate_request_deserializes_typed_page_id() {
+        let req: WizardNavigateRequest = serde_json::from_value(serde_json::json!({
+            "action": "next",
+            "data": {},
+            "page_id": "step-2",
+            "next": {
+                "id": "step-2",
+                "title": "Step 2",
+                "html": "pages/step-2.html"
+            }
+        }))
+        .expect("deserialize");
+        assert_eq!(
+            req.page_id.as_ref().map(WizardPageId::as_str),
+            Some("step-2")
+        );
+        assert_eq!(req.next.as_ref().unwrap().id.as_str(), "step-2");
+    }
+
+    #[test]
+    fn terminal_button_wire_round_trip() {
+        for (wire, expected) in [
+            ("finish", WizardTerminalButton::Finish),
+            ("cancel", WizardTerminalButton::Cancel),
+            ("dismissed", WizardTerminalButton::Dismissed),
+        ] {
+            let parsed: WizardTerminalButton =
+                serde_json::from_value(serde_json::json!(wire)).expect("parse");
+            assert_eq!(parsed, expected);
+            assert_eq!(parsed.as_str(), wire);
+            assert_eq!(parsed.to_button_label().as_str(), wire);
+        }
     }
 }

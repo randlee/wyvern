@@ -7,7 +7,9 @@ use std::thread;
 use std::time::Duration;
 
 use wyvern_host::{begin, HostOptions, ViewerMode};
-use wyvern_schema::{Command, WizardCommand, WizardPageDescriptor};
+use wyvern_schema::{
+    Command, WizardCommand, WizardPageDescriptor, WizardPageHtml, WizardPageId, WizardPageTitle,
+};
 
 fn workspace_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -30,9 +32,9 @@ fn unique_path(prefix: &str) -> PathBuf {
 fn wizard_command() -> Command {
     Command::Wizard(WizardCommand {
         page: WizardPageDescriptor {
-            id: "layout-picker".into(),
-            title: "Layout picker".into(),
-            html: "pages/layout-picker.html".into(),
+            id: WizardPageId::new("layout-picker"),
+            title: WizardPageTitle::new("Layout picker"),
+            html: WizardPageHtml::new("pages/layout-picker.html"),
             layout: None,
         },
         config: serde_json::json!({}),

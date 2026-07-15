@@ -384,6 +384,126 @@
 
   applyEmbeddedChrome();
 
+  /** Fetch wizard state and populate `window.wyvern` (REQ-0024). */
+  async function wyvernWizardState() {
+    const res = await fetch("/api/wizard/state", {
+      headers: { Accept: "application/json" },
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error("GET /api/wizard/state failed: " + res.status + " " + text);
+    }
+    const state = await res.json();
+    global.wyvern = {
+      config: state.config,
+      page: state.page,
+      page_data: state.page_data,
+      stack: state.stack,
+    };
+    return state;
+  }
+
+  function collectCurrentPageDataFallback() {
+    if (typeof global.collectCurrentPageData === "function") {
+      return global.collectCurrentPageData();
+    }
+    return {};
+  }
+
+  /** Advance to `next`; on success perform a full page reload to `url`. */
+  async function wyvernWizardNext(data, next) {
+    const res = await fetch("/api/wizard/navigate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ action: "next", data: data, next: next }),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error("POST /api/wizard/navigate (next) failed: " + res.status + " " + text);
+    }
+    const body = await res.json();
+    if (body && body.ok && body.url) {
+      global.location = body.url;
+    }
+    return body;
+  }
+
+  /**
+   * Move back. Omit `data` (or pass `{}`) to preserve the current entry via the
+   * meaningful-payload predicate. When omitted, uses `collectCurrentPageData()`
+   * if the page author defined it, otherwise `{}`.
+   */
+  async function wyvernWizardBack(data) {
+    var payload = arguments.length === 0 ? collectCurrentPageDataFallback() : data;
+    const res = await fetch("/api/wizard/navigate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ action: "back", data: payload }),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error("POST /api/wizard/navigate (back) failed: " + res.status + " " + text);
+    }
+    const body = await res.json();
+    if (body && body.ok && body.url) {
+      global.location = body.url;
+    }
+    return body;
+  }
+
+  /**
+   * Terminal finish. `opts` = `{ button, data, stack }` where `stack` is the full
+   * visited stack (`window.wyvern.stack` + current `{ page, data }`).
+   */
+  async function wyvernWizardFinish(opts) {
+    opts = opts || {};
+    const json = JSON.stringify({
+      button: opts.button,
+      data: opts.data,
+      stack: opts.stack,
+    });
+    if (typeof navigator.sendBeacon === "function") {
+      const blob = new Blob([json], { type: "application/json" });
+      if (navigator.sendBeacon("/api/wizard/finish", blob)) {
+        return { ok: true };
+      }
+    }
+    const res = await fetch("/api/wizard/finish", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: json,
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error("POST /api/wizard/finish failed: " + res.status + " " + text);
+    }
+    return res.json();
+  }
+
+  /** Production bootstrap: wizard pages load state into `window.wyvern`. */
+  function bootstrapWizardIfNeeded() {
+    try {
+      var path = (global.location && global.location.pathname) || "";
+      if (path.indexOf("/wizard/") !== 0) {
+        return;
+      }
+      wyvernWizardState().catch(function (err) {
+        if (typeof console !== "undefined" && console.warn) {
+          console.warn("wyvern wizard bootstrap failed", err);
+        }
+      });
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
+  bootstrapWizardIfNeeded();
+
+  global.wyvernWizardState = wyvernWizardState;
+  global.wyvernWizardNext = wyvernWizardNext;
+  global.wyvernWizardBack = wyvernWizardBack;
+  global.wyvernWizardFinish = wyvernWizardFinish;
+
   global.WyvernApi = {
     fetchDialog: fetchDialog,
     postResult: postResult,
@@ -395,5 +515,9 @@
     resolveViewerSize: resolveViewerSize,
     applyDialogLayout: applyDialogLayout,
     applyEmbeddedChrome: applyEmbeddedChrome,
+    wyvernWizardState: wyvernWizardState,
+    wyvernWizardNext: wyvernWizardNext,
+    wyvernWizardBack: wyvernWizardBack,
+    wyvernWizardFinish: wyvernWizardFinish,
   };
 })(typeof window !== "undefined" ? window : globalThis);
