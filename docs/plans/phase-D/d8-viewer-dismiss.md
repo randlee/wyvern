@@ -22,7 +22,7 @@ OS-close on wizard sessions returns `dismissed` with full visited stack via `POS
 |------|--------|
 | `crates/wyvern-viewer/src/dismiss.rs` (or session handler) | Detect wizard session; on OS-close POST `/api/wizard/finish` |
 | `crates/wyvern-viewer/tests/wizard_dismiss.rs` | Viewer routes wizard dismiss correctly |
-| `crates/wyvern-host/tests/wizard_polish.rs` | Host accepts dismissed finish with full visited stack |
+| `crates/wyvern-host/tests/wizard_dismiss.rs` | Host accepts dismissed finish with full visited stack |
 | `docs/plans/phase-C/http-viewer-contract.md` | Update dismissed wizard steps (owned here) |
 | `docs/plans/phase-C/http-wizard-contract.md` | Cross-link dismissed stack algorithm |
 
@@ -33,6 +33,8 @@ OS-close on wizard sessions returns `dismissed` with full visited stack via `POS
 3. Build full visited stack = `stack` + `{ page, data: page_data }`
 4. `POST /api/wizard/finish` with `{ "button": "dismissed", "data": {}, "stack": <full visited stack> }`
 5. Host validates client `stack` against session-derived stack; mismatch → 400; stdout = validated result
+
+**Host/CLI fallback (normative — REQ-0097):** when viewer exits without POST or session times out, host derives dismissed result via `WizardSession::finish(Dismissed, {}, derived_stack)` using the same in-memory algorithm as d.2 (full visited stack, `data: {}`). Applies to `DialogHandle::viewer_exited_without_result()` and host session-timeout path.
 
 ## Acceptance criteria
 
@@ -45,7 +47,7 @@ OS-close on wizard sessions returns `dismissed` with full visited stack via `POS
 ```bash
 cargo build --workspace
 cargo clippy --workspace -- -D warnings
-cargo test -p wyvern-host wizard_polish
+cargo test -p wyvern-host wizard_dismiss
 cargo test -p wyvern-viewer wizard_dismiss
 sc-lint check native --config .sc-lint.toml
 ```

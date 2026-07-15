@@ -29,7 +29,7 @@ Related: [http-post-schema.md](http-post-schema.md), [http-dialog-contract.md](h
 | `POST` | `/api/wizard/finish` | Terminal: `finish`, `cancel`, `dismissed` |
 | `GET` | `/api/dialog` | *Not used* for wizard — use `/api/wizard/state` |
 
-**Static routing (normative — dual mount):** `GET /wizard/**` from `--ui-root`; `GET /shared/**` always from packaged `ui/` root so wizard pages can load `/shared/wyvern-api.js` and `/shared/wizard-nav.js` regardless of example `--ui-root`.
+**Static routing (normative — dual mount):** `GET /wizard/**` from `--ui-root`; `GET /shared/**` from `HostOptions.shared_ui_root` (packaged `ui/`, not overridden by `--ui-root`).
 
 ---
 
@@ -160,7 +160,7 @@ Host updates history cursor; viewer navigates to `url` (or full page reload).
 }
 ```
 
-**Dismissed (viewer OS-close — d.6):**
+**Dismissed (viewer OS-close — d.8):**
 
 Viewer algorithm (normative — full visited stack):
 
@@ -189,10 +189,15 @@ Host validates client `stack` against session-derived full visited stack; mismat
 
 | Sprint | HTTP work |
 |--------|-------------|
-| d.1 | Serve wizard HTML paths; `GET /api/wizard/state` initial load |
-| d.2 | `navigate` + `finish` routes; replace d2 IPC acceptance with this doc |
-| d.3–d.6 | History, stack inject, DAG example, polish — all via HTTP |
+| d.1 | Dual static mount (`/wizard/**`, `/shared/**`); `GET /api/wizard/state` initial load |
+| d.2 | `navigate` + `finish` routes; `wyvern-api.js` helpers |
+| d.3 | History regression tests (no new routes) |
+| d.4 | Bootstrap round-trip tests (no new routes) |
+| d.5 | Example wizards exercising HTTP stack |
+| d.6 | Viewport sizing (orthogonal) |
+| d.7 | Shared wizard chrome (`wizard-nav.js`) |
+| d.8 | Viewer dismiss with full visited stack |
 
 ## Replaces
 
-- Phase D sprint doc [d2-wizard-ipc.md](d2-wizard-ipc.md) wry `action` messages — **historical only**.
+- Phase D sprint doc [d2-wizard-ipc.md](../phase-D/d2-wizard-ipc.md) wry `action` messages — **historical only**.

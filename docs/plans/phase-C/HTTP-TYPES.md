@@ -66,10 +66,14 @@ pub struct QuestionResult {
 #[derive(Debug, Clone)]
 pub struct HostOptions {
     pub bind: SocketAddr,           // default 127.0.0.1:0
-    pub ui_root: PathBuf,           // default share/wyvern/ui/
+    pub ui_root: PathBuf,           // wizard pages: `--ui-root` or default share/wyvern/ui/
+    pub shared_ui_root: PathBuf,    // packaged shared JS/CSS: always share/wyvern/ui/ (not overridden by --ui-root)
     pub viewer: ViewerMode,
     pub dialog_url_env: bool,       // set WYVERN_DIALOG_URL when viewer is None
 }
+
+// shared_ui_root: GET /shared/** always maps to packaged ui/ (install share/wyvern/ui/;
+// dev workspace = repo ui/). --ui-root overrides wizard pages only (GET /wizard/**).
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ViewerMode {
@@ -116,6 +120,7 @@ impl DialogHandle {
     pub fn await_result(self) -> Result<CommandResult, HostError>;
     /// CLI-only fallback: `wyvern-viewer` child exited without posting a result.
     /// Returns `Ok(CommandResult)` with dismissed semantics for the active type (REQ-0068).
+    /// Wizard: derives full visited stack via `WizardSession::finish(dismissed, …)` (d.2 algorithm).
     pub fn viewer_exited_without_result(self) -> Result<CommandResult, HostError>;
 }
 
@@ -343,6 +348,8 @@ pub struct WizardPageDescriptor {
 }
 
 /// `dialog` = typical form step; `workspace` = HTML page requesting viewport-sized canvas (example: graph editor).
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum WizardPageLayout { Dialog, Workspace }
 
 /// One stack entry — REQ-0024.

@@ -73,7 +73,7 @@ When `navigate_next` restores a cached forward entry (same `next` descriptor), o
 
 **`navigate_next` data write (normative):** apply opaque write rule to `entries[cursor]` **before** push/truncate-forward/advance. Forward-same-page restore uses overwrite predicate above.
 
-**`navigate_back` data write (normative):** apply opaque write rule to `entries[cursor]` **before** `cursor--`. Restored `page_data` comes from destination entry.
+**`navigate_back` data write (normative):** apply meaningful-payload overwrite predicate (same table as forward-same-page) to `entries[cursor]` **before** `cursor--`. `null`/`{}`/`[]`/`""` → skip write, cursor-- only. Restored `page_data` comes from destination entry.
 
 **`navigate_back` at cursor=0:** returns `WizardError::AtFirstPage` → host maps to HTTP **400** (no silent no-op).
 
@@ -103,6 +103,16 @@ pub fn finish(&self, button: ButtonLabel, data: Value, stack: Vec<WizardStackEnt
 - `wyvernWizardState`, `wyvernWizardNext`, `wyvernWizardBack`, `wyvernWizardFinish`
 - **Production bootstrap:** on load, `GET /api/wizard/state` sets `window.wyvern.{config,page,page_data,stack}` (d.4 adds round-trip tests only — no new bootstrap logic)
 
+**Wizard helper contract (normative):**
+
+| Helper | POST body | Post-navigate behavior |
+|--------|-----------|------------------------|
+| `wyvernWizardNext(data, next)` | `{ action: "next", data, next }` | On `{ ok, url }`: `window.location = url` (full reload); bootstrap re-runs on new page |
+| `wyvernWizardBack(data?)` | `{ action: "back", data: data ?? collectCurrentPageData() }` | Same reload pattern; `data` uses meaningful-payload predicate (omit or pass `{}` to preserve current entry) |
+| `wyvernWizardFinish({ button, data, stack })` | `{ button, data, stack }` where `stack` = `window.wyvern.stack` + `{ page: window.wyvern.page, data }` (full visited stack per finish algorithm) | Host stdout; session ends |
+
+`collectCurrentPageData()` is page-author logic — returns opaque blob for current form state. Helpers never interpret keys inside `data`.
+
 ## Acceptance criteria
 
 1. `navigate_next` / `navigate_back` / `finish` work over HTTP
@@ -111,7 +121,10 @@ pub fn finish(&self, button: ButtonLabel, data: Value, stack: Vec<WizardStackEnt
 4. Branch forward truncates stale entries
 5. `navigate_back` at cursor=0 → HTTP 400 (`AtFirstPage`)
 6. Finish validates client `stack` against session entries; mismatch → 400
-7. Prior dialogs + d.1 regression pass
+7. `finish`/`dismissed` stdout `stack` = full visited stack (`entries[0..=cursor]` including current); `cancel` stdout `stack: []`, `data: {}`
+8. `finish` stdout `data` = request `data`; `dismissed` stdout `data` = `{}`
+9. `navigate_back` with `{}` preserves current entry data (meaningful-payload predicate)
+10. Prior dialogs + d.1 regression pass
 
 ## Required validation
 

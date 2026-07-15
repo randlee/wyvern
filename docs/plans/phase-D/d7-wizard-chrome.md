@@ -33,6 +33,14 @@ Reusable back/next/finish chrome for wizard pages and N=1 edge case. Page JS onl
 <div data-wizard-terminal="true">…</div>
 ```
 
+**Data delegation (normative):**
+
+| Action | `wizard-nav.js` behavior |
+|--------|--------------------------|
+| Back | Calls `wyvernWizardBack()` with no arg (preserves current entry via meaningful-payload predicate) or page-supplied opaque blob |
+| Next | Calls `wyvernWizardNext(collectCurrentPageData(), nextDescriptor)` |
+| Finish | Calls `wyvernWizardFinish` with full visited stack per d.2 finish algorithm |
+
 **UX rules (`wizard-nav.js`, not host):**
 
 | Condition | Behaviour |

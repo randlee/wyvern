@@ -73,7 +73,9 @@ No separate `WizardEngine` / `WizardNavigator` traits unless a second impl appea
 | Route | Source | Purpose |
 |-------|--------|---------|
 | `GET /wizard/**` | `--ui-root` | Wizard page HTML + example assets (`page.html` paths) |
-| `GET /shared/**` | packaged `ui/` root (not `--ui-root`) | Shared JS/CSS (`wyvern-api.js`, `wizard-nav.js`, etc.) |
+| `GET /shared/**` | packaged `ui/` root via `HostOptions.shared_ui_root` (not `--ui-root`) | Shared JS/CSS (`wyvern-api.js`, `wizard-nav.js`, etc.) |
+
+**`shared_ui_root` (normative):** always resolves to packaged `ui/` (install `share/wyvern/ui/`; dev workspace = repo `ui/`). `--ui-root` overrides wizard pages only. Host test must assert `/shared/wyvern-api.js` serves when `--ui-root examples/wizards/layout-picker`.
 
 Wizard pages load shared helpers via absolute `/shared/…` URLs regardless of `--ui-root`. Example: `--ui-root examples/wizards/layout-picker` still serves `/shared/wyvern-api.js` from packaged `ui/shared/`.
 
