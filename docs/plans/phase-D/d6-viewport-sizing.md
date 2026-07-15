@@ -60,7 +60,8 @@ Golden assert in `viewport_bounds.rs`: payload matches `{ available_width, avail
 cargo build --workspace
 cargo clippy --workspace -- -D warnings
 cargo test -p wyvern-viewer viewport_bounds
-npx playwright test tests/l2/viewport-sizing.spec.ts
+# Playwright (run from tests/l2 so the config and spec resolve)
+cd tests/l2 && npx playwright test viewport-sizing.spec.ts
 sc-lint check native --config .sc-lint.toml
 ```
 

@@ -34,7 +34,8 @@ pub(crate) fn init_platform() -> Result<(), ViewerError> {
         gtk::init().map_err(|err| {
             let display = std::env::var("DISPLAY").unwrap_or_else(|_| "<unset>".into());
             ViewerError::EventLoop {
-                message: format!("gtk init failed (DISPLAY={display}): {err}"),
+                message: format!("gtk init failed (DISPLAY={display})"),
+                cause: Some(err.to_string()),
             }
         })?;
     }
@@ -67,7 +68,8 @@ pub(crate) fn build_event_loop() -> Result<EventLoop<()>, ViewerError> {
             .with_activate_ignoring_other_apps(true);
     }
     builder.build().map_err(|err| ViewerError::EventLoop {
-        message: err.to_string(),
+        message: "failed to build event loop".into(),
+        cause: Some(err.to_string()),
     })
 }
 

@@ -21,7 +21,7 @@ use crate::platform::{
     build_event_loop, init_platform, present_viewer_window, pump_gtk_events,
     viewer_window_attributes, DEFAULT_HEIGHT, DEFAULT_WIDTH,
 };
-use wyvern_viewer::viewport::{ViewportBounds, FALLBACK_VIEWPORT};
+use wyvern_viewer::viewport::{HiddenUntilResize, ViewportBounds, FALLBACK_VIEWPORT};
 
 /// Absolute floor for dialog chrome size.
 const MIN_DIALOG_WIDTH: u32 = 200;
@@ -64,18 +64,32 @@ pub enum ViewerError {
     Usage {
         /// Human-readable detail.
         message: String,
+        /// Optional upstream / parse cause for structured stderr.
+        cause: Option<String>,
     },
     /// Window / event-loop failure.
     EventLoop {
         /// Failure detail.
         message: String,
+        /// Optional upstream platform cause for structured stderr.
+        cause: Option<String>,
     },
+}
+
+impl ViewerError {
+    /// Optional structured cause string (included in stderr envelope when set).
+    #[must_use]
+    pub fn cause(&self) -> Option<&str> {
+        match self {
+            Self::Usage { cause, .. } | Self::EventLoop { cause, .. } => cause.as_deref(),
+        }
+    }
 }
 
 impl fmt::Display for ViewerError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Usage { message } | Self::EventLoop { message } => f.write_str(message),
+            Self::Usage { message, .. } | Self::EventLoop { message, .. } => f.write_str(message),
         }
     }
 }
@@ -107,10 +121,12 @@ pub fn run_from_env_and_args(args: Vec<String>) -> Result<(), ViewerError> {
         .or_else(|| std::env::var("WYVERN_DIALOG_URL").ok())
         .ok_or_else(|| ViewerError::Usage {
             message: "missing dialog URL (pass as argv[1] or set WYVERN_DIALOG_URL)".into(),
+            cause: None,
         })?;
 
     let parsed = Url::parse(&dialog_url).map_err(|e| ViewerError::Usage {
-        message: format!("invalid dialog URL '{dialog_url}': {e}"),
+        message: format!("invalid dialog URL '{dialog_url}'"),
+        cause: Some(e.to_string()),
     })?;
     enforce_dialog_url_policy(&parsed)?;
 
@@ -138,6 +154,7 @@ fn enforce_dialog_url_policy(url: &Url) -> Result<(), ViewerError> {
     if scheme != "http" && scheme != "https" {
         return Err(ViewerError::Usage {
             message: format!("refusing dialog URL scheme '{scheme}'; only http/https are allowed"),
+            cause: None,
         });
     }
 
@@ -150,6 +167,7 @@ fn enforce_dialog_url_policy(url: &Url) -> Result<(), ViewerError> {
 
     let host = url.host_str().ok_or_else(|| ViewerError::Usage {
         message: "dialog URL is missing a host".into(),
+        cause: None,
     })?;
     if is_loopback_host(host) {
         return Ok(());
@@ -158,6 +176,7 @@ fn enforce_dialog_url_policy(url: &Url) -> Result<(), ViewerError> {
         message: format!(
             "refusing non-loopback dialog host '{host}'; set WYVERN_VIEWER_ALLOW_NON_LOOPBACK=1 to opt in"
         ),
+        cause: None,
     })
 }
 
@@ -193,7 +212,7 @@ pub fn run(args: ViewerArgs) -> Result<(), ViewerError> {
         pending_navigate: Arc::new(Mutex::new(None)),
         viewport: FALLBACK_VIEWPORT,
         first_resize_at: None,
-        presented: false,
+        present_gate: HiddenUntilResize::new(),
         bounds_injected: false,
         close_requested,
         closing: false,
@@ -202,7 +221,8 @@ pub fn run(args: ViewerArgs) -> Result<(), ViewerError> {
     event_loop
         .run_app(&mut app)
         .map_err(|err| ViewerError::EventLoop {
-            message: err.to_string(),
+            message: "event loop failed".into(),
+            cause: Some(err.to_string()),
         })?;
 
     pump_gtk_events();
@@ -253,7 +273,7 @@ struct ViewerApp {
     pending_navigate: Arc<Mutex<Option<String>>>,
     viewport: ViewportBounds,
     first_resize_at: Option<Instant>,
-    presented: bool,
+    present_gate: HiddenUntilResize,
     bounds_injected: bool,
     close_requested: Arc<AtomicBool>,
     closing: bool,
@@ -330,9 +350,8 @@ impl ViewerApp {
         if self.first_resize_at.is_none() {
             self.first_resize_at = Some(Instant::now());
         }
-        if !self.presented {
+        if self.present_gate.note_content_resize() {
             present_viewer_window(window);
-            self.presented = true;
         }
     }
 
@@ -355,7 +374,7 @@ impl ViewerApp {
         // New page: hide until its first resize; re-inject bounds.
         self.first_resize_at = None;
         self.bounds_injected = false;
-        self.presented = false;
+        self.present_gate.note_navigate();
         if let Some(window) = self.window.as_ref() {
             window.set_visible(false);
         }
@@ -369,8 +388,8 @@ impl ApplicationHandler for ViewerApp {
         }
 
         self.viewport = viewport_bounds_from_event_loop(event_loop);
-        let max_w = self.viewport.available_width;
-        let max_h = self.viewport.available_height;
+        let max_w = self.viewport.available_width();
+        let max_h = self.viewport.available_height();
 
         let attrs = viewer_window_attributes(&self.args.title, self.args.width, self.args.height);
         let window = match event_loop.create_window(attrs) {

@@ -1,18 +1,21 @@
 //! Viewport bounds payload for page auto-size (REQ-V008 / ADR-0020).
 
 /// Logical CSS-pixel viewport available to the dialog page.
+///
+/// Fields are private so callers cannot construct a zero-axis value that
+/// bypasses [`ViewportBounds::new`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ViewportBounds {
     /// Available width in CSS pixels (non-zero).
-    pub available_width: u32,
+    available_width: u32,
     /// Available height in CSS pixels (non-zero).
-    pub available_height: u32,
+    available_height: u32,
 }
 
 impl ViewportBounds {
     /// Build bounds when both axes are non-zero.
     #[must_use]
-    pub fn new(available_width: u32, available_height: u32) -> Option<Self> {
+    pub const fn new(available_width: u32, available_height: u32) -> Option<Self> {
         if available_width == 0 || available_height == 0 {
             return None;
         }
@@ -20,6 +23,18 @@ impl ViewportBounds {
             available_width,
             available_height,
         })
+    }
+
+    /// Available width in CSS pixels.
+    #[must_use]
+    pub const fn available_width(&self) -> u32 {
+        self.available_width
+    }
+
+    /// Available height in CSS pixels.
+    #[must_use]
+    pub const fn available_height(&self) -> u32 {
+        self.available_height
     }
 
     /// Golden JSON object wire shape: `{ available_width, available_height }`.
@@ -65,6 +80,52 @@ pub const FALLBACK_VIEWPORT: ViewportBounds = ViewportBounds {
     available_height: 1080,
 };
 
+/// Hidden-until-first-resize presentation gate (REQ-V008 / AC3).
+///
+/// The viewer bootstrap size (320×240) must never be shown; the window stays
+/// hidden until the first content `resize:` IPC is applied, then presents once.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct HiddenUntilResize {
+    presented: bool,
+}
+
+impl HiddenUntilResize {
+    /// New gate: not yet presented (window must start hidden).
+    #[must_use]
+    pub const fn new() -> Self {
+        Self { presented: false }
+    }
+
+    /// Whether the window has already been shown after a content resize.
+    #[must_use]
+    pub const fn is_presented(&self) -> bool {
+        self.presented
+    }
+
+    /// Bootstrap policy: window starts hidden (no 320×240 flash).
+    #[must_use]
+    pub const fn starts_hidden(&self) -> bool {
+        !self.presented
+    }
+
+    /// Record that a content resize was applied.
+    ///
+    /// Returns `true` on the first call (caller must present the window);
+    /// subsequent calls return `false`.
+    pub fn note_content_resize(&mut self) -> bool {
+        if self.presented {
+            return false;
+        }
+        self.presented = true;
+        true
+    }
+
+    /// Hide again after navigate so the next page also waits for resize.
+    pub fn note_navigate(&mut self) {
+        self.presented = false;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -88,8 +149,8 @@ mod tests {
     #[test]
     fn viewport_bounds_from_physical_applies_scale() {
         let bounds = ViewportBounds::from_physical(3840, 2160, 2.0).expect("scaled");
-        assert_eq!(bounds.available_width, 1920);
-        assert_eq!(bounds.available_height, 1080);
+        assert_eq!(bounds.available_width(), 1920);
+        assert_eq!(bounds.available_height(), 1080);
     }
 
     #[test]
@@ -101,5 +162,32 @@ mod tests {
         assert!(script.contains("available_height:900"));
         assert!(script.contains("wyvern:viewport-bounds"));
         assert!(script.contains("__wyvernViewportBounds"));
+    }
+
+    #[test]
+    fn accessors_match_constructed_axes() {
+        let bounds = ViewportBounds::new(800, 600).expect("non-zero");
+        assert_eq!(bounds.available_width(), 800);
+        assert_eq!(bounds.available_height(), 600);
+    }
+
+    #[test]
+    fn hidden_until_resize_starts_hidden_presents_once() {
+        let mut gate = HiddenUntilResize::new();
+        assert!(gate.starts_hidden());
+        assert!(!gate.is_presented());
+        assert!(gate.note_content_resize());
+        assert!(gate.is_presented());
+        assert!(!gate.note_content_resize());
+        assert!(gate.is_presented());
+    }
+
+    #[test]
+    fn hidden_until_resize_resets_on_navigate() {
+        let mut gate = HiddenUntilResize::new();
+        assert!(gate.note_content_resize());
+        gate.note_navigate();
+        assert!(gate.starts_hidden());
+        assert!(gate.note_content_resize());
     }
 }

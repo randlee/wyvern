@@ -68,6 +68,9 @@
     return res.json();
   }
 
+  // Hard caps used only when no viewport bounds are available (browser /
+  // --viewer none). Embedded path (ADR-0020 / REQ-V008) clamps to
+  // available viewport × 0.92 via wyvern:viewport-bounds instead.
   var VIEWER_MAX_W = 800;
   var VIEWER_MAX_H = 600;
   var VIEWER_MIN_W = 200;
@@ -193,7 +196,8 @@
         clamped = true;
       }
     } else {
-      // Browser / no-bounds fallback: keep prior hard caps.
+      // Browser / no-bounds fallback: Phase B hard caps (800×600). Embedded
+      // viewer path uses viewport × 0.92 above (ADR-0020 / REQ-V008).
       if (w > VIEWER_MAX_W) {
         w = VIEWER_MAX_W;
         clamped = true;

@@ -4,13 +4,17 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { gotoDialog } from "./helpers";
+import type { Page } from "@playwright/test";
 
 const REPO_ROOT = path.resolve(__dirname, "../..");
 const WYVERN_BIN =
   process.env.WYVERN_BIN || path.join(REPO_ROOT, "target/debug/wyvern");
 const SHARED_API = path.join(REPO_ROOT, "ui/shared/wyvern-api.js");
+const UI_ROOT = path.join(REPO_ROOT, "ui");
 const WORKSPACE_HINT_UI = path.join(REPO_ROOT, "examples/wizards/workspace-hint");
 const WORKSPACE_HINT_JSON = path.join(WORKSPACE_HINT_UI, "wizard.json");
+const DIALOG_SLACK = 1.25;
+const VIEWPORT_CLAMP = 0.92;
 
 function waitForUrlFile(filePath: string, timeoutMs = 15_000): Promise<string> {
   const start = Date.now();
@@ -47,6 +51,27 @@ function waitForExit(child: ChildProcessWithoutNullStreams): Promise<number> {
   });
 }
 
+/** Navigate a blocking dialog URL; wait for /api/dialog (not wizard state). */
+async function gotoBlockingDialog(page: Page, url: string, budgetMs = 15_000) {
+  const deadline = Date.now() + budgetMs;
+  let lastError: unknown;
+  while (Date.now() < deadline) {
+    try {
+      await page.goto(url, { waitUntil: "domcontentloaded" });
+      const apiUrl = new URL("/api/dialog", url).toString();
+      const resp = await page.request.get(apiUrl);
+      if (resp.ok()) {
+        return;
+      }
+      lastError = new Error(`GET ${apiUrl} → ${resp.status()}`);
+    } catch (err) {
+      lastError = err;
+    }
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  throw lastError;
+}
+
 async function loadWyvernApi(page: import("@playwright/test").Page) {
   const apiSource = fs.readFileSync(SHARED_API, "utf8");
   await page.setContent(`<!DOCTYPE html>
@@ -63,6 +88,60 @@ async function loadWyvernApi(page: import("@playwright/test").Page) {
   await page.waitForFunction(
     () => typeof (window as unknown as { WyvernApi: unknown }).WyvernApi !== "undefined",
   );
+}
+
+type FitResult = {
+  w: number;
+  h: number;
+  clamped: boolean;
+  contentW: number;
+  contentH: number;
+  log: string[];
+};
+
+/** Install ipc stub + viewport bounds, then apply dialog fit against live DOM measure. */
+async function firstOpenFitWithViewport(
+  page: Page,
+  viewport: { available_width: number; available_height: number },
+): Promise<FitResult> {
+  return page.evaluate((vp) => {
+    const w = window as unknown as {
+      __resizeLog: string[];
+      __presentedAfterResize: boolean;
+      ipc: { postMessage: (m: string) => void };
+      WyvernApi: {
+        measureNaturalContent: () => { contentW: number; contentH: number };
+        applyDialogFitWithSlack: (
+          m: { contentW: number; contentH: number },
+          v: { available_width: number; available_height: number },
+          s: number,
+        ) => { w: number; h: number; clamped: boolean };
+      };
+    };
+    w.__resizeLog = [];
+    w.__presentedAfterResize = false;
+    w.ipc = {
+      postMessage(msg: string) {
+        w.__resizeLog.push(msg);
+        if (msg.startsWith("resize:")) {
+          w.__presentedAfterResize = true;
+        }
+      },
+    };
+    window.dispatchEvent(
+      new CustomEvent("wyvern:viewport-bounds", {
+        detail: vp,
+      }),
+    );
+    const measure = w.WyvernApi.measureNaturalContent();
+    const sized = w.WyvernApi.applyDialogFitWithSlack(measure, vp, 1.25);
+    return {
+      ...sized,
+      contentW: measure.contentW,
+      contentH: measure.contentH,
+      log: w.__resizeLog.slice(),
+    };
+  }, viewport);
 }
 
 test("dialog fit-with-slack clamps to viewport × 0.92 (golden)", async ({
@@ -114,6 +193,129 @@ test("dialog fit-with-slack clamps to viewport × 0.92 (golden)", async ({
   expect(result.oversized.h).toBe(736); // floor(800 * 0.92)
   expect(result.oversized.clamped).toBe(true);
   expect(result.log.some((m) => m.startsWith("resize:"))).toBe(true);
+});
+
+test("message dialog first-open resize applies slack (golden L2)", async ({
+  page,
+}) => {
+  test.skip(!fs.existsSync(WYVERN_BIN), `missing wyvern binary at ${WYVERN_BIN}`);
+
+  const urlFile = path.join(
+    os.tmpdir(),
+    `wyvern-l2-viewport-message-${process.pid}-${Date.now()}.txt`,
+  );
+  const json =
+    '{"type":"message","title":"Viewport sizing","message":"Representative message payload for first-open auto-size with slack.","buttons":"ok"}';
+
+  let child: ChildProcessWithoutNullStreams | null = null;
+  try {
+    child = spawn(WYVERN_BIN, [json, "--viewer", "none", "--ui-root", UI_ROOT], {
+      cwd: REPO_ROOT,
+      env: {
+        ...process.env,
+        WYVERN_DIALOG_URL_FILE: urlFile,
+        WYVERN_LOG: "off",
+      },
+    });
+    const exitPromise = waitForExit(child);
+    const dialogUrl = await waitForUrlFile(urlFile);
+    await gotoBlockingDialog(page, dialogUrl);
+    await expect(page.getByTestId("btn-ok")).toBeVisible();
+    await expect(page.locator("#dialog")).toBeVisible();
+
+    const vp = { available_width: 1920, available_height: 1080 };
+    const fit = await firstOpenFitWithViewport(page, vp);
+
+    expect(fit.contentW).toBeGreaterThan(0);
+    expect(fit.contentH).toBeGreaterThan(0);
+    // Slack: sized ≥ ceil(content × 1.25) when unclamped (large viewport).
+    expect(fit.clamped).toBe(false);
+    expect(fit.w).toBe(Math.ceil(fit.contentW * DIALOG_SLACK));
+    expect(fit.h).toBe(Math.ceil(fit.contentH * DIALOG_SLACK));
+    expect(fit.w).toBeLessThanOrEqual(Math.floor(vp.available_width * VIEWPORT_CLAMP));
+    expect(fit.h).toBeLessThanOrEqual(Math.floor(vp.available_height * VIEWPORT_CLAMP));
+    expect(fit.log.some((m) => m.startsWith(`resize:${fit.w}x${fit.h}`))).toBe(
+      true,
+    );
+
+    // Hidden-until-first-resize: present only after resize IPC (L2 stand-in).
+    const presented = await page.evaluate(
+      () =>
+        (window as unknown as { __presentedAfterResize?: boolean })
+          .__presentedAfterResize === true,
+    );
+    expect(presented).toBe(true);
+
+    if (child && child.exitCode === null && !child.killed) {
+      child.kill("SIGTERM");
+    }
+    await exitPromise.catch(() => -1);
+  } finally {
+    if (child && child.exitCode === null && !child.killed) {
+      child.kill("SIGTERM");
+    }
+    try {
+      fs.unlinkSync(urlFile);
+    } catch {
+      // ignore
+    }
+  }
+});
+
+test("input dialog first-open resize clamps to viewport × 0.92 (golden L2)", async ({
+  page,
+}) => {
+  test.skip(!fs.existsSync(WYVERN_BIN), `missing wyvern binary at ${WYVERN_BIN}`);
+
+  const urlFile = path.join(
+    os.tmpdir(),
+    `wyvern-l2-viewport-input-${process.pid}-${Date.now()}.txt`,
+  );
+  const json =
+    '{"type":"input","title":"Name","message":"Enter a representative value for viewport clamp sizing.","buttons":"ok_cancel"}';
+
+  let child: ChildProcessWithoutNullStreams | null = null;
+  try {
+    child = spawn(WYVERN_BIN, [json, "--viewer", "none", "--ui-root", UI_ROOT], {
+      cwd: REPO_ROOT,
+      env: {
+        ...process.env,
+        WYVERN_DIALOG_URL_FILE: urlFile,
+        WYVERN_LOG: "off",
+      },
+    });
+    const exitPromise = waitForExit(child);
+    const dialogUrl = await waitForUrlFile(urlFile);
+    await gotoBlockingDialog(page, dialogUrl);
+    await expect(page.getByTestId("btn-ok")).toBeVisible();
+    await expect(page.locator("#dialog")).toBeVisible();
+
+    // Tiny viewport forces clamp on first-open fit.
+    const vp = { available_width: 400, available_height: 300 };
+    const fit = await firstOpenFitWithViewport(page, vp);
+    const maxW = Math.floor(vp.available_width * VIEWPORT_CLAMP);
+    const maxH = Math.floor(vp.available_height * VIEWPORT_CLAMP);
+
+    expect(fit.clamped).toBe(true);
+    expect(fit.w).toBe(maxW);
+    expect(fit.h).toBeLessThanOrEqual(maxH);
+    expect(fit.w).toBeLessThan(Math.ceil(fit.contentW * DIALOG_SLACK));
+    expect(fit.log.some((m) => m.startsWith("resize:"))).toBe(true);
+
+    if (child && child.exitCode === null && !child.killed) {
+      child.kill("SIGTERM");
+    }
+    await exitPromise.catch(() => -1);
+  } finally {
+    if (child && child.exitCode === null && !child.killed) {
+      child.kill("SIGTERM");
+    }
+    try {
+      fs.unlinkSync(urlFile);
+    } catch {
+      // ignore
+    }
+  }
 });
 
 test("workspace-hint honors estimated_size with viewport clamp", async ({

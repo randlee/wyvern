@@ -18,4 +18,4 @@
 pub mod viewport;
 
 #[doc(inline)]
-pub use viewport::{ViewportBounds, FALLBACK_VIEWPORT};
+pub use viewport::{HiddenUntilResize, ViewportBounds, FALLBACK_VIEWPORT};

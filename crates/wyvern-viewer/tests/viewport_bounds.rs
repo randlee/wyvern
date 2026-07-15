@@ -1,6 +1,6 @@
 //! Golden wire tests for `wyvern:viewport-bounds` IPC payload (d.6).
 
-use wyvern_viewer::{ViewportBounds, FALLBACK_VIEWPORT};
+use wyvern_viewer::{HiddenUntilResize, ViewportBounds, FALLBACK_VIEWPORT};
 
 #[test]
 fn viewport_bounds_payload_matches_golden_shape() {
@@ -27,8 +27,8 @@ fn viewport_bounds_payload_rejects_zero() {
 #[test]
 fn viewport_bounds_fallback_is_nonzero() {
     const {
-        assert!(FALLBACK_VIEWPORT.available_width > 0);
-        assert!(FALLBACK_VIEWPORT.available_height > 0);
+        assert!(FALLBACK_VIEWPORT.available_width() > 0);
+        assert!(FALLBACK_VIEWPORT.available_height() > 0);
     };
     let value: serde_json::Value =
         serde_json::from_str(&FALLBACK_VIEWPORT.to_json_object()).expect("json");
@@ -44,4 +44,20 @@ fn viewport_bounds_dispatch_script_is_eval_ready() {
     assert!(script.contains("available_width:1280"));
     assert!(script.contains("available_height:720"));
     assert!(script.contains("wyvern:viewport-bounds"));
+}
+
+#[test]
+fn hidden_until_first_resize_present_gate() {
+    let mut gate = HiddenUntilResize::new();
+    // AC3: bootstrap stays hidden — never flash 320×240 before content resize.
+    assert!(gate.starts_hidden());
+    assert!(!gate.is_presented());
+    // First content resize IPC → present exactly once.
+    assert!(gate.note_content_resize());
+    assert!(gate.is_presented());
+    assert!(!gate.note_content_resize());
+    // Navigate resets: next page also waits for resize.
+    gate.note_navigate();
+    assert!(gate.starts_hidden());
+    assert!(gate.note_content_resize());
 }
