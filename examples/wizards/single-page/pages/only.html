@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Single page</title>
+  <link rel="stylesheet" href="/shared/embedded-chrome.css" />
+  <script src="/shared/wyvern-api.js"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 1.25rem 1.5rem 1.5rem;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      color: #0f172a;
+      background: #f8fafc;
+    }
+    h1 {
+      margin: 0 0 0.5rem;
+      font-size: 1.35rem;
+    }
+    .lead {
+      margin: 0 0 1rem;
+      color: #475569;
+    }
+    label {
+      display: block;
+      margin-bottom: 0.35rem;
+      font-weight: 600;
+    }
+    input[type="text"] {
+      width: 100%;
+      max-width: 24rem;
+      box-sizing: border-box;
+      padding: 0.45rem 0.6rem;
+      font: inherit;
+    }
+    .wizard-chrome {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: flex-end;
+      padding: 1rem 0 0;
+      margin-top: 1.5rem;
+      border-top: 1px solid #cbd5e1;
+    }
+    .wizard-chrome button {
+      min-width: 5.5rem;
+      padding: 0.5rem 1rem;
+      font: inherit;
+      cursor: pointer;
+    }
+    .wizard-chrome button[hidden] {
+      display: none !important;
+    }
+    .wizard-chrome .primary {
+      font-weight: 600;
+    }
+    .wizard-error {
+      color: #b91c1c;
+      margin-top: 0.75rem;
+    }
+  </style>
+</head>
+<body>
+  <!-- Terminal page contract: root MUST set data-wizard-terminal="true". -->
+  <div data-wizard-terminal="true" data-testid="single-page-root">
+    <h1 data-testid="single-page-heading">Single page</h1>
+    <p class="lead">
+      N=1 wizard: Back is hidden; Next is labeled Finish immediately.
+    </p>
+    <label for="note">Optional note</label>
+    <input
+      id="note"
+      type="text"
+      data-testid="single-page-note"
+      placeholder="Leave empty to submit {}"
+      autocomplete="off"
+    />
+
+    <nav class="wizard-chrome" data-wizard-nav aria-label="Wizard navigation">
+      <button type="button" class="secondary" data-wizard-back data-testid="wizard-back">
+        Back
+      </button>
+      <button type="button" class="primary" data-wizard-next data-testid="wizard-next">
+        Next
+      </button>
+    </nav>
+    <p class="wizard-error" data-testid="wizard-error" hidden></p>
+  </div>
+
+  <script>
+    // Page-author opaque collector. Empty / whitespace → {} (graceful empty data).
+    window.collectCurrentPageData = function () {
+      var input = document.querySelector("[data-testid='single-page-note']");
+      var value = input && typeof input.value === "string" ? input.value.trim() : "";
+      if (!value) {
+        return {};
+      }
+      return { note: value };
+    };
+  </script>
+  <script src="/shared/wizard-nav.js" data-wizard-chrome></script>
+</body>
+</html>

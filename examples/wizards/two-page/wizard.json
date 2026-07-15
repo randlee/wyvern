@@ -1,0 +1,13 @@
+{
+  "type": "wizard",
+  "page": {
+    "id": "step-1",
+    "title": "Step 1",
+    "html": "pages/step-1.html"
+  },
+  "config": {
+    "note": "Minimal 2-page fixture for shared wizard chrome (d.7)"
+  },
+  "width": 480,
+  "height": 320
+}

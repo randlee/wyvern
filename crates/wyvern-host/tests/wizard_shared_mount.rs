@@ -93,6 +93,13 @@ fn wizard_shared_mount_serves_wyvern_api_js_with_example_ui_root() {
         "expected packaged wyvern-api.js content"
     );
 
+    // d.7: shared wizard chrome must come from packaged ui/, not --ui-root.
+    let nav = wait_for_shared_js(&client, &format!("{base}/shared/wizard-nav.js"));
+    assert!(
+        nav.contains("data-wizard-terminal") || nav.contains("WyvernWizardNav"),
+        "expected packaged wizard-nav.js chrome helpers"
+    );
+
     // Example ui-root must not contain shared/ — dual mount is the only source.
     assert!(
         !layout_picker_ui_root()
@@ -100,6 +107,13 @@ fn wizard_shared_mount_serves_wyvern_api_js_with_example_ui_root() {
             .join("wyvern-api.js")
             .is_file(),
         "fixture must not ship shared/wyvern-api.js under --ui-root"
+    );
+    assert!(
+        !layout_picker_ui_root()
+            .join("shared")
+            .join("wizard-nav.js")
+            .is_file(),
+        "fixture must not ship shared/wizard-nav.js under --ui-root"
     );
 
     let _ = handle.viewer_exited_without_result();

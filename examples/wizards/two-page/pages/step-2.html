@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Step 2</title>
+  <link rel="stylesheet" href="/shared/embedded-chrome.css" />
+  <script src="/shared/wyvern-api.js"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 1.25rem 1.5rem 1.5rem;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      color: #0f172a;
+      background: #f8fafc;
+    }
+    h1 {
+      margin: 0 0 0.5rem;
+      font-size: 1.35rem;
+    }
+    .lead {
+      margin: 0 0 1rem;
+      color: #475569;
+    }
+    .wizard-chrome {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: flex-end;
+      padding: 1rem 0 0;
+      margin-top: 1.5rem;
+      border-top: 1px solid #cbd5e1;
+    }
+    .wizard-chrome button {
+      min-width: 5.5rem;
+      padding: 0.5rem 1rem;
+      font: inherit;
+      cursor: pointer;
+    }
+    .wizard-chrome button[hidden] {
+      display: none !important;
+    }
+    .wizard-chrome .primary {
+      font-weight: 600;
+    }
+    .wizard-error {
+      color: #b91c1c;
+      margin-top: 0.75rem;
+    }
+  </style>
+</head>
+<body>
+  <!-- Terminal page contract: root MUST set data-wizard-terminal="true". -->
+  <div data-wizard-terminal="true" data-testid="two-page-step-2">
+    <h1 data-testid="two-page-step-2-heading">Step 2</h1>
+    <p class="lead">
+      Terminal page: Next is labeled Finish.
+    </p>
+
+    <nav class="wizard-chrome" data-wizard-nav aria-label="Wizard navigation">
+      <button type="button" class="secondary" data-wizard-back data-testid="wizard-back">
+        Back
+      </button>
+      <button type="button" class="primary" data-wizard-next data-testid="wizard-next">
+        Next
+      </button>
+    </nav>
+    <p class="wizard-error" data-testid="wizard-error" hidden></p>
+  </div>
+
+  <script>
+    window.collectCurrentPageData = function () {
+      return { step: 2 };
+    };
+  </script>
+  <script src="/shared/wizard-nav.js" data-wizard-chrome></script>
+</body>
+</html>
