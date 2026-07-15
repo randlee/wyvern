@@ -1,7 +1,7 @@
 ---
 id: d.6
 title: Wizard viewport sizing
-status: planning
+status: complete
 branch: feature/phase-D-d6-viewport-sizing
 target: integrate/phase-D
 ---

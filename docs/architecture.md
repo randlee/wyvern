@@ -105,7 +105,7 @@ Boundary rules are encoded in `boundaries/` and enforced in CI.
 
 ### ADR-0020: Viewport-fit sizing with slack; workspace layout mode
 
-**Status:** Accepted (planning — Phase D d.6)
+**Status:** Accepted (Phase D d.6)
 
 **Context:** Agent-driven dialogs are high-churn (many unique payloads per day). Fixed pixel tiers and measure-time width caps cause manual resize iteration. Some wizard HTML pages need large viewports (e.g. canvas editors — **HTML-side only**).
 

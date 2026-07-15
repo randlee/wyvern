@@ -15,11 +15,18 @@ readme      = "../../README.md"
 name = "wyvern-viewer"
 path = "src/main.rs"
 
+[lib]
+name = "wyvern_viewer"
+path = "src/lib.rs"
+
 [dependencies]
 wry   = { workspace = true }
 winit = { workspace = true }
 url   = { workspace = true }
 tracing = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
 
 # wry on Linux needs an initialized GTK main loop alongside winit.
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "netbsd", target_os = "openbsd"))'.dependencies]
