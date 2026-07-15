@@ -53,7 +53,7 @@ pub enum WizardError {
         /// Human-readable summary of the diff.
         reason: String,
     },
-    /// `navigate_next` would exceed [`MAX_WIZARD_STACK_DEPTH`].
+    /// `navigate_next` would exceed the maximum wizard stack depth.
     StackDepthExceeded {
         /// Configured maximum entry count.
         max: usize,
@@ -190,7 +190,7 @@ impl WizardSession {
     /// # Errors
     ///
     /// Returns [`WizardError::StackDepthExceeded`] when a branch push would
-    /// grow the history past [`MAX_WIZARD_STACK_DEPTH`].
+    /// grow the history past the configured maximum stack depth.
     pub fn navigate_next(
         &mut self,
         data: serde_json::Value,

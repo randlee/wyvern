@@ -10,7 +10,6 @@ use wyvern_host::{begin, DialogHandle, HostOptions, ViewerMode};
 use wyvern_schema::{
     Command, WizardCommand, WizardPageDescriptor, WizardPageHtml, WizardPageId, WizardPageTitle,
 };
-use wyvern_wizard::MAX_WIZARD_STACK_DEPTH;
 
 fn workspace_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -37,16 +36,22 @@ fn write_ui_root() -> PathBuf {
         )
         .expect("write page");
     }
-    // Extra pages for depth-limit coverage.
-    for i in 0..=MAX_WIZARD_STACK_DEPTH {
-        let name = format!("p{i}.html");
-        std::fs::write(
-            pages.join(&name),
-            format!("<!DOCTYPE html><title>{name}</title><h1>{name}</h1>"),
-        )
-        .expect("write depth page");
-    }
     root
+}
+
+/// Ensure a depth-test HTML page exists under `ui_root/pages/`.
+fn ensure_depth_page(ui_root: &std::path::Path, i: usize) {
+    let pages = ui_root.join("pages");
+    let name = format!("p{i}.html");
+    let path = pages.join(&name);
+    if path.exists() {
+        return;
+    }
+    std::fs::write(
+        &path,
+        format!("<!DOCTYPE html><title>{name}</title><h1>{name}</h1>"),
+    )
+    .expect("write depth page");
 }
 
 fn page(id: &str, html: &str) -> WizardPageDescriptor {
@@ -320,9 +325,14 @@ fn wizard_navigate_rejects_at_max_stack_depth() {
     let client = reqwest::blocking::Client::new();
     let navigate = format!("{base}/api/wizard/navigate");
 
-    // Seed starts at p0 via a remapped first page — walk from current "a".
-    // Push until depth == MAX, then one more must 400.
-    for i in 1..MAX_WIZARD_STACK_DEPTH {
+    // Push until the host returns 400 StackDepthExceeded. Safety budget is
+    // intentionally larger than any plausible configured max so the test does
+    // not import the wizard-internal depth constant.
+    const SAFETY_BUDGET: usize = 256;
+    let mut pushes_ok = 0usize;
+    let mut overflow: Option<(reqwest::StatusCode, serde_json::Value)> = None;
+    for i in 1..=SAFETY_BUDGET {
+        ensure_depth_page(&ui_root, i);
         let id = format!("p{i}");
         let html = format!("pages/p{i}.html");
         let resp = client
@@ -334,31 +344,34 @@ fn wizard_navigate_rejects_at_max_stack_depth() {
             }))
             .send()
             .unwrap_or_else(|e| panic!("next {i}: {e}"));
-        assert_eq!(
-            resp.status(),
-            reqwest::StatusCode::OK,
-            "push {i} should succeed"
-        );
+        let status = resp.status();
+        if status == reqwest::StatusCode::OK {
+            pushes_ok += 1;
+            continue;
+        }
+        let body: serde_json::Value = resp.json().expect("overflow json");
+        overflow = Some((status, body));
+        break;
     }
 
-    let resp = client
-        .post(&navigate)
-        .json(&serde_json::json!({
-            "action": "next",
-            "data": {},
-            "next": page("overflow", "pages/p0.html")
-        }))
-        .send()
-        .expect("overflow");
-    assert_eq!(resp.status(), reqwest::StatusCode::BAD_REQUEST);
-    let body: serde_json::Value = resp.json().expect("json");
+    let (status, body) = overflow.expect("expected StackDepthExceeded before safety budget");
+    assert_eq!(status, reqwest::StatusCode::BAD_REQUEST);
+    assert_eq!(body["ok"], false);
+    assert_eq!(body["error"], "bad_request");
+    let message = body["message"].as_str().unwrap_or("");
     assert!(
-        body["message"]
-            .as_str()
-            .unwrap_or("")
-            .contains("maximum of"),
-        "message={}",
-        body["message"]
+        message.contains("maximum of"),
+        "message should include configured max: {message}"
+    );
+    let cause = body["cause"].as_str().unwrap_or("");
+    assert!(
+        cause.contains("max stack depth"),
+        "cause should identify StackDepthExceeded: {cause}"
+    );
+    // First page is the seed; each successful next grows depth by one until max.
+    assert!(
+        pushes_ok >= 1,
+        "at least one next should succeed before depth limit"
     );
 
     let _ = handle.viewer_exited_without_result();

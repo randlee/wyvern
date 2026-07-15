@@ -8,7 +8,7 @@ use wyvern_schema::{WizardPageDescriptor, WizardStackEntry};
 ///
 /// Chosen as a hard service limit so unbounded navigate-next cannot grow the
 /// session without bound. Forward-same-page restore does not count against growth.
-pub const MAX_WIZARD_STACK_DEPTH: usize = 64;
+pub(crate) const MAX_WIZARD_STACK_DEPTH: usize = 64;
 
 /// One history entry: page descriptor + opaque data.
 #[derive(Debug, Clone)]
