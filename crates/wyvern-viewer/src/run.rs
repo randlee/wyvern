@@ -16,11 +16,11 @@ use wry::dpi::{LogicalPosition, LogicalSize};
 use wry::http::Request;
 use wry::{Rect, WebView, WebViewBuilder};
 
-use crate::platform::{
-    build_event_loop, init_platform, present_viewer_window, pump_gtk_events,
-    viewer_window_attributes, DEFAULT_HEIGHT, DEFAULT_WIDTH,
-};
 use wyvern_viewer::dismiss::post_dismissed;
+use wyvern_viewer::platform::{
+    build_event_loop, init_platform, present_viewer_window, pump_gtk_events,
+    resolve_bootstrap_size, viewer_window_attributes, PlatformError,
+};
 use wyvern_viewer::viewport::{HiddenUntilResize, ViewportBounds, FALLBACK_VIEWPORT};
 
 /// Absolute floor for dialog chrome size.
@@ -93,6 +93,14 @@ impl fmt::Display for ViewerError {
 
 impl std::error::Error for ViewerError {}
 
+impl From<PlatformError> for ViewerError {
+    fn from(err: PlatformError) -> Self {
+        match err {
+            PlatformError::EventLoop { message, cause } => Self::EventLoop { message, cause },
+        }
+    }
+}
+
 /// Launch options resolved from argv / env.
 #[derive(Debug, Clone)]
 pub struct ViewerArgs {
@@ -127,14 +135,10 @@ pub fn run_from_env_and_args(args: Vec<String>) -> Result<(), ViewerError> {
     })?;
     enforce_dialog_url_policy(&parsed)?;
 
-    let width = std::env::var("WYVERN_VIEWER_WIDTH")
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(DEFAULT_WIDTH);
-    let height = std::env::var("WYVERN_VIEWER_HEIGHT")
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(DEFAULT_HEIGHT);
+    let (width, height) = resolve_bootstrap_size(
+        std::env::var("WYVERN_VIEWER_WIDTH").ok().as_deref(),
+        std::env::var("WYVERN_VIEWER_HEIGHT").ok().as_deref(),
+    );
     let title = std::env::var("WYVERN_VIEWER_TITLE").unwrap_or_else(|_| "Wyvern".into());
 
     run(ViewerArgs {
@@ -266,6 +270,14 @@ struct ViewerApp {
     window: Option<Arc<Window>>,
     webview: Option<WebView>,
     posted_dismiss: bool,
+    /// IPC slots shared with wry/winit callbacks.
+    ///
+    /// `Arc<Mutex<_>>` is intentional (RBP-F007): wry's IPC and winit's event
+    /// loop run on different callbacks that must share pending resize/navigate
+    /// state without transferring ownership. The mutex is short-lived (take/
+    /// replace `Option` payloads only); interior mutability keeps the
+    /// `ApplicationHandler` methods `&mut self`-free for those slots while still
+    /// satisfying wry's `'static` + `Send` IPC closure bounds.
     pending_resize: Arc<Mutex<Option<(u32, u32)>>>,
     pending_navigate: Arc<Mutex<Option<String>>>,
     viewport: ViewportBounds,

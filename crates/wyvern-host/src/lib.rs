@@ -46,6 +46,7 @@ pub use options::{
 pub use picker::{MockPickerConfig, MockPickerSlotEvent, MockPickerSlotLog};
 #[cfg(target_os = "macos")]
 pub use picker_dispatch::MacosPickerPump;
+pub use wyvern_wizard::WizardError;
 
 use wyvern_schema::{Command, CommandResult};
 

@@ -1,0 +1,35 @@
+@prefix triage: <urn:atm:triage:> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<urn:atm:triage:finding/RBP-F007>
+  a triage:Finding ;
+  triage:findingId "RBP-F007" ;
+  triage:title "RBP-F007 phase-end finding" ;
+  triage:description "missing Mutex rationale" ;
+  triage:phaseId "phase-D" ;
+  triage:triageMode "initial_pass" ;
+  triage:severity "minor" ;
+  triage:repeatable false ;
+  triage:sweepScope "file_only" ;
+  triage:status "closed" ;
+  triage:dispatchReady false ;
+  triage:originatingSprintDoc "crates/wyvern-viewer/src/run.rs" ;
+  triage:promoteToBranch "feature/phase-D-qa-end-fix" ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/RBP-F007/feature/phase-D-qa-end-fix/1> ;
+  triage:triagedAt "2026-07-15T20:12:11Z"^^xsd:dateTime .
+
+<urn:atm:triage:occurrence/RBP-F007/feature/phase-D-qa-end-fix/1>
+  a triage:Occurrence ;
+  triage:file "crates/wyvern-viewer/src/run.rs" ;
+  triage:line 269 ;
+  triage:status "closed" ;
+  triage:closed true ;
+  triage:branch "feature/phase-D-qa-end-fix" ;
+  triage:headSha "5ace9a1" ;
+  triage:occursIn <urn:atm:triage:worktree/feature/phase-D-qa-end-fix/5ace9a1> .
+
+<urn:atm:triage:worktree/feature/phase-D-qa-end-fix/5ace9a1>
+  a triage:WorktreeSnapshot ;
+  triage:branch "feature/phase-D-qa-end-fix" ;
+  triage:path "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-D-qa-end-fix" ;
+  triage:headSha "5ace9a1" .

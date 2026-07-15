@@ -6,10 +6,10 @@
 - release owner:
 
 ## Included Changes
-- 
+-
 
 ## Operator / User Impact
-- 
+-
 
 ## Packaging / Distribution Notes
 - crates.io:
@@ -18,7 +18,7 @@
 - winget:
 
 ## Known Issues / Waivers
-- 
+-
 
 ## Follow-Up
-- 
+-

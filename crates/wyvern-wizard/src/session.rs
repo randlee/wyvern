@@ -1,7 +1,8 @@
 //! [`WizardSession`] — concrete wizard stack state (ADR-0007).
 
 use wyvern_schema::{
-    WizardCommand, WizardPageDescriptor, WizardResult, WizardStackEntry, WizardTerminalButton,
+    WizardCommand, WizardPageDescriptor, WizardPageId, WizardResult, WizardStackEntry,
+    WizardTerminalButton,
 };
 
 use crate::history::{History, MAX_WIZARD_STACK_DEPTH};
@@ -47,9 +48,9 @@ pub enum WizardError {
         /// First differing index, or `None` when lengths differ.
         index: Option<usize>,
         /// Expected page id at the mismatch (when applicable).
-        expected_page_id: Option<String>,
+        expected_page_id: Option<WizardPageId>,
         /// Client page id at the mismatch (when applicable).
-        got_page_id: Option<String>,
+        got_page_id: Option<WizardPageId>,
         /// Human-readable summary of the diff.
         reason: String,
     },
@@ -75,6 +76,20 @@ impl WizardError {
         }
     }
 
+    /// Stable machine-readable sub-code for CLI stderr mapping (RBP-F004).
+    #[must_use]
+    pub fn subcode(&self) -> &'static str {
+        match self {
+            Self::AtFirstPage => "WIZARD_AT_FIRST_PAGE",
+            Self::InvalidCommand { .. } => "WIZARD_INVALID_COMMAND",
+            Self::StackMismatch { .. } => "WIZARD_STACK_MISMATCH",
+            Self::StackDepthExceeded { .. } => "WIZARD_STACK_DEPTH_EXCEEDED",
+            Self::SessionNotInitialized => "WIZARD_SESSION_NOT_INITIALIZED",
+            Self::PublicOriginNotSet => "WIZARD_PUBLIC_ORIGIN_NOT_SET",
+            Self::ResultAlreadySubmitted => "WIZARD_RESULT_ALREADY_SUBMITTED",
+        }
+    }
+
     /// Compare client vs derived stacks and build a contextual mismatch error.
     pub(crate) fn stack_mismatch(
         client: &[WizardStackEntry],
@@ -96,8 +111,8 @@ impl WizardError {
             if got.page != expected.page {
                 return Self::StackMismatch {
                     index: Some(index),
-                    expected_page_id: Some(expected.page.id.as_str().to_string()),
-                    got_page_id: Some(got.page.id.as_str().to_string()),
+                    expected_page_id: Some(expected.page.id.clone()),
+                    got_page_id: Some(got.page.id.clone()),
                     reason: format!(
                         "page mismatch at index {index}: expected '{}', got '{}'",
                         expected.page.id.as_str(),
@@ -108,8 +123,8 @@ impl WizardError {
             if got.data != expected.data {
                 return Self::StackMismatch {
                     index: Some(index),
-                    expected_page_id: Some(expected.page.id.as_str().to_string()),
-                    got_page_id: Some(got.page.id.as_str().to_string()),
+                    expected_page_id: Some(expected.page.id.clone()),
+                    got_page_id: Some(got.page.id.clone()),
                     reason: format!(
                         "data mismatch at index {index} (page '{}')",
                         expected.page.id.as_str()

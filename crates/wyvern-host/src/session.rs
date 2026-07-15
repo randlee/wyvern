@@ -6,12 +6,19 @@
 //!
 //! - `Arc` clones across concurrent GET `/api/dialog`, POST `/api/result`, and
 //!   picker routes without moving ownership of the command or channel.
-//! - `Mutex` ensures `complete` takes the `oneshot::Sender` exactly once while
-//!   serializing that take with reads of `command`. Splitting immutable command
-//!   state from a completion flag would work but adds pieces for a one-shot
-//!   session; the mutex keeps command and completion co-located.
+//! - `Mutex` ensures `complete` takes the result-submit capability exactly once
+//!   while serializing that take with reads of `command`. Splitting immutable
+//!   command state from a completion flag would work but adds pieces for a
+//!   one-shot session; the mutex keeps command and completion co-located.
 //! - `tokio::sync::Mutex` fits async handlers (picker/result paths already await
 //!   in this context and may grow awaits under the lock later).
+//!
+//! ## Lifecycle capabilities (RBP-F001 / RBP-F002)
+//!
+//! Session phases are gated by capability tokens rather than ad-hoc `Option`
+//! presence checks alone:
+//! - [`BoundOrigin`] — issued once after TCP bind; navigate URL builders require it.
+//! - [`ResultSubmitToken`] — issued at session creation; `complete` consumes it.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -28,6 +35,29 @@ use crate::picker::MockPickerConfig;
 /// Max time a native `rfd` picker may block a `spawn_blocking` worker.
 pub(crate) const PICKER_TIMEOUT: Duration = Duration::from_secs(300);
 
+/// Capability proving the HTTP listener bound and the public origin is known.
+///
+/// Issued once via [`SessionState::set_public_origin`] after bind (RBP-F001).
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct BoundOrigin(String);
+
+impl BoundOrigin {
+    fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+/// One-shot capability to submit the dialog result (RBP-F002).
+///
+/// Created at session construction; taken exactly once by [`SessionState::complete`].
+struct ResultSubmitToken(oneshot::Sender<CommandResult>);
+
+impl ResultSubmitToken {
+    fn submit(self, result: CommandResult) {
+        let _ = self.0.send(result);
+    }
+}
+
 /// Shared state for the active one-shot dialog.
 #[derive(Clone)]
 pub(crate) struct SessionState {
@@ -39,12 +69,14 @@ pub(crate) struct SessionState {
 }
 
 struct SessionInner {
-    command: Command,
+    /// Shared command — `Arc` so `/api/dialog` and picker routes avoid deep clones.
+    command: Arc<Command>,
     /// Present when the active command is [`Command::Wizard`].
     wizard: Option<WizardSession>,
-    /// Public origin (`http://127.0.0.1:PORT`) set after bind for navigate URLs.
-    public_origin: Option<String>,
-    result_tx: Option<oneshot::Sender<wyvern_schema::CommandResult>>,
+    /// Bind-phase capability; `None` until [`SessionState::set_public_origin`].
+    bound_origin: Option<BoundOrigin>,
+    /// Complete-phase capability; `None` after the one-shot result is submitted.
+    result_token: Option<ResultSubmitToken>,
 }
 
 impl SessionState {
@@ -60,10 +92,10 @@ impl SessionState {
         };
         Self {
             inner: Arc::new(Mutex::new(SessionInner {
-                command,
+                command: Arc::new(command),
                 wizard,
-                public_origin: None,
-                result_tx: Some(result_tx),
+                bound_origin: None,
+                result_token: Some(ResultSubmitToken(result_tx)),
             })),
             // Serialize picker spawn_blocking so repeated POSTs cannot exhaust
             // the blocking pool (RSH-006).
@@ -72,29 +104,27 @@ impl SessionState {
         }
     }
 
-    /// Record the bound HTTP origin used to build absolute wizard page URLs.
+    /// Issue the bind-phase [`BoundOrigin`] capability used to build absolute URLs.
     pub(crate) async fn set_public_origin(&self, origin: String) {
-        self.inner.lock().await.public_origin = Some(origin);
+        self.inner.lock().await.bound_origin = Some(BoundOrigin(origin));
     }
 
-    /// Clone of the active command for `/api/dialog`.
-    pub(crate) async fn command(&self) -> Command {
-        self.inner.lock().await.command.clone()
+    /// Shared handle to the active command for `/api/dialog` (cheap `Arc` clone).
+    pub(crate) async fn command(&self) -> Arc<Command> {
+        Arc::clone(&self.inner.lock().await.command)
     }
 
     /// Snapshot of the wizard session, if this is a wizard dialog.
     ///
-    /// Clones the session under the mutex, then builds the snapshot after the
-    /// lock is released so cloning config/page/stack does not extend hold time.
+    /// Builds the snapshot under the mutex without cloning [`WizardSession`]
+    /// (RBP-F005) — `snapshot()` already copies only the wire-facing fields.
     pub(crate) async fn wizard_snapshot(&self) -> Result<WizardSnapshot, WizardError> {
-        let session = {
-            let guard = self.inner.lock().await;
-            guard
-                .wizard
-                .clone()
-                .ok_or(WizardError::SessionNotInitialized)?
-        };
-        Ok(session.snapshot())
+        let guard = self.inner.lock().await;
+        Ok(guard
+            .wizard
+            .as_ref()
+            .ok_or(WizardError::SessionNotInitialized)?
+            .snapshot())
     }
 
     /// Run `navigate_next` on the live wizard session.
@@ -104,13 +134,8 @@ impl SessionState {
         next: WizardPageDescriptor,
     ) -> Result<(NavigateOutcome, String), WizardError> {
         let mut guard = self.inner.lock().await;
-        if guard.result_tx.is_none() {
-            return Err(WizardError::ResultAlreadySubmitted);
-        }
-        let origin = guard
-            .public_origin
-            .clone()
-            .ok_or(WizardError::PublicOriginNotSet)?;
+        require_open_result_token(&guard)?;
+        let origin = require_bound_origin(&guard)?.to_string();
         let session = guard
             .wizard
             .as_mut()
@@ -126,13 +151,8 @@ impl SessionState {
         data: serde_json::Value,
     ) -> Result<(NavigateOutcome, String), WizardError> {
         let mut guard = self.inner.lock().await;
-        if guard.result_tx.is_none() {
-            return Err(WizardError::ResultAlreadySubmitted);
-        }
-        let origin = guard
-            .public_origin
-            .clone()
-            .ok_or(WizardError::PublicOriginNotSet)?;
+        require_open_result_token(&guard)?;
+        let origin = require_bound_origin(&guard)?.to_string();
         let session = guard
             .wizard
             .as_mut()
@@ -144,6 +164,12 @@ impl SessionState {
 
     /// Run `finish` and complete the one-shot session with the derived result.
     ///
+    /// Holds the session mutex through result derivation and
+    /// [`ResultSubmitToken`] consumption so a concurrent navigate cannot mutate
+    /// wizard state after the terminal result is fixed but before the session is
+    /// marked complete (QA-001). The oneshot is sent only after the lock is
+    /// released.
+    ///
     /// Returns `Ok(None)` when a result was already submitted (HTTP 409).
     pub(crate) async fn wizard_finish(
         &self,
@@ -151,18 +177,21 @@ impl SessionState {
         data: serde_json::Value,
         stack: Vec<WizardStackEntry>,
     ) -> Result<Option<WizardResult>, WizardError> {
-        let result = {
-            let guard = self.inner.lock().await;
+        let prepared = {
+            let mut guard = self.inner.lock().await;
             let session = guard
                 .wizard
                 .as_ref()
                 .ok_or(WizardError::SessionNotInitialized)?;
-            session.finish(button, data, stack)?
+            let result = session.finish(button, data, stack)?;
+            guard.result_token.take().map(|token| (result, token))
         };
-        if self.complete(CommandResult::Wizard(result.clone())).await {
-            Ok(Some(result))
-        } else {
-            Ok(None)
+        match prepared {
+            Some((result, token)) => {
+                token.submit(CommandResult::Wizard(result.clone()));
+                Ok(Some(result))
+            }
+            None => Ok(None),
         }
     }
 
@@ -173,7 +202,7 @@ impl SessionState {
     /// same d.2 algorithm as an explicit finish POST (stdout `data` is `{}`).
     pub(crate) async fn dismissed_on_exit_or_timeout(&self) -> CommandResult {
         let guard = self.inner.lock().await;
-        match (&guard.command, guard.wizard.as_ref()) {
+        match (guard.command.as_ref(), guard.wizard.as_ref()) {
             (Command::Wizard(_), Some(session)) => {
                 let snap = session.snapshot();
                 let page_id = snap.page.id.as_str().to_string();
@@ -216,9 +245,9 @@ impl SessionState {
 
     /// Acquire the single picker permit for this session.
     ///
-    /// Returns an [`OwnedSemaphorePermit`] so the caller can move it into
-    /// `spawn_blocking` and hold it until the native (or mock) picker returns —
-    /// including after an HTTP timeout drops the async handler.
+    /// Returns an [`OwnedSemaphorePermit`] held by the async handler. On HTTP
+    /// timeout the handler drops the permit so a subsequent picker can proceed
+    /// (RSH-002); the detached `spawn_blocking` task may still finish later.
     pub(crate) async fn acquire_picker_slot(
         &self,
     ) -> Result<OwnedSemaphorePermit, HostSessionClosed> {
@@ -228,16 +257,32 @@ impl SessionState {
             .map_err(|_| HostSessionClosed)
     }
 
-    /// Deliver a validated result and close the channel (idempotent after first).
+    /// Deliver a validated result by consuming the [`ResultSubmitToken`] (idempotent).
     pub(crate) async fn complete(&self, result: wyvern_schema::CommandResult) -> bool {
         let mut guard = self.inner.lock().await;
-        if let Some(tx) = guard.result_tx.take() {
-            let _ = tx.send(result);
+        if let Some(token) = guard.result_token.take() {
+            token.submit(result);
             true
         } else {
             false
         }
     }
+}
+
+fn require_open_result_token(guard: &SessionInner) -> Result<(), WizardError> {
+    if guard.result_token.is_none() {
+        Err(WizardError::ResultAlreadySubmitted)
+    } else {
+        Ok(())
+    }
+}
+
+fn require_bound_origin(guard: &SessionInner) -> Result<&str, WizardError> {
+    guard
+        .bound_origin
+        .as_ref()
+        .map(BoundOrigin::as_str)
+        .ok_or(WizardError::PublicOriginNotSet)
 }
 
 fn wizard_page_url(origin: &str, html: &str) -> String {
@@ -330,5 +375,81 @@ mod tests {
             .await
             .expect_err("back should also reject");
         assert_eq!(err, WizardError::ResultAlreadySubmitted);
+    }
+
+    #[tokio::test]
+    async fn navigate_without_bound_origin_fails() {
+        let (tx, _rx) = oneshot::channel();
+        let session = SessionState::new(wizard_cmd(), tx, None);
+        let err = session
+            .wizard_navigate_back(serde_json::json!({}))
+            .await
+            .expect_err("origin required");
+        assert_eq!(err, WizardError::PublicOriginNotSet);
+    }
+
+    /// Finish with a stack matching the initial page only; navigate tries to leave
+    /// that page. With an atomic finish+complete path, the outcomes are mutually
+    /// exclusive: either finish wins (`ResultAlreadySubmitted` on navigate) or
+    /// navigate wins first (`StackMismatch` on finish). Both succeeding would mean
+    /// navigate ran in the gap between result derivation and token consumption.
+    #[tokio::test]
+    async fn concurrent_navigate_and_finish_are_mutually_exclusive() {
+        let page_a = WizardPageDescriptor {
+            id: WizardPageId::new("a"),
+            title: WizardPageTitle::new("a"),
+            html: WizardPageHtml::new("pages/a.html"),
+            layout: None,
+        };
+        let page_b = WizardPageDescriptor {
+            id: WizardPageId::new("b"),
+            title: WizardPageTitle::new("b"),
+            html: WizardPageHtml::new("pages/b.html"),
+            layout: None,
+        };
+        let finish_data = serde_json::json!({});
+        let finish_stack = vec![WizardStackEntry {
+            page: page_a,
+            data: finish_data.clone(),
+        }];
+
+        for _ in 0..200 {
+            let (tx, _rx) = oneshot::channel();
+            let session = SessionState::new(wizard_cmd(), tx, None);
+            session.set_public_origin("http://127.0.0.1:9".into()).await;
+
+            let session_finish = session.clone();
+            let session_nav = session.clone();
+            let stack = finish_stack.clone();
+            let data = finish_data.clone();
+            let next = page_b.clone();
+
+            let (finish_res, nav_res) = tokio::join!(
+                async move {
+                    session_finish
+                        .wizard_finish(WizardTerminalButton::Finish, data, stack)
+                        .await
+                },
+                async move {
+                    session_nav
+                        .wizard_navigate_next(serde_json::json!({}), next)
+                        .await
+                }
+            );
+
+            match (finish_res, nav_res) {
+                (Ok(Some(_)), Err(WizardError::ResultAlreadySubmitted)) => {}
+                (Err(WizardError::StackMismatch { .. }), Ok(_)) => {}
+                (Ok(Some(_)), Ok(_)) => {
+                    panic!(
+                        "navigate must not succeed alongside successful finish \
+                         (QA-001 race between derive and token take)"
+                    );
+                }
+                (finish, nav) => {
+                    panic!("unexpected concurrent outcomes: finish={finish:?} nav={nav:?}");
+                }
+            }
+        }
     }
 }

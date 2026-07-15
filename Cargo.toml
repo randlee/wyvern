@@ -41,7 +41,7 @@ strsim = "0.11"
 tokio = { version = "1", features = ["full"] }
 axum = { version = "0.8", features = ["json"] }
 tower = "0.5"
-tower-http = { version = "0.6", features = ["fs", "limit"] }
+tower-http = { version = "0.6", features = ["fs", "limit", "timeout", "trace", "request-id"] }
 tracing = "0.1"
 http-body-util = "0.1"
 

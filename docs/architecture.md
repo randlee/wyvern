@@ -66,7 +66,7 @@ Host stores and passes through page `data` without inspection. Domain branching 
 
 ### ADR-0007: Single `WizardSession` type hides history internals
 
-**Status:** Accepted (planning — Phase D d.1)
+**Status:** Accepted — implemented (Phase D d.1–d.2)
 
 `wyvern-wizard` exposes one concrete `WizardSession`; private `history` holds `entries` + `cursor`. `wyvern-host` holds the session and serializes `snapshot()`. Full text: [docs/wyvern-wizard/architecture.md](wyvern-wizard/architecture.md).
 

@@ -14,7 +14,6 @@
 
 use std::process::ExitCode;
 
-mod platform;
 mod run;
 
 fn main() -> ExitCode {
