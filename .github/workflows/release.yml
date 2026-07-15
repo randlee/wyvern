@@ -22,6 +22,21 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      # wyvern-viewer (wry) verify during cargo publish needs GTK/Wayland on Linux.
+      - name: Install Linux build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwayland-dev \
+            pkg-config \
+            libwebkit2gtk-4.1-dev \
+            libxkbcommon-x11-0 \
+            libgl1-mesa-dri \
+            mesa-utils \
+            at-spi2-core \
+            dbus-x11 \
+            xvfb
+
       - name: Resolve release version from tag
         id: meta
         shell: bash
@@ -39,6 +54,7 @@ jobs:
         shell: bash
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          PKG_CONFIG_PATH: /usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig
         run: |
           set -euo pipefail
           version='${{ steps.meta.outputs.release_version }}'
@@ -216,4 +232,4 @@ jobs:
           identifier: randlee.wyvern
           installers-regex: '^wyvern-windows\.zip$'
           release-tag: ${{ github.ref_name }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.WINGET_GITHUB_TOKEN }}
