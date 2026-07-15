@@ -31,7 +31,7 @@ Serve wizard pages over HTTP and expose initial wizard state. **d.1 owns `GET /a
 **Validation rules (REQ-0017, REQ-0042, REQ-0026):**
 
 - `type` must be `"wizard"`
-- `page` required: non-empty `id`, `title`, `html` (relative path under `ui_root` or absolute under command root)
+- `page` required: non-empty `id`, `title`, `html`; optional `layout` ∈ `dialog|workspace` (default `dialog`) — graph/Flowise pages use `workspace` per [viewport-sizing.md](viewport-sizing.md)
 - `config` optional; default `{}`
 - `width` / `height` optional `u32`; when present, `width >= 320`, `height >= 200`, `width <= 800`, `height <= 600` (REQ-0041 wizard override)
 - Reject unknown top-level keys (same policy as other dialog types)

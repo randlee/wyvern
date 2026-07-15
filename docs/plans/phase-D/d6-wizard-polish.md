@@ -37,11 +37,11 @@ Authority: [viewport-sizing.md](viewport-sizing.md), ADR-0020.
 - Measure before `visibility: visible`; remeasure on `fonts.ready` + `ResizeObserver`.
 - Overflow → `.content { overflow: auto }` inside clamped window.
 
-**Workspace mode (`config.layout === "workspace"`):**
+**Workspace mode (`page.layout === "workspace"` or `config.layout`):**
 
-- Prefer `width`/`height` on command, else `config.estimated_size`, else normalize `config.flowise.estimated_*`.
-- Clamp hints to viewport; fill viewport when hints omitted (full-screen DAG).
-- Skip compact `COMFORT_MAX_W` measure path.
+- Wizard graph/DAG/Flowise pages only — same `/api/wizard/*` session.
+- Prefer command `width`/`height`, else `config.estimated_size`, else normalize `config.flowise.estimated_*`.
+- Expose `page.layout` in `GET /api/wizard/state` for `applyWizardLayout()`.
 
 ### Shared wizard chrome (`ui/wizard/` — new packaged templates)
 

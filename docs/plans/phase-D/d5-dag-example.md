@@ -10,7 +10,9 @@ target: integrate/phase-D
 
 ## Goal
 
-Ship the phase smoke example: layout-picker DAG with branching agent pages.
+Ship the phase smoke example: layout-picker DAG with branching agent pages, plus a **wizard graph page** demonstrating workspace layout (Flowise-style hints).
+
+DAG branching and graph editing are **wizard pages** in one `type: wizard` flow — not a separate Wyvern dialog type.
 
 ## Hard dependencies
 
@@ -31,16 +33,18 @@ Exact paths (authoritative):
 | `examples/wizards/workspace-hint/` | **new** — minimal workspace page proving `config.layout` + Flowise-style hints |
 | `crates/wyvern-host/tests/wizard_layout_picker.rs` | **new** — HTTP integration against fixture |
 
-### Workspace size hints (Flowise / Flowwise-style)
+### Workspace size hints (Flowise — wizard graph page)
 
-Small DAG/graph surfaces may not be full-screen. External tools (e.g. Flowise) can supply bounds Wyvern does not compute.
+DAG/graph/Flowise surfaces are **wizard pages**: served under `/wizard/**`, sized via [viewport-sizing.md](viewport-sizing.md) `layout: workspace`, navigated with `wyvernWizardNext` / `wyvernWizardFinish`.
+
+Small graphs may not be full-screen. Flowise (or the agent) supplies bounds in wizard `config`; the graph HTML page embeds the editor.
 
 **d.5 proves the wire shape** in `examples/wizards/workspace-hint/wizard.json`:
 
 ```json
 {
   "type": "wizard",
-  "page": { "id": "graph", "title": "Flow", "html": "pages/graph.html" },
+  "page": { "id": "graph", "title": "Flow", "html": "pages/graph.html", "layout": "workspace" },
   "config": {
     "layout": "workspace",
     "estimated_size": { "width": 960, "height": 640 },

@@ -1,25 +1,38 @@
 # Viewport sizing policy (Phase D)
 
-Authority for embedded viewer auto-size and wizard **workspace** layouts. Implements product rule: **fit on screen when possible; ~25% slack is fine; scroll only when content exceeds the display.**
+Authority for embedded viewer auto-size on **wizard pages** and blocking dialogs. Implements product rule: **fit on screen when possible; ~25% slack is fine; scroll only when content exceeds the display.**
 
-Applies to blocking dialogs (all types) and wizard pages. Owned primarily by **d.6**; **d.5** proves workspace + external size hints.
+**DAG / graph / Flowise UIs are wizard pages** — same `type: wizard` session, `/wizard/**` HTML, `/api/wizard/*` routes. Not a separate dialog type. A wizard may alternate form steps and full graph-editor steps in one flow.
 
-Related: [http-viewer-contract.md](../phase-C/http-viewer-contract.md), REQ-V008, ADR-0020 (principal `docs/architecture.md`).
+Owned primarily by **d.6**; **d.5** proves DAG + workspace hints inside wizard examples.
 
----
-
-## Two layout modes
-
-| Mode | When | Sizing behaviour |
-|------|------|------------------|
-| **`dialog`** (default) | message, input, markdown, question, wizard form steps | Intrinsic DOM measure + slack → viewport clamp → internal scroll if needed |
-| **`workspace`** | DAG/graph editors (Flowise, Flowwise-style), full canvas pages | Use available viewport **or** author/tool size hints; no compact-dialog caps |
-
-Pages declare mode via JSON (see below). Host passes hints through opaque `config`; host does not interpret graph semantics (ADR-0006).
+Related: [http-wizard-contract.md](../phase-C/http-wizard-contract.md), [http-viewer-contract.md](../phase-C/http-viewer-contract.md), REQ-V008, ADR-0020.
 
 ---
 
-## Dialog mode (default)
+## Two layout modes (per wizard page)
+
+| Mode | Wizard use | Blocking dialog use |
+|------|------------|-------------------|
+| **`dialog`** (default) | Form steps, cards, summaries | message, input, markdown, question |
+| **`workspace`** | DAG/graph/Flowise canvas pages | — (wizard only in Phase D) |
+
+Layout is declared per page (preferred) or wizard-wide default in `config`:
+
+```json
+{
+  "page": { "id": "flow-editor", "title": "Edit flow", "html": "pages/graph.html", "layout": "workspace" },
+  "config": { "layout": "dialog", "flowise": { "estimated_width": 1200, "estimated_height": 800 } }
+}
+```
+
+- `page.layout` wins for that step; else `config.layout`; else `dialog`.
+- Host exposes `layout` and hints in `GET /api/wizard/state` (d.6); host does not interpret graph semantics (ADR-0006).
+- Graph page JS may embed Flowise (or similar); navigation out uses `wyvernWizardNext` / `wyvernWizardFinish` like any wizard page.
+
+---
+
+## Dialog layout mode (default)
 
 1. Measure content at natural width (no artificial wrap cap during measure).
 2. Apply slack: `w = ceil(contentW × 1.25)`, `h = ceil(contentH × 1.25)` (20–30% oversize acceptable).
@@ -30,25 +43,34 @@ Pages declare mode via JSON (see below). Host passes hints through opaque `confi
 
 **No fixed pixel tiers** (no “always 480px”). Works on laptop and 8K — caps are viewport-relative.
 
+Blocking dialogs (non-wizard) use the same dialog-mode policy via existing `wyvern-api.js` paths.
+
 ---
 
-## Workspace mode
+## Workspace layout mode (wizard graph pages)
 
-For graph/DAG UIs that may be full-screen or tool-estimated:
+For DAG/graph/Flowise steps inside a wizard — full-screen or tool-estimated:
 
 | Source | Priority |
 |--------|----------|
-| Explicit `width` / `height` on command (wizard or dialog JSON) | 1 — use if both set |
-| `config.layout === "workspace"` + `config.estimated_size` | 2 — see wire shape below |
-| `config.flowise` / `config.flowwise` size hints (optional) | 3 — same shape as `estimated_size` |
-| Default | Fill available viewport (work area) |
+| Explicit `width` / `height` on wizard command | 1 — session default if both set |
+| `page.layout === "workspace"` + page or `config.estimated_size` | 2 |
+| `config.flowise` / `config.flowwise` size hints | 3 — normalized in page bootstrap |
+| Default for workspace page | Fill available viewport (work area) |
 
 ### `estimated_size` wire shape (authoritative)
 
 ```json
 {
+  "type": "wizard",
+  "page": {
+    "id": "flow-editor",
+    "title": "Edit flow",
+    "html": "pages/graph.html",
+    "layout": "workspace"
+  },
   "config": {
-    "layout": "workspace",
+    "layout": "dialog",
     "estimated_size": { "width": 1200, "height": 800 },
     "flowise": {
       "estimated_width": 1200,
@@ -58,15 +80,15 @@ For graph/DAG UIs that may be full-screen or tool-estimated:
 }
 ```
 
-- Flowise (or similar) may emit `estimated_width` / `estimated_height` when it knows graph bounds.
-- Wyvern normalizes to `estimated_size` in page bootstrap (`wyvern-api.js`); host does not validate graph math.
-- Small workspace: use hints when provided; clamp to viewport like dialog mode.
-- Large workspace: hints may exceed viewport → window at viewport max; page handles pan/zoom/scroll internally.
+- Flowise may emit `estimated_width` / `estimated_height` when it knows graph bounds; page or agent places them in wizard `config`.
+- Wyvern normalizes to `estimated_size` in `window.wyvern` bootstrap (`wyvern-api.js`); host passes through opaque JSON.
+- Small graph: use hints when provided; clamp to viewport.
+- Large graph: hints may exceed viewport → window at viewport max; **page** handles pan/zoom/scroll (Flowise canvas).
 
 ### CSS
 
-- Template class: `dialog--workspace` — `width/height: 100%` of viewer, internal canvas scroll/pan.
-- Full-screen Flowise embed: page fills viewer; no `measurePage()` compact path.
+- Wizard graph pages use `dialog--workspace` on the page root — fills viewer; internal canvas controls sizing.
+- Dismiss/finish/stack behaviour unchanged — still wizard HTTP contract.
 
 ---
 
@@ -74,13 +96,14 @@ For graph/DAG UIs that may be full-screen or tool-estimated:
 
 **d.6 deliverable:** viewer sends available bounds before first paint (IPC `bounds:WxH` or query `?viewport=WxH`).
 
-Page uses bounds in `WyvernApi.applySizingPolicy(payload, viewport)`:
+Wizard pages call `WyvernApi.applyWizardLayout(state, viewport)` (wraps sizing policy):
 
 ```javascript
-// Pseudocode — implemented in wyvern-api.js (d.6)
-applySizingPolicy(payload, viewport) {
-  if (payload.config?.layout === "workspace") return applyWorkspaceLayout(payload, viewport);
-  return applyDialogFitWithSlack(measurePage(), viewport, SLACK = 1.25);
+// Pseudocode — wyvern-api.js (d.6); called after GET /api/wizard/state
+function layoutForWizardPage(state, viewport) {
+  var layout = state.page.layout || state.config.layout || "dialog";
+  if (layout === "workspace") return applyWorkspaceLayout(state, viewport);
+  return applyDialogFitWithSlack(measurePage(), viewport, 1.25);
 }
 ```
 
@@ -90,16 +113,16 @@ applySizingPolicy(payload, viewport) {
 
 | Work | Sprint |
 |------|--------|
-| `viewport-sizing.md` policy (this doc) | plan hardening |
-| Workspace example page + Flowise-shaped `config` in layout-picker or sibling example | **d.5** |
-| `wyvern-api.js` slack + viewport clamp; viewer hidden-until-sized; `dialog--workspace`; bounds IPC | **d.6** |
-| Golden sizing tests (dialog fit + workspace hint) | **d.6** |
-| Optional `layout` / `estimated_size` documented in `http-wizard-contract.md` | **d.6** |
+| `viewport-sizing.md` (this doc) | plan hardening |
+| Wizard examples: layout-picker (form DAG) + workspace-hint (graph page) | **d.5** |
+| `page.layout`, state passthrough, `wyvern-api.js`, viewer bounds IPC | **d.6** |
+| `http-wizard-contract.md` — wizard page `layout`, Flowise hints | **d.6** |
+| Golden L2: form wizard step + graph wizard step in one flow | **d.5–d.6** |
 
 ---
 
 ## Non-goals (Phase D)
 
-- Rust-side `CHAR_W` heuristics (deleted with `wyvern-window`)
-- Third-party JS text-metrics libraries
-- Flowise runtime integration (only **size hint** wire shape; tool emits JSON Wyvern consumes)
+- Separate `type: flowise` or non-wizard host session for graphs
+- Rust-side `CHAR_W` heuristics
+- Live Flowise server API (hint JSON + embedded page only)

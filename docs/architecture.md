@@ -111,13 +111,13 @@ Boundary rules are encoded in `boundaries/` and enforced in CI.
 
 **Decision:**
 
-1. **Dialog mode (default):** intrinsic DOM measure + ~25% slack → clamp to available viewport → internal scroll on overflow. No fixed compact widths during measure.
-2. **Workspace mode:** `config.layout: "workspace"`; size from command `width`/`height`, `config.estimated_size`, or tool hints (`config.flowise.estimated_*`); clamp to viewport; page owns pan/zoom.
+1. **Dialog layout (default):** intrinsic DOM measure + ~25% slack → clamp to available viewport → internal scroll on overflow. Used for wizard form steps and blocking dialogs.
+2. **Workspace layout:** wizard **pages only** — `page.layout: "workspace"` or `config.layout`; DAG/graph/Flowise canvases stay inside `type: wizard` (`/wizard/**`, `/api/wizard/*`). Size from command `width`/`height`, `estimated_size`, or `config.flowise.*`; clamp to viewport.
 3. Viewer hidden until first valid resize; passes viewport bounds to page.
 
 Full policy: [docs/plans/phase-D/viewport-sizing.md](plans/phase-D/viewport-sizing.md).
 
-**Consequences:** Applies to all dialog types via `wyvern-api.js`, not only wizard. Phase D d.6 implements; d.5 proves workspace hint wire shape.
+**Consequences:** No separate graph dialog type. Multi-step wizards may mix dialog and workspace pages. d.5 examples; d.6 implements sizing + `page.layout` in wizard state.
 
 ---
 
