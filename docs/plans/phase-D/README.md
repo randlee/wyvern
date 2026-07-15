@@ -10,11 +10,13 @@ Phase D implementation PRs target **`integrate/phase-D`**. Sprint docs (`d1`–`
 entries: [{ page, data }, ...]   // visited pages + opaque data per step
 cursor: usize                    // current index (like browser history)
 
-next(data, next_page)  → push or truncate-forward-then-push; advance cursor
-back()                 → cursor-- (forward entries kept)
-snapshot()             → { page, page_data, stack, config }  // for GET /api/wizard/state
-finish(button, …)      → terminal result; session ends
+navigate_next(data, next_page) → push or truncate-forward-then-push; advance cursor
+navigate_back(data)              → cursor-- (forward entries kept)
+snapshot()                       → { page, page_data, stack, config }  // for GET /api/wizard/state
+finish(button, …)                → terminal result; session ends
 ```
+
+> **Pseudocode above.** Normative public API names: `navigate_next`, `navigate_back`, `finish`, `snapshot` (ADR-0007). See [d2-wizard-ipc.md](d2-wizard-ipc.md) for signatures.
 
 | Layer | Responsibility |
 |-------|----------------|
@@ -31,7 +33,7 @@ Host does not interpret `data`. Pages do not touch the cursor. **DAG branching i
 | Rust (`wyvern-wizard` + `wyvern-host`) | HTML/JS (wizard pages) |
 |----------------------------------------|------------------------|
 | General-purpose engine: fast, low memory, reliable | Infinitely expandable per use case |
-| `WizardSession`: `entries` + `cursor`; `next` / `back` / `finish` / `snapshot` | Branching, DAG UI, custom forms, graph canvases, Flowise embeds |
+| `WizardSession`: `entries` + `cursor`; `navigate_next` / `navigate_back` / `finish` / `snapshot` | Branching, DAG UI, custom forms, graph canvases, Flowise embeds |
 | HTTP glue only — serve HTML, call session, return JSON | Opaque `data`; domain logic and `next` page choice in page JS |
 
 Wyvern does **not** interpret page `data`, graph semantics, or tool-specific `config` keys in Rust. d.5 HTML examples may illustrate DAG branching or a Flowise embed — page author concern only.
@@ -53,9 +55,9 @@ Multi-page wizards: navigate, back, restore data, return final `stack` JSON.
 | Sprint | Adds to the stack model | Not a new subsystem |
 |--------|-------------------------|---------------------|
 | **d.1** | Schema + `GET /api/wizard/state` + static HTML + `WizardSession::new` / `snapshot` | |
-| **d.2** | `POST navigate` / `finish` + `next` / `back` / `finish` on session + `wyvern-api.js` | |
-| **d.3** | ADR-0005 edge-case **tests** (four history cases) — same `BrowserHistory` | ✓ tests only |
-| **d.4** | `window.wyvern` bootstrap from `snapshot` + stack round-trip **tests** | ✓ tests + JS |
+| **d.2** | `POST navigate` / `finish` + `navigate_next` / `navigate_back` / `finish` + `wyvern-api.js` bootstrap | |
+| **d.3** | ADR-0005 edge-case **tests** (four history cases) — same private `history.rs` | ✓ tests only |
+| **d.4** | `window.wyvern` bootstrap **round-trip tests** | ✓ tests only |
 | **d.5** | HTML **examples** exercising the stack | ✓ examples |
 | **d.6** | UX polish, viewer dismiss, viewport sizing ([viewport-sizing.md](viewport-sizing.md)) | orthogonal to stack |
 

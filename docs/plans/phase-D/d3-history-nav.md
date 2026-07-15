@@ -14,7 +14,7 @@ Lock ADR-0005 behaviour with the four canonical tests. **No new routes, traits, 
 
 ## Hard dependencies
 
-- **d.2** merged (full `BrowserHistory` in `WizardSession`)
+- **d.2** merged (full `WizardSession` history behaviour — private `history.rs` module, ADR-0007)
 
 ## Deliverables
 
@@ -47,8 +47,8 @@ cargo test -p wyvern-host wizard_history
 
 ## Non-closure
 
-- Page JS bootstrap (d.4), examples (d.5), polish (d.6)
+- Bootstrap round-trip tests (d.4), examples (d.5), polish (d.6)
 
 ## Authority
 
-- ADR-0005, REQ-0020–0023
+- ADR-0005, ADR-0007, REQ-0020–0023

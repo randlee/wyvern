@@ -345,17 +345,38 @@ pub struct WizardStackEntry {
 }
 
 /// Wizard command ingress — validated in d.1.
+/// Static HTML paths resolve from `page.html` relative to `--ui-root` (no separate `page_html` field).
 pub struct WizardCommand {
     #[serde(rename = "type")]
     pub type_name: &'static str, // "wizard"
     pub page: WizardPageDescriptor,
     #[serde(default)]
     pub config: serde_json::Value,
-    pub page_html: String,       // root HTML path under ui_root
     #[serde(skip_serializing_if = "Option::is_none")]
     pub width: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub height: Option<u32>,
+}
+
+/// GET /api/wizard/state shape — `stack` = prior entries only (REQ-0024).
+pub struct WizardSnapshot {
+    pub config: serde_json::Value,
+    pub page: WizardPageDescriptor,
+    pub page_data: serde_json::Value,
+    pub stack: Vec<WizardStackEntry>,
+}
+
+/// Host uses this after navigate to build response URL + state refresh.
+pub struct NavigateOutcome {
+    pub page: WizardPageDescriptor,
+    pub page_data: serde_json::Value,
+    pub stack: Vec<WizardStackEntry>,
+}
+
+pub enum WizardError {
+    AtFirstPage,
+    InvalidCommand(String),
+    StackMismatch,
 }
 
 /// Wizard stdout — POST /api/wizard/finish body matches this.

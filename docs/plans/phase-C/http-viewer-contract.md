@@ -162,7 +162,10 @@ When the user closes the OS window without clicking a dialog button, the host mu
 
 **Locked protocol (c.15):**
 
-1. **`wyvern-viewer`** registers a close handler. On window close, POST `{ "button": "dismissed" }` to `POST /api/result` (or wizard `POST /api/wizard/finish` with dismissed shape when on a wizard page) **before** process exit.
+1. **`wyvern-viewer`** registers a close handler. On wizard session close:
+   - `GET /api/wizard/state` → read `stack`
+   - `POST /api/wizard/finish` with `{ "button": "dismissed", "data": {}, "stack": <from state> }` **before** process exit
+   - On blocking dialog: `POST /api/result` with `{ "button": "dismissed" }` only
 2. **`wyvern` CLI** watches the viewer child process. If the child exits without the host having received a result:
    - **One-shot:** call `DialogHandle::viewer_exited_without_result()` (in-process — see [HTTP-TYPES.md](HTTP-TYPES.md)).
    - **Persistent (`--interactive` / `--mcp`):** CLI posts `{ "button": "dismissed" }` to `POST /api/result` via localhost HTTP client.

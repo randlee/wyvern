@@ -50,7 +50,7 @@ Wyvern should solve the product with the fewest command shapes that preserve cle
 
 ### ADR-0005: Wizard navigation uses browser-history model
 
-**Status:** Accepted — implementation Phase D (d.3)
+**Status:** Accepted — implementation d.2; regression tests d.3
 
 Cursor-over-array model: back moves cursor without discarding forward entries; forward to the same page restores cached data; forward to a different page truncates stale forward history. Full text: [docs/wyvern-wizard/architecture.md](wyvern-wizard/architecture.md).
 

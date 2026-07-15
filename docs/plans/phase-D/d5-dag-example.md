@@ -28,9 +28,11 @@ Exact paths (authoritative):
 | `examples/wizards/layout-picker/pages/finish.html` | Optional summary page before finish |
 | `examples/wizards/layout-picker/app.js` | DAG branching via `wyvernWizardNext` + explicit `next` descriptors |
 | `examples/wizards/layout-picker/styles.css` | Layout card grid |
-| `examples/wizards/workspace-hint/` | **new** — example HTML page with `layout: workspace` + sample `estimated_size` in config |
+| `examples/wizards/workspace-hint/wizard.json` | Workspace fixture (`page.layout: workspace` + `estimated_size`) |
+| `examples/wizards/workspace-hint/pages/editor.html` | Minimal canvas placeholder |
 | `crates/wyvern-host/tests/wizard_layout_picker.rs` | HTTP integration against layout-picker fixture |
 | `crates/wyvern-host/tests/wizard_workspace_hint.rs` | HTTP integration against workspace-hint fixture |
+| `tests/l2/wizard-layout-picker.spec.ts` | L2 end-to-end layout-picker flow |
 
 ### Workspace example (HTML only)
 
@@ -99,7 +101,7 @@ Domain logic stays in JS — host/wizard only store opaque `data` blobs (ADR-000
 6. `POST /api/wizard/finish` returns full stack with layout selection + all agent configs
 7. Phase D smoke: full flow with back-navigation and data restoration (select pair → agent-1 → back → change to solo → complete)
 8. `cargo test -p wyvern-host wizard_layout_picker` passes without a GUI
-9. `workspace-hint` example: `page.layout: "workspace"` + opaque `estimated_size` in config renders without manual resize
+9. `workspace-hint` fixture: `GET /api/wizard/state` echoes `page.layout: "workspace"` + opaque `config.estimated_size`; page loads at `/wizard/pages/editor.html` (wire-shape only — no viewport-clamp assertion)
 
 ## Required validation
 
@@ -108,15 +110,16 @@ cargo build --workspace
 cargo clippy --workspace -- -D warnings
 cargo test -p wyvern-host wizard_layout_picker
 cargo test -p wyvern-host wizard_workspace_hint
-# L2: examples/wizards/layout-picker end-to-end --viewer none
+# L2: layout-picker end-to-end --viewer none (headless wire-shape)
 wyvern "$(cat examples/wizards/layout-picker/wizard.json)" --viewer none --ui-root examples/wizards/layout-picker
-wyvern "$(cat examples/wizards/workspace-hint/wizard.json)" --viewer embedded --ui-root examples/wizards/workspace-hint
+wyvern "$(cat examples/wizards/workspace-hint/wizard.json)" --viewer none --ui-root examples/wizards/workspace-hint
 npx playwright test tests/l2/wizard-layout-picker.spec.ts
 ```
 
 ## Non-closure
 
 - Viewport slack sizing implementation in `wyvern-api.js` / viewer (d.6)
+- Workspace-hint embedded viewer sizing / no-manual-resize (d.6)
 - Wizard polish and edge cases (d.6)
 
 ## Authority

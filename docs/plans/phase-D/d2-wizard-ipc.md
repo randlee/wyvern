@@ -10,7 +10,7 @@ target: integrate/phase-D
 
 ## Goal
 
-Complete the stack: `next`, `back`, `finish` on `WizardSession` plus HTTP routes and page JS helpers. **Ship full ADR-0005 browser history here** — not a stub for d.3 to replace.
+Complete the stack: `navigate_next`, `navigate_back`, `finish` on `WizardSession` plus HTTP routes and page JS helpers. **Ship full ADR-0005 browser history here** — not a stub for d.3 to replace.
 
 ## Hard dependencies
 
@@ -23,6 +23,13 @@ Complete the stack: `next`, `back`, `finish` on `WizardSession` plus HTTP routes
 Extend `WizardSession` (same type as d.1):
 
 ```rust
+/// Host uses this to build navigate response URL + state refresh.
+pub struct NavigateOutcome {
+    pub page: WizardPageDescriptor,
+    pub page_data: serde_json::Value,
+    pub stack: Vec<WizardStackEntry>, // entries[0..cursor], prior only
+}
+
 impl WizardSession {
     pub fn navigate_next(&mut self, data: Value, next: WizardPageDescriptor) -> Result<NavigateOutcome, WizardError>;
     pub fn navigate_back(&mut self, data: Value) -> Result<NavigateOutcome, WizardError>;
@@ -30,26 +37,44 @@ impl WizardSession {
 }
 ```
 
-`history.rs` implements ADR-0005 (cursor, truncate on branch, restore on forward-same-page). `snapshot()` derives `page`, `page_data`, `stack` from `entries` + `cursor` — **d.4 only adds tests for this, not new logic**.
+**`snapshot()` derivation (normative — REQ-0024):**
+
+```rust
+// cursor indexes current entry; stack = prior entries only
+let page = entries[cursor].page.clone();
+let page_data = entries[cursor].data.clone();
+let stack: Vec<_> = entries[0..cursor]
+    .iter()
+    .map(|e| WizardStackEntry { page: e.page.clone(), data: e.data.clone() })
+    .collect();
+```
+
+`history.rs` implements ADR-0005 (cursor, truncate on branch, restore on forward-same-page).
+
+**`navigate_back` at cursor=0:** returns `WizardError::AtFirstPage` → host maps to HTTP **400** (no silent no-op).
+
+**Finish stack authority:** host reconstructs authoritative `stack` from session `entries` on `POST /api/wizard/finish`. Client-supplied `stack` is validated against session-derived entries; mismatch → **400**. Page JS may assemble `stack` for convenience; host is authoritative for stdout `WizardResult`.
 
 ### Host (`wyvern-host`)
 
 - `POST /api/wizard/navigate` → `navigate_next` / `navigate_back`
 - `POST /api/wizard/finish` → `finish`; stdout = body
-- `tests/wizard_navigate.rs`, `tests/wizard_finish.rs`
+- `tests/wizard_navigate.rs`, `tests/wizard_finish.rs` (include finish-stack validation + cursor=0 back → 400)
 
 ### UI (`ui/shared/wyvern-api.js`)
 
 - `wyvernWizardState`, `wyvernWizardNext`, `wyvernWizardBack`, `wyvernWizardFinish`
-- Bootstrap `window.wyvern` from `GET /api/wizard/state` (expanded in d.4)
+- **Production bootstrap:** on load, `GET /api/wizard/state` sets `window.wyvern.{config,page,page_data,stack}` (d.4 adds round-trip tests only — no new bootstrap logic)
 
 ## Acceptance criteria
 
-1. `next` / `back` / `finish` work over HTTP
+1. `navigate_next` / `navigate_back` / `finish` work over HTTP
 2. `cancel` only via `/finish`; `navigate` + `cancel` → 400
 3. Back keeps forward entries (ADR-0005)
 4. Branch forward truncates stale entries
-5. Prior dialogs + d.1 regression pass
+5. `navigate_back` at cursor=0 → HTTP 400 (`AtFirstPage`)
+6. Finish validates client `stack` against session entries; mismatch → 400
+7. Prior dialogs + d.1 regression pass
 
 ## Required validation
 
@@ -61,9 +86,9 @@ cargo test -p wyvern-host wizard_navigate wizard_finish
 ## Non-closure
 
 - Four-case history test matrix formalized (d.3)
-- `window.wyvern.stack` bootstrap docs (d.4)
+- Bootstrap round-trip tests (d.4)
 - Examples (d.5), polish/sizing (d.6)
 
 ## Authority
 
-- [http-wizard-contract.md](../phase-C/http-wizard-contract.md), ADR-0005, REQ-0020–0025
+- [http-wizard-contract.md](../phase-C/http-wizard-contract.md), ADR-0005, ADR-0007, REQ-0020–0025

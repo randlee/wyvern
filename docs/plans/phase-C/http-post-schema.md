@@ -280,16 +280,31 @@ Wizard uses **navigation + finish** routes — not a single `POST /api/result` p
 
 ### Host → page (`GET /api/wizard/state`)
 
+Initial load (`cursor=0`):
+
 ```json
 {
   "type": "wizard",
   "page": { "id": "start", "title": "...", "html": "pages/start.html" },
   "page_data": {},
+  "stack": []
+}
+```
+
+After navigate to step-2 (`cursor=1`):
+
+```json
+{
+  "type": "wizard",
+  "page": { "id": "step-2", "title": "...", "html": "pages/step-2.html" },
+  "page_data": { "choice": "layout-a" },
   "stack": [
     { "page": { "id": "start", ... }, "data": { "choice": "a" } }
   ]
 }
 ```
+
+`stack` = prior entries only (REQ-0024); current page via `page` + `page_data`.
 
 ### Page → host — navigation (non-terminal)
 

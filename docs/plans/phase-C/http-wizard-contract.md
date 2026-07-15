@@ -34,7 +34,7 @@ Static assets: `GET /wizard/**` maps under wizard HTML directory from command `p
 
 ## `GET /api/wizard/state`
 
-**Response:**
+**Response (initial load — cursor=0):**
 
 ```json
 {
@@ -46,6 +46,24 @@ Static assets: `GET /wizard/**` maps under wizard HTML directory from command `p
     "html": "pages/start.html"
   },
   "page_data": {},
+  "stack": [],
+  "width": 640,
+  "height": 480
+}
+```
+
+**Response (after navigating to step-2 — cursor=1):**
+
+```json
+{
+  "type": "wizard",
+  "config": { "theme": "dark" },
+  "page": {
+    "id": "step-2",
+    "title": "Step 2",
+    "html": "pages/step-2.html"
+  },
+  "page_data": { "choice": "layout-a" },
   "stack": [
     {
       "page": { "id": "start", "title": "Start", "html": "pages/start.html" },
@@ -58,7 +76,7 @@ Static assets: `GET /wizard/**` maps under wizard HTML directory from command `p
 ```
 
 - `config` → available to JS as `window.wyvern.config` (set in page bootstrap from this payload).
-- `stack` — full history per ADR-0005 / REQ-0024.
+- `stack` — **prior entries only** per REQ-0024 / ADR-0005: `entries[0..cursor]`, exclusive of current page (current via `page` + `page_data`).
 - `width` / `height` — optional from command; viewer uses when `--viewer embedded`.
 
 ---
@@ -131,15 +149,21 @@ Host updates history cursor; viewer navigates to `url` (or full page reload).
 }
 ```
 
-**Dismissed:**
+**Dismissed (viewer OS-close — d.6):**
+
+Viewer algorithm: `GET /api/wizard/state` → read `stack` → `POST /api/wizard/finish`:
 
 ```json
 {
   "button": "dismissed",
   "data": {},
-  "stack": []
+  "stack": [
+    { "page": { "id": "start" }, "data": { "choice": "a" } }
+  ]
 }
 ```
+
+Host validates client `stack` against session-derived entries; mismatch → **400**.
 
 **Stdout:** identical body. Host shuts down session (one-shot) or returns to interactive loop (Phase E).
 

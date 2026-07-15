@@ -10,32 +10,33 @@ target: integrate/phase-D
 
 ## Goal
 
-Pages read `window.wyvern` from `snapshot()` on load. **Verify** `stack` / `page_data` round-trip — no new stack logic (already in d.2 `snapshot()`).
+Verify `window.wyvern` bootstrap and `stack` / `page_data` round-trip via tests — **no new stack logic or JS production changes** (bootstrap shipped in d.2).
 
 ## Hard dependencies
 
 - **d.3** merged
 
-## Snapshot fields (reference)
+## Snapshot fields (reference — normative, REQ-0024)
 
 | Field | From stack |
 |-------|------------|
 | `page` | `entries[cursor].page` |
 | `page_data` | `entries[cursor].data` |
-| `stack` | `entries[0..=cursor]` as `{page, data}` |
+| `stack` | `entries[0..cursor]` as `{page, data}` — **prior entries only**, excludes current |
 
 ## Deliverables
 
 | File | Change |
 |------|--------|
-| `ui/shared/wyvern-api.js` | Document + ensure bootstrap sets `window.wyvern.{config,page,page_data,stack}` |
 | `crates/wyvern-wizard/tests/stack_restore.rs` | Round-trip / restore tests |
-| `crates/wyvern-host/tests/wizard_stack.rs` | HTTP multi-step + state GET |
+| `crates/wyvern-host/tests/wizard_stack.rs` | HTTP multi-step + state GET asserts bootstrap fields |
+
+**No JS production changes in d.4.** Assert `window.wyvern.{config,page,page_data,stack}` via host/wizard integration tests against d.2 `wyvern-api.js` bootstrap.
 
 ## Acceptance criteria
 
 1. `page_data` restored after back/forward
-2. `stack` includes prior steps after `next`
+2. `stack` contains prior steps only after `navigate_next` (current page via `page` + `page_data`, not in `stack`)
 3. JSON round-trip loses no opaque keys
 4. REQ-0024 satisfied via HTTP (not IPC)
 
@@ -52,4 +53,4 @@ cargo test -p wyvern-host wizard_stack
 
 ## Authority
 
-- REQ-0024, NFR-0008
+- REQ-0024, NFR-0008, ADR-0007
