@@ -5,7 +5,7 @@ schema_version = 1
 #   wyvern-wizard → wyvern-schema
 #   wyvern-host   → wyvern-schema
 #   wyvern-viewer → (no internal deps — pure wry/winit binary)
-#   wyvern        → wyvern-schema, wyvern-host
+#   wyvern-cli    → wyvern-schema, wyvern-host (crates.io name; binary remains `wyvern`)
 
 [[crates]]
 artifact              = "wyvern-schema"
@@ -53,7 +53,7 @@ verify_install        = true
 
 [[crates]]
 artifact              = "wyvern"
-package               = "wyvern"
+package               = "wyvern-cli"
 cargo_toml            = "crates/wyvern/Cargo.toml"
 required              = true
 publish               = true

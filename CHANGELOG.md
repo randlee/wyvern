@@ -27,7 +27,7 @@ First public release of Wyvern on the **HTTP dialog host** stack (Phase C delive
 ### Distribution
 
 - **crates.io** — publish order: `wyvern-schema` → `wyvern-wizard` → `wyvern-host` → `wyvern-viewer` → `wyvern` (see `release/publish-artifacts.toml`)
-- **cargo install** — `cargo install wyvern wyvern-viewer` (UI assets embedded via `rust-embed`; no separate `share/` tree required)
+- **cargo install** — `cargo install wyvern-cli wyvern-viewer` (installs `wyvern` + `wyvern-viewer` binaries; UI embedded via `rust-embed`)
 - **GitHub Releases** — tag-triggered matrix: macOS aarch64/x86_64, Windows x86_64, Linux x86_64; archives include `wyvern`, `wyvern-viewer`, and full `share/wyvern/ui/**`
 - **Homebrew** — `brew install randlee/tap/wyvern` (Apple Silicon tarball from GitHub Releases)
 - **winget** — `winget install randlee.wyvern` (Windows zip from GitHub Releases)

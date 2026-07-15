@@ -94,8 +94,8 @@ jobs:
             dbus-x11 \
             xvfb
 
-      - name: cargo build -p wyvern
-        run: cargo build -p wyvern
+      - name: cargo build -p wyvern-cli
+        run: cargo build -p wyvern-cli
 
       - name: Set WYVERN_BIN
         shell: bash
