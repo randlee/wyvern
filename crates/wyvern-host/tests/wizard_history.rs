@@ -71,6 +71,13 @@ fn host_options(ui_root: PathBuf, url_file: PathBuf) -> HostOptions {
     }
 }
 
+fn http_client() -> reqwest::blocking::Client {
+    reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(5))
+        .build()
+        .expect("http client")
+}
+
 fn wait_for_url_file(path: &std::path::Path) -> String {
     let start = std::time::Instant::now();
     loop {
@@ -105,7 +112,7 @@ fn wait_for_wizard_state(client: &reqwest::blocking::Client, base: &str) -> serd
     }
 }
 
-fn start_wizard() -> (DialogHandle, String, PathBuf, PathBuf) {
+fn start_wizard(client: &reqwest::blocking::Client) -> (DialogHandle, String, PathBuf, PathBuf) {
     let ui_root = write_ui_root();
     let url_file = unique_path("wyvern-wizard-hist-url");
     let handle = begin(
@@ -118,8 +125,7 @@ fn start_wizard() -> (DialogHandle, String, PathBuf, PathBuf) {
         .split_once("/wizard/")
         .map(|(b, _)| b.to_string())
         .expect("wizard path");
-    let client = reqwest::blocking::Client::new();
-    let _ = wait_for_wizard_state(&client, &base);
+    let _ = wait_for_wizard_state(client, &base);
     (handle, base, url_file, ui_root)
 }
 
@@ -141,8 +147,8 @@ fn post_navigate(
 /// and same-html/different-id truncate — asserted via `GET /api/wizard/state`.
 #[test]
 fn wizard_history_adr0005_matrix_via_state() {
-    let (handle, base, url_file, ui_root) = start_wizard();
-    let client = reqwest::blocking::Client::new();
+    let client = http_client();
+    let (handle, base, url_file, ui_root) = start_wizard(&client);
     let navigate = format!("{base}/api/wizard/navigate");
 
     // --- forward_push_advances_cursor: A→B→C ---
