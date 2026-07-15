@@ -61,17 +61,28 @@ jobs:
 
           crate_exists() {
             local crate="$1"
-            cargo search "$crate" --limit 1 | grep -F "${crate} = \"${version}\"" >/dev/null
+            curl -fsS "https://crates.io/api/v1/crates/${crate}/${version}" >/dev/null 2>&1
           }
 
           publish_if_missing() {
             local crate="$1"
             local wait_seconds="${2:-0}"
-            if crate_exists "$crate" "$version"; then
+            if crate_exists "$crate"; then
               echo "${crate} ${version} already published; skipping"
               return 0
             fi
-            cargo publish -p "$crate" --locked
+            set +e
+            output=$(cargo publish -p "$crate" --locked 2>&1)
+            status=$?
+            set -e
+            if [[ "$status" -eq 0 ]]; then
+              echo "$output"
+            elif echo "$output" | grep -q 'already exists on crates.io index'; then
+              echo "${crate} ${version} already published; skipping"
+            else
+              echo "$output" >&2
+              exit "$status"
+            fi
             if [[ "$wait_seconds" -gt 0 ]]; then
               sleep "$wait_seconds"
             fi
