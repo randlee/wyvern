@@ -1,9 +1,9 @@
 ---
 id: c.14
 title: Host + UI — chrome
-status: planning
+status: complete
 branch: feature/phase-C-c14-host-chrome
-target: integrate/phase-C
+target: integrate/phase-c-web-server
 ---
 
 # Sprint c.14 — `chrome` on HTTP host (full dialog matrix)
@@ -29,7 +29,7 @@ Close **`chrome`**; complete pre-wizard dialog matrix on HTTP host.
 1. `cargo build --workspace` + `cargo clippy --workspace -- -D warnings` green
 2. `wyvern '{"type":"chrome",...}' --viewer none` — e2e passes
 3. All five types pass headless e2e with `--viewer none`
-4. No `wyvern-window` paths remain in repo
+4. No runtime/`wyvern-window` crate paths remain (per `scripts/verify-c9-deletion.sh`); archival docs under `docs/` may retain historical references
 
 ## Required validation
 

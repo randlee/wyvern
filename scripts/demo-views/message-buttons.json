@@ -1,0 +1,6 @@
+{
+  "type": "message",
+  "title": "Buttons",
+  "message": "Three-button preset — window should widen enough for the button row.",
+  "buttons": "yes_no_cancel"
+}

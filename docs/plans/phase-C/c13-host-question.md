@@ -1,9 +1,9 @@
 ---
 id: c.13
 title: Host + UI — question
-status: planning
+status: complete
 branch: feature/phase-C-c13-host-question
-target: integrate/phase-C
+target: integrate/phase-c-web-server
 ---
 
 # Sprint c.13 — `question` on HTTP host
@@ -39,7 +39,7 @@ cargo build --workspace
 cargo clippy --workspace -- -D warnings
 cargo test -p wyvern-host
 cargo test -p wyvern
-# L2: npx playwright test tests/e2e/question.spec.ts
+# L2: cd tests/e2e && npx playwright test question.spec.ts
 ```
 
 ## Non-closure

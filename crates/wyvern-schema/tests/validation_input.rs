@@ -21,11 +21,13 @@ fn validation_input_minimal_defaults_text_and_ok_cancel() {
             multiline,
             placeholder,
             default,
+            password,
             mode,
             filter,
             multiple,
             start_path,
             buttons,
+            ..
         } => {
             assert_eq!(title.as_str(), "Name");
             assert_eq!(message, "Enter name");
@@ -35,6 +37,7 @@ fn validation_input_minimal_defaults_text_and_ok_cancel() {
             assert!(!multiline);
             assert!(placeholder.is_none());
             assert!(default.is_none());
+            assert!(!password);
             assert_eq!(mode, InputMode::Text);
             assert!(filter.is_none());
             assert!(!multiple);
@@ -194,40 +197,42 @@ fn validation_input_multiline_with_folder_fails_req0057() {
 }
 
 #[test]
-fn validation_input_placeholder_with_file_fails_req0059() {
-    let err = validate(&json!({
+fn validation_input_placeholder_with_file_passes() {
+    let cmd = validate(&json!({
         "type": "input",
         "title": "T",
         "message": "M",
         "mode": "file",
-        "placeholder": "hint"
+        "placeholder": "/path/to/file"
     }))
-    .expect_err("REQ-0059 placeholder");
-    match err {
-        ValidationError::Validation { field, message } => {
-            assert_eq!(field, "placeholder");
-            assert!(message.contains("only valid when mode is 'text'"));
+    .expect("placeholder allowed for file mode");
+    match cmd {
+        Command::Input {
+            mode, placeholder, ..
+        } => {
+            assert_eq!(mode, InputMode::File);
+            assert_eq!(placeholder.as_deref(), Some("/path/to/file"));
         }
-        other => panic!("expected Validation, got {other:?}"),
+        other => panic!("expected Input, got {other:?}"),
     }
 }
 
 #[test]
-fn validation_input_default_with_folder_fails_req0059() {
-    let err = validate(&json!({
+fn validation_input_default_with_folder_passes() {
+    let cmd = validate(&json!({
         "type": "input",
         "title": "T",
         "message": "M",
         "mode": "folder",
-        "default": "x"
+        "default": "/tmp"
     }))
-    .expect_err("REQ-0059 default");
-    match err {
-        ValidationError::Validation { field, message } => {
-            assert_eq!(field, "default");
-            assert!(message.contains("only valid when mode is 'text'"));
+    .expect("default allowed for folder mode");
+    match cmd {
+        Command::Input { mode, default, .. } => {
+            assert_eq!(mode, InputMode::Folder);
+            assert_eq!(default.as_deref(), Some("/tmp"));
         }
-        other => panic!("expected Validation, got {other:?}"),
+        other => panic!("expected Input, got {other:?}"),
     }
 }
 
@@ -396,63 +401,6 @@ fn validation_input_icon_variant_passes() {
     match cmd {
         Command::Input { icon, .. } => assert_eq!(icon.as_deref(), Some("warning:2")),
         other => panic!("expected Input, got {other:?}"),
-    }
-}
-
-#[test]
-fn validation_input_icon_unknown_named_fails() {
-    let err = validate(&json!({
-        "type": "input",
-        "title": "T",
-        "message": "M",
-        "icon": "nonexistent"
-    }))
-    .expect_err("unknown named icon");
-    match err {
-        ValidationError::Validation { field, message } => {
-            assert_eq!(field, "icon");
-            assert!(message.contains("unknown icon 'nonexistent'"));
-            assert!(message.contains("valid names:"));
-        }
-        other => panic!("unexpected {other:?}"),
-    }
-}
-
-#[test]
-fn validation_input_icon_variant_out_of_range_fails() {
-    let err = validate(&json!({
-        "type": "input",
-        "title": "T",
-        "message": "M",
-        "icon": "info:99"
-    }))
-    .expect_err("oob variant");
-    match err {
-        ValidationError::Validation { field, message } => {
-            assert_eq!(field, "icon");
-            assert!(message.contains("out of range"));
-            assert!(message.contains("1–2"));
-        }
-        other => panic!("unexpected {other:?}"),
-    }
-}
-
-#[test]
-fn validation_input_icon_non_numeric_variant_fails() {
-    let err = validate(&json!({
-        "type": "input",
-        "title": "T",
-        "message": "M",
-        "icon": "warning:abc"
-    }))
-    .expect_err("non-numeric variant");
-    match err {
-        ValidationError::Validation { field, message } => {
-            assert_eq!(field, "icon");
-            assert!(message.contains("invalid icon variant"));
-            assert!(message.contains("warning:abc"));
-        }
-        other => panic!("unexpected {other:?}"),
     }
 }
 

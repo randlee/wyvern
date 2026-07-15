@@ -170,14 +170,14 @@ mod tests {
         let result = CommandResult::Input(InputResult {
             button: ButtonLabel::new("ok"),
             input: Some(InputValue::Paths(vec![
-                "/tmp/a.json".into(),
-                "/tmp/b.json".into(),
+                "fixtures/a.json".into(),
+                "fixtures/b.json".into(),
             ])),
         });
         let json = serde_json::to_string(&result).expect("serialize");
         assert_eq!(
             json,
-            r#"{"button":"ok","input":["/tmp/a.json","/tmp/b.json"]}"#
+            r#"{"button":"ok","input":["fixtures/a.json","fixtures/b.json"]}"#
         );
     }
 

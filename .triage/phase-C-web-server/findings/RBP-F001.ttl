@@ -1,0 +1,39 @@
+@prefix triage: <urn:atm:triage:> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<urn:atm:triage:finding/RBP-F001>
+  a triage:Finding ;
+  triage:findingId "RBP-F001" ;
+  triage:title "ApiError::bad_request without cause/recovery" ;
+  triage:description "ApiError::bad_request errors lack cause and recovery information for diagnostics" ;
+  triage:phaseId "phase-C-web-server" ;
+  triage:triageMode "initial_pass" ;
+  triage:category "RBP" ;
+  triage:severity "important" ;
+  triage:repeatable false ;
+  triage:sweepScope "file_only" ;
+  triage:status "open" ;
+  triage:dispatchReady true ;
+  triage:originatingSprintDoc "docs/plans/phase-C/c12-host-markdown.md" ;
+  triage:triagedAt "2026-07-14T08:02:00Z"^^xsd:dateTime ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/RBP-F001/c12-host-markdown/1> ;
+  triage:openOn <urn:atm:triage:worktree/c12-host-markdown/edfe34e> ;
+  triage:promoteTo <urn:atm:triage:worktree/c12-host-markdown/edfe34e> .
+
+<urn:atm:triage:occurrence/RBP-F001/c12-host-markdown/1>
+  a triage:Occurrence ;
+  triage:file "result.rs" ;
+  triage:line 31 ;
+  triage:snippet "ApiError::bad_request" ;
+  triage:status "open" ;
+  triage:closed false ;
+  triage:branch "feature/phase-C-c12-host-markdown" ;
+  triage:headSha "edfe34e" ;
+  triage:occursIn <urn:atm:triage:worktree/c12-host-markdown/edfe34e> .
+
+<urn:atm:triage:worktree/c12-host-markdown/edfe34e>
+  a triage:WorktreeSnapshot ;
+  triage:branch "feature/phase-C-c12-host-markdown" ;
+  triage:path "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-C-c12-host-markdown" ;
+  triage:headSha "edfe34e" ;
+  triage:orderIndex 1 .

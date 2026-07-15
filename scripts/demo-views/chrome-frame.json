@@ -1,0 +1,5 @@
+{
+  "type": "chrome",
+  "title": "Chrome frame",
+  "status": "Foundation shell — measures as a full page when no explicit size"
+}

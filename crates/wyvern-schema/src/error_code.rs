@@ -24,12 +24,22 @@ pub enum ErrorCode {
     ValidationError,
     /// Mode/lifecycle state failure (e.g. action outside `--interactive`).
     StateError,
-    /// Native window or webview construction failed.
+    /// Native window or webview construction failed (legacy wry stack).
     WindowCreateError,
-    /// Event loop creation or run failed.
+    /// Event loop creation or run failed (legacy wry stack).
     EventLoopError,
     /// Stdout/stderr JSON serialization failed at the CLI emit boundary (REQ-0078).
     InternalError,
+    /// Generic host failure (`host_error` / exit 6).
+    HostError,
+    /// TCP bind failed (`host_bind` / exit 7).
+    HostBindError,
+    /// Viewer launch / discovery failed (`host_viewer` / exit 6).
+    HostViewerError,
+    /// Packaged UI root or template missing (`host_error` / exit 6).
+    UiNotFound,
+    /// Dialog type not yet on the host matrix (`host_error` / exit 6).
+    UnsupportedType,
 }
 
 impl ErrorCode {
@@ -40,8 +50,12 @@ impl ErrorCode {
             Self::IoError => 3,
             Self::ValidationError => 4,
             Self::StateError => 5,
-            Self::WindowCreateError => 6,
-            Self::EventLoopError => 7,
+            Self::WindowCreateError
+            | Self::HostError
+            | Self::HostViewerError
+            | Self::UiNotFound
+            | Self::UnsupportedType => 6,
+            Self::EventLoopError | Self::HostBindError => 7,
             Self::InternalError => 8,
         }
     }
@@ -56,6 +70,9 @@ impl ErrorCode {
             Self::WindowCreateError => "window_create",
             Self::EventLoopError => "event_loop",
             Self::InternalError => "internal",
+            Self::HostError | Self::UiNotFound | Self::UnsupportedType => "host_error",
+            Self::HostBindError => "host_bind",
+            Self::HostViewerError => "host_viewer",
         }
     }
 }
@@ -74,6 +91,11 @@ mod tests {
             (ErrorCode::WindowCreateError, "WINDOW_CREATE_ERROR"),
             (ErrorCode::EventLoopError, "EVENT_LOOP_ERROR"),
             (ErrorCode::InternalError, "INTERNAL_ERROR"),
+            (ErrorCode::HostError, "HOST_ERROR"),
+            (ErrorCode::HostBindError, "HOST_BIND_ERROR"),
+            (ErrorCode::HostViewerError, "HOST_VIEWER_ERROR"),
+            (ErrorCode::UiNotFound, "UI_NOT_FOUND"),
+            (ErrorCode::UnsupportedType, "UNSUPPORTED_TYPE"),
         ];
         for (code, expected) in cases {
             let json = serde_json::to_string(&code).expect("serialize");

@@ -7,19 +7,8 @@ use serde_json::Value;
 
 use wyvern_schema::FieldName;
 
+use crate::cli_args::usage_message;
 use crate::error::LoadError;
-
-/// Canonical usage text for invalid argv / empty stdin.
-pub fn usage_message() -> String {
-    concat!(
-        "Usage: wyvern '<json>' | <file.json> | <file.md>\n",
-        "       echo '<json>' | wyvern\n",
-        "       wyvern --version\n",
-        "\n",
-        "Pass exactly one JSON string, .json file, or .md file; or pipe JSON on stdin.",
-    )
-    .to_string()
-}
 
 /// Load a command [`Value`] from positional args or stdin.
 ///

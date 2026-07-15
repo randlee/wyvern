@@ -186,7 +186,9 @@ wyvern/src/
   viewer_spawn.rs     # embedded_viewer_spawn — subprocess + binary discovery
 
 wyvern-viewer/src/
-  lib.rs              # URL navigate, show/hide, OS-close POST
+  main.rs             # binary entry — env/args → run, ExitCode
+  run.rs              # URL navigate, show/hide, OS-close POST
+  platform.rs         # wry/winit window + OS-close wiring
 ```
 
 Optional: borrow path tables from **`browser-locations`** internally, but **Wyvern owns the cache file** — no dependency on an external registry service.

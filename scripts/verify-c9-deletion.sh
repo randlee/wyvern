@@ -12,13 +12,14 @@ test ! -d crates/wyvern-window || fail "crates/wyvern-window/ still exists"
 test ! -f crates/wyvern-schema/src/icons.rs || fail "icons.rs still exists"
 test ! -d boundaries/wyvern-window || fail "boundaries/wyvern-window/ still exists"
 
-if rg -n 'wyvern-window' Cargo.toml 2>/dev/null | rg -v '^\s*#' >/dev/null; then
+# Non-comment Cargo.toml lines only (ignore # comments; do not use rg -n — line
+# numbers break comment filtering).
+if rg 'wyvern-window' Cargo.toml 2>/dev/null | rg -v '^\s*#' >/dev/null; then
   fail "Cargo.toml still references wyvern-window (non-comment)"
 fi
 
-if rg -l 'wyvern-window' boundaries/ 2>/dev/null | grep -q .; then
-  fail "boundaries/ still references wyvern-window"
-fi
+# boundaries/wyvern-window/ must be gone (checked above). Other boundary TOMLs may
+# still list wyvern-window under forbidden_dependencies — that is intentional.
 
 # --- wyvern-schema icon catalog rework ---
 if rg -n 'mod icons|NamedIconSpec' crates/wyvern-schema/src/lib.rs 2>/dev/null | rg -v '^\s*#' | grep -q .; then

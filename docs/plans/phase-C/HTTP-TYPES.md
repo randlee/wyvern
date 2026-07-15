@@ -250,13 +250,18 @@ pub struct QuestionOptionPayload {
 }
 
 /// Question dialog payload — options use `QuestionOptionPayload` when serialized.
+///
+/// **Intentional omission:** unlike message/input/markdown, `GET /api/dialog` for
+/// `question` does **not** include a `buttons` wire field. The packaged UI uses a
+/// fixed Submit control (`data-testid="btn-submit"`); dismiss is via `button:
+/// "dismissed"` on `POST /api/result` (REQ-0068), not a ButtonsPreset.
 #[derive(Serialize)]
 pub struct DialogPayloadQuestion {
     #[serde(rename = "type")]
     pub type_name: &'static str, // "question"
     pub title: String,
     pub questions: Vec<serde_json::Value>, // wire: QuestionOptionPayload per option
-    pub buttons: String,
+    // no `buttons` — see note above
 }
 ```
 

@@ -8,8 +8,8 @@ use crate::error::ValidationError;
 use crate::field_name::FieldName;
 
 use super::helpers::{
-    closest_match, is_named_icon_spec, json_type_name, optional_bool_field, optional_string_field,
-    require_string_field, validate_named_icon, INPUT_FIELDS,
+    closest_match, json_type_name, optional_bool_field, optional_media_ref_field,
+    optional_string_field, optional_window_size_fields, require_string_field, INPUT_FIELDS,
 };
 
 pub(super) fn validate_input(obj: &Map<String, Value>) -> Result<Command, ValidationError> {
@@ -26,16 +26,13 @@ pub(super) fn validate_input(obj: &Map<String, Value>) -> Result<Command, Valida
     let title = require_string_field(obj, "title")?;
     let message = require_string_field(obj, "message")?;
     let status = optional_string_field(obj, "status")?;
-    let icon = optional_string_field(obj, "icon")?;
-    if let Some(spec) = icon.as_deref() {
-        if is_named_icon_spec(spec) {
-            validate_named_icon("icon", spec)?;
-        }
-    }
+    // icon: path / URL / data URI / named template hint (structural check; no catalog).
+    let icon = optional_media_ref_field(obj, "icon")?;
     let markdown = optional_bool_field(obj, "markdown")?.unwrap_or(false);
     let multiline = optional_bool_field(obj, "multiline")?.unwrap_or(false);
     let placeholder = optional_string_field(obj, "placeholder")?;
     let default = optional_string_field(obj, "default")?;
+    let password = optional_bool_field(obj, "password")?.unwrap_or(false);
 
     let mode = match obj.get("mode") {
         None => InputMode::Text,
@@ -69,21 +66,21 @@ pub(super) fn validate_input(obj: &Map<String, Value>) -> Result<Command, Valida
         ));
     }
 
-    // REQ-0059 — placeholder / default only for text mode.
-    if placeholder.is_some() && matches!(mode, InputMode::File | InputMode::Folder) {
+    // password masking is text-mode only; incompatible with multiline.
+    if password && matches!(mode, InputMode::File | InputMode::Folder) {
         return Err(ValidationError::validation(
-            "placeholder",
-            "placeholder is only valid when mode is 'text' (or omitted)",
+            "password",
+            "password is only valid when mode is 'text' (or omitted)",
         ));
     }
-    if default.is_some() && matches!(mode, InputMode::File | InputMode::Folder) {
+    if password && multiline {
         return Err(ValidationError::validation(
-            "default",
-            "default is only valid when mode is 'text' (or omitted)",
+            "password",
+            "password is not valid when multiline is true",
         ));
     }
 
-    // REQ-0059 — filter / multiple only for file mode.
+    // REQ-0059 — placeholder / default not valid for password-only conflicts; allowed for all modes.
     let filter = match obj.get("filter") {
         None => None,
         Some(_) if mode != InputMode::File => {
@@ -190,6 +187,8 @@ pub(super) fn validate_input(obj: &Map<String, Value>) -> Result<Command, Valida
         ));
     }
 
+    let (width, height) = optional_window_size_fields(obj)?;
+
     Ok(Command::Input {
         title: ChromeTitle::new(title),
         message,
@@ -199,10 +198,13 @@ pub(super) fn validate_input(obj: &Map<String, Value>) -> Result<Command, Valida
         multiline,
         placeholder,
         default,
+        password,
         mode,
         filter,
         multiple,
         start_path,
         buttons,
+        width,
+        height,
     })
 }

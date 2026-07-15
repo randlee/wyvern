@@ -1,0 +1,6 @@
+{
+  "type": "message",
+  "title": "Long line",
+  "message": "This is one intentionally long line with no manual line breaks; it should word-wrap inside the auto-sized message box instead of stretching the window off-screen or requiring horizontal scrolling.",
+  "buttons": "ok"
+}

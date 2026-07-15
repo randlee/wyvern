@@ -1,0 +1,19 @@
+@prefix triage: <urn:atm:triage:> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<urn:atm:triage:finding/ATM-QA-002>
+  a triage:Finding ;
+  triage:findingId "ATM-QA-002" ;
+  triage:title "Published release tarball absent" ;
+  triage:description "No published matrix archives with wyvern + wyvern-viewer + full ui/ tree. Depends on ATM-QA-001 tag push; verify after release workflow completes." ;
+  triage:phaseId "phase-C-web-server" ;
+  triage:triageMode "initial_pass" ;
+  triage:repeatable false ;
+  triage:sweepScope "none" ;
+  triage:category "ATM-QA" ;
+  triage:severity "blocking" ;
+  triage:status "deferred_post_merge" ;
+  triage:dispatchReady false ;
+  triage:originatingSprintDoc "docs/plans/phase-C/c16-release.md" ;
+  triage:disposition "post-merge on integrate: push v0.1.0, verify platform archives contain all five dialog index.html paths" ;
+  triage:triagedAt "2026-07-14T16:30:00Z"^^xsd:dateTime .

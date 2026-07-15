@@ -8,8 +8,8 @@ use crate::error::ValidationError;
 use crate::field_name::FieldName;
 
 use super::helpers::{
-    closest_match, is_named_icon_spec, json_type_name, optional_bool_field, optional_string_field,
-    require_string_field, validate_named_icon, MESSAGE_FIELDS,
+    closest_match, json_type_name, optional_bool_field, optional_media_ref_field,
+    optional_string_field, optional_window_size_fields, require_string_field, MESSAGE_FIELDS,
 };
 
 pub(super) fn validate_message(obj: &Map<String, Value>) -> Result<Command, ValidationError> {
@@ -165,19 +165,11 @@ pub(super) fn validate_message(obj: &Map<String, Value>) -> Result<Command, Vali
         }
     };
 
-    let icon = optional_string_field(obj, "icon")?;
-    let image = optional_string_field(obj, "image")?;
-    if let Some(spec) = icon.as_deref() {
-        if is_named_icon_spec(spec) {
-            validate_named_icon("icon", spec)?;
-        }
-    }
-    if let Some(spec) = image.as_deref() {
-        if is_named_icon_spec(spec) {
-            validate_named_icon("image", spec)?;
-        }
-    }
+    // icon / image: path / URL / data URI / named template hint (structural; no catalog).
+    let icon = optional_media_ref_field(obj, "icon")?;
+    let image = optional_media_ref_field(obj, "image")?;
     let markdown = optional_bool_field(obj, "markdown")?.unwrap_or(false);
+    let (width, height) = optional_window_size_fields(obj)?;
 
     Ok(Command::Message {
         title: ChromeTitle::new(title),
@@ -190,5 +182,7 @@ pub(super) fn validate_message(obj: &Map<String, Value>) -> Result<Command, Vali
         icon,
         image,
         markdown,
+        width,
+        height,
     })
 }

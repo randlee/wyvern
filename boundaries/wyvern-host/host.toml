@@ -4,8 +4,8 @@ name = "WyvernHost"
 
 [dependencies]
 allowed_dependencies = ["wyvern-schema", "serde", "serde_json", "axum", "tokio", "tower", "tower-http", "tracing", "rfd", "webbrowser", "dirs", "pulldown-cmark", "ammonia", "wyvern-wizard"]
-forbidden_dependencies = ["wyvern", "wyvern-mcp", "wyvern-window", "wry", "winit"]
-forbidden_edges = ["wyvern-host -> wyvern", "wyvern-host -> wyvern-mcp", "wyvern-host -> wyvern-window"]
+forbidden_dependencies = ["wyvern", "wyvern-mcp", "wry", "winit"]
+forbidden_edges = ["wyvern-host -> wyvern", "wyvern-host -> wyvern-mcp"]
 
 [ownership]
 io_owns = ["tcp_bind", "http_server", "static_file_serve", "dialog_session", "wizard_session", "wizard_routes", "result_channel", "native_file_picker", "browser_registry", "system_browser_launch", "dialog_content_html", "dialog_preview_html"]

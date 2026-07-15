@@ -1,0 +1,47 @@
+@prefix triage: <urn:atm:triage:> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<urn:atm:triage:finding/FTQ-003>
+  a triage:Finding ;
+  triage:findingId "FTQ-003" ;
+  triage:title "Concurrent picker test races before first mock Enter" ;
+  triage:description "picker_slot concurrency test could start the second POST before the first mock Enter held the slot. Closed by deterministic wait_for_picker_enter poll in dialog-readiness hardening commit 0800872; verified on PR head 5509343." ;
+  triage:phaseId "phase-C-web-server" ;
+  triage:triageMode "followup_pass" ;
+  triage:category "FTQ" ;
+  triage:severity "minor" ;
+  triage:repeatable false ;
+  triage:sweepScope "file_only" ;
+  triage:status "closed" ;
+  triage:dispatchReady false ;
+  triage:triagedAt "2026-07-14T11:26:24Z"^^xsd:dateTime ;
+  triage:originatingSprintDoc "docs/plans/phase-C/c15-wyvern-viewer.md" ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/FTQ-003/c15/1> ;
+  triage:openOn <urn:atm:triage:worktree/c15/0800872> ;
+  triage:fixedOn <urn:atm:triage:worktree/c15/0800872> ;
+  triage:promoteTo <urn:atm:triage:worktree/c15/5509343> .
+
+<urn:atm:triage:occurrence/FTQ-003/c15/1>
+  a triage:Occurrence ;
+  triage:file "crates/wyvern-host/tests/http_input.rs" ;
+  triage:line 173 ;
+  triage:snippet "fn wait_for_picker_enter(slot_log: &MockPickerSlotLog) { ... slot_log.events().contains(&MockPickerSlotEvent::Enter) }" ;
+  triage:status "closed" ;
+  triage:closed true ;
+  triage:branch "feature/phase-C-c15-wyvern-viewer" ;
+  triage:headSha "0800872" ;
+  triage:occursIn <urn:atm:triage:worktree/c15/0800872> .
+
+<urn:atm:triage:worktree/c15/0800872>
+  a triage:WorktreeSnapshot ;
+  triage:branch "feature/phase-C-c15-wyvern-viewer" ;
+  triage:path "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-C-c15-wyvern-viewer" ;
+  triage:headSha "0800872" ;
+  triage:orderIndex 15 .
+
+<urn:atm:triage:worktree/c15/5509343>
+  a triage:WorktreeSnapshot ;
+  triage:branch "feature/phase-C-c15-wyvern-viewer" ;
+  triage:path "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-C-c15-wyvern-viewer" ;
+  triage:headSha "5509343" ;
+  triage:orderIndex 15 .

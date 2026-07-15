@@ -24,6 +24,7 @@ fn validation_message_ok_preset_passes() {
             icon,
             image,
             markdown,
+            ..
         } => {
             assert_eq!(title.as_str(), "T");
             assert_eq!(message, "Hi");
@@ -300,71 +301,6 @@ fn validation_message_icon_default_variant_passes() {
 }
 
 #[test]
-fn validation_message_icon_unknown_named_fails() {
-    let err = validate(&json!({
-        "type": "message",
-        "title": "T",
-        "message": "Hi",
-        "buttons": "ok",
-        "icon": "nonexistent"
-    }))
-    .expect_err("unknown named icon");
-    match err {
-        ValidationError::Validation { field, message } => {
-            assert_eq!(field, "icon");
-            assert!(message.contains("unknown icon 'nonexistent'"));
-            assert!(message.contains("valid names:"));
-            assert!(message.contains("info"));
-            assert!(message.contains("warning"));
-            assert!(message.contains("loading"));
-        }
-        other => panic!("unexpected {other:?}"),
-    }
-}
-
-#[test]
-fn validation_message_icon_variant_out_of_range_fails() {
-    let err = validate(&json!({
-        "type": "message",
-        "title": "T",
-        "message": "Hi",
-        "buttons": "ok",
-        "icon": "info:99"
-    }))
-    .expect_err("oob variant");
-    match err {
-        ValidationError::Validation { field, message } => {
-            assert_eq!(field, "icon");
-            assert!(message.contains("out of range"));
-            assert!(message.contains("info"));
-            assert!(message.contains("1–2"));
-        }
-        other => panic!("unexpected {other:?}"),
-    }
-}
-
-#[test]
-fn validation_message_icon_non_numeric_variant_fails() {
-    let err = validate(&json!({
-        "type": "message",
-        "title": "T",
-        "message": "Hi",
-        "buttons": "ok",
-        "icon": "warning:abc"
-    }))
-    .expect_err("non-numeric variant");
-    match err {
-        ValidationError::Validation { field, message } => {
-            assert_eq!(field, "icon");
-            assert!(message.contains("invalid icon variant"));
-            assert!(message.contains("warning:abc"));
-            assert!(message.contains("expected numeric suffix"));
-        }
-        other => panic!("unexpected {other:?}"),
-    }
-}
-
-#[test]
 fn validation_message_icon_path_and_data_uri_pass() {
     let path = validate(&json!({
         "type": "message",
@@ -402,11 +338,11 @@ fn validation_message_image_field_passes() {
         "title": "T",
         "message": "Hi",
         "buttons": "ok",
-        "image": "/tmp/deco.png"
+        "image": "fixtures/deco.png"
     }))
     .expect("image unlocked");
     match cmd {
-        Command::Message { image, .. } => assert_eq!(image.as_deref(), Some("/tmp/deco.png")),
+        Command::Message { image, .. } => assert_eq!(image.as_deref(), Some("fixtures/deco.png")),
         other => panic!("expected Message, got {other:?}"),
     }
 }
@@ -424,47 +360,6 @@ fn validation_message_image_named_icon_passes() {
     match cmd {
         Command::Message { image, .. } => assert_eq!(image.as_deref(), Some("success:2")),
         other => panic!("expected Message, got {other:?}"),
-    }
-}
-
-#[test]
-fn validation_message_image_unknown_named_fails() {
-    let err = validate(&json!({
-        "type": "message",
-        "title": "T",
-        "message": "Hi",
-        "buttons": "ok",
-        "image": "nonexistent"
-    }))
-    .expect_err("unknown named image");
-    match err {
-        ValidationError::Validation { field, message } => {
-            assert_eq!(field, "image");
-            assert!(message.contains("unknown icon 'nonexistent'"));
-            assert!(message.contains("valid names:"));
-        }
-        other => panic!("unexpected {other:?}"),
-    }
-}
-
-#[test]
-fn validation_message_image_variant_out_of_range_fails() {
-    let err = validate(&json!({
-        "type": "message",
-        "title": "T",
-        "message": "Hi",
-        "buttons": "ok",
-        "image": "success:99"
-    }))
-    .expect_err("oob image variant");
-    match err {
-        ValidationError::Validation { field, message } => {
-            assert_eq!(field, "image");
-            assert!(message.contains("out of range"));
-            assert!(message.contains("success"));
-            assert!(message.contains("1–2"));
-        }
-        other => panic!("unexpected {other:?}"),
     }
 }
 
