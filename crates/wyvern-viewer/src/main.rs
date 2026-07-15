@@ -50,13 +50,17 @@ fn emit_structured_error(err: &run::ViewerError) {
         ),
     };
     let message = json_escape(&err.to_string());
+    let cause_json = match err.cause() {
+        Some(cause) => format!(",\"cause\":\"{}\"", json_escape(cause)),
+        None => String::new(),
+    };
     let recovery_json: String = recovery
         .iter()
         .map(|step| format!("\"{}\"", json_escape(step)))
         .collect::<Vec<_>>()
         .join(",");
     eprintln!(
-        "{{\"error\":\"{slug}\",\"code\":\"{code}\",\"message\":\"{message}\",\"recovery\":[{recovery_json}],\"docs\":\"docs/plans/phase-C/http-viewer-contract.md\"}}"
+        "{{\"error\":\"{slug}\",\"code\":\"{code}\",\"message\":\"{message}\"{cause_json},\"recovery\":[{recovery_json}],\"docs\":\"docs/plans/phase-C/http-viewer-contract.md\"}}"
     );
 }
 
@@ -74,4 +78,42 @@ fn json_escape(s: &str) -> String {
         }
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn structured_error_includes_cause_when_present() {
+        let err = run::ViewerError::EventLoop {
+            message: "event loop failed".into(),
+            cause: Some("display unavailable".into()),
+        };
+        assert_eq!(err.cause(), Some("display unavailable"));
+        let message = json_escape(&err.to_string());
+        let cause_json = match err.cause() {
+            Some(cause) => format!(",\"cause\":\"{}\"", json_escape(cause)),
+            None => String::new(),
+        };
+        let envelope = format!(
+            "{{\"error\":\"event_loop\",\"code\":\"EVENT_LOOP_ERROR\",\"message\":\"{message}\"{cause_json},\"recovery\":[],\"docs\":\"docs/plans/phase-C/http-viewer-contract.md\"}}"
+        );
+        assert!(envelope.contains("\"cause\":\"display unavailable\""));
+        assert!(envelope.contains("event loop failed"));
+    }
+
+    #[test]
+    fn structured_error_omits_cause_when_absent() {
+        let err = run::ViewerError::Usage {
+            message: "missing dialog URL".into(),
+            cause: None,
+        };
+        assert!(err.cause().is_none());
+        let cause_json = match err.cause() {
+            Some(cause) => format!(",\"cause\":\"{}\"", json_escape(cause)),
+            None => String::new(),
+        };
+        assert!(cause_json.is_empty());
+    }
 }

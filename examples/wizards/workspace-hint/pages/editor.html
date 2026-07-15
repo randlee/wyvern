@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <title>Canvas</title>
+  <link rel="stylesheet" href="/shared/embedded-chrome.css" />
   <script src="/shared/wyvern-api.js"></script>
   <style>
     body {
@@ -12,12 +13,14 @@
       color: #e2e8f0;
     }
     .canvas {
-      min-height: 100vh;
+      min-height: 100%;
+      height: 100%;
       display: grid;
       place-items: center;
       border: 2px dashed #334155;
       margin: 1rem;
       border-radius: 12px;
+      box-sizing: border-box;
     }
     .hint {
       text-align: center;
@@ -26,20 +29,24 @@
   </style>
 </head>
 <body>
-  <main class="canvas" data-testid="workspace-canvas">
-    <div class="hint">
-      <h1 data-testid="workspace-title">Canvas placeholder</h1>
-      <p data-testid="workspace-hint">
-        Authors replace this page with any HTML canvas, DAG editor, or Flowise iframe.
-      </p>
-      <pre data-testid="estimated-size"></pre>
+  <main id="dialog" class="dialog--workspace" data-testid="workspace-canvas">
+    <div class="canvas">
+      <div class="hint">
+        <h1 data-testid="workspace-title">Canvas placeholder</h1>
+        <p data-testid="workspace-hint">
+          Authors replace this page with any HTML canvas, DAG editor, or Flowise iframe.
+        </p>
+        <pre data-testid="estimated-size"></pre>
+        <pre data-testid="applied-size"></pre>
+      </div>
     </div>
   </main>
   <script>
     (async function () {
-      if (typeof wyvernWizardState === "function") {
-        await wyvernWizardState();
-      }
+      var state =
+        typeof wyvernWizardState === "function"
+          ? await wyvernWizardState()
+          : { config: {}, page: { layout: "workspace" } };
       var size =
         (window.wyvern &&
           window.wyvern.config &&
@@ -48,6 +55,14 @@
       var el = document.querySelector("[data-testid='estimated-size']");
       if (el) {
         el.textContent = JSON.stringify(size, null, 2);
+      }
+      var applied =
+        typeof WyvernApi !== "undefined" && WyvernApi.applyWizardLayout
+          ? WyvernApi.applyWizardLayout(state, window.__wyvernViewportBounds || null)
+          : null;
+      var appliedEl = document.querySelector("[data-testid='applied-size']");
+      if (appliedEl && applied) {
+        appliedEl.textContent = JSON.stringify(applied, null, 2);
       }
     })();
   </script>

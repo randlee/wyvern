@@ -22,7 +22,7 @@
 
 **REQ-V007** — Embedded-only presentation helpers (`embedded-chrome.css`, `window.ipc`) must not be required for correctness — the same pages must work in `--viewer system` / named browsers (browser-first gate).
 
-**REQ-V008** — When no explicit size is set (JSON or HTML meta), embedded viewer **auto-sizes** to rendered page content via IPC `resize:WxH`. Compact dialogs (`dialog--compact`) shrink to message-box proportions (~480px max width with word-wrap); full pages (wizard, chrome) measure document content up to viewer max (800×600).
+**REQ-V008** — When no explicit size is set (JSON or HTML meta), embedded viewer **auto-sizes** to rendered page content via IPC `resize:WxH` (ADR-0020). Dialog mode: intrinsic measure × ~25% slack, clamp to available viewport × 0.92, scroll overflow inside the clamped window. Workspace mode (`page.layout: "workspace"`): honor opaque `config.estimated_size` / command `width`+`height`, else fill viewport (also clamped). Viewer stays **hidden until the first content resize** (no 320×240 flash) and injects `wyvern:viewport-bounds` (`{ available_width, available_height }`) before first paint; accepts refinement resizes for ~300ms.
 
 **REQ-V009** — Optional window size on any command JSON (`width`, `height` in CSS pixels, 200–800 × 96–600). When **both** are set, embedded viewer uses that fixed size **instead of** auto-size. Pages may also declare `<meta name="wyvern:width">` / `<meta name="wyvern:height">` when JSON omits size. JSON from `GET /api/dialog` takes precedence over meta tags.
 

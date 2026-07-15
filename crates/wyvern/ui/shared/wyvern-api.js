@@ -68,6 +68,9 @@
     return res.json();
   }
 
+  // Hard caps used only when no viewport bounds are available (browser /
+  // --viewer none). Embedded path (ADR-0020 / REQ-V008) clamps to
+  // available viewport × 0.92 via wyvern:viewport-bounds instead.
   var VIEWER_MAX_W = 800;
   var VIEWER_MAX_H = 600;
   var VIEWER_MIN_W = 200;
@@ -83,6 +86,281 @@
   var COMFORT_ASPECT = 4 / 3;
   /** Padding guard against subpixel scrollbars after resize. */
   var MEASURE_BUFFER = 8;
+  /** Dialog auto-size slack (~25%; REQ-V008 / ADR-0020). */
+  var DIALOG_SLACK = 1.25;
+  /** Clamp sized window to this fraction of available viewport. */
+  var VIEWPORT_CLAMP = 0.92;
+  /** Refinement window after first resize (fonts / async assets). */
+  var RESIZE_REFINE_MS = 300;
+
+  /** Last `wyvern:viewport-bounds` detail from the embedded viewer. */
+  var lastViewport = null;
+
+  function normalizeViewport(viewport) {
+    if (!viewport) {
+      return null;
+    }
+    var w = Number(viewport.available_width);
+    var h = Number(viewport.available_height);
+    if (!isFinite(w) || !isFinite(h) || w <= 0 || h <= 0) {
+      return null;
+    }
+    return { available_width: Math.round(w), available_height: Math.round(h) };
+  }
+
+  function rememberViewport(viewport) {
+    var normalized = normalizeViewport(viewport);
+    if (normalized) {
+      lastViewport = normalized;
+    }
+    return lastViewport;
+  }
+
+  function onViewportBoundsEvent(event) {
+    if (event && event.detail) {
+      rememberViewport(event.detail);
+    }
+  }
+
+  if (typeof global.addEventListener === "function") {
+    global.addEventListener("wyvern:viewport-bounds", onViewportBoundsEvent);
+  }
+  if (global.__wyvernViewportBounds) {
+    rememberViewport(global.__wyvernViewportBounds);
+  }
+
+  function postResize(w, h) {
+    if (typeof window.ipc === "undefined" || typeof window.ipc.postMessage !== "function") {
+      return false;
+    }
+    window.ipc.postMessage("resize:" + Math.round(w) + "x" + Math.round(h));
+    return true;
+  }
+
+  function markDialogClamped(clamped) {
+    var dialog = document.getElementById("dialog");
+    if (!dialog) {
+      return;
+    }
+    if (clamped) {
+      dialog.classList.add("dialog--clamped");
+    } else {
+      dialog.classList.remove("dialog--clamped");
+    }
+  }
+
+  function markWorkspaceRoot(isWorkspace) {
+    var root =
+      document.getElementById("dialog") ||
+      document.querySelector("[data-testid='workspace-canvas']") ||
+      document.body;
+    if (!root) {
+      return;
+    }
+    if (isWorkspace) {
+      root.classList.add("dialog--workspace");
+    } else {
+      root.classList.remove("dialog--workspace");
+    }
+  }
+
+  /**
+   * Dialog fit: measure × slack, clamp to viewport × 0.92, scroll overflow.
+   * `measure` accepts `{contentW,contentH}` or `{w,h}` (treated as content).
+   */
+  function applyDialogFitWithSlack(measure, viewport, slack) {
+    measure = measure || {};
+    slack = typeof slack === "number" && slack > 0 ? slack : DIALOG_SLACK;
+    var contentW = Number(
+      measure.contentW != null ? measure.contentW : measure.w != null ? measure.w : VIEWER_MIN_W
+    );
+    var contentH = Number(
+      measure.contentH != null ? measure.contentH : measure.h != null ? measure.h : VIEWER_MIN_H
+    );
+    if (!isFinite(contentW) || contentW <= 0) contentW = VIEWER_MIN_W;
+    if (!isFinite(contentH) || contentH <= 0) contentH = VIEWER_MIN_H;
+
+    var w = Math.ceil(contentW * slack);
+    var h = Math.ceil(contentH * slack);
+    var vp = normalizeViewport(viewport) || lastViewport;
+    var clamped = false;
+    if (vp) {
+      var maxW = Math.floor(vp.available_width * VIEWPORT_CLAMP);
+      var maxH = Math.floor(vp.available_height * VIEWPORT_CLAMP);
+      if (w > maxW) {
+        w = maxW;
+        clamped = true;
+      }
+      if (h > maxH) {
+        h = maxH;
+        clamped = true;
+      }
+    } else {
+      // Browser / no-bounds fallback: Phase B hard caps (800×600). Embedded
+      // viewer path uses viewport × 0.92 above (ADR-0020 / REQ-V008).
+      if (w > VIEWER_MAX_W) {
+        w = VIEWER_MAX_W;
+        clamped = true;
+      }
+      if (h > VIEWER_MAX_H) {
+        h = VIEWER_MAX_H;
+        clamped = true;
+      }
+    }
+    w = Math.max(VIEWER_MIN_W, w);
+    h = Math.max(VIEWER_MIN_H, h);
+    markDialogClamped(clamped);
+    postResize(w, h);
+    return { w: w, h: h, clamped: clamped };
+  }
+
+  /**
+   * Workspace layout: command size → estimated_size → fill viewport (ADR-0006 opaque).
+   */
+  function applyWorkspaceLayout(state, viewport) {
+    state = state || {};
+    var vp = normalizeViewport(viewport) || lastViewport;
+    markWorkspaceRoot(true);
+    markDialogClamped(false);
+
+    var w = null;
+    var h = null;
+    if (state.width && state.height) {
+      w = Number(state.width);
+      h = Number(state.height);
+    } else {
+      var est =
+        (state.config && state.config.estimated_size) ||
+        (global.wyvern && global.wyvern.config && global.wyvern.config.estimated_size) ||
+        null;
+      if (est && est.width && est.height) {
+        w = Number(est.width);
+        h = Number(est.height);
+      }
+    }
+
+    if (!isFinite(w) || w <= 0 || !isFinite(h) || h <= 0) {
+      if (vp) {
+        w = Math.floor(vp.available_width * VIEWPORT_CLAMP);
+        h = Math.floor(vp.available_height * VIEWPORT_CLAMP);
+      } else {
+        w = VIEWER_MAX_W;
+        h = VIEWER_MAX_H;
+      }
+    } else if (vp) {
+      w = Math.min(w, Math.floor(vp.available_width * VIEWPORT_CLAMP));
+      h = Math.min(h, Math.floor(vp.available_height * VIEWPORT_CLAMP));
+    }
+
+    w = Math.max(VIEWER_MIN_W, Math.round(w));
+    h = Math.max(VIEWER_MIN_H, Math.round(h));
+    postResize(w, h);
+    return { w: w, h: h, layout: "workspace" };
+  }
+
+  /** Resolve per-page layout: page.layout → config.layout → dialog. */
+  function resolveWizardLayout(state) {
+    state = state || {};
+    var pageLayout = state.page && state.page.layout;
+    if (pageLayout === "workspace" || pageLayout === "dialog") {
+      return pageLayout;
+    }
+    var configLayout = state.config && state.config.layout;
+    if (configLayout === "workspace" || configLayout === "dialog") {
+      return configLayout;
+    }
+    return "dialog";
+  }
+
+  /**
+   * Canonical wizard sizing entry: workspace or dialog-fit-with-slack.
+   */
+  function applyWizardLayout(state, viewport) {
+    state = state || global.wyvern || {};
+    var vp = normalizeViewport(viewport) || lastViewport;
+    var layout = resolveWizardLayout(state);
+    if (layout === "workspace") {
+      return applyWorkspaceLayout(state, vp);
+    }
+    markWorkspaceRoot(false);
+    var measure = measureNaturalContent();
+    return applyDialogFitWithSlack(measure, vp, DIALOG_SLACK);
+  }
+
+  /** Natural content measure (no artificial viewer max during measure). */
+  function measureNaturalContent() {
+    var dialog = document.getElementById("dialog");
+    if (dialog && !dialog.hidden) {
+      if (dialog.classList.contains("dialog--fill")) {
+        var fill = measureAtComfortWidth(dialog, Math.max(VIEWER_MAX_W, 1200));
+        return {
+          contentW: Math.max(fill.contentW + MEASURE_BUFFER, 420),
+          contentH: fill.contentH + MEASURE_BUFFER,
+        };
+      }
+      if (dialog.classList.contains("dialog--compact")) {
+        var compact = measureAtComfortWidth(dialog, COMFORT_MAX_W);
+        return {
+          contentW: compact.contentW + MEASURE_BUFFER,
+          contentH: compact.contentH + MEASURE_BUFFER,
+        };
+      }
+      if (dialog.classList.contains("dialog--panel")) {
+        var panel = measureIntrinsicPanel(dialog, PANEL_MAX_W);
+        return {
+          contentW: panel.contentW + MEASURE_BUFFER,
+          contentH: panel.contentH + MEASURE_BUFFER,
+        };
+      }
+      if (dialog.classList.contains("dialog--frame")) {
+        var frame = measureIntrinsicPanel(dialog, VIEWER_MAX_W);
+        return {
+          contentW: Math.max(frame.contentW + MEASURE_BUFFER, FRAME_MIN_W),
+          contentH: Math.max(frame.contentH + MEASURE_BUFFER, FRAME_MIN_H),
+        };
+      }
+      var loose = measureAtComfortWidth(dialog, Math.max(VIEWER_MAX_W, 1200));
+      return {
+        contentW: loose.contentW + MEASURE_BUFFER,
+        contentH: loose.contentH + MEASURE_BUFFER,
+      };
+    }
+    var root = document.scrollingElement || document.documentElement;
+    var body = document.body;
+    var w = Math.ceil(
+      Math.max(body ? body.scrollWidth : 0, body ? body.offsetWidth : 0, root.clientWidth)
+    );
+    var h = Math.ceil(
+      Math.max(body ? body.scrollHeight : 0, body ? body.offsetHeight : 0, root.clientHeight)
+    );
+    return {
+      contentW: Math.max(w, VIEWER_MIN_W),
+      contentH: Math.max(h, VIEWER_MIN_H),
+    };
+  }
+
+  function runWithResizeRefinement(applyFn) {
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        applyFn();
+        var done = false;
+        function refineOnce() {
+          if (done) return;
+          done = true;
+          applyFn();
+        }
+        if (document.fonts && document.fonts.ready && typeof document.fonts.ready.then === "function") {
+          document.fonts.ready.then(function () {
+            applyFn();
+          });
+        }
+        setTimeout(applyFn, 0);
+        setTimeout(refineOnce, Math.min(50, RESIZE_REFINE_MS));
+        setTimeout(applyFn, Math.floor(RESIZE_REFINE_MS * 0.5));
+        setTimeout(applyFn, RESIZE_REFINE_MS);
+      });
+    });
+  }
 
   function clampViewerSize(w, h, minW) {
     minW = minW || VIEWER_MIN_W;
@@ -293,11 +571,12 @@
 
   /** Embedded-only: resize native window to measured content (default when size omitted). */
   function notifyResize() {
-    if (typeof window.ipc === "undefined" || typeof window.ipc.postMessage !== "function") {
+    if (lastViewport) {
+      applyDialogFitWithSlack(measureNaturalContent(), lastViewport, DIALOG_SLACK);
       return;
     }
     var size = measurePage();
-    window.ipc.postMessage("resize:" + size.w + "x" + size.h);
+    postResize(size.w, size.h);
   }
 
   function readMetaViewerSize() {
@@ -358,14 +637,8 @@
     if (options.mode !== "auto" && options.mode !== "dialog") {
       return;
     }
-    requestAnimationFrame(function () {
-      requestAnimationFrame(function () {
-        notifyResize();
-        // Refine once after first paint (fonts/wrap settle in narrow bootstrap window).
-        setTimeout(function () {
-          notifyResize();
-        }, 0);
-      });
+    runWithResizeRefinement(function () {
+      notifyResize();
     });
   }
 
@@ -487,11 +760,17 @@
       if (path.indexOf("/wizard/") !== 0) {
         return;
       }
-      wyvernWizardState().catch(function (err) {
-        if (typeof console !== "undefined" && console.warn) {
-          console.warn("wyvern wizard bootstrap failed", err);
-        }
-      });
+      wyvernWizardState()
+        .then(function (state) {
+          runWithResizeRefinement(function () {
+            applyWizardLayout(state, lastViewport);
+          });
+        })
+        .catch(function (err) {
+          if (typeof console !== "undefined" && console.warn) {
+            console.warn("wyvern wizard bootstrap failed", err);
+          }
+        });
     } catch (_) {
       /* ignore */
     }
@@ -514,6 +793,10 @@
     scheduleResize: scheduleResize,
     resolveViewerSize: resolveViewerSize,
     applyDialogLayout: applyDialogLayout,
+    applyDialogFitWithSlack: applyDialogFitWithSlack,
+    applyWorkspaceLayout: applyWorkspaceLayout,
+    applyWizardLayout: applyWizardLayout,
+    measureNaturalContent: measureNaturalContent,
     applyEmbeddedChrome: applyEmbeddedChrome,
     wyvernWizardState: wyvernWizardState,
     wyvernWizardNext: wyvernWizardNext,

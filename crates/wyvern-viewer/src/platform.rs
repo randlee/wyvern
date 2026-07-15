@@ -6,9 +6,13 @@ use winit::window::{UserAttentionType, Window, WindowAttributes, WindowButtons, 
 
 use crate::run::ViewerError;
 
-/// Bootstrap size before page `resize:` IPC; 4:3 placeholder until auto-size IPC.
+/// Bootstrap size used only while the window is **hidden**.
+///
+/// Policy (d.6 / REQ-V008): the viewer must never flash this 320×240 placeholder
+/// at the user. Create the window with `visible: false`, inject viewport bounds,
+/// wait for the first content `resize:` IPC, then [`present_viewer_window`].
 pub(crate) const DEFAULT_WIDTH: f64 = 320.0;
-/// Bootstrap height before auto-size (4:3 with [`DEFAULT_WIDTH`]).
+/// Bootstrap height paired with [`DEFAULT_WIDTH`] (hidden until first resize).
 pub(crate) const DEFAULT_HEIGHT: f64 = 240.0;
 
 /// Initialize platform prerequisites (GTK on Linux).
@@ -30,7 +34,8 @@ pub(crate) fn init_platform() -> Result<(), ViewerError> {
         gtk::init().map_err(|err| {
             let display = std::env::var("DISPLAY").unwrap_or_else(|_| "<unset>".into());
             ViewerError::EventLoop {
-                message: format!("gtk init failed (DISPLAY={display}): {err}"),
+                message: format!("gtk init failed (DISPLAY={display})"),
+                cause: Some(err.to_string()),
             }
         })?;
     }
@@ -63,11 +68,14 @@ pub(crate) fn build_event_loop() -> Result<EventLoop<()>, ViewerError> {
             .with_activate_ignoring_other_apps(true);
     }
     builder.build().map_err(|err| ViewerError::EventLoop {
-        message: err.to_string(),
+        message: "failed to build event loop".into(),
+        cause: Some(err.to_string()),
     })
 }
 
 /// Present the viewer window: visible, focused, normal level (not always-on-top / modal).
+///
+/// Call only after the first content-sized resize so the 320×240 bootstrap is never shown.
 pub(crate) fn present_viewer_window(window: &Window) {
     window.set_visible(true);
     window.set_window_level(WindowLevel::Normal);
@@ -76,11 +84,14 @@ pub(crate) fn present_viewer_window(window: &Window) {
 }
 
 /// macOS: standard decorated window — native title bar drag, stable alt-tab.
+///
+/// Starts **hidden**; [`present_viewer_window`] shows after first resize.
 #[cfg(target_os = "macos")]
 pub(crate) fn viewer_window_attributes(title: &str, width: f64, height: f64) -> WindowAttributes {
     Window::default_attributes()
         .with_title(title)
         .with_inner_size(LogicalSize::new(width, height))
+        .with_visible(false)
         .with_resizable(true)
         .with_enabled_buttons(WindowButtons::CLOSE | WindowButtons::MINIMIZE)
         .with_window_level(WindowLevel::Normal)
@@ -88,12 +99,14 @@ pub(crate) fn viewer_window_attributes(title: &str, width: f64, height: f64) -> 
 
 /// Win/Linux: undecorated frame; HTML chrome supplies controls where needed.
 ///
+/// Starts **hidden**; [`present_viewer_window`] shows after first resize.
 /// `with_window_level(WindowLevel::Normal)` ensures no always-on-top trapping.
 #[cfg(not(target_os = "macos"))]
 pub(crate) fn viewer_window_attributes(title: &str, width: f64, height: f64) -> WindowAttributes {
     Window::default_attributes()
         .with_title(title)
         .with_inner_size(LogicalSize::new(width, height))
+        .with_visible(false)
         .with_resizable(true)
         .with_enabled_buttons(WindowButtons::CLOSE | WindowButtons::MINIMIZE)
         .with_decorations(false)

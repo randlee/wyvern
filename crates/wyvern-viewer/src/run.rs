@@ -6,7 +6,7 @@ use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use url::Url;
 use winit::application::ApplicationHandler;
@@ -21,25 +21,41 @@ use crate::platform::{
     build_event_loop, init_platform, present_viewer_window, pump_gtk_events,
     viewer_window_attributes, DEFAULT_HEIGHT, DEFAULT_WIDTH,
 };
+use wyvern_viewer::viewport::{HiddenUntilResize, ViewportBounds, FALLBACK_VIEWPORT};
 
-/// Max dialog chrome size (matches packaged UI open bounds).
-const MAX_DIALOG_WIDTH: u32 = 800;
-const MAX_DIALOG_HEIGHT: u32 = 600;
+/// Absolute floor for dialog chrome size.
 const MIN_DIALOG_WIDTH: u32 = 200;
 const MIN_DIALOG_HEIGHT: u32 = 96;
+/// Accept refinement `resize:` IPC for this long after the first applied size.
+const RESIZE_REFINEMENT_WINDOW: Duration = Duration::from_millis(300);
 
-fn parse_resize_message(msg: &str) -> Option<(u32, u32)> {
+const DISMISS_CONNECT_TIMEOUT: Duration = Duration::from_secs(2);
+const DISMISS_IO_TIMEOUT: Duration = Duration::from_secs(2);
+
+fn parse_resize_message(msg: &str, max_w: u32, max_h: u32) -> Option<(u32, u32)> {
     let rest = msg.strip_prefix("resize:")?;
     let (w, h) = rest.split_once('x')?;
     let w: u32 = w.parse().ok()?;
     let h: u32 = h.parse().ok()?;
     Some((
-        w.clamp(MIN_DIALOG_WIDTH, MAX_DIALOG_WIDTH),
-        h.clamp(MIN_DIALOG_HEIGHT, MAX_DIALOG_HEIGHT),
+        w.clamp(MIN_DIALOG_WIDTH, max_w.max(MIN_DIALOG_WIDTH)),
+        h.clamp(MIN_DIALOG_HEIGHT, max_h.max(MIN_DIALOG_HEIGHT)),
     ))
 }
-const DISMISS_CONNECT_TIMEOUT: Duration = Duration::from_secs(2);
-const DISMISS_IO_TIMEOUT: Duration = Duration::from_secs(2);
+
+fn viewport_bounds_from_event_loop(event_loop: &ActiveEventLoop) -> ViewportBounds {
+    let monitor = event_loop
+        .primary_monitor()
+        .or_else(|| event_loop.available_monitors().next());
+    match monitor {
+        Some(m) => {
+            let size = m.size();
+            ViewportBounds::from_physical(size.width, size.height, m.scale_factor())
+                .unwrap_or(FALLBACK_VIEWPORT)
+        }
+        None => FALLBACK_VIEWPORT,
+    }
+}
 
 /// Viewer process failure.
 #[derive(Debug)]
@@ -48,18 +64,32 @@ pub enum ViewerError {
     Usage {
         /// Human-readable detail.
         message: String,
+        /// Optional upstream / parse cause for structured stderr.
+        cause: Option<String>,
     },
     /// Window / event-loop failure.
     EventLoop {
         /// Failure detail.
         message: String,
+        /// Optional upstream platform cause for structured stderr.
+        cause: Option<String>,
     },
+}
+
+impl ViewerError {
+    /// Optional structured cause string (included in stderr envelope when set).
+    #[must_use]
+    pub fn cause(&self) -> Option<&str> {
+        match self {
+            Self::Usage { cause, .. } | Self::EventLoop { cause, .. } => cause.as_deref(),
+        }
+    }
 }
 
 impl fmt::Display for ViewerError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Usage { message } | Self::EventLoop { message } => f.write_str(message),
+            Self::Usage { message, .. } | Self::EventLoop { message, .. } => f.write_str(message),
         }
     }
 }
@@ -91,10 +121,12 @@ pub fn run_from_env_and_args(args: Vec<String>) -> Result<(), ViewerError> {
         .or_else(|| std::env::var("WYVERN_DIALOG_URL").ok())
         .ok_or_else(|| ViewerError::Usage {
             message: "missing dialog URL (pass as argv[1] or set WYVERN_DIALOG_URL)".into(),
+            cause: None,
         })?;
 
     let parsed = Url::parse(&dialog_url).map_err(|e| ViewerError::Usage {
-        message: format!("invalid dialog URL '{dialog_url}': {e}"),
+        message: format!("invalid dialog URL '{dialog_url}'"),
+        cause: Some(e.to_string()),
     })?;
     enforce_dialog_url_policy(&parsed)?;
 
@@ -122,6 +154,7 @@ fn enforce_dialog_url_policy(url: &Url) -> Result<(), ViewerError> {
     if scheme != "http" && scheme != "https" {
         return Err(ViewerError::Usage {
             message: format!("refusing dialog URL scheme '{scheme}'; only http/https are allowed"),
+            cause: None,
         });
     }
 
@@ -134,6 +167,7 @@ fn enforce_dialog_url_policy(url: &Url) -> Result<(), ViewerError> {
 
     let host = url.host_str().ok_or_else(|| ViewerError::Usage {
         message: "dialog URL is missing a host".into(),
+        cause: None,
     })?;
     if is_loopback_host(host) {
         return Ok(());
@@ -142,6 +176,7 @@ fn enforce_dialog_url_policy(url: &Url) -> Result<(), ViewerError> {
         message: format!(
             "refusing non-loopback dialog host '{host}'; set WYVERN_VIEWER_ALLOW_NON_LOOPBACK=1 to opt in"
         ),
+        cause: None,
     })
 }
 
@@ -175,7 +210,10 @@ pub fn run(args: ViewerArgs) -> Result<(), ViewerError> {
         posted_dismiss: false,
         pending_resize: Arc::new(Mutex::new(None)),
         pending_navigate: Arc::new(Mutex::new(None)),
-        sized: false,
+        viewport: FALLBACK_VIEWPORT,
+        first_resize_at: None,
+        present_gate: HiddenUntilResize::new(),
+        bounds_injected: false,
         close_requested,
         closing: false,
     };
@@ -183,7 +221,8 @@ pub fn run(args: ViewerArgs) -> Result<(), ViewerError> {
     event_loop
         .run_app(&mut app)
         .map_err(|err| ViewerError::EventLoop {
-            message: err.to_string(),
+            message: "event loop failed".into(),
+            cause: Some(err.to_string()),
         })?;
 
     pump_gtk_events();
@@ -232,7 +271,10 @@ struct ViewerApp {
     posted_dismiss: bool,
     pending_resize: Arc<Mutex<Option<(u32, u32)>>>,
     pending_navigate: Arc<Mutex<Option<String>>>,
-    sized: bool,
+    viewport: ViewportBounds,
+    first_resize_at: Option<Instant>,
+    present_gate: HiddenUntilResize,
+    bounds_injected: bool,
     close_requested: Arc<AtomicBool>,
     closing: bool,
 }
@@ -259,8 +301,34 @@ impl ViewerApp {
         event_loop.exit();
     }
 
+    fn accepts_resize(&self) -> bool {
+        match self.first_resize_at {
+            None => true,
+            Some(started) => started.elapsed() <= RESIZE_REFINEMENT_WINDOW,
+        }
+    }
+
+    fn inject_viewport_bounds_if_needed(&mut self) {
+        if self.bounds_injected {
+            return;
+        }
+        let Some(webview) = self.webview.as_ref() else {
+            return;
+        };
+        let script = self.viewport.dispatch_script();
+        if let Err(err) = webview.evaluate_script(&script) {
+            tracing::warn!(error = %err, "failed to inject viewport bounds");
+            return;
+        }
+        self.bounds_injected = true;
+    }
+
     fn apply_pending_resize(&mut self) {
-        if self.sized {
+        if !self.accepts_resize() {
+            // Drain late messages so they do not apply after the refinement window.
+            if let Ok(mut guard) = self.pending_resize.lock() {
+                *guard = None;
+            }
             return;
         }
         let pending = self
@@ -279,7 +347,12 @@ impl ViewerApp {
         if let Some(webview) = &self.webview {
             fit_child_webview(webview, window);
         }
-        self.sized = true;
+        if self.first_resize_at.is_none() {
+            self.first_resize_at = Some(Instant::now());
+        }
+        if self.present_gate.note_content_resize() {
+            present_viewer_window(window);
+        }
     }
 
     fn apply_pending_navigate(&mut self) {
@@ -298,9 +371,12 @@ impl ViewerApp {
             tracing::error!(error = %err, url = %url, "failed to navigate viewer");
             return;
         }
-        self.sized = false;
+        // New page: hide until its first resize; re-inject bounds.
+        self.first_resize_at = None;
+        self.bounds_injected = false;
+        self.present_gate.note_navigate();
         if let Some(window) = self.window.as_ref() {
-            present_viewer_window(window);
+            window.set_visible(false);
         }
     }
 }
@@ -310,6 +386,11 @@ impl ApplicationHandler for ViewerApp {
         if self.window.is_some() {
             return;
         }
+
+        self.viewport = viewport_bounds_from_event_loop(event_loop);
+        let max_w = self.viewport.available_width();
+        let max_h = self.viewport.available_height();
+
         let attrs = viewer_window_attributes(&self.args.title, self.args.width, self.args.height);
         let window = match event_loop.create_window(attrs) {
             Ok(w) => Arc::new(w),
@@ -323,8 +404,10 @@ impl ApplicationHandler for ViewerApp {
         let pending_resize = Arc::clone(&self.pending_resize);
         let pending_navigate = Arc::clone(&self.pending_navigate);
         let close_requested = Arc::clone(&self.close_requested);
+        let init_script = self.viewport.dispatch_script();
         let builder = WebViewBuilder::new()
             .with_url(&self.args.dialog_url)
+            .with_initialization_script(&init_script)
             .with_devtools(cfg!(debug_assertions))
             .with_ipc_handler(move |req: Request<String>| {
                 let msg = req.body();
@@ -339,7 +422,7 @@ impl ApplicationHandler for ViewerApp {
                     }
                     return;
                 }
-                if let Some(size) = parse_resize_message(msg) {
+                if let Some(size) = parse_resize_message(msg, max_w, max_h) {
                     if let Ok(mut slot) = pending_resize.lock() {
                         *slot = Some(size);
                     }
@@ -369,6 +452,7 @@ impl ApplicationHandler for ViewerApp {
             Err(err) => {
                 match WebViewBuilder::new()
                     .with_url(&self.args.dialog_url)
+                    .with_initialization_script(&init_script)
                     .with_devtools(cfg!(debug_assertions))
                     .build(&*window)
                 {
@@ -384,9 +468,8 @@ impl ApplicationHandler for ViewerApp {
 
         self.webview = Some(webview);
         self.window = Some(window);
-        if let Some(window) = self.window.as_ref() {
-            present_viewer_window(window);
-        }
+        // Intentionally do NOT present yet — wait for first content resize (no 320×240 flash).
+        self.inject_viewport_bounds_if_needed();
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
@@ -394,6 +477,7 @@ impl ApplicationHandler for ViewerApp {
             self.request_shutdown(event_loop);
             return;
         }
+        self.inject_viewport_bounds_if_needed();
         self.apply_pending_resize();
         self.apply_pending_navigate();
     }
@@ -522,5 +606,13 @@ mod tests {
         let parsed = Url::parse("file:///tmp/x").unwrap();
         let err = enforce_dialog_url_policy(&parsed).expect_err("scheme");
         assert!(matches!(err, ViewerError::Usage { .. }));
+    }
+
+    #[test]
+    fn parse_resize_clamps_to_viewport_max() {
+        let (w, h) = parse_resize_message("resize:5000x4000", 1920, 1080).unwrap();
+        assert_eq!((w, h), (1920, 1080));
+        let (w, h) = parse_resize_message("resize:100x50", 1920, 1080).unwrap();
+        assert_eq!((w, h), (MIN_DIALOG_WIDTH, MIN_DIALOG_HEIGHT));
     }
 }

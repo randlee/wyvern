@@ -212,6 +212,49 @@ html.wyvern-embedded:not(.wyvern-macos) .dialog > * {
   z-index: 1;
 }
 
+/* Workspace pages fill the viewer; pan/zoom is page JS (ADR-0020). */
+html.wyvern-embedded .dialog--workspace,
+html.wyvern-embedded body:has(.dialog--workspace) {
+  width: 100%;
+  max-width: none;
+  height: 100vh;
+  min-height: 100vh;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+html.wyvern-embedded body:has(.dialog--workspace) {
+  display: block;
+  align-items: stretch;
+  justify-content: flex-start;
+  overflow: hidden;
+}
+
+html.wyvern-embedded .dialog--workspace {
+  flex: 1 1 auto;
+  align-self: stretch;
+  max-width: none !important;
+  width: 100% !important;
+  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Clamped dialog: keep window at viewport limit; scroll inner content. */
+html.wyvern-embedded .dialog--clamped {
+  max-height: 100vh;
+  overflow: hidden;
+}
+
+html.wyvern-embedded .dialog--clamped .content,
+html.wyvern-embedded .dialog--clamped .cards {
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 100%;
+}
+
 html.wyvern-embedded button,
 html.wyvern-embedded input,
 html.wyvern-embedded textarea,

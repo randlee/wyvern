@@ -4,7 +4,8 @@
   "version": "0.1.0",
   "scripts": {
     "test": "playwright test",
-    "test:layout-picker": "playwright test wizard-layout-picker.spec.ts"
+    "test:layout-picker": "playwright test wizard-layout-picker.spec.ts",
+    "test:viewport": "playwright test viewport-sizing.spec.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.49.0"
