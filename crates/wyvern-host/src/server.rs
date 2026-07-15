@@ -110,6 +110,8 @@ pub(crate) fn build_router(session: SessionState, roots: StaticRoots) -> Router 
         .route("/api/picker/file", post(picker::post_picker_file))
         .route("/api/picker/folder", post(picker::post_picker_folder))
         .route("/api/wizard/state", get(wizard::get_wizard_state))
+        .route("/api/wizard/navigate", post(wizard::post_wizard_navigate))
+        .route("/api/wizard/finish", post(wizard::post_wizard_finish))
         .layer(RequestBodyLimitLayer::new(API_BODY_LIMIT_BYTES));
 
     if roots.is_wizard {

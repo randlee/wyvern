@@ -167,6 +167,10 @@ fn run_begin_worker(
         };
 
         let dialog_url = bound.dialog_url.clone();
+        session
+            .set_public_origin(public_origin_from_dialog_url(&dialog_url))
+            .await;
+
         if options.dialog_url_env {
             publish_dialog_url(&dialog_url, options.dialog_url_file.as_deref());
         }
@@ -217,6 +221,10 @@ pub(crate) async fn run_owned_async(
         type_name,
     )
     .await?;
+
+    session
+        .set_public_origin(public_origin_from_dialog_url(&bound.dialog_url))
+        .await;
 
     if options.dialog_url_env {
         publish_dialog_url(&bound.dialog_url, options.dialog_url_file.as_deref());
@@ -290,4 +298,17 @@ fn clone_host_error_message(err: &HostError) -> HostError {
             source: source.clone(),
         },
     }
+}
+
+/// Extract `http://host:port` from a dialog URL for absolute wizard navigate links.
+fn public_origin_from_dialog_url(dialog_url: &str) -> String {
+    if let Some((base, _)) = dialog_url.split_once("/wizard/") {
+        return base.to_string();
+    }
+    // Blocking dialogs: `http://host:port/message/` → `http://host:port`
+    dialog_url
+        .trim_end_matches('/')
+        .rsplit_once('/')
+        .map(|(base, _)| base.to_string())
+        .unwrap_or_else(|| dialog_url.to_string())
 }

@@ -257,6 +257,52 @@ impl WizardStateResponse {
     }
 }
 
+/// Wire: `"next"` | `"back"` only. Cancel/finish/dismissed use `POST /api/wizard/finish`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum WizardNavAction {
+    /// Advance to an explicit next page descriptor.
+    Next,
+    /// Move the cursor back without truncating forward history.
+    Back,
+}
+
+/// Wire DTO for `POST /api/wizard/navigate` (HTTP-TYPES.md).
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct WizardNavigateRequest {
+    /// `"next"` or `"back"` only — terminal actions use `/finish`.
+    pub action: WizardNavAction,
+    /// Opaque page payload for the current entry (whole-blob replace).
+    #[serde(default)]
+    pub data: serde_json::Value,
+    /// Optional validation hint; when set on `next`, must equal `next.id`.
+    #[serde(default)]
+    pub page_id: Option<String>,
+    /// Required when `action` is `next` — destination page descriptor.
+    #[serde(default)]
+    pub next: Option<WizardPageDescriptor>,
+}
+
+/// Successful navigate response — viewer reloads `url`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct WizardNavigateResponse {
+    /// Always `true` on HTTP 200.
+    pub ok: bool,
+    /// Absolute URL of the destination wizard page under `/wizard/`.
+    pub url: String,
+}
+
+/// Wire DTO for `POST /api/wizard/finish` (HTTP-TYPES.md).
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct WizardFinishRequest {
+    /// Terminal button (`finish` | `cancel` | `dismissed`).
+    pub button: ButtonLabel,
+    /// Opaque final page data (ignored for cancel / dismissed stdout `data`).
+    pub data: serde_json::Value,
+    /// Client-supplied full visited stack (validated for finish / dismissed).
+    pub stack: Vec<WizardStackEntry>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

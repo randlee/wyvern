@@ -17,8 +17,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use tokio::sync::{oneshot, Mutex, OwnedSemaphorePermit, Semaphore};
-use wyvern_schema::Command;
-use wyvern_wizard::{WizardError, WizardSession, WizardSnapshot};
+use wyvern_schema::{
+    ButtonLabel, Command, CommandResult, WizardPageDescriptor, WizardResult, WizardStackEntry,
+};
+use wyvern_wizard::{NavigateOutcome, WizardError, WizardSession, WizardSnapshot};
 
 use crate::picker::MockPickerConfig;
 
@@ -39,6 +41,8 @@ struct SessionInner {
     command: Command,
     /// Present when the active command is [`Command::Wizard`].
     wizard: Option<WizardSession>,
+    /// Public origin (`http://127.0.0.1:PORT`) set after bind for navigate URLs.
+    public_origin: Option<String>,
     result_tx: Option<oneshot::Sender<wyvern_schema::CommandResult>>,
 }
 
@@ -57,6 +61,7 @@ impl SessionState {
             inner: Arc::new(Mutex::new(SessionInner {
                 command,
                 wizard,
+                public_origin: None,
                 result_tx: Some(result_tx),
             })),
             // Serialize picker spawn_blocking so repeated POSTs cannot exhaust
@@ -64,6 +69,11 @@ impl SessionState {
             picker_slots: Arc::new(Semaphore::new(1)),
             mock_picker,
         }
+    }
+
+    /// Record the bound HTTP origin used to build absolute wizard page URLs.
+    pub(crate) async fn set_public_origin(&self, origin: String) {
+        self.inner.lock().await.public_origin = Some(origin);
     }
 
     /// Clone of the active command for `/api/dialog`.
@@ -81,6 +91,60 @@ impl SessionState {
             guard.wizard.clone().ok_or(WizardError::NotInitialized)?
         };
         Ok(session.snapshot())
+    }
+
+    /// Run `navigate_next` / `navigate_back` on the live wizard session.
+    pub(crate) async fn wizard_navigate_next(
+        &self,
+        data: serde_json::Value,
+        next: WizardPageDescriptor,
+    ) -> Result<(NavigateOutcome, String), WizardError> {
+        let mut guard = self.inner.lock().await;
+        let origin = guard
+            .public_origin
+            .clone()
+            .ok_or(WizardError::NotInitialized)?;
+        let session = guard.wizard.as_mut().ok_or(WizardError::NotInitialized)?;
+        let outcome = session.navigate_next(data, next)?;
+        let url = wizard_page_url(&origin, outcome.page.html.as_str());
+        Ok((outcome, url))
+    }
+
+    /// Run `navigate_back` on the live wizard session.
+    pub(crate) async fn wizard_navigate_back(
+        &self,
+        data: serde_json::Value,
+    ) -> Result<(NavigateOutcome, String), WizardError> {
+        let mut guard = self.inner.lock().await;
+        let origin = guard
+            .public_origin
+            .clone()
+            .ok_or(WizardError::NotInitialized)?;
+        let session = guard.wizard.as_mut().ok_or(WizardError::NotInitialized)?;
+        let outcome = session.navigate_back(data)?;
+        let url = wizard_page_url(&origin, outcome.page.html.as_str());
+        Ok((outcome, url))
+    }
+
+    /// Run `finish` and complete the one-shot session with the derived result.
+    ///
+    /// Returns `Ok(None)` when a result was already submitted (HTTP 409).
+    pub(crate) async fn wizard_finish(
+        &self,
+        button: ButtonLabel,
+        data: serde_json::Value,
+        stack: Vec<WizardStackEntry>,
+    ) -> Result<Option<WizardResult>, WizardError> {
+        let result = {
+            let guard = self.inner.lock().await;
+            let session = guard.wizard.as_ref().ok_or(WizardError::NotInitialized)?;
+            session.finish(button, data, stack)?
+        };
+        if self.complete(CommandResult::Wizard(result.clone())).await {
+            Ok(Some(result))
+        } else {
+            Ok(None)
+        }
     }
 
     /// In-process mock picker config, if any.
@@ -112,6 +176,11 @@ impl SessionState {
             false
         }
     }
+}
+
+fn wizard_page_url(origin: &str, html: &str) -> String {
+    let html = html.trim_start_matches('/');
+    format!("{origin}/wizard/{html}")
 }
 
 /// Session was dropped while waiting for a picker slot (should not happen in-process).
