@@ -7,7 +7,9 @@ use std::thread;
 use std::time::Duration;
 
 use wyvern_host::{begin, DialogHandle, HostOptions, ViewerMode};
-use wyvern_schema::{Command, WizardCommand, WizardPageDescriptor};
+use wyvern_schema::{
+    Command, WizardCommand, WizardPageDescriptor, WizardPageHtml, WizardPageId, WizardPageTitle,
+};
 
 fn workspace_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -39,9 +41,9 @@ fn write_ui_root() -> PathBuf {
 
 fn page(id: &str, html: &str) -> WizardPageDescriptor {
     WizardPageDescriptor {
-        id: id.into(),
-        title: id.into(),
-        html: html.into(),
+        id: WizardPageId::new(id),
+        title: WizardPageTitle::new(id),
+        html: WizardPageHtml::new(html),
         layout: None,
     }
 }
@@ -203,6 +205,48 @@ fn wizard_finish_stack_mismatch_returns_400() {
             .contains("stack does not match"),
         "message={}",
         body["message"]
+    );
+    assert!(
+        body["cause"]
+            .as_str()
+            .unwrap_or("")
+            .contains("length mismatch"),
+        "cause={}",
+        body["cause"]
+    );
+
+    let _ = handle.viewer_exited_without_result();
+    let _ = std::fs::remove_file(&url_file);
+    let _ = std::fs::remove_dir_all(&ui_root);
+}
+
+#[test]
+fn wizard_finish_stack_mismatch_includes_page_id_detail() {
+    let (handle, base, url_file, ui_root, client) = start_wizard();
+    navigate_to_b(&client, &base);
+
+    let resp = client
+        .post(format!("{base}/api/wizard/finish"))
+        .json(&serde_json::json!({
+            "button": "finish",
+            "data": {"b": 2},
+            "stack": [
+                { "page": page("a", "pages/a.html"), "data": {"a": 1} },
+                { "page": page("wrong", "pages/b.html"), "data": {"b": 2} }
+            ]
+        }))
+        .send()
+        .expect("finish");
+    assert_eq!(resp.status(), reqwest::StatusCode::BAD_REQUEST);
+    let body: serde_json::Value = resp.json().expect("json");
+    let cause = body["cause"].as_str().unwrap_or("");
+    assert!(
+        cause.contains("page mismatch") || cause.contains("expected_page_id=b"),
+        "cause={cause}"
+    );
+    assert!(
+        cause.contains("got_page_id=wrong") || cause.contains("'wrong'"),
+        "cause={cause}"
     );
 
     let _ = handle.viewer_exited_without_result();

@@ -92,10 +92,14 @@ pub async fn post_wizard_navigate(
                 )
             })?;
             if let Some(ref page_id) = request.page_id {
-                if page_id != next.id.as_str() {
+                if page_id != &next.id {
                     return Err(navigate_bad_request(
                         "page_id does not match next.id",
-                        format!("page_id '{page_id}' != next.id '{}'", next.id.as_str()),
+                        format!(
+                            "page_id '{}' != next.id '{}'",
+                            page_id.as_str(),
+                            next.id.as_str()
+                        ),
                     ));
                 }
             }
@@ -176,11 +180,25 @@ fn map_wizard_navigate_error(err: WizardError) -> ApiError {
             .cause(format!("invalid field '{field}': {reason}"))
             .recovery("POST action next|back with a valid next descriptor when advancing")
             .docs(WIZARD_NAVIGATE_DOCS),
-        WizardError::NotInitialized => ApiError::internal(err.to_string())
+        WizardError::StackDepthExceeded { max } => ApiError::bad_request(err.to_string())
+            .cause(format!(
+                "navigate_next would exceed max stack depth of {max}"
+            ))
+            .recovery("Finish the wizard or navigate back before adding more pages")
+            .docs(WIZARD_NAVIGATE_DOCS),
+        WizardError::SessionNotInitialized => ApiError::internal(err.to_string())
             .cause("wizard session missing for an active wizard command")
             .recovery("Report a bug if a validated wizard command has no session")
             .docs(WIZARD_NAVIGATE_DOCS),
-        WizardError::StackMismatch => ApiError::bad_request(err.to_string())
+        WizardError::PublicOriginNotSet => ApiError::internal(err.to_string())
+            .cause("public origin was not recorded after the HTTP listener bound")
+            .recovery("Report a bug — navigate URLs require the bound loopback origin")
+            .docs(WIZARD_NAVIGATE_DOCS),
+        WizardError::ResultAlreadySubmitted => ApiError::conflict(err.to_string())
+            .cause("a finish/result was already accepted for this one-shot wizard session")
+            .recovery("Do not POST /api/wizard/navigate after the dialog result is submitted")
+            .docs(WIZARD_NAVIGATE_DOCS),
+        WizardError::StackMismatch { .. } => ApiError::bad_request(err.to_string())
             .cause("stack mismatch is not expected on navigate")
             .recovery("Use POST /api/wizard/finish for terminal actions")
             .docs(WIZARD_NAVIGATE_DOCS),
@@ -189,10 +207,28 @@ fn map_wizard_navigate_error(err: WizardError) -> ApiError {
 
 fn map_wizard_finish_error(err: WizardError) -> ApiError {
     match &err {
-        WizardError::StackMismatch => ApiError::bad_request(err.to_string())
-            .cause("client stack does not equal session-derived full visited stack")
-            .recovery("Build stack as window.wyvern.stack plus { page, data } for the current page")
-            .docs(WIZARD_FINISH_DOCS),
+        WizardError::StackMismatch {
+            index,
+            expected_page_id,
+            got_page_id,
+            reason,
+        } => {
+            let mut cause = format!(
+                "client stack does not equal session-derived full visited stack ({reason})"
+            );
+            if let Some(i) = index {
+                cause.push_str(&format!("; index={i}"));
+            }
+            if let (Some(expected), Some(got)) = (expected_page_id, got_page_id) {
+                cause.push_str(&format!("; expected_page_id={expected}; got_page_id={got}"));
+            }
+            ApiError::bad_request(err.to_string())
+                .cause(cause)
+                .recovery(
+                    "Build stack as window.wyvern.stack plus { page, data } for the current page",
+                )
+                .docs(WIZARD_FINISH_DOCS)
+        }
         WizardError::InvalidCommand { field, reason } => ApiError::bad_request(err.to_string())
             .cause(format!("invalid field '{field}': {reason}"))
             .recovery("Use button finish|cancel|dismissed only on /api/wizard/finish")
@@ -201,9 +237,21 @@ fn map_wizard_finish_error(err: WizardError) -> ApiError {
             .cause("AtFirstPage is not expected on finish")
             .recovery("Report a bug")
             .docs(WIZARD_FINISH_DOCS),
-        WizardError::NotInitialized => ApiError::internal(err.to_string())
+        WizardError::StackDepthExceeded { .. } => ApiError::bad_request(err.to_string())
+            .cause("StackDepthExceeded is not expected on finish")
+            .recovery("Report a bug")
+            .docs(WIZARD_FINISH_DOCS),
+        WizardError::SessionNotInitialized => ApiError::internal(err.to_string())
             .cause("wizard session missing for an active wizard command")
             .recovery("Report a bug if a validated wizard command has no session")
+            .docs(WIZARD_FINISH_DOCS),
+        WizardError::PublicOriginNotSet => ApiError::internal(err.to_string())
+            .cause("PublicOriginNotSet is not expected on finish")
+            .recovery("Report a bug")
+            .docs(WIZARD_FINISH_DOCS),
+        WizardError::ResultAlreadySubmitted => ApiError::conflict(err.to_string())
+            .cause("a finish/result was already accepted for this one-shot wizard session")
+            .recovery("Do not POST /api/wizard/finish more than once per dialog")
             .docs(WIZARD_FINISH_DOCS),
     }
 }

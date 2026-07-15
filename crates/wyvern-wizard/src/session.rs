@@ -1,10 +1,10 @@
 //! [`WizardSession`] — concrete wizard stack state (ADR-0007).
 
 use wyvern_schema::{
-    ButtonLabel, WizardCommand, WizardPageDescriptor, WizardResult, WizardStackEntry,
+    WizardCommand, WizardPageDescriptor, WizardResult, WizardStackEntry, WizardTerminalButton,
 };
 
-use crate::history::History;
+use crate::history::{History, MAX_WIZARD_STACK_DEPTH};
 
 /// Snapshot for `GET /api/wizard/state` — prior entries only in `stack` (REQ-0024).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -43,9 +43,27 @@ pub enum WizardError {
         reason: String,
     },
     /// Client finish stack ≠ session-derived stack.
-    StackMismatch,
-    /// Host asked for a snapshot but no wizard session was initialized.
-    NotInitialized,
+    StackMismatch {
+        /// First differing index, or `None` when lengths differ.
+        index: Option<usize>,
+        /// Expected page id at the mismatch (when applicable).
+        expected_page_id: Option<String>,
+        /// Client page id at the mismatch (when applicable).
+        got_page_id: Option<String>,
+        /// Human-readable summary of the diff.
+        reason: String,
+    },
+    /// `navigate_next` would exceed [`MAX_WIZARD_STACK_DEPTH`].
+    StackDepthExceeded {
+        /// Configured maximum entry count.
+        max: usize,
+    },
+    /// Host asked for a snapshot/navigate but no wizard session was initialized.
+    SessionNotInitialized,
+    /// Navigate URL cannot be built because the public origin was not set after bind.
+    PublicOriginNotSet,
+    /// Navigate/finish after the one-shot result channel was already completed.
+    ResultAlreadySubmitted,
 }
 
 impl WizardError {
@@ -54,6 +72,56 @@ impl WizardError {
         Self::InvalidCommand {
             field: field.into(),
             reason: reason.into(),
+        }
+    }
+
+    /// Compare client vs derived stacks and build a contextual mismatch error.
+    pub(crate) fn stack_mismatch(
+        client: &[WizardStackEntry],
+        derived: &[WizardStackEntry],
+    ) -> Self {
+        if client.len() != derived.len() {
+            return Self::StackMismatch {
+                index: None,
+                expected_page_id: None,
+                got_page_id: None,
+                reason: format!(
+                    "length mismatch: expected {}, got {}",
+                    derived.len(),
+                    client.len()
+                ),
+            };
+        }
+        for (index, (got, expected)) in client.iter().zip(derived.iter()).enumerate() {
+            if got.page != expected.page {
+                return Self::StackMismatch {
+                    index: Some(index),
+                    expected_page_id: Some(expected.page.id.as_str().to_string()),
+                    got_page_id: Some(got.page.id.as_str().to_string()),
+                    reason: format!(
+                        "page mismatch at index {index}: expected '{}', got '{}'",
+                        expected.page.id.as_str(),
+                        got.page.id.as_str()
+                    ),
+                };
+            }
+            if got.data != expected.data {
+                return Self::StackMismatch {
+                    index: Some(index),
+                    expected_page_id: Some(expected.page.id.as_str().to_string()),
+                    got_page_id: Some(got.page.id.as_str().to_string()),
+                    reason: format!(
+                        "data mismatch at index {index} (page '{}')",
+                        expected.page.id.as_str()
+                    ),
+                };
+            }
+        }
+        Self::StackMismatch {
+            index: None,
+            expected_page_id: None,
+            got_page_id: None,
+            reason: "client stack does not match session stack".to_string(),
         }
     }
 }
@@ -65,8 +133,17 @@ impl std::fmt::Display for WizardError {
             Self::InvalidCommand { field, reason } => {
                 write!(f, "invalid wizard command ({field}): {reason}")
             }
-            Self::StackMismatch => f.write_str("client stack does not match session stack"),
-            Self::NotInitialized => f.write_str("no wizard session for this dialog"),
+            Self::StackMismatch { reason, .. } => {
+                write!(f, "client stack does not match session stack: {reason}")
+            }
+            Self::StackDepthExceeded { max } => {
+                write!(f, "wizard stack depth would exceed maximum of {max}")
+            }
+            Self::SessionNotInitialized => f.write_str("no wizard session for this dialog"),
+            Self::PublicOriginNotSet => f.write_str("wizard public origin not set after bind"),
+            Self::ResultAlreadySubmitted => {
+                f.write_str("wizard result already submitted for this session")
+            }
         }
     }
 }
@@ -112,8 +189,8 @@ impl WizardSession {
     ///
     /// # Errors
     ///
-    /// This method currently always returns `Ok`; `Result` is reserved for
-    /// future validation hooks shared with the HTTP layer.
+    /// Returns [`WizardError::StackDepthExceeded`] when a branch push would
+    /// grow the history past [`MAX_WIZARD_STACK_DEPTH`].
     pub fn navigate_next(
         &mut self,
         data: serde_json::Value,
@@ -122,7 +199,11 @@ impl WizardSession {
         let request_data = data.clone();
         // Opaque whole-blob replace on current before push/restore/advance.
         self.history.write_current_data(data);
-        self.history.navigate_next(next, request_data);
+        self.history
+            .navigate_next(next, request_data)
+            .map_err(|()| WizardError::StackDepthExceeded {
+                max: MAX_WIZARD_STACK_DEPTH,
+            })?;
         Ok(self.outcome_from_current())
     }
 
@@ -145,42 +226,36 @@ impl WizardSession {
     ///
     /// # Errors
     ///
-    /// - [`WizardError::InvalidCommand`] for unknown `button` values
     /// - [`WizardError::StackMismatch`] when client `stack` ≠ session-derived
     ///   stack for `finish` / `dismissed`
     pub fn finish(
         &self,
-        button: ButtonLabel,
+        button: WizardTerminalButton,
         data: serde_json::Value,
         stack: Vec<WizardStackEntry>,
     ) -> Result<WizardResult, WizardError> {
-        let label = button.as_str();
-        match label {
-            "cancel" => Ok(WizardResult {
-                button,
+        match button {
+            WizardTerminalButton::Cancel => Ok(WizardResult {
+                button: button.to_button_label(),
                 data: serde_json::json!({}),
                 stack: Vec::new(),
             }),
-            "finish" | "dismissed" => {
+            WizardTerminalButton::Finish | WizardTerminalButton::Dismissed => {
                 let derived = self.history.visited_stack_with_current(data.clone());
                 if stack != derived {
-                    return Err(WizardError::StackMismatch);
+                    return Err(WizardError::stack_mismatch(&stack, &derived));
                 }
-                let stdout_data = if label == "finish" {
+                let stdout_data = if button == WizardTerminalButton::Finish {
                     data
                 } else {
                     serde_json::json!({})
                 };
                 Ok(WizardResult {
-                    button,
+                    button: button.to_button_label(),
                     data: stdout_data,
                     stack: derived,
                 })
             }
-            _ => Err(WizardError::invalid_command(
-                "button",
-                format!("expected finish|cancel|dismissed, got '{label}'"),
-            )),
         }
     }
 
@@ -319,26 +394,71 @@ mod tests {
             },
         ];
         let result = session
-            .finish(ButtonLabel::new("finish"), data.clone(), derived.clone())
+            .finish(WizardTerminalButton::Finish, data.clone(), derived.clone())
             .expect("finish");
         assert_eq!(result.button.as_str(), "finish");
         assert_eq!(result.data, data);
         assert_eq!(result.stack, derived);
 
         let mismatch = session
-            .finish(ButtonLabel::new("finish"), data, vec![])
+            .finish(WizardTerminalButton::Finish, data, vec![])
             .expect_err("mismatch");
-        assert_eq!(mismatch, WizardError::StackMismatch);
+        match mismatch {
+            WizardError::StackMismatch { reason, index, .. } => {
+                assert!(index.is_none());
+                assert!(reason.contains("length mismatch"));
+            }
+            other => panic!("expected StackMismatch, got {other:?}"),
+        }
 
         let cancel = session
             .finish(
-                ButtonLabel::new("cancel"),
+                WizardTerminalButton::Cancel,
                 serde_json::json!({"ignored": true}),
                 vec![],
             )
             .expect("cancel");
         assert_eq!(cancel.stack, Vec::<WizardStackEntry>::new());
         assert_eq!(cancel.data, serde_json::json!({}));
+    }
+
+    #[test]
+    fn finish_stack_mismatch_includes_page_id_diff() {
+        let mut session = WizardSession::new(&cmd("a.html"));
+        session
+            .navigate_next(serde_json::json!({"a": 1}), page("b", "b.html"))
+            .expect("next");
+        let bad = vec![
+            WizardStackEntry {
+                page: page("start", "a.html"),
+                data: serde_json::json!({"a": 1}),
+            },
+            WizardStackEntry {
+                page: page("wrong", "b.html"),
+                data: serde_json::json!({"b": 2}),
+            },
+        ];
+        let err = session
+            .finish(
+                WizardTerminalButton::Finish,
+                serde_json::json!({"b": 2}),
+                bad,
+            )
+            .expect_err("mismatch");
+        match err {
+            WizardError::StackMismatch {
+                index,
+                expected_page_id,
+                got_page_id,
+                reason,
+            } => {
+                assert_eq!(index, Some(1));
+                assert_eq!(expected_page_id.as_deref(), Some("b"));
+                assert_eq!(got_page_id.as_deref(), Some("wrong"));
+                assert!(reason.contains("page mismatch at index 1"));
+            }
+            other => panic!("expected StackMismatch, got {other:?}"),
+        }
     }
 
     #[test]
@@ -359,7 +479,7 @@ mod tests {
         ];
         let result = session
             .finish(
-                ButtonLabel::new("dismissed"),
+                WizardTerminalButton::Dismissed,
                 serde_json::json!({"b": 2}),
                 derived.clone(),
             )
@@ -384,5 +504,26 @@ mod tests {
         // Request data was written to A; destination B overwritten because meaningful.
         assert_eq!(out.page_data, serde_json::json!({"new": 1}));
         assert_eq!(out.stack[0].data, serde_json::json!({"new": 1}));
+    }
+
+    #[test]
+    fn navigate_next_rejects_at_max_depth() {
+        let mut session = WizardSession::new(&cmd("p0.html"));
+        for i in 1..MAX_WIZARD_STACK_DEPTH {
+            let id = format!("p{i}");
+            let html = format!("p{i}.html");
+            session
+                .navigate_next(serde_json::json!({}), page(&id, &html))
+                .unwrap_or_else(|_| panic!("push {i}"));
+        }
+        let err = session
+            .navigate_next(serde_json::json!({}), page("overflow", "overflow.html"))
+            .expect_err("depth");
+        assert_eq!(
+            err,
+            WizardError::StackDepthExceeded {
+                max: MAX_WIZARD_STACK_DEPTH
+            }
+        );
     }
 }

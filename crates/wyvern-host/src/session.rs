@@ -18,7 +18,8 @@ use std::time::Duration;
 
 use tokio::sync::{oneshot, Mutex, OwnedSemaphorePermit, Semaphore};
 use wyvern_schema::{
-    ButtonLabel, Command, CommandResult, WizardPageDescriptor, WizardResult, WizardStackEntry,
+    Command, CommandResult, WizardPageDescriptor, WizardResult, WizardStackEntry,
+    WizardTerminalButton,
 };
 use wyvern_wizard::{NavigateOutcome, WizardError, WizardSession, WizardSnapshot};
 
@@ -88,23 +89,32 @@ impl SessionState {
     pub(crate) async fn wizard_snapshot(&self) -> Result<WizardSnapshot, WizardError> {
         let session = {
             let guard = self.inner.lock().await;
-            guard.wizard.clone().ok_or(WizardError::NotInitialized)?
+            guard
+                .wizard
+                .clone()
+                .ok_or(WizardError::SessionNotInitialized)?
         };
         Ok(session.snapshot())
     }
 
-    /// Run `navigate_next` / `navigate_back` on the live wizard session.
+    /// Run `navigate_next` on the live wizard session.
     pub(crate) async fn wizard_navigate_next(
         &self,
         data: serde_json::Value,
         next: WizardPageDescriptor,
     ) -> Result<(NavigateOutcome, String), WizardError> {
         let mut guard = self.inner.lock().await;
+        if guard.result_tx.is_none() {
+            return Err(WizardError::ResultAlreadySubmitted);
+        }
         let origin = guard
             .public_origin
             .clone()
-            .ok_or(WizardError::NotInitialized)?;
-        let session = guard.wizard.as_mut().ok_or(WizardError::NotInitialized)?;
+            .ok_or(WizardError::PublicOriginNotSet)?;
+        let session = guard
+            .wizard
+            .as_mut()
+            .ok_or(WizardError::SessionNotInitialized)?;
         let outcome = session.navigate_next(data, next)?;
         let url = wizard_page_url(&origin, outcome.page.html.as_str());
         Ok((outcome, url))
@@ -116,11 +126,17 @@ impl SessionState {
         data: serde_json::Value,
     ) -> Result<(NavigateOutcome, String), WizardError> {
         let mut guard = self.inner.lock().await;
+        if guard.result_tx.is_none() {
+            return Err(WizardError::ResultAlreadySubmitted);
+        }
         let origin = guard
             .public_origin
             .clone()
-            .ok_or(WizardError::NotInitialized)?;
-        let session = guard.wizard.as_mut().ok_or(WizardError::NotInitialized)?;
+            .ok_or(WizardError::PublicOriginNotSet)?;
+        let session = guard
+            .wizard
+            .as_mut()
+            .ok_or(WizardError::SessionNotInitialized)?;
         let outcome = session.navigate_back(data)?;
         let url = wizard_page_url(&origin, outcome.page.html.as_str());
         Ok((outcome, url))
@@ -131,13 +147,16 @@ impl SessionState {
     /// Returns `Ok(None)` when a result was already submitted (HTTP 409).
     pub(crate) async fn wizard_finish(
         &self,
-        button: ButtonLabel,
+        button: WizardTerminalButton,
         data: serde_json::Value,
         stack: Vec<WizardStackEntry>,
     ) -> Result<Option<WizardResult>, WizardError> {
         let result = {
             let guard = self.inner.lock().await;
-            let session = guard.wizard.as_ref().ok_or(WizardError::NotInitialized)?;
+            let session = guard
+                .wizard
+                .as_ref()
+                .ok_or(WizardError::SessionNotInitialized)?;
             session.finish(button, data, stack)?
         };
         if self.complete(CommandResult::Wizard(result.clone())).await {
@@ -190,5 +209,60 @@ pub(crate) struct HostSessionClosed;
 impl std::fmt::Display for HostSessionClosed {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("dialog session closed")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use wyvern_schema::{
+        WizardCommand, WizardPageDescriptor, WizardPageHtml, WizardPageId, WizardPageTitle,
+    };
+
+    fn wizard_cmd() -> Command {
+        Command::Wizard(WizardCommand {
+            page: WizardPageDescriptor {
+                id: WizardPageId::new("a"),
+                title: WizardPageTitle::new("a"),
+                html: WizardPageHtml::new("pages/a.html"),
+                layout: None,
+            },
+            config: serde_json::json!({}),
+            width: None,
+            height: None,
+        })
+    }
+
+    #[tokio::test]
+    async fn navigate_after_result_submitted_returns_conflict_error() {
+        let (tx, _rx) = oneshot::channel();
+        let session = SessionState::new(wizard_cmd(), tx, None);
+        session.set_public_origin("http://127.0.0.1:9".into()).await;
+
+        assert!(
+            session
+                .complete(CommandResult::Wizard(WizardResult::dismissed()))
+                .await
+        );
+
+        let err = session
+            .wizard_navigate_next(
+                serde_json::json!({}),
+                WizardPageDescriptor {
+                    id: WizardPageId::new("b"),
+                    title: WizardPageTitle::new("b"),
+                    html: WizardPageHtml::new("pages/b.html"),
+                    layout: None,
+                },
+            )
+            .await
+            .expect_err("should reject post-complete navigate");
+        assert_eq!(err, WizardError::ResultAlreadySubmitted);
+
+        let err = session
+            .wizard_navigate_back(serde_json::json!({}))
+            .await
+            .expect_err("back should also reject");
+        assert_eq!(err, WizardError::ResultAlreadySubmitted);
     }
 }

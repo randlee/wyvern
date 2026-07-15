@@ -7,7 +7,10 @@ use std::thread;
 use std::time::Duration;
 
 use wyvern_host::{begin, DialogHandle, HostOptions, ViewerMode};
-use wyvern_schema::{Command, WizardCommand, WizardPageDescriptor};
+use wyvern_schema::{
+    Command, WizardCommand, WizardPageDescriptor, WizardPageHtml, WizardPageId, WizardPageTitle,
+};
+use wyvern_wizard::MAX_WIZARD_STACK_DEPTH;
 
 fn workspace_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -34,14 +37,23 @@ fn write_ui_root() -> PathBuf {
         )
         .expect("write page");
     }
+    // Extra pages for depth-limit coverage.
+    for i in 0..=MAX_WIZARD_STACK_DEPTH {
+        let name = format!("p{i}.html");
+        std::fs::write(
+            pages.join(&name),
+            format!("<!DOCTYPE html><title>{name}</title><h1>{name}</h1>"),
+        )
+        .expect("write depth page");
+    }
     root
 }
 
 fn page(id: &str, html: &str) -> WizardPageDescriptor {
     WizardPageDescriptor {
-        id: id.into(),
-        title: id.into(),
-        html: html.into(),
+        id: WizardPageId::new(id),
+        title: WizardPageTitle::new(id),
+        html: WizardPageHtml::new(html),
         layout: None,
     }
 }
@@ -296,6 +308,58 @@ fn wizard_navigate_back_empty_preserves_current_data() {
     let state = wait_for_wizard_state(&client, &base);
     assert_eq!(state["page"]["id"], "b");
     assert_eq!(state["page_data"], serde_json::json!({"b": "keep"}));
+
+    let _ = handle.viewer_exited_without_result();
+    let _ = std::fs::remove_file(&url_file);
+    let _ = std::fs::remove_dir_all(&ui_root);
+}
+
+#[test]
+fn wizard_navigate_rejects_at_max_stack_depth() {
+    let (handle, base, url_file, ui_root) = start_wizard();
+    let client = reqwest::blocking::Client::new();
+    let navigate = format!("{base}/api/wizard/navigate");
+
+    // Seed starts at p0 via a remapped first page — walk from current "a".
+    // Push until depth == MAX, then one more must 400.
+    for i in 1..MAX_WIZARD_STACK_DEPTH {
+        let id = format!("p{i}");
+        let html = format!("pages/p{i}.html");
+        let resp = client
+            .post(&navigate)
+            .json(&serde_json::json!({
+                "action": "next",
+                "data": {},
+                "next": page(&id, &html)
+            }))
+            .send()
+            .unwrap_or_else(|e| panic!("next {i}: {e}"));
+        assert_eq!(
+            resp.status(),
+            reqwest::StatusCode::OK,
+            "push {i} should succeed"
+        );
+    }
+
+    let resp = client
+        .post(&navigate)
+        .json(&serde_json::json!({
+            "action": "next",
+            "data": {},
+            "next": page("overflow", "pages/p0.html")
+        }))
+        .send()
+        .expect("overflow");
+    assert_eq!(resp.status(), reqwest::StatusCode::BAD_REQUEST);
+    let body: serde_json::Value = resp.json().expect("json");
+    assert!(
+        body["message"]
+            .as_str()
+            .unwrap_or("")
+            .contains("maximum of"),
+        "message={}",
+        body["message"]
+    );
 
     let _ = handle.viewer_exited_without_result();
     let _ = std::fs::remove_file(&url_file);

@@ -4,6 +4,12 @@
 
 use wyvern_schema::{WizardPageDescriptor, WizardStackEntry};
 
+/// Maximum number of history entries (including the first page).
+///
+/// Chosen as a hard service limit so unbounded navigate-next cannot grow the
+/// session without bound. Forward-same-page restore does not count against growth.
+pub const MAX_WIZARD_STACK_DEPTH: usize = 64;
+
 /// One history entry: page descriptor + opaque data.
 #[derive(Debug, Clone)]
 pub(crate) struct HistoryEntry {
@@ -81,22 +87,32 @@ impl History {
         }
     }
 
-    /// Advance forward (restore same page or truncate-then-push). Returns false
-    /// when already at the first page is not applicable — always succeeds for next.
+    /// Advance forward (restore same page or truncate-then-push).
+    ///
+    /// Returns `Err(())` when a branch push would exceed [`MAX_WIZARD_STACK_DEPTH`].
+    /// Forward-same-page restore always succeeds (no growth).
     ///
     /// Caller must have already written the *current* entry's data.
-    pub(crate) fn navigate_next(&mut self, next: WizardPageDescriptor, data: serde_json::Value) {
+    pub(crate) fn navigate_next(
+        &mut self,
+        next: WizardPageDescriptor,
+        data: serde_json::Value,
+    ) -> Result<(), ()> {
         let forward = self.cursor + 1;
         if forward < self.entries.len() && self.entries[forward].page == next {
             // Forward-same-page restore (ADR-0005).
             self.cursor = forward;
             self.write_current_if_meaningful(data);
-            return;
+            return Ok(());
         }
-        // Branch: truncate stale forward entries, then push.
+        // Branch: truncate stale forward entries, then push — if under depth cap.
+        if self.cursor + 1 >= MAX_WIZARD_STACK_DEPTH {
+            return Err(());
+        }
         self.entries.truncate(self.cursor + 1);
         self.entries.push(HistoryEntry::new(next));
         self.cursor += 1;
+        Ok(())
     }
 
     /// Move cursor back. Returns `false` when already at the first page.
@@ -154,15 +170,18 @@ mod tests {
     fn forward_same_page_restores_and_preserves_empty_overwrite() {
         let mut h = History::seed(page("a", "a.html"));
         h.write_current_data(serde_json::json!({"a": 1}));
-        h.navigate_next(page("b", "b.html"), serde_json::json!({}));
+        h.navigate_next(page("b", "b.html"), serde_json::json!({}))
+            .expect("next b");
         h.write_current_data(serde_json::json!({"b": 2}));
-        h.navigate_next(page("c", "c.html"), serde_json::json!({}));
+        h.navigate_next(page("c", "c.html"), serde_json::json!({}))
+            .expect("next c");
         assert_eq!(h.cursor, 2);
         assert!(h.navigate_back(serde_json::json!({})));
         assert!(h.navigate_back(serde_json::json!({})));
         assert_eq!(h.cursor, 0);
         // Forward same page restores cached B data; empty payload does not overwrite.
-        h.navigate_next(page("b", "b.html"), serde_json::json!({}));
+        h.navigate_next(page("b", "b.html"), serde_json::json!({}))
+            .expect("restore b");
         assert_eq!(h.cursor, 1);
         assert_eq!(h.current().data, serde_json::json!({"b": 2}));
         assert_eq!(h.entries.len(), 3);
@@ -171,13 +190,31 @@ mod tests {
     #[test]
     fn branch_truncates_forward() {
         let mut h = History::seed(page("a", "a.html"));
-        h.navigate_next(page("b", "b.html"), serde_json::json!({}));
-        h.navigate_next(page("c", "c.html"), serde_json::json!({}));
+        h.navigate_next(page("b", "b.html"), serde_json::json!({}))
+            .expect("b");
+        h.navigate_next(page("c", "c.html"), serde_json::json!({}))
+            .expect("c");
         assert!(h.navigate_back(serde_json::json!({})));
         assert!(h.navigate_back(serde_json::json!({})));
-        h.navigate_next(page("d", "d.html"), serde_json::json!({}));
+        h.navigate_next(page("d", "d.html"), serde_json::json!({}))
+            .expect("branch");
         assert_eq!(h.cursor, 1);
         assert_eq!(h.entries.len(), 2);
         assert_eq!(h.current().page.id.as_str(), "d");
+    }
+
+    #[test]
+    fn navigate_next_rejects_at_max_depth() {
+        let mut h = History::seed(page("p0", "p0.html"));
+        for i in 1..MAX_WIZARD_STACK_DEPTH {
+            let id = format!("p{i}");
+            let html = format!("p{i}.html");
+            h.navigate_next(page(&id, &html), serde_json::json!({}))
+                .unwrap_or_else(|_| panic!("push {i} should succeed"));
+        }
+        assert_eq!(h.entries.len(), MAX_WIZARD_STACK_DEPTH);
+        let err = h.navigate_next(page("overflow", "overflow.html"), serde_json::json!({}));
+        assert!(err.is_err());
+        assert_eq!(h.entries.len(), MAX_WIZARD_STACK_DEPTH);
     }
 }

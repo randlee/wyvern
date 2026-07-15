@@ -19,3 +19,6 @@ mod session;
 
 #[doc(inline)]
 pub use session::{NavigateOutcome, WizardError, WizardSession, WizardSnapshot};
+
+/// Maximum wizard history entries (including the first page).
+pub use history::MAX_WIZARD_STACK_DEPTH;
