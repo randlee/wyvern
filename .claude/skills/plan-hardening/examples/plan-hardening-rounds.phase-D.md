@@ -5,6 +5,6 @@
 | — | fix | cwy | — | ea502a7 | — | — | — | — | — | STEP1-R1,STEP3-R1 | round-1 fixes committed |
 | STEP1-R2 | 2 | plan-scope-reviewer | composer-2.5-fast | ea502a7 | FAIL | 0 | 2 | 1 | 8c4e2a91f6b3d705 | STEP1-R1 | d.6 Track B deliverable gaps only; d.1–d.5 PASS |
 | STEP3-R2 | 4 | critical-plan-reviewer | cursor-grok-4.5-high-fast | ea502a7 | FAIL | 2 | 4 | 2 | crit-r2-ea502a7-6f-2b4i | STEP3-R1 | finish-stack + URL route contradictions remain |
-| — | fix | cwy | — | (pending) | — | — | — | — | — | STEP1-R2,STEP3-R2 | round-2 fixes — finish algorithm, Track B deliverables, crate ownership |
+| — | fix | cwy | — | d565714 | — | — | — | — | — | STEP1-R2,STEP3-R2 | round-2 fixes — finish algorithm, Track B deliverables, crate ownership |
 
 Cap: `review_cycle_limit: 2` exhausted after STEP1-R2 + STEP3-R2. Round-2 fixes applied post-cap; no STEP1-R3/STEP3-R3 run.
