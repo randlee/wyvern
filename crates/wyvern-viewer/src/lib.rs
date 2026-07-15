@@ -19,6 +19,8 @@ pub mod dismiss;
 pub mod viewport;
 
 #[doc(inline)]
-pub use dismiss::{is_wizard_dialog_url, post_dismissed, wizard_dismiss_finish_body};
+pub use dismiss::{
+    is_wizard_dialog_url, post_dismissed, wizard_dismiss_finish_body, DismissError, WizardStateDto,
+};
 #[doc(inline)]
 pub use viewport::{HiddenUntilResize, ViewportBounds, FALLBACK_VIEWPORT};

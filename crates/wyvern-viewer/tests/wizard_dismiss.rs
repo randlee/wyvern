@@ -7,7 +7,9 @@ use std::thread;
 use std::time::Duration;
 
 use serde_json::{json, Value};
-use wyvern_viewer::{is_wizard_dialog_url, post_dismissed, wizard_dismiss_finish_body};
+use wyvern_viewer::{
+    is_wizard_dialog_url, post_dismissed, wizard_dismiss_finish_body, WizardStateDto,
+};
 
 #[derive(Debug, Default, Clone)]
 struct Recorded {
@@ -99,7 +101,8 @@ fn wizard_dismiss_posts_finish_with_full_visited_stack() {
     assert!(rec.paths[1].starts_with("/api/wizard/finish"));
 
     let body: Value = serde_json::from_str(&rec.bodies[1]).expect("finish json");
-    let expected = wizard_dismiss_finish_body(&state).expect("expected body");
+    let dto: WizardStateDto = serde_json::from_value(state).expect("dto");
+    let expected = wizard_dismiss_finish_body(&dto).expect("expected body");
     assert_eq!(body, expected);
     assert_eq!(body["button"], "dismissed");
     assert_eq!(body["stack"].as_array().expect("stack").len(), 2);

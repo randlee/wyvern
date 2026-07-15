@@ -219,11 +219,20 @@ fn wizard_dismiss_viewer_exit_uses_full_visited_stack() {
 }
 
 /// Session timeout fallback also derives the full visited stack.
+///
+/// RSH-003 / FTQ-001: use a 10s session_timeout so setup+navigate finish before
+/// idle expiry, then sleep the remaining idle budget before `await_result`.
 #[test]
 fn wizard_dismiss_session_timeout_uses_full_visited_stack() {
-    let (handle, base, url_file, ui_root, client) = start_wizard(Duration::from_secs(1));
+    let session_timeout = Duration::from_secs(10);
+    let started = std::time::Instant::now();
+    let (handle, base, url_file, ui_root, client) = start_wizard(session_timeout);
     navigate_to_b(&client, &base);
     let state = wait_for_wizard_state(&client, &base);
+    assert_eq!(state["page"]["id"], "b");
+
+    let remaining = session_timeout.saturating_sub(started.elapsed());
+    std::thread::sleep(remaining + Duration::from_millis(500));
 
     let result = handle.await_result().expect("timeout dismissed");
     match result {

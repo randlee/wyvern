@@ -176,19 +176,32 @@ impl SessionState {
         match (&guard.command, guard.wizard.as_ref()) {
             (Command::Wizard(_), Some(session)) => {
                 let snap = session.snapshot();
+                let page_id = snap.page.id.as_str().to_string();
                 let mut derived = snap.stack;
                 derived.push(WizardStackEntry {
                     page: snap.page,
                     data: snap.page_data.clone(),
                 });
-                match session.finish(WizardTerminalButton::Dismissed, snap.page_data, derived) {
+                match session.finish(
+                    WizardTerminalButton::Dismissed,
+                    snap.page_data,
+                    derived.clone(),
+                ) {
                     Ok(result) => CommandResult::Wizard(result),
                     Err(err) => {
+                        // RBP-F002: keep the manually derived full visited stack rather
+                        // than degrading to WizardResult::dismissed() (empty stack).
                         tracing::error!(
                             error = %err,
-                            "wizard dismissed fallback finish failed; using empty stack"
+                            page_id = %page_id,
+                            stack_len = derived.len(),
+                            "wizard dismissed fallback finish failed; returning derived stack"
                         );
-                        CommandResult::Wizard(WizardResult::dismissed())
+                        CommandResult::Wizard(WizardResult {
+                            button: ButtonLabel::dismissed(),
+                            data: serde_json::json!({}),
+                            stack: derived,
+                        })
                     }
                 }
             }
