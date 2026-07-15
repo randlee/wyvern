@@ -1,8 +1,7 @@
 //! Event loop: load dialog URL; CLI stdin `exit` or OS close ends the process.
 
 use std::fmt;
-use std::io::{BufRead, Read, Write};
-use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
+use std::io::BufRead;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -21,6 +20,7 @@ use crate::platform::{
     build_event_loop, init_platform, present_viewer_window, pump_gtk_events,
     viewer_window_attributes, DEFAULT_HEIGHT, DEFAULT_WIDTH,
 };
+use wyvern_viewer::dismiss::post_dismissed;
 use wyvern_viewer::viewport::{HiddenUntilResize, ViewportBounds, FALLBACK_VIEWPORT};
 
 /// Absolute floor for dialog chrome size.
@@ -28,9 +28,6 @@ const MIN_DIALOG_WIDTH: u32 = 200;
 const MIN_DIALOG_HEIGHT: u32 = 96;
 /// Accept refinement `resize:` IPC for this long after the first applied size.
 const RESIZE_REFINEMENT_WINDOW: Duration = Duration::from_millis(300);
-
-const DISMISS_CONNECT_TIMEOUT: Duration = Duration::from_secs(2);
-const DISMISS_IO_TIMEOUT: Duration = Duration::from_secs(2);
 
 fn parse_resize_message(msg: &str, max_w: u32, max_h: u32) -> Option<(u32, u32)> {
     let rest = msg.strip_prefix("resize:")?;
@@ -509,73 +506,6 @@ impl ApplicationHandler for ViewerApp {
             _ => {}
         }
     }
-}
-
-/// Derive `http://host:port/api/result` from a dialog URL and POST dismissed.
-fn post_dismissed(dialog_url: &str) {
-    let Ok(mut url) = Url::parse(dialog_url) else {
-        return;
-    };
-    url.set_path("/api/result");
-    url.set_query(None);
-    url.set_fragment(None);
-    let body = r#"{"button":"dismissed"}"#;
-    // Blocking HTTP from the UI thread is acceptable for one-shot dismiss on close,
-    // but connect/read/write must be bounded so a stalled host cannot hang the process.
-    let client_result = timed_post(url.as_str(), body);
-    if let Err(err) = client_result {
-        tracing::warn!(error = %err, "viewer dismiss POST failed");
-    }
-}
-
-/// Minimal POST without adding reqwest to the viewer binary (keep deps small).
-fn timed_post(url: &str, body: &str) -> Result<(), String> {
-    let parsed = Url::parse(url).map_err(|e| e.to_string())?;
-    let host = parsed
-        .host_str()
-        .ok_or_else(|| "missing host".to_string())?;
-    let port = parsed.port_or_known_default().unwrap_or(80);
-    let path = if parsed.path().is_empty() {
-        "/"
-    } else {
-        parsed.path()
-    };
-
-    let addr = format!("{host}:{port}");
-    let mut last_err = None;
-    for socket in addr
-        .to_socket_addrs()
-        .map_err(|e| format!("resolve {addr}: {e}"))?
-    {
-        match connect_with_timeout(socket) {
-            Ok(mut stream) => {
-                stream
-                    .set_read_timeout(Some(DISMISS_IO_TIMEOUT))
-                    .map_err(|e| format!("set_read_timeout: {e}"))?;
-                stream
-                    .set_write_timeout(Some(DISMISS_IO_TIMEOUT))
-                    .map_err(|e| format!("set_write_timeout: {e}"))?;
-                let request = format!(
-                    "POST {path} HTTP/1.1\r\nHost: {host}:{port}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
-                    body.len()
-                );
-                stream
-                    .write_all(request.as_bytes())
-                    .map_err(|e| format!("write: {e}"))?;
-                // Best-effort read so the server can finish; ignore body / timeout.
-                let mut buf = [0u8; 256];
-                let _ = stream.read(&mut buf);
-                return Ok(());
-            }
-            Err(err) => last_err = Some(err),
-        }
-    }
-    Err(last_err.unwrap_or_else(|| format!("connect {addr}: no addresses")))
-}
-
-fn connect_with_timeout(addr: SocketAddr) -> Result<TcpStream, String> {
-    TcpStream::connect_timeout(&addr, DISMISS_CONNECT_TIMEOUT)
-        .map_err(|e| format!("connect {addr}: {e}"))
 }
 
 #[cfg(test)]

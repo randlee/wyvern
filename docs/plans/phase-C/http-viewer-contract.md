@@ -160,34 +160,39 @@ Use **`webbrowser`** for `system` only. Do **not** use the `open` crate for dial
 
 When the user closes the OS window without clicking a dialog button, the host must still complete with dismissed semantics. Page `beforeunload`/`sendBeacon` covers browser tabs only — **not** `wyvern-viewer` OS close.
 
-**Locked protocol (c.15):**
+**Locked protocol (c.15 + d.8 wizard dismiss):**
 
-1. **`wyvern-viewer`** registers a close handler. On wizard session close:
-   - `GET /api/wizard/state` → read `page`, `page_data`, and prior `stack`
-   - Build full visited stack = prior `stack` + `{ page, data: page_data }` ([d8-viewer-dismiss.md](../phase-D/d8-viewer-dismiss.md) / [http-wizard-contract.md](http-wizard-contract.md))
-   - `POST /api/wizard/finish` with `{ "button": "dismissed", "data": {}, "stack": <full visited stack> }` **before** process exit
-   - On blocking dialog: `POST /api/result` with `{ "button": "dismissed" }` only
+1. **`wyvern-viewer`** registers a close handler (`dismiss.rs` / OS-close in `run.rs`):
+   - **Wizard session** (`dialog_url` path under `/wizard/`):
+     1. `GET /api/wizard/state` → read `page`, `page_data`, and prior `stack`
+     2. Build full visited stack = prior `stack` + `{ page, data: page_data }` (d.2 finish algorithm)
+     3. `POST /api/wizard/finish` with `{ "button": "dismissed", "data": <page_data>, "stack": <full visited stack> }` **before** process exit
+     4. Host validates stack; stdout is `{ "button": "dismissed", "data": {}, "stack": <full visited> }`
+   - **Blocking dialog** (`/message/`, `/input/`, …): `POST /api/result` with `{ "button": "dismissed" }` only
 2. **`wyvern` CLI** watches the viewer child process. If the child exits without the host having received a result:
    - **One-shot:** call `DialogHandle::viewer_exited_without_result()` (in-process — see [HTTP-TYPES.md](HTTP-TYPES.md)).
+   - **Wizard:** host derives dismissed via session `finish(Dismissed, page_data, derived_stack)` (full visited stack — not prior-only).
    - **Persistent (`--interactive` / `--mcp`):** CLI posts `{ "button": "dismissed" }` to `POST /api/result` via localhost HTTP client.
-3. **`wyvern-host`** REQ-0097: if no result POST arrives before session timeout, map to dismissed.
+3. **`wyvern-host`** REQ-0097: if no result POST arrives before session timeout, map to dismissed (wizard = full visited stack, same as viewer-exit fallback).
 
-Cross-links: [c15-wyvern-viewer.md](c15-wyvern-viewer.md), [d8-viewer-dismiss.md](../phase-D/d8-viewer-dismiss.md), [e2-blocking-question.md](../phase-E/e2-blocking-question.md).
+Cross-links: [c15-wyvern-viewer.md](c15-wyvern-viewer.md), [d8-viewer-dismiss.md](../phase-D/d8-viewer-dismiss.md), [http-wizard-contract.md](http-wizard-contract.md) (finish / dismissed stack algorithm), [e2-blocking-question.md](../phase-E/e2-blocking-question.md).
 
-### Implementation modules (c.15)
+### Implementation modules (c.15 + d.8)
 
 ```text
 wyvern-host/src/
   browser_launch.rs   # system + named browser dispatch only
   browser_catalog.rs  # hardcoded id → discovery recipes
   browser_registry.rs # read/write cache, refresh, lookup
+  session.rs          # wizard dismissed_on_exit_or_timeout (REQ-0097)
 
 wyvern/src/
   viewer_spawn.rs     # embedded_viewer_spawn — subprocess + binary discovery
 
 wyvern-viewer/src/
   main.rs             # binary entry — env/args → run, ExitCode
-  run.rs              # URL navigate, show/hide, OS-close POST
+  run.rs              # URL navigate, show/hide; calls dismiss on OS-close
+  dismiss.rs          # wizard finish stack vs blocking /api/result POST
   platform.rs         # wry/winit window + OS-close wiring
 ```
 

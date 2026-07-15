@@ -1,7 +1,7 @@
 ---
 id: d.8
 title: Wizard viewer dismiss
-status: planning
+status: complete
 branch: feature/phase-D-d8-viewer-dismiss
 target: integrate/phase-D
 ---

@@ -192,10 +192,11 @@ pub struct WizardResult {
 }
 
 impl WizardResult {
-    /// REQ-0066 / REQ-0097 dismissed shape for timeout / viewer exit (d.1 stub).
+    /// REQ-0066 / REQ-0097 dismissed shape with empty stack.
     ///
-    /// Full visited-stack algorithm lands with `finish` in d.2; d.1 dismisses with
-    /// empty `data` and an empty prior stack (cursor still on the first page).
+    /// Prefer session-derived dismiss via wizard `finish(Dismissed, …)` (d.2 / d.8)
+    /// when a live wizard session exists — that path returns the full visited stack.
+    /// This helper remains for degraded fallbacks and non-session call sites.
     pub fn dismissed() -> Self {
         Self {
             button: ButtonLabel::dismissed(),
