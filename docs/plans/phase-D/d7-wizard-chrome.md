@@ -1,7 +1,7 @@
 ---
 id: d.7
 title: Shared wizard chrome
-status: planning
+status: complete
 branch: feature/phase-D-d7-wizard-chrome
 target: integrate/phase-D
 ---
