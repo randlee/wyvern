@@ -1,7 +1,6 @@
 //! Load/validation/run-stage errors and JSON emission helpers.
 
 use wyvern_schema::{ErrorCode, FieldName, SerializeError, StderrError, ValidationError};
-use wyvern_window::RunError;
 
 /// Failure while loading command input from argv or stdin.
 #[derive(Debug)]
@@ -225,49 +224,6 @@ fn validation_recovery(field: &str, message: &str) -> Vec<String> {
     )]
 }
 
-/// Serialize a window/run error as stderr JSON (`window_create` | `event_loop`).
-///
-/// # Errors
-///
-/// Returns [`EmitError::Serialize`] when the envelope cannot be serialized.
-pub fn emit_run_error(err: &RunError) -> Result<String, EmitError> {
-    let envelope = match err {
-        RunError::WindowCreate { message } if is_media_window_create(message) => {
-            StderrError::new(ErrorCode::WindowCreateError, message.clone())
-                .cause("Icon or decorative media could not be resolved at run time")
-                .recovery(
-                    "Use a known named icon (info, warning, error, question, success, loading) \
-                     with an in-range variant index",
-                )
-                .recovery("Verify icon/image file paths exist and data URIs are well-formed")
-                .docs("docs/wyvern-schema/requirements.md (REQ-0073, REQ-0031)")
-        }
-        RunError::WindowCreate { message } => {
-            StderrError::new(ErrorCode::WindowCreateError, message.clone())
-                .cause("Native window or webview construction failed")
-                .recovery("Ensure a display server / desktop session is available")
-                .recovery("Check platform windowing dependencies (WebKit/WebView2/WebKitGTK)")
-                .docs("docs/wyvern-schema/requirements.md (REQ-0073)")
-        }
-        RunError::EventLoop { message } => {
-            StderrError::new(ErrorCode::EventLoopError, message.clone())
-                .cause("Window event loop could not start or exited with an OS error")
-                .recovery("Retry the command")
-                .recovery("Check OS graphics / windowing subsystem health")
-                .docs("docs/wyvern-schema/requirements.md (REQ-0073)")
-        }
-    };
-    envelope.to_json_string().map_err(EmitError::Serialize)
-}
-
-/// True when `WindowCreate` came from icon/media defense-in-depth (not OS windowing).
-fn is_media_window_create(message: &str) -> bool {
-    message.starts_with("missing level icon embed")
-        || message.starts_with("invalid icon spec")
-        || message.starts_with("missing embed for")
-        || message.starts_with("failed to load media path")
-}
-
 /// Serialize a successful [`wyvern_schema::CommandResult`] for stdout.
 ///
 /// # Errors
@@ -289,6 +245,116 @@ pub fn emit_stdout(result: &wyvern_schema::CommandResult) -> Result<String, Emit
     })
 }
 
+/// Serialize a [`wyvern_host::HostError`] as stderr JSON (REQ-0073).
+///
+/// # Errors
+///
+/// Returns [`EmitError::Serialize`] when the envelope cannot be serialized.
+pub fn emit_host_error(err: &wyvern_host::HostError) -> Result<String, EmitError> {
+    use wyvern_host::HostError;
+    let (code, message, cause, recovery, docs) = match err {
+        HostError::Bind { message, source } => {
+            let message = match source {
+                Some(err) => format!("{message}: {err}"),
+                None => message.clone(),
+            };
+            (
+                ErrorCode::HostBindError,
+                message,
+                "Failed to bind the dialog HTTP server".to_string(),
+                vec![
+                    "Check that --bind is a valid address".into(),
+                    "Try --bind 127.0.0.1:0 for an ephemeral port".into(),
+                ],
+                "docs/wyvern-host/requirements.md (REQ-0091)",
+            )
+        }
+        HostError::UiNotFound { path, source } => {
+            let message = match source {
+                Some(err) => format!("UI not found at '{}': {err}", path.display()),
+                None => format!("UI not found at '{}'", path.display()),
+            };
+            (
+                ErrorCode::UiNotFound,
+                message,
+                "Packaged UI root or dialog template is missing".to_string(),
+                vec![
+                    "Pass --ui-root pointing at a directory with message/, input/, markdown/, question/, and chrome/ templates".into(),
+                    "Ensure ui/{message,input,markdown,question,chrome}/ exist in the workspace for development".into(),
+                ],
+                "docs/wyvern-host/requirements.md (REQ-0093, REQ-0100)",
+            )
+        }
+        HostError::UnsupportedType { type_name } => (
+            ErrorCode::UnsupportedType,
+            format!("dialog type '{type_name}' is not implemented on the HTTP host yet"),
+            "Schema validation passed; host matrix supports message, input, markdown, question, and chrome only".to_string(),
+            vec![
+                "Use one of: message, input, markdown, question, chrome".into(),
+                "wizard lands in Phase D (docs/plans/phase-D/)".into(),
+            ],
+            "docs/plans/phase-C/c14-host-chrome.md",
+        ),
+        HostError::InvalidResult { message } => (
+            ErrorCode::HostError,
+            message.clone(),
+            "POST /api/result body was invalid for the active dialog".to_string(),
+            vec!["Submit a body matching the dialog CommandResult wire shape".into()],
+            "docs/plans/phase-C/http-post-schema.md",
+        ),
+        HostError::ViewerNotFound { id, hint } => (
+            ErrorCode::HostViewerError,
+            format!("viewer '{id}' not found"),
+            hint.clone(),
+            vec![
+                format!("Install {id} or use --viewer system"),
+                "Use --viewer none for headless / CI".into(),
+            ],
+            "docs/plans/phase-C/http-viewer-contract.md",
+        ),
+        HostError::ViewerUnsupported { mode } => (
+            ErrorCode::HostViewerError,
+            format!(
+                "viewer mode '{}' is not supported by host::run",
+                mode.as_str()
+            ),
+            "Embedded one-shot must use begin + wyvern-viewer spawn (CLI pipeline)".to_string(),
+            vec![
+                "Omit --viewer or use --viewer embedded (CLI default)".into(),
+                "Use --viewer none for headless / CI".into(),
+            ],
+            "docs/plans/phase-C/http-viewer-contract.md",
+        ),
+        HostError::Registry { message } => (
+            ErrorCode::HostError,
+            message.clone(),
+            "Browser registry cache read/write failed".to_string(),
+            vec![
+                "Run `wyvern browsers refresh` to rebuild the cache".into(),
+                "Check WYVERN_BROWSERS_FILE path and cache directory permissions".into(),
+                "Delete a corrupt browsers.json and retry".into(),
+            ],
+            "docs/plans/phase-C/http-viewer-contract.md",
+        ),
+        HostError::Internal { message } => (
+            ErrorCode::HostError,
+            message.clone(),
+            "Internal HTTP host failure".to_string(),
+            vec![
+                "Retry the command".into(),
+                "Report a bug if it persists".into(),
+            ],
+            "docs/wyvern-host/architecture.md",
+        ),
+    };
+
+    let mut envelope = StderrError::new(code, message).cause(cause).docs(docs);
+    for step in recovery {
+        envelope = envelope.recovery(step);
+    }
+    envelope.to_json_string().map_err(EmitError::Serialize)
+}
+
 /// Emit static internal stderr JSON and exit with code 8 (REQ-0078).
 ///
 /// Uses a hand-built JSON string so a serialize failure cannot recurse.
@@ -306,7 +372,6 @@ pub fn emit_fatal_internal(err: &EmitError) -> ! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serial_test::serial;
     use wyvern_schema::{ButtonLabel, ChromeResult, CommandResult, FieldName, MessageResult};
 
     #[test]
@@ -401,58 +466,12 @@ mod tests {
     }
 
     #[test]
-    #[serial]
     fn emit_stdout_forced_fail() {
         let _guard = ForceEmitStdoutFailGuard::arm();
         let result = CommandResult::Message(MessageResult {
             button: ButtonLabel::new("ok"),
         });
         assert!(emit_stdout(&result).is_err());
-    }
-
-    #[test]
-    fn emit_run_error_media_window_create_has_media_recovery() {
-        let err = RunError::WindowCreate {
-            message: "invalid icon spec 'bad:role:99'".into(),
-        };
-        let out = emit_run_error(&err).expect("emit");
-        let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
-        assert_eq!(value["error"], "window_create");
-        assert_eq!(value["code"], "WINDOW_CREATE_ERROR");
-        assert!(value["cause"]
-            .as_str()
-            .unwrap()
-            .contains("Icon or decorative media"));
-        let recovery = value["recovery"].as_array().unwrap();
-        assert!(recovery
-            .iter()
-            .any(|s| s.as_str().unwrap().contains("named icon")));
-    }
-
-    #[test]
-    fn emit_run_error_window_create() {
-        let err = RunError::WindowCreate {
-            message: r#"create failed: "boom""#.into(),
-        };
-        let out = emit_run_error(&err).expect("emit");
-        let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
-        assert_eq!(value["error"], "window_create");
-        assert_eq!(value["code"], "WINDOW_CREATE_ERROR");
-        assert!(value["message"].as_str().unwrap().contains('"'));
-        assert!(!value["recovery"].as_array().unwrap().is_empty());
-    }
-
-    #[test]
-    fn emit_run_error_event_loop() {
-        let err = RunError::EventLoop {
-            message: "loop failed".into(),
-        };
-        let out = emit_run_error(&err).expect("emit");
-        let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
-        assert_eq!(value["error"], "event_loop");
-        assert_eq!(value["code"], "EVENT_LOOP_ERROR");
-        assert_eq!(value["message"], "loop failed");
-        assert!(!value["recovery"].as_array().unwrap().is_empty());
     }
 
     #[test]
@@ -499,29 +518,5 @@ mod tests {
             .exit_code(),
             5
         );
-    }
-
-    #[test]
-    fn emit_run_error_maps_window_create_category() {
-        let err = RunError::WindowCreate {
-            message: "no display".into(),
-        };
-        let json = emit_run_error(&err).expect("emit");
-        assert_eq!(ErrorCode::WindowCreateError.exit_code(), 6);
-        let value: serde_json::Value = serde_json::from_str(&json).expect("valid JSON");
-        assert_eq!(value["error"], "window_create");
-        assert_eq!(value["message"], "no display");
-    }
-
-    #[test]
-    fn emit_run_error_maps_event_loop_category() {
-        let err = RunError::EventLoop {
-            message: "os error".into(),
-        };
-        let json = emit_run_error(&err).expect("emit");
-        assert_eq!(ErrorCode::EventLoopError.exit_code(), 7);
-        let value: serde_json::Value = serde_json::from_str(&json).expect("valid JSON");
-        assert_eq!(value["error"], "event_loop");
-        assert_eq!(value["message"], "os error");
     }
 }

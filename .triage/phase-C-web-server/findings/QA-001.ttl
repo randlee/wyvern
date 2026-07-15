@@ -1,0 +1,52 @@
+@prefix triage: <urn:atm:triage:> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<urn:atm:triage:finding/QA-001>
+  a triage:Finding ;
+  triage:findingId "QA-001" ;
+  triage:title "Picker timeout drops semaphore while detached spawn_blocking still active" ;
+  triage:description "routes/picker.rs releases semaphore permit before rfd blocking task completes on timeout path." ;
+  triage:phaseId "phase-C-web-server" ;
+  triage:triageMode "initial_pass" ;
+  triage:repeatable true ;
+  triage:sweepScope "crate" ;
+  triage:category "QA" ;
+  triage:severity "important" ;
+  triage:status "open" ;
+  triage:dispatchReady true ;
+  triage:originatingSprintDoc "docs/plans/phase-C/c11-host-input.md" ;
+  triage:adrId "ADR-0011" ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/QA-001/web-server/1> ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/QA-001/web-server/2> ;
+  triage:openOn <urn:atm:triage:worktree/web-server/bf18403> ;
+  triage:promoteTo <urn:atm:triage:worktree/web-server/bf18403> ;
+  triage:triagedAt "2026-07-14T12:32:00Z"^^xsd:dateTime .
+
+<urn:atm:triage:occurrence/QA-001/web-server/1>
+  a triage:Occurrence ;
+  triage:file "crates/wyvern-host/src/routes/picker.rs" ;
+  triage:line 104 ;
+  triage:snippet "let picked = match tokio::time::timeout(PICKER_TIMEOUT, join).await { Err(_) => { return Err(ApiError::gateway_timeout(...)); } }" ;
+  triage:status "open" ;
+  triage:closed false ;
+  triage:branch "integrate/phase-c-web-server" ;
+  triage:headSha "bf18403ac5c3dd48a5b0bc5b2897dcafb0222e51" ;
+  triage:occursIn <urn:atm:triage:worktree/web-server/bf18403> .
+
+<urn:atm:triage:occurrence/QA-001/web-server/2>
+  a triage:Occurrence ;
+  triage:file "crates/wyvern-host/src/routes/picker.rs" ;
+  triage:line 155 ;
+  triage:snippet "let picked = match tokio::time::timeout(PICKER_TIMEOUT, join).await { Err(_) => { return Err(ApiError::gateway_timeout(...)); } }" ;
+  triage:status "open" ;
+  triage:closed false ;
+  triage:branch "integrate/phase-c-web-server" ;
+  triage:headSha "bf18403ac5c3dd48a5b0bc5b2897dcafb0222e51" ;
+  triage:occursIn <urn:atm:triage:worktree/web-server/bf18403> .
+
+<urn:atm:triage:worktree/web-server/bf18403>
+  a triage:WorktreeSnapshot ;
+  triage:branch "integrate/phase-c-web-server" ;
+  triage:path "/Volumes/Extreme Pro/github/wyvern-worktrees/integrate/phase-c-web-server" ;
+  triage:headSha "bf18403ac5c3dd48a5b0bc5b2897dcafb0222e51" ;
+  triage:orderIndex 11 .

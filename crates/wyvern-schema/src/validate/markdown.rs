@@ -9,7 +9,10 @@ use crate::command::{ButtonsPreset, Command};
 use crate::error::ValidationError;
 use crate::field_name::FieldName;
 
-use super::helpers::{closest_match, json_type_name, optional_string_field, MARKDOWN_FIELDS};
+use super::helpers::{
+    closest_match, json_type_name, optional_string_field, optional_window_size_fields,
+    MARKDOWN_CONTENT_MAX_BYTES, MARKDOWN_FIELDS,
+};
 
 pub(super) fn validate_markdown(obj: &Map<String, Value>) -> Result<Command, ValidationError> {
     for key in obj.keys() {
@@ -34,6 +37,18 @@ pub(super) fn validate_markdown(obj: &Map<String, Value>) -> Result<Command, Val
             ));
         }
         (Some(_), None) | (None, Some(_)) => {}
+    }
+
+    if let Some(body) = content.as_ref() {
+        if body.len() > MARKDOWN_CONTENT_MAX_BYTES {
+            return Err(ValidationError::validation(
+                "content",
+                format!(
+                    "markdown content exceeds maximum of {MARKDOWN_CONTENT_MAX_BYTES} bytes (got {} bytes)",
+                    body.len()
+                ),
+            ));
+        }
     }
 
     let title = match optional_string_field(obj, "title")? {
@@ -82,11 +97,15 @@ pub(super) fn validate_markdown(obj: &Map<String, Value>) -> Result<Command, Val
         ));
     }
 
+    let (width, height) = optional_window_size_fields(obj)?;
+
     Ok(Command::Markdown {
         title,
         file,
         content,
         status: status.map(ChromeStatus::new),
         buttons,
+        width,
+        height,
     })
 }

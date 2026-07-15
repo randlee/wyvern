@@ -111,6 +111,7 @@ fn contract_preview_field_accepted() {
     let Command::Question {
         questions,
         questions_raw,
+        ..
     } = cmd
     else {
         panic!("expected Question");

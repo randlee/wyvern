@@ -11,6 +11,7 @@ Functional requirements are prefixed **REQ**, non-functional **NFR**. Crate-spec
 | `wyvern` | CLI invocation, host options, interactive mode | [docs/wyvern/requirements.md](wyvern/requirements.md) |
 | `wyvern-schema` | Validation, error messages, return values | [docs/wyvern-schema/requirements.md](wyvern-schema/requirements.md) |
 | `wyvern-host` | HTTP server, packaged UI, dialog session (c.10+) | [docs/wyvern-host/requirements.md](wyvern-host/requirements.md) |
+| `wyvern-viewer` | Optional URL-only embedded webview (c.15) | [docs/wyvern-viewer/requirements.md](wyvern-viewer/requirements.md) |
 | ~~`wyvern-window`~~ | **Deprecated** — see `wyvern-host` | [docs/wyvern-window/requirements.md](wyvern-window/requirements.md) |
 | `wyvern-wizard` | Wizard navigation, history model | [docs/wyvern-wizard/requirements.md](wyvern-wizard/requirements.md) |
 | `wyvern-mcp` | MCP server, tool mapping, persistent host | [docs/wyvern-mcp/requirements.md](wyvern-mcp/requirements.md) |

@@ -24,7 +24,7 @@ mod command;
 mod error;
 mod error_code;
 mod field_name;
-pub mod icons;
+mod media;
 mod result;
 mod stderr;
 mod validate;
@@ -34,15 +34,17 @@ pub use button::ButtonLabel;
 #[doc(inline)]
 pub use chrome::{ChromeStatus, ChromeTitle};
 #[doc(inline)]
-pub use command::{ButtonsPreset, Command, InputMode, MessageLevel, QuestionCard, QuestionOption};
+pub use command::{
+    ButtonsPreset, Command, InputMode, MessageLevel, QuestionCard, QuestionOption, WindowSizeHint,
+};
 #[doc(inline)]
 pub use error::ValidationError;
 #[doc(inline)]
 pub use error_code::ErrorCode;
 #[doc(inline)]
-pub use field_name::FieldName;
+pub use field_name::{FieldName, FieldNameError};
 #[doc(inline)]
-pub use icons::NamedIconSpec;
+pub use media::MediaRef;
 #[doc(inline)]
 pub use result::{
     ChromeResult, CommandResult, InputResult, InputValue, MarkdownResult, MessageResult,
@@ -51,4 +53,4 @@ pub use result::{
 #[doc(inline)]
 pub use stderr::{SerializeError, StderrError};
 #[doc(inline)]
-pub use validate::validate;
+pub use validate::{validate, MARKDOWN_CONTENT_MAX_BYTES};

@@ -1,0 +1,19 @@
+@prefix triage: <urn:atm:triage:> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<urn:atm:triage:finding/ATM-QA-001>
+  a triage:Finding ;
+  triage:findingId "ATM-QA-001" ;
+  triage:title "v0.1.0 tag / GitHub release absent" ;
+  triage:description "No origin v0.1.0 tag or GitHub release yet. Per c.16 sprint plan, tag push and release artifact smoke are post-merge integrate actions on integrate/phase-c-web-server after PR #48 merges." ;
+  triage:phaseId "phase-C-web-server" ;
+  triage:triageMode "initial_pass" ;
+  triage:repeatable false ;
+  triage:sweepScope "none" ;
+  triage:category "ATM-QA" ;
+  triage:severity "blocking" ;
+  triage:status "deferred_post_merge" ;
+  triage:dispatchReady false ;
+  triage:originatingSprintDoc "docs/plans/phase-C/c16-release.md" ;
+  triage:disposition "post-merge on integrate/phase-c-web-server: smoke packaged layout, push annotated tag v0.1.0" ;
+  triage:triagedAt "2026-07-14T16:30:00Z"^^xsd:dateTime .

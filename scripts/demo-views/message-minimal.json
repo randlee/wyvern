@@ -1,0 +1,6 @@
+{
+  "type": "message",
+  "title": "Message",
+  "message": "Minimal message box — auto-sized, single OK.",
+  "buttons": "ok"
+}

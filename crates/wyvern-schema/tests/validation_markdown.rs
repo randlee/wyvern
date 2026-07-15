@@ -17,6 +17,7 @@ fn validation_markdown_file_passes() {
             content,
             status,
             buttons,
+            ..
         } => {
             assert_eq!(title.as_ref().map(|t| t.as_str()), Some("doc.md"));
             assert_eq!(file.as_deref(), Some("doc.md"));
@@ -42,6 +43,7 @@ fn validation_markdown_content_only_passes() {
             content,
             status,
             buttons,
+            ..
         } => {
             assert_eq!(title.as_ref().map(|t| t.as_str()), Some("Markdown"));
             assert!(file.is_none());
@@ -119,6 +121,7 @@ fn validation_markdown_inline_title_and_status() {
             content,
             status,
             buttons,
+            ..
         } => {
             assert_eq!(title.as_ref().map(|t| t.as_str()), Some("Inline doc"));
             assert!(file.is_none());
@@ -134,7 +137,7 @@ fn validation_markdown_inline_title_and_status() {
 fn validation_markdown_title_defaults_to_filename() {
     let cmd = wyvern_schema::validate(&json!({
         "type": "markdown",
-        "file": "/tmp/notes/guide.md"
+        "file": "notes/guide.md"
     }))
     .expect("valid");
     match cmd {
@@ -221,6 +224,24 @@ fn validation_markdown_custom_buttons_rejected() {
         ValidationError::Validation { field, message } => {
             assert_eq!(field, "buttons");
             assert!(message.contains("not supported"));
+        }
+        other => panic!("expected Validation, got {other:?}"),
+    }
+}
+
+#[test]
+fn validation_markdown_content_over_max_bytes_rejected() {
+    let oversized = "x".repeat(wyvern_schema::MARKDOWN_CONTENT_MAX_BYTES + 1);
+    let err = wyvern_schema::validate(&json!({
+        "type": "markdown",
+        "content": oversized
+    }))
+    .expect_err("oversized");
+    match err {
+        ValidationError::Validation { field, message } => {
+            assert_eq!(field, "content");
+            assert!(message.contains("exceeds maximum"));
+            assert!(message.contains(&wyvern_schema::MARKDOWN_CONTENT_MAX_BYTES.to_string()));
         }
         other => panic!("expected Validation, got {other:?}"),
     }

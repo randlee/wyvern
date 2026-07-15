@@ -1,0 +1,7 @@
+{
+  "type": "message",
+  "title": "Warning",
+  "message": "Severity level + longer copy to check title and body layout.",
+  "level": "warning",
+  "buttons": "ok_cancel"
+}

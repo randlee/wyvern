@@ -1,8 +1,15 @@
 [package]
-name        = "wyvern-schema"
-version     = "0.1.0"
-edition     = "2021"
+name              = "wyvern-schema"
+version.workspace     = true
+edition.workspace     = true
+rust-version.workspace = true
+license.workspace     = true
+repository.workspace  = true
+homepage.workspace    = true
 description = "Wyvern JSON types, validation, and error messages"
+keywords    = ["wyvern", "dialog", "webview", "cli", "json"]
+categories  = ["command-line-utilities"]
+readme      = "../../README.md"
 
 [dependencies]
 serde      = { workspace = true }
