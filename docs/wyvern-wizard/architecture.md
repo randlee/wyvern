@@ -27,23 +27,20 @@ Cursor-over-array browser-history model:
 
 ---
 
-## ADR-0007: Wizard logic exposed only through traits
+## ADR-0007: Single `WizardSession` type hides history internals
 
 **Status:** Accepted (planning)
 
-**Context:**
-Exposing `BrowserHistory` internals to `wyvern-host` would couple HTTP routes to navigation implementation details and block future refactors (e.g. alternative history models for tests).
+**Context:** The wizard is a browser-style stack (`entries` + `cursor`). Exposing `BrowserHistory` or multiple traits adds surface without benefit — there is one implementation.
 
 **Decision:**
-- Public API of `wyvern-wizard` is trait-based: `WizardEngine`, `WizardNavigator`
-- Concrete history types (`BrowserHistory`, `HistoryEntry`) live in private modules
-- `wyvern-host` may depend on `wyvern-wizard` but imports **only** `lib.rs` re-exports
-- Integration tests outside `wyvern-wizard` use HTTP or trait mocks — never `browser_history` internals
+- Public API: concrete `WizardSession` with `new`, `snapshot`, `navigate_next`, `navigate_back`, `finish`
+- Private `history` module holds entries + cursor
+- `wyvern-host` holds `WizardSession` (or `Box<WizardSession>`); no graph/wizard domain logic
 
 **Consequences:**
-- Host route handlers stay thin serializers around trait calls
-- d.3 can replace stub history without host changes
-- Boundaries enforce `wizard_engine_trait` ownership in `boundaries/wyvern-wizard/wizard.toml`
+- d.1–d.2 own all stack behaviour; d.3–d.4 are tests + page bootstrap only
+- Drop `WizardEngine` / `WizardNavigator` split unless a second impl is required later
 
 ---
 

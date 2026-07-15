@@ -112,10 +112,9 @@ Boundary rules are encoded in `boundaries/` and enforced in CI.
 **Decision:**
 
 1. **Dialog layout (default):** intrinsic DOM measure + ~25% slack → clamp to available viewport → internal scroll on overflow.
-2. **Workspace layout:** optional `page.layout: "workspace"` — generic passthrough; opaque `config` (e.g. example `estimated_size`); sizing in `wyvern-api.js`. No Rust graph/tool integration.
-3. Viewer hidden until first valid resize; passes viewport bounds to page.
+2. **Workspace layout:** optional `page.layout: "workspace"` — opaque passthrough + `wyvern-api.js` sizing. **Not part of the stack model.**
 
-**Consequences:** DAG/graph/Flowise names in docs are **examples** of HTML page content, not Rust requirements. d.5 HTML fixtures; d.6 generic sizing + `page.layout` in wizard state.
+**Consequences:** Wizard Rust code is `WizardSession` + HTTP glue. d.3–d.4 are tests/bootstrap. Viewport sizing (d.6) is separate from stack semantics.
 
 ---
 

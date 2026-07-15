@@ -148,8 +148,8 @@ Phase D sprint PRs target `integrate/phase-D`. Sprint authority: `docs/plans/pha
 |--------|-------|-----|
 | d.1 | Wizard host: HTML load and config injection | [d1-wizard-host.md](phase-D/d1-wizard-host.md) |
 | d.2 | Wizard HTTP navigation | [d2-wizard-ipc.md](phase-D/d2-wizard-ipc.md) |
-| d.3 | Browser-history navigation model | [d3-history-nav.md](phase-D/d3-history-nav.md) |
-| d.4 | Stack injection and data restoration | [d4-stack-inject.md](phase-D/d4-stack-inject.md) |
+| d.3 | Browser-history regression tests | [d3-history-nav.md](phase-D/d3-history-nav.md) |
+| d.4 | Page bootstrap + stack snapshot tests | [d4-stack-inject.md](phase-D/d4-stack-inject.md) |
 | d.5 | Example DAG layout-picker wizard | [d5-dag-example.md](phase-D/d5-dag-example.md) |
 | d.6 | Wizard polish, viewport sizing, workspace layout | [d6-wizard-polish.md](phase-D/d6-wizard-polish.md) |
 

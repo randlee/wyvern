@@ -10,9 +10,7 @@ target: integrate/phase-D
 
 ## Goal
 
-Ship HTML **examples**: layout-picker (form branching) and workspace-hint (large-canvas page). Illustrative only — no Rust graph/DAG/Flowise code.
-
-Branching and any graph UI are **page HTML/JS** inside `type: wizard`. Wyvern provides routes, opaque `config`, and `page.layout`.
+HTML **examples** that exercise `WizardSession` branching via page JS — not new Rust stack code.
 
 ## Hard dependencies
 

@@ -10,9 +10,7 @@ target: integrate/phase-D
 
 ## Goal
 
-Close wizard UX edge cases, viewer-dismiss integration, and **zero-touch viewport sizing** for high-churn agent dialogs and workspace pages.
-
-Authority: [viewport-sizing.md](viewport-sizing.md), ADR-0020.
+UX edge cases, viewer dismiss, and viewport sizing. **Orthogonal to the stack** — see [viewport-sizing.md](viewport-sizing.md).
 
 ## Hard dependencies
 
@@ -88,7 +86,7 @@ Pages may opt in: `<script src="/shared/wizard-nav.js" data-wizard-chrome></scri
 6. Viewer close on any wizard page returns `{"button":"dismissed","stack":[...]}` via `POST /api/wizard/finish` (not `navigate`)
 7. Layout-picker example still passes full smoke from d.5
 8. Dialog auto-size: representative message/input payloads fit on first open with slack (golden L2, no manual resize)
-9. Workspace-hint example: Flowise-shaped `estimated_size` honored and viewport-clamped
+9. Workspace-hint example: `page.layout: "workspace"` + opaque `estimated_size` honored (viewport-clamped)
 10. Viewer does not flash at 320×240 before first content-sized resize
 
 ## Required validation
@@ -107,7 +105,7 @@ npx playwright test tests/l2/wizard-edge-cases.spec.ts tests/l2/viewport-sizing.
 
 - `--interactive` wizard loops (Phase E)
 - MCP wizard tools (Phase E e.3, after d.2)
-- Live Flowise API integration (hint JSON only in Phase D)
+- Tool-specific integrations (Flowise, etc.) — HTML author concern only
 
 ## Authority
 
