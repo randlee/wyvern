@@ -134,6 +134,9 @@ pub fn viewer_window_attributes(title: &str, width: f64, height: f64) -> WindowA
 }
 
 /// Drain pending GTK events so WebKit can release resources cleanly.
+///
+/// No-op when GTK is not initialized (headless Linux CI / unit tests without
+/// a display). Calling `gtk::events_pending` before `gtk::init` panics.
 pub fn pump_gtk_events() {
     #[cfg(any(
         target_os = "linux",
@@ -143,6 +146,9 @@ pub fn pump_gtk_events() {
         target_os = "openbsd",
     ))]
     {
+        if !gtk::is_initialized() {
+            return;
+        }
         while gtk::events_pending() {
             gtk::main_iteration_do(false);
         }
@@ -193,6 +199,8 @@ mod tests {
 
     #[test]
     fn pump_gtk_events_is_noop_or_drains() {
+        // Without gtk::init (headless CI / unit tests), this must be a no-op —
+        // not a panic from gtk::events_pending (CI-UBUNTU-001).
         pump_gtk_events();
     }
 }
