@@ -24,13 +24,19 @@ First public release of Wyvern on the **HTTP dialog host** stack (Phase C delive
 - `question` — AskUserQuestion-compatible blocking prompt
 - `chrome` — foundation chrome frame / platform safe zones
 
-### Release bundle
+### Distribution
 
-- Tag-triggered GitHub Actions matrix: macOS aarch64/x86_64, Windows x86_64, Linux x86_64
-- Artifacts include `wyvern`, sibling `wyvern-viewer`, and full `share/wyvern/ui/**`
-- README quickstart for install from GitHub Releases without cloning
+- **crates.io** — publish order: `wyvern-schema` → `wyvern-wizard` → `wyvern-host` → `wyvern-viewer` → `wyvern` (see `release/publish-artifacts.toml`)
+- **cargo install** — `cargo install wyvern wyvern-viewer` (UI assets embedded via `rust-embed`; no separate `share/` tree required)
+- **GitHub Releases** — tag-triggered matrix: macOS aarch64/x86_64, Windows x86_64, Linux x86_64; archives include `wyvern`, `wyvern-viewer`, and full `share/wyvern/ui/**`
+- **Homebrew** — `brew install randlee/tap/wyvern` (Apple Silicon tarball from GitHub Releases)
+- **winget** — `winget install randlee.wyvern` (Windows zip from GitHub Releases)
 
 ### Not in 0.1.0
 
 - `wizard` multi-page flows — Phase D
 - `--interactive` lifecycle / MCP server — Phase E
+
+### Known issues
+
+- **Linux crates.io consumers:** the workspace `[patch.crates-io]` for `wayland-scanner` does not apply to `cargo install` from crates.io. Linux users installing via crates.io may need to build from source with the vendored patch or use the GitHub Release tarball.

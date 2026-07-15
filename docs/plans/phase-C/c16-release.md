@@ -1,7 +1,7 @@
 ---
 id: c.16
 title: Release bundle + v0.1.0 tag
-status: implemented
+status: ready-for-tag
 branch: feature/phase-C-c16-release
 target: integrate/phase-c-web-server
 ---
@@ -52,4 +52,4 @@ sc-lint check native --config .sc-lint.toml
 - [c5-release.md](c5-release.md) — **historical** workflow baseline only
 - [README.md](README.md#phase-acceptance-criteria-smoke--delivery-rewrite-c16)
 
-**Final Phase C sprint.** Phase D/E blocked until c.16 merges. Status `implemented` = code/PR deliverables landed; bump to `complete` after post-merge `v0.1.0` tag + smoke.
+**Final Phase C sprint.** Phase D/E blocked until c.16 merges. Status `ready-for-tag` = release prep validated on `release/v0.1.0`; bump to `complete` after `v0.1.0` tag + release smoke.
