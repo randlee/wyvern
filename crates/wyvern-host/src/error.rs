@@ -18,6 +18,8 @@ pub enum DialogTypeName {
     Markdown,
     /// `question` dialog.
     Question,
+    /// `wizard` multi-page dialog (Phase D).
+    Wizard,
 }
 
 impl DialogTypeName {
@@ -29,6 +31,7 @@ impl DialogTypeName {
             Self::Input => "input",
             Self::Markdown => "markdown",
             Self::Question => "question",
+            Self::Wizard => "wizard",
         }
     }
 }

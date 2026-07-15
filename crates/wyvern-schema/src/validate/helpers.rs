@@ -56,6 +56,12 @@ pub(super) const MARKDOWN_FIELDS: &[&str] = &[
 /// Allowed fields on a `question` command object (b.7).
 pub(super) const QUESTION_FIELDS: &[&str] = &["type", "questions", "width", "height"];
 
+/// Allowed fields on a `wizard` command object (d.1).
+pub(super) const WIZARD_FIELDS: &[&str] = &["type", "page", "config", "width", "height"];
+
+/// Allowed fields on `wizard.page`.
+pub(super) const WIZARD_PAGE_FIELDS: &[&str] = &["id", "title", "html", "layout"];
+
 /// Allowed fields on each question card.
 pub(super) const QUESTION_CARD_FIELDS: &[&str] = &["question", "header", "options", "multiSelect"];
 
@@ -72,8 +78,10 @@ pub(super) const QUESTION_HEADER_MAX_CHARS: usize = 12;
 /// validation, CLI file load, and host render (defense in depth).
 pub const MARKDOWN_CONTENT_MAX_BYTES: usize = 256 * 1024;
 
-/// Phase B executable `type` values (through b.7).
-pub(super) const VALID_TYPES: &[&str] = &["chrome", "message", "input", "markdown", "question"];
+/// Executable `type` values (through Phase D d.1).
+pub(super) const VALID_TYPES: &[&str] = &[
+    "chrome", "message", "input", "markdown", "question", "wizard",
+];
 
 pub(super) fn require_string_field(
     obj: &Map<String, Value>,

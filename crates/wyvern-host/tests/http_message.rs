@@ -41,6 +41,7 @@ fn host_options(url_file: PathBuf) -> HostOptions {
     HostOptions {
         bind: SocketAddr::from(([127, 0, 0, 1], 0)),
         ui_root: workspace_ui_root(),
+        shared_ui_root: workspace_ui_root(),
         viewer: ViewerMode::None,
         dialog_url_env: true,
         dialog_url_file: Some(url_file),
@@ -130,6 +131,7 @@ fn begin_viewer_exit_yields_dismissed_stdout_shape() {
     let options = HostOptions {
         bind: SocketAddr::from(([127, 0, 0, 1], 0)),
         ui_root: workspace_ui_root(),
+        shared_ui_root: workspace_ui_root(),
         viewer: ViewerMode::Embedded,
         dialog_url_env: false,
         dialog_url_file: None,
@@ -178,6 +180,7 @@ fn run_serves_custom_ui_root() {
     let options = HostOptions {
         bind: SocketAddr::from(([127, 0, 0, 1], 0)),
         ui_root: dir.clone(),
+        shared_ui_root: workspace_ui_root(),
         viewer: ViewerMode::None,
         dialog_url_env: true,
         dialog_url_file: Some(url_file.clone()),

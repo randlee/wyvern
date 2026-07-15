@@ -288,12 +288,11 @@ pub fn emit_host_error(err: &wyvern_host::HostError) -> Result<String, EmitError
         HostError::UnsupportedType { type_name } => (
             ErrorCode::UnsupportedType,
             format!("dialog type '{type_name}' is not implemented on the HTTP host yet"),
-            "Schema validation passed; host matrix supports message, input, markdown, question, and chrome only".to_string(),
+            "Schema validation passed; host matrix supports chrome, message, input, markdown, question, and wizard".to_string(),
             vec![
-                "Use one of: message, input, markdown, question, chrome".into(),
-                "wizard lands in Phase D (docs/plans/phase-D/)".into(),
+                "Use one of: chrome, message, input, markdown, question, wizard".into(),
             ],
-            "docs/plans/phase-C/c14-host-chrome.md",
+            "docs/plans/phase-C/http-dialog-contract.md",
         ),
         HostError::InvalidResult { message } => (
             ErrorCode::HostError,

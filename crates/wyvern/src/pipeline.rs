@@ -211,6 +211,7 @@ fn command_type_name(command: &Command) -> &'static str {
         Command::Input { .. } => "input",
         Command::Markdown { .. } => "markdown",
         Command::Question { .. } => "question",
+        Command::Wizard(_) => "wizard",
     }
 }
 

@@ -1,8 +1,9 @@
 ---
 id: d.1
 title: Wizard host — HTTP + initial stack snapshot
-status: planning
+status: complete
 branch: feature/phase-D-d1-wizard-host
+worktree: /Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-D-d1-wizard-host
 target: integrate/phase-D
 ---
 

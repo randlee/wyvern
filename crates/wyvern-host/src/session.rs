@@ -18,6 +18,7 @@ use std::time::Duration;
 
 use tokio::sync::{oneshot, Mutex, OwnedSemaphorePermit, Semaphore};
 use wyvern_schema::Command;
+use wyvern_wizard::{WizardSession, WizardSnapshot};
 
 use crate::picker::MockPickerConfig;
 
@@ -36,31 +37,53 @@ pub(crate) struct SessionState {
 
 struct SessionInner {
     command: Command,
+    /// Present when the active command is [`Command::Wizard`].
+    wizard: Option<WizardSession>,
     result_tx: Option<oneshot::Sender<wyvern_schema::CommandResult>>,
 }
 
 impl SessionState {
     /// Create a session that will deliver the result once via `result_tx`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error string when wizard session construction fails.
     pub(crate) fn new(
         command: Command,
         result_tx: oneshot::Sender<wyvern_schema::CommandResult>,
         mock_picker: Option<MockPickerConfig>,
-    ) -> Self {
-        Self {
+    ) -> Result<Self, String> {
+        let wizard = match &command {
+            Command::Wizard(wizard_cmd) => {
+                Some(WizardSession::new(wizard_cmd).map_err(|e| e.to_string())?)
+            }
+            _ => None,
+        };
+        Ok(Self {
             inner: Arc::new(Mutex::new(SessionInner {
                 command,
+                wizard,
                 result_tx: Some(result_tx),
             })),
             // Serialize picker spawn_blocking so repeated POSTs cannot exhaust
             // the blocking pool (RSH-006).
             picker_slots: Arc::new(Semaphore::new(1)),
             mock_picker,
-        }
+        })
     }
 
     /// Clone of the active command for `/api/dialog`.
     pub(crate) async fn command(&self) -> Command {
         self.inner.lock().await.command.clone()
+    }
+
+    /// Snapshot of the wizard session, if this is a wizard dialog.
+    pub(crate) async fn wizard_snapshot(&self) -> Result<WizardSnapshot, String> {
+        let guard = self.inner.lock().await;
+        match &guard.wizard {
+            Some(session) => Ok(session.snapshot()),
+            None => Err("no wizard session for this dialog".into()),
+        }
     }
 
     /// In-process mock picker config, if any.
