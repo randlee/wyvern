@@ -41,6 +41,40 @@ fn wizard_command() -> Command {
     })
 }
 
+fn wait_for_url_file(path: &std::path::Path) -> String {
+    let start = std::time::Instant::now();
+    loop {
+        if let Ok(url) = std::fs::read_to_string(path) {
+            let url = url.trim().to_string();
+            if !url.is_empty() {
+                return url;
+            }
+        }
+        if start.elapsed() > Duration::from_secs(15) {
+            panic!("timed out waiting for dialog URL file {}", path.display());
+        }
+        thread::sleep(Duration::from_millis(20));
+    }
+}
+
+/// Poll shared JS GET until HTTP 200 (URL file alone is not readiness).
+fn wait_for_shared_js(client: &reqwest::blocking::Client, url: &str) -> String {
+    let start = std::time::Instant::now();
+    loop {
+        match client.get(url).send() {
+            Ok(resp) if resp.status() == reqwest::StatusCode::OK => {
+                return resp.text().expect("js text");
+            }
+            Ok(_) | Err(_) => {
+                if start.elapsed() > Duration::from_secs(15) {
+                    panic!("timed out waiting for GET shared JS at {url}");
+                }
+                thread::sleep(Duration::from_millis(20));
+            }
+        }
+    }
+}
+
 #[test]
 fn wizard_shared_mount_serves_wyvern_api_js_with_example_ui_root() {
     let url_file = unique_path("wyvern-wizard-shared-url");
@@ -57,34 +91,14 @@ fn wizard_shared_mount_serves_wyvern_api_js_with_example_ui_root() {
     };
     let handle = begin(wizard_command(), options).expect("begin");
 
-    let start = std::time::Instant::now();
-    let dialog_url = loop {
-        if let Ok(url) = std::fs::read_to_string(&url_file) {
-            let url = url.trim().to_string();
-            if !url.is_empty() {
-                break url;
-            }
-        }
-        if start.elapsed() > Duration::from_secs(15) {
-            panic!("timed out waiting for dialog URL");
-        }
-        thread::sleep(Duration::from_millis(20));
-    };
-
+    let dialog_url = wait_for_url_file(&url_file);
     let base = dialog_url
         .split_once("/wizard/")
         .map(|(b, _)| b.trim_end_matches('/').to_string())
         .expect("wizard path");
 
     let client = reqwest::blocking::Client::new();
-    let js = client
-        .get(format!("{base}/shared/wyvern-api.js"))
-        .send()
-        .expect("GET shared")
-        .error_for_status()
-        .expect("shared status")
-        .text()
-        .expect("js text");
+    let js = wait_for_shared_js(&client, &format!("{base}/shared/wyvern-api.js"));
     assert!(
         js.contains("wyvern") || js.contains("fetch") || !js.is_empty(),
         "expected packaged wyvern-api.js content"
