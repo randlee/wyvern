@@ -18,8 +18,8 @@ use std::time::Duration;
 
 use tokio::sync::{oneshot, Mutex, OwnedSemaphorePermit, Semaphore};
 use wyvern_schema::{
-    Command, CommandResult, WizardPageDescriptor, WizardResult, WizardStackEntry,
-    WizardTerminalButton,
+    ButtonLabel, ChromeResult, Command, CommandResult, InputResult, MarkdownResult, MessageResult,
+    WizardPageDescriptor, WizardResult, WizardStackEntry, WizardTerminalButton,
 };
 use wyvern_wizard::{NavigateOutcome, WizardError, WizardSession, WizardSnapshot};
 
@@ -166,6 +166,49 @@ impl SessionState {
         }
     }
 
+    /// REQ-0097 fallback when the viewer exits or the session times out.
+    ///
+    /// Wizard sessions derive dismissed stdout via
+    /// [`WizardSession::finish`]`(Dismissed, page_data, full_visited_stack)` —
+    /// same d.2 algorithm as an explicit finish POST (stdout `data` is `{}`).
+    pub(crate) async fn dismissed_on_exit_or_timeout(&self) -> CommandResult {
+        let guard = self.inner.lock().await;
+        match (&guard.command, guard.wizard.as_ref()) {
+            (Command::Wizard(_), Some(session)) => {
+                let snap = session.snapshot();
+                let page_id = snap.page.id.as_str().to_string();
+                let mut derived = snap.stack;
+                derived.push(WizardStackEntry {
+                    page: snap.page,
+                    data: snap.page_data.clone(),
+                });
+                match session.finish(
+                    WizardTerminalButton::Dismissed,
+                    snap.page_data,
+                    derived.clone(),
+                ) {
+                    Ok(result) => CommandResult::Wizard(result),
+                    Err(err) => {
+                        // RBP-F002: keep the manually derived full visited stack rather
+                        // than degrading to WizardResult::dismissed() (empty stack).
+                        tracing::error!(
+                            error = %err,
+                            page_id = %page_id,
+                            stack_len = derived.len(),
+                            "wizard dismissed fallback finish failed; returning derived stack"
+                        );
+                        CommandResult::Wizard(WizardResult {
+                            button: ButtonLabel::dismissed(),
+                            data: serde_json::json!({}),
+                            stack: derived,
+                        })
+                    }
+                }
+            }
+            (command, _) => dismissed_for_command(command),
+        }
+    }
+
     /// In-process mock picker config, if any.
     pub(crate) fn mock_picker(&self) -> Option<&MockPickerConfig> {
         self.mock_picker.as_ref()
@@ -200,6 +243,29 @@ impl SessionState {
 fn wizard_page_url(origin: &str, html: &str) -> String {
     let html = html.trim_start_matches('/');
     format!("{origin}/wizard/{html}")
+}
+
+/// REQ-0097 dismissed shape for non-wizard command types (blocking dialogs).
+fn dismissed_for_command(command: &Command) -> CommandResult {
+    match command {
+        Command::Message { .. } => CommandResult::Message(MessageResult {
+            button: ButtonLabel::dismissed(),
+        }),
+        Command::Input { .. } => CommandResult::Input(InputResult {
+            button: ButtonLabel::dismissed(),
+            input: None,
+        }),
+        Command::Markdown { .. } => CommandResult::Markdown(MarkdownResult {
+            button: ButtonLabel::dismissed(),
+        }),
+        Command::Chrome { .. } => CommandResult::Chrome(ChromeResult {
+            button: ButtonLabel::dismissed(),
+        }),
+        Command::Question { questions_raw, .. } => CommandResult::Question(
+            wyvern_schema::QuestionResult::dismissed(questions_raw.clone()),
+        ),
+        Command::Wizard(_) => CommandResult::Wizard(WizardResult::dismissed()),
+    }
 }
 
 /// Session was dropped while waiting for a picker slot (should not happen in-process).

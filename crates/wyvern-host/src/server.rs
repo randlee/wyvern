@@ -10,10 +10,7 @@ use tokio::net::TcpListener;
 use tokio::sync::oneshot;
 use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::services::ServeDir;
-use wyvern_schema::{
-    ButtonLabel, ChromeResult, Command, CommandResult, InputResult, MarkdownResult, MessageResult,
-    WizardResult,
-};
+use wyvern_schema::{Command, CommandResult};
 
 use crate::error::{DialogTypeName, HostError};
 use crate::routes::{dialog, picker, result, wizard};
@@ -161,12 +158,10 @@ pub(crate) async fn serve_until_result(
             })
         }
         () = &mut timeout => {
-            let command = session.command().await;
-            Ok(dismissed_for_command(&command))
+            Ok(session.dismissed_on_exit_or_timeout().await)
         }
         _ = &mut dismiss_rx => {
-            let command = session.command().await;
-            Ok(dismissed_for_command(&command))
+            Ok(session.dismissed_on_exit_or_timeout().await)
         }
         serve_result = &mut server => {
             serve_result.map_err(|e| HostError::Internal {
@@ -191,29 +186,6 @@ pub(crate) async fn serve_until_result(
     }
 
     outcome
-}
-
-/// REQ-0097 dismissed shape for the active command type.
-pub(crate) fn dismissed_for_command(command: &Command) -> CommandResult {
-    match command {
-        Command::Message { .. } => CommandResult::Message(MessageResult {
-            button: ButtonLabel::dismissed(),
-        }),
-        Command::Input { .. } => CommandResult::Input(InputResult {
-            button: ButtonLabel::dismissed(),
-            input: None,
-        }),
-        Command::Markdown { .. } => CommandResult::Markdown(MarkdownResult {
-            button: ButtonLabel::dismissed(),
-        }),
-        Command::Chrome { .. } => CommandResult::Chrome(ChromeResult {
-            button: ButtonLabel::dismissed(),
-        }),
-        Command::Question { questions_raw, .. } => CommandResult::Question(
-            wyvern_schema::QuestionResult::dismissed(questions_raw.clone()),
-        ),
-        Command::Wizard(_) => CommandResult::Wizard(WizardResult::dismissed()),
-    }
 }
 
 /// Publish dialog URL for headless harnesses (stderr + optional file).

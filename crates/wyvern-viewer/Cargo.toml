@@ -24,8 +24,7 @@ wry   = { workspace = true }
 winit = { workspace = true }
 url   = { workspace = true }
 tracing = { workspace = true }
-
-[dev-dependencies]
+serde = { workspace = true }
 serde_json = { workspace = true }
 
 # wry on Linux needs an initialized GTK main loop alongside winit.

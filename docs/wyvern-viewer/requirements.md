@@ -12,7 +12,7 @@
 
 **REQ-V002** — Default policy rejects non-loopback hosts and non-`http`/`https` schemes. Opt-in: `WYVERN_VIEWER_ALLOW_NON_LOOPBACK=1` (mirrors host `--allow-non-loopback`).
 
-**REQ-V003** — On OS window close without a prior successful button POST from the page, the viewer POSTs `{ "button": "dismissed" }` to `/api/result` with bounded connect/read/write timeouts (best-effort; failures are logged, not fatal).
+**REQ-V003** — On OS window close without a prior successful button POST from the page, the viewer posts dismissed with bounded connect/read/write timeouts (best-effort; failures are logged, not fatal): wizard URLs (`/wizard/**`) `GET /api/wizard/state` then `POST /api/wizard/finish` with the full visited stack (d.8); blocking dialogs `POST /api/result` with `{ "button": "dismissed" }`.
 
 **REQ-V004** — The viewer does not embed dialog HTML, run an HTTP server, or speak wry dialog IPC. Host + packaged `ui/` own presentation content.
 
