@@ -408,9 +408,17 @@ pub struct WizardStateResponse {
     pub height: Option<u32>,
 }
 
+/// Wire: `"next"` | `"back"` only. Cancel/finish/dismissed use `POST /api/wizard/finish`.
+#[derive(Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum WizardNavAction {
+    Next,
+    Back,
+}
+
 #[derive(Deserialize)]
 pub struct WizardNavigateRequest {
-    pub action: WizardNavAction, // Next | Back only — cancel/finish/dismissed via /finish
+    pub action: WizardNavAction,
     #[serde(default)]
     pub data: serde_json::Value,
     pub page_id: Option<String>,

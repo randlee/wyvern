@@ -29,7 +29,7 @@ Lock ADR-0005 behaviour with the four canonical tests. **No new routes, traits, 
 |------|--------|
 | `forward_push_advances_cursor` | A→B→C, cursor follows |
 | `back_moves_cursor_without_truncation` | Back does not delete forward entries |
-| `forward_same_page_restores_data` | Same `next` descriptor restores cached `data` |
+| `forward_same_page_restores_data` | Same `next` descriptor restores cached `data`; overwrite only when request `data` is a meaningful payload per d.2 overwrite predicate (`null`/`{}`/`[]`/`""` → restore) |
 | `forward_different_page_truncates` | New branch drops stale forward entries |
 
 ## Acceptance criteria

@@ -21,6 +21,7 @@ Wire wizard HTTP and seed the stack: one session, cursor at first page, `GET /ap
 ### Schema (`wyvern-schema`)
 
 - `Command::Wizard`, `WizardPageDescriptor`, `WizardPageLayout`, `WizardStackEntry`, `WizardCommand`, `WizardResult`
+- **`WizardStateResponse`** — wire DTO for `GET /api/wizard/state` (see [HTTP-TYPES.md](../phase-C/HTTP-TYPES.md))
 - `validate/wizard.rs` + `tests/validation_wizard.rs`
 - Rules: `type: wizard`, `page.{id,title,html}`, optional `page.layout` (`dialog` | `workspace`), optional `config`, optional `width`/`height` — see [HTTP-TYPES.md](../phase-C/HTTP-TYPES.md)
 - Static HTML paths resolve from `page.html` relative to `--ui-root` (no separate `page_html` field)
@@ -63,9 +64,18 @@ No separate `WizardEngine` / `WizardNavigator` traits unless a second impl appea
 
 | File | Change |
 |------|--------|
-| `routes/wizard.rs` | `GET /api/wizard/state`, `GET /wizard/**` |
+| `routes/wizard.rs` | `GET /api/wizard/state`, `GET /wizard/**`, `GET /shared/**` |
 | `session.rs` | `WizardSession` holder |
 | `tests/wizard_state.rs`, `tests/wizard_routes.rs` | |
+
+**Static routing (normative — dual mount):**
+
+| Route | Source | Purpose |
+|-------|--------|---------|
+| `GET /wizard/**` | `--ui-root` | Wizard page HTML + example assets (`page.html` paths) |
+| `GET /shared/**` | packaged `ui/` root (not `--ui-root`) | Shared JS/CSS (`wyvern-api.js`, `wizard-nav.js`, etc.) |
+
+Wizard pages load shared helpers via absolute `/shared/…` URLs regardless of `--ui-root`. Example: `--ui-root examples/wizards/layout-picker` still serves `/shared/wyvern-api.js` from packaged `ui/shared/`.
 
 **Wizard URL rule (normative):**
 
@@ -79,13 +89,14 @@ No separate `WizardEngine` / `WizardNavigator` traits unless a second impl appea
 
 ### Boundaries
 
-- `boundaries/wyvern-host/host.toml` — `wyvern-host → wyvern-wizard` dep added here
+- `boundaries/wyvern-host/host.toml` — verify `wyvern-host → wyvern-wizard` edge enforced
 
 ## Acceptance criteria
 
 1. Workspace builds; clippy clean
-2. `GET /api/wizard/state` → `{ config, page, page_data, stack: [] }` on first page (REQ-0024)
+2. `GET /api/wizard/state` returns full `WizardStateResponse` wire shape: `{ type, config, page, page_data, stack, width?, height? }` — on first page `stack: []` (REQ-0024); authority: [HTTP-TYPES.md](../phase-C/HTTP-TYPES.md)
 3. Wizard HTML served at `/wizard/**` from `--ui-root` + `page.html`
+4. `GET /shared/wyvern-api.js` succeeds when `--ui-root` is an example directory (dual-mount)
 4. `page.layout` optional field validates (`dialog` | `workspace`) when present
 5. Blocking dialogs still pass `--viewer none`
 6. `sc-lint check native --config .sc-lint.toml` passes after host→wizard dep lands
@@ -95,7 +106,7 @@ No separate `WizardEngine` / `WizardNavigator` traits unless a second impl appea
 ```bash
 cargo test -p wyvern-schema validation_wizard
 cargo test -p wyvern-wizard
-cargo test -p wyvern-host wizard_state wizard_routes
+cargo test -p wyvern-host wizard_state wizard_routes wizard_shared_mount
 sc-lint check native --config .sc-lint.toml
 ```
 

@@ -22,6 +22,8 @@ Complete the stack: `navigate_next`, `navigate_back`, `finish` on `WizardSession
 
 Extend `WizardSession` (same type as d.1):
 
+- **`WizardNavigateRequest`**, **`WizardFinishRequest`** — wire DTOs in `wyvern-schema` (see [HTTP-TYPES.md](../phase-C/HTTP-TYPES.md))
+
 ```rust
 /// Host uses this to build navigate response URL + state refresh.
 pub struct NavigateOutcome {
@@ -51,19 +53,37 @@ let stack: Vec<_> = entries[0..cursor]
 
 `history.rs` implements ADR-0005 (cursor, truncate on branch, restore on forward-same-page).
 
-**`navigate_next` data write (normative):** write `data` onto `entries[cursor]` **before** push/truncate-forward/advance. Forward-same-page restore returns cached entry data unless new `data` is non-empty (overwrite).
+**Opaque data write rule (normative — all navigate + finish paths):**
 
-**`navigate_back` data write (normative):** write `data` onto `entries[cursor]` **before** `cursor--`. Restored `page_data` comes from destination entry.
+Whole-blob replace only — no deep merge. `entries[cursor].data = data` replaces the entire stored blob. Host and wizard never interpret keys inside `data` (ADR-0006).
+
+**Forward-same-page overwrite predicate (normative):**
+
+When `navigate_next` restores a cached forward entry (same `next` descriptor), overwrite cached `data` only when request `data` is a **meaningful payload**:
+
+| Request `data` | Overwrite cached entry? |
+|----------------|-------------------------|
+| `null` | No — restore cached |
+| `{}` (empty object) | No — restore cached |
+| `[]` (empty array) | No — restore cached |
+| `""` (empty string) | No — restore cached |
+| Any other value | Yes — replace cached blob |
+
+**`navigate_next` data write (normative):** apply opaque write rule to `entries[cursor]` **before** push/truncate-forward/advance. Forward-same-page restore uses overwrite predicate above.
+
+**`navigate_back` data write (normative):** apply opaque write rule to `entries[cursor]` **before** `cursor--`. Restored `page_data` comes from destination entry.
 
 **`navigate_back` at cursor=0:** returns `WizardError::AtFirstPage` → host maps to HTTP **400** (no silent no-op).
 
-**Finish stack algorithm (normative):**
+**Finish stack algorithm (normative — `finish` is `&self`; session is discarded after stdout):**
 
-1. Apply `request.data` onto `entries[cursor].data` (merge/replace per opaque blob rules).
-2. Build session-derived stack: `entries[0..=cursor]` as `{page, data}` — **full visited stack for stdout** (includes current).
-3. **`button: finish`:** `WizardResult.stack` = session-derived stack. If client supplies `stack`, it must equal session-derived stack → else `WizardError::StackMismatch` → HTTP 400. Host may omit client validation and always reconstruct (recommended).
-4. **`button: cancel`:** `WizardResult.stack` = `[]` always; client `stack` ignored.
-5. **`button: dismissed`:** same as finish for stack reconstruction (full visited stack); `data` typically `{}`.
+`finish` does **not** mutate the session. It derives stdout in memory from current `entries` + request fields:
+
+1. Derive current entry data: `current_data = request.data` (opaque whole-blob replace of the in-memory current entry for stack derivation only).
+2. Build session-derived stack: `entries[0..cursor]` as `{page, data}` plus `{ page: entries[cursor].page, data: current_data }` — **full visited stack for stdout** (includes current).
+3. **`button: finish`:** `WizardResult.stack` = session-derived stack; `WizardResult.data` = `request.data`. If client supplies `stack`, it must equal session-derived stack → else `WizardError::StackMismatch` → HTTP 400.
+4. **`button: cancel`:** `WizardResult.stack` = `[]` always; `WizardResult.data` = `{}`; client `stack` ignored.
+5. **`button: dismissed`:** same stack reconstruction as `finish`; `WizardResult.data` = `{}`.
 
 ```rust
 pub fn finish(&self, button: ButtonLabel, data: Value, stack: Vec<WizardStackEntry>)

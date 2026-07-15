@@ -337,7 +337,8 @@ Terminal outcomes (`finish`, `cancel`, `dismissed`) use **`POST /api/wizard/fini
   "button": "finish",
   "data": { "final": "values" },
   "stack": [
-    { "page": { "id": "start" }, "data": { "choice": "a" } }
+    { "page": { "id": "start" }, "data": { "choice": "a" } },
+    { "page": { "id": "step-2" }, "data": { "final": "values" } }
   ]
 }
 ```
@@ -348,7 +349,9 @@ Terminal outcomes (`finish`, `cancel`, `dismissed`) use **`POST /api/wizard/fini
 | `data` | object | yes (may be `{}`) |
 | `stack` | array | yes |
 
-**Stdout:** same object. Full wizard HTTP contract: [http-wizard-contract.md](http-wizard-contract.md) (implemented in d.2).
+**Stack validation:** when host validates client `stack`, it must equal the session-derived **full visited stack** (`entries[0..=cursor]`, includes current page). Mismatch → HTTP 400 (`StackMismatch`). See d.2 finish algorithm.
+
+**Stdout `data` mapping:** `finish` → request `data`; `cancel` / `dismissed` → `{}`. Full wizard HTTP contract: [http-wizard-contract.md](http-wizard-contract.md) (implemented in d.2).
 
 ---
 
