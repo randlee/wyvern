@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Canvas</title>
+  <script src="/shared/wyvern-api.js"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+    }
+    .canvas {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      border: 2px dashed #334155;
+      margin: 1rem;
+      border-radius: 12px;
+    }
+    .hint {
+      text-align: center;
+      opacity: 0.85;
+    }
+  </style>
+</head>
+<body>
+  <main class="canvas" data-testid="workspace-canvas">
+    <div class="hint">
+      <h1 data-testid="workspace-title">Canvas placeholder</h1>
+      <p data-testid="workspace-hint">
+        Authors replace this page with any HTML canvas, DAG editor, or Flowise iframe.
+      </p>
+      <pre data-testid="estimated-size"></pre>
+    </div>
+  </main>
+  <script>
+    (async function () {
+      if (typeof wyvernWizardState === "function") {
+        await wyvernWizardState();
+      }
+      var size =
+        (window.wyvern &&
+          window.wyvern.config &&
+          window.wyvern.config.estimated_size) ||
+        {};
+      var el = document.querySelector("[data-testid='estimated-size']");
+      if (el) {
+        el.textContent = JSON.stringify(size, null, 2);
+      }
+    })();
+  </script>
+</body>
+</html>

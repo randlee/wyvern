@@ -1,7 +1,7 @@
 ---
 id: d.5
 title: Example DAG layout-picker wizard
-status: planning
+status: complete
 branch: feature/phase-D-d5-dag-example
 target: integrate/phase-D
 ---

@@ -1,0 +1,17 @@
+{
+  "type": "wizard",
+  "page": {
+    "id": "layout-picker",
+    "title": "Choose layout",
+    "html": "pages/layout-picker.html"
+  },
+  "config": {
+    "layouts": [
+      { "id": "solo", "label": "Solo", "agents": 1 },
+      { "id": "pair", "label": "Pair", "agents": 2 },
+      { "id": "trio", "label": "Trio", "agents": 3 }
+    ]
+  },
+  "width": 640,
+  "height": 480
+}
