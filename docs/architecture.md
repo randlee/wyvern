@@ -107,17 +107,15 @@ Boundary rules are encoded in `boundaries/` and enforced in CI.
 
 **Status:** Accepted (planning — Phase D d.6)
 
-**Context:** Agent-driven dialogs are high-churn (many unique payloads per day). Fixed pixel tiers and measure-time width caps cause manual resize iteration. DAG/graph tools (Flowise, Flowwise-style) need full viewport or tool-supplied bounds.
+**Context:** Agent-driven dialogs are high-churn (many unique payloads per day). Fixed pixel tiers and measure-time width caps cause manual resize iteration. Some wizard HTML pages need large viewports (e.g. canvas editors — **HTML-side only**).
 
 **Decision:**
 
-1. **Dialog layout (default):** intrinsic DOM measure + ~25% slack → clamp to available viewport → internal scroll on overflow. Used for wizard form steps and blocking dialogs.
-2. **Workspace layout:** wizard **pages only** — `page.layout: "workspace"` or `config.layout`; DAG/graph/Flowise canvases stay inside `type: wizard` (`/wizard/**`, `/api/wizard/*`). Size from command `width`/`height`, `estimated_size`, or `config.flowise.*`; clamp to viewport.
+1. **Dialog layout (default):** intrinsic DOM measure + ~25% slack → clamp to available viewport → internal scroll on overflow.
+2. **Workspace layout:** optional `page.layout: "workspace"` — generic passthrough; opaque `config` (e.g. example `estimated_size`); sizing in `wyvern-api.js`. No Rust graph/tool integration.
 3. Viewer hidden until first valid resize; passes viewport bounds to page.
 
-Full policy: [docs/plans/phase-D/viewport-sizing.md](plans/phase-D/viewport-sizing.md).
-
-**Consequences:** No separate graph dialog type. Multi-step wizards may mix dialog and workspace pages. d.5 examples; d.6 implements sizing + `page.layout` in wizard state.
+**Consequences:** DAG/graph/Flowise names in docs are **examples** of HTML page content, not Rust requirements. d.5 HTML fixtures; d.6 generic sizing + `page.layout` in wizard state.
 
 ---
 

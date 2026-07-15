@@ -329,12 +329,12 @@ pub struct WizardPageDescriptor {
     pub id: String,
     pub title: String,
     pub html: String,
-    /// Per-page layout: `dialog` (default) or `workspace` (DAG/graph/Flowise canvas). Phase D d.5–d.6.
+    /// Per-page layout: `dialog` (default) or `workspace` (large-canvas HTML pages). Phase D d.5–d.6.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub layout: Option<WizardPageLayout>,
 }
 
-/// `dialog` = form/card step; `workspace` = graph/DAG page inside wizard session.
+/// `dialog` = typical form step; `workspace` = HTML page requesting viewport-sized canvas (example: graph editor).
 pub enum WizardPageLayout { Dialog, Workspace }
 
 /// One stack entry — REQ-0024.

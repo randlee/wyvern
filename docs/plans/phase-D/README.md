@@ -18,7 +18,9 @@ Phase D sprints assume the **post-c.16** codebase on `main` / `integrate/phase-C
 
 ## Phase goal
 
-Multi-page wizards with branching navigation and data persistence across pages — including **DAG/graph steps** (Flowise, Flowwise-style canvases) as first-class **wizard pages**, not a separate dialog type or host mode.
+Multi-page wizards with branching navigation and data persistence across pages — including optional **workspace-layout** wizard pages (e.g. HTML/JS graph canvases) within the same `type: wizard` session.
+
+> **Examples only:** Names like DAG, graph, or Flowise describe **sample HTML/JS page content**, not Rust integrations or required dependencies. Wyvern passes opaque `config` and `page.layout`; all domain UI lives in page HTML (ADR-0006).
 
 ## Phase acceptance criteria (smoke)
 
@@ -31,9 +33,9 @@ The example DAG layout-picker wizard completes a full flow with branching, back-
 | `wyvern-wizard` | Pure navigation logic behind **`WizardEngine`** trait | History array layout, cursor internals, concrete `BrowserHistory` type |
 | `wyvern-host` | HTTP routes, session lifecycle, `Box<dyn WizardEngine>` holder | History cursor math, stack truncation rules, page-domain interpretation |
 | `wyvern-schema` | `WizardCommand` / `WizardResult` validation | Navigation behaviour |
-| Page JS | Domain branching (DAG), opaque `data` blobs, **embedded graph UIs (Flowise)** | Host/wizard internals |
+| Page JS | Domain branching, opaque `data` blobs, **any embedded HTML UI** (graphs, forms, etc.) | Host/wizard internals |
 
-**DAG / graph / Flowise:** These are **wizard pages** — HTML under `/wizard/**`, navigation via `POST /api/wizard/navigate`, state via `GET /api/wizard/state`. A single wizard may mix form steps (`layout: dialog`) and graph editor steps (`layout: workspace`) in one stack. Wyvern does not host a parallel “graph dialog type.”
+**Workspace pages:** Optional `page.layout: "workspace"` for HTML that needs viewport-sized canvas (e.g. a graph editor page). Still wizard HTTP routes — not a separate dialog type. Rust does not implement graph/DAG/Flowise logic.
 
 Host calls **only** the public `WizardEngine` API from `wyvern-wizard`. Integration tests may use `WizardEngine::new_for_test(...)`; production code must not import wizard private modules.
 
@@ -44,9 +46,9 @@ See [docs/wyvern-wizard/architecture.md](../../wyvern-wizard/architecture.md) AD
 - Wizard on **`wyvern-host`** HTTP (not wry IPC) — [http-wizard-contract.md](../phase-C/http-wizard-contract.md)
 - Browser-history navigation model (ADR-0005) in `wyvern-wizard` behind `WizardEngine`
 - Stack injection and data restoration across pages (REQ-0024)
-- Example DAG layout-picker wizard (form steps + optional graph workspace page)
+- Example DAG layout-picker wizard (form branching — HTML/JS example)
+- Optional workspace-layout wizard page in examples (e.g. graph canvas — HTML only)
 - Wizard polish, edge cases, and **viewport sizing policy** — [viewport-sizing.md](viewport-sizing.md)
-- **DAG/graph/Flowise surfaces as wizard pages** — workspace layout + external size hints inside `type: wizard`
 
 **Hard dependency:** Phase C **c.16** complete (`wyvern-host`, packaged `ui/`, `wyvern-viewer` optional).
 
@@ -71,7 +73,7 @@ See [docs/wyvern-wizard/architecture.md](../../wyvern-wizard/architecture.md) AD
 High-churn agent dialogs must **fit on screen without manual resize iteration**. Policy: [viewport-sizing.md](viewport-sizing.md).
 
 - **Dialog steps** — intrinsic measure + ~25% slack, viewport clamp, scroll overflow (d.6).
-- **Wizard graph/DAG steps** (Flowise, etc.) — same wizard session; `layout: workspace` on page or config; Flowise `estimated_size` hints (d.5 example + d.6 viewer/API).
+- **Workspace-layout wizard pages** — generic `page.layout` + optional `config.estimated_size` passthrough (examples may show graph HTML; no Rust graph code) (d.5–d.6).
 
 ## Boundary files (tightened in plan hardening)
 

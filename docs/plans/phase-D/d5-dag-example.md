@@ -10,9 +10,9 @@ target: integrate/phase-D
 
 ## Goal
 
-Ship the phase smoke example: layout-picker DAG with branching agent pages, plus a **wizard graph page** demonstrating workspace layout (Flowise-style hints).
+Ship HTML **examples**: layout-picker (form branching) and workspace-hint (large-canvas page). Illustrative only — no Rust graph/DAG/Flowise code.
 
-DAG branching and graph editing are **wizard pages** in one `type: wizard` flow — not a separate Wyvern dialog type.
+Branching and any graph UI are **page HTML/JS** inside `type: wizard`. Wyvern provides routes, opaque `config`, and `page.layout`.
 
 ## Hard dependencies
 
@@ -30,34 +30,30 @@ Exact paths (authoritative):
 | `examples/wizards/layout-picker/pages/finish.html` | Optional summary page before finish |
 | `examples/wizards/layout-picker/app.js` | DAG branching via `wyvernWizardNext` + explicit `next` descriptors |
 | `examples/wizards/layout-picker/styles.css` | Layout card grid |
-| `examples/wizards/workspace-hint/` | **new** — minimal workspace page proving `config.layout` + Flowise-style hints |
-| `crates/wyvern-host/tests/wizard_layout_picker.rs` | **new** — HTTP integration against fixture |
+| `examples/wizards/workspace-hint/` | **new** — example HTML page with `layout: workspace` + sample `estimated_size` in config |
+| `crates/wyvern-host/tests/wizard_layout_picker.rs` | HTTP integration against layout-picker fixture |
+| `crates/wyvern-host/tests/wizard_workspace_hint.rs` | HTTP integration against workspace-hint fixture |
 
-### Workspace size hints (Flowise — wizard graph page)
+### Workspace example (HTML only)
 
-DAG/graph/Flowise surfaces are **wizard pages**: served under `/wizard/**`, sized via [viewport-sizing.md](viewport-sizing.md) `layout: workspace`, navigated with `wyvernWizardNext` / `wyvernWizardFinish`.
+Example wizard page that needs a larger viewport (e.g. a graph canvas in HTML). Not a Rust integration.
 
-Small graphs may not be full-screen. Flowise (or the agent) supplies bounds in wizard `config`; the graph HTML page embeds the editor.
-
-**d.5 proves the wire shape** in `examples/wizards/workspace-hint/wizard.json`:
+- Served like any wizard page under `/wizard/**`
+- `page.layout: "workspace"` — Wyvern passes the string through; sizing in d.6
+- `config.estimated_size` — **opaque** example shape; page JS reads what it needs
 
 ```json
 {
   "type": "wizard",
-  "page": { "id": "graph", "title": "Flow", "html": "pages/graph.html", "layout": "workspace" },
+  "page": { "id": "editor", "title": "Canvas", "html": "pages/editor.html", "layout": "workspace" },
   "config": {
-    "layout": "workspace",
-    "estimated_size": { "width": 960, "height": 640 },
-    "flowise": { "estimated_width": 960, "estimated_height": 640 }
+    "estimated_size": { "width": 960, "height": 640 }
   }
 }
 ```
 
-- `pages/graph.html` uses `dialog--workspace` (CSS) — internal pan/scroll for canvas.
-- Page reads `window.wyvern.config.estimated_size` (normalized from `flowise.*` in bootstrap).
-- **d.5** documents hint passthrough only; **d.6** implements viewer sizing policy ([viewport-sizing.md](viewport-sizing.md)).
-
-Authority: [viewport-sizing.md](viewport-sizing.md) — workspace mode.
+- `pages/editor.html` is placeholder/minimal canvas — authors replace with any HTML (Flowise embed, custom DAG, etc.)
+- **d.5** proves wire shape in fixtures; **d.6** implements generic workspace sizing in `wyvern-api.js`
 
 ### `wizard.json` (authoritative fixture)
 
@@ -103,7 +99,7 @@ Domain logic stays in JS — host/wizard only store opaque `data` blobs (ADR-000
 6. `POST /api/wizard/finish` returns full stack with layout selection + all agent configs
 7. Phase D smoke: full flow with back-navigation and data restoration (select pair → agent-1 → back → change to solo → complete)
 8. `cargo test -p wyvern-host wizard_layout_picker` passes without a GUI
-9. `workspace-hint` example: `config.layout: "workspace"` + `estimated_size` / `flowise` hints render without manual resize
+9. `workspace-hint` example: `page.layout: "workspace"` + opaque `estimated_size` in config renders without manual resize
 
 ## Required validation
 

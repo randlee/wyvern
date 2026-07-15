@@ -28,7 +28,7 @@ Authority: [viewport-sizing.md](viewport-sizing.md), ADR-0020.
 | `ui/shared/embedded-chrome.css` | `dialog--workspace` styles |
 | `crates/wyvern-viewer/src/run.rs` | Hidden until first resize; viewport bounds IPC to page; multi-resize refinement window |
 | `crates/wyvern-viewer/src/platform.rs` | Document bootstrap policy (no 320×240 visible flash) |
-| `docs/plans/phase-C/http-wizard-contract.md` | `config.layout`, `estimated_size`, Flowise hint passthrough |
+| `docs/plans/phase-C/http-wizard-contract.md` | `page.layout`, opaque `config` passthrough (incl. example `estimated_size` shape) |
 | `tests/l2/viewport-sizing.spec.ts` | **new** — golden dialog fit + workspace hint cases |
 
 **Dialog mode (default):**
@@ -37,11 +37,11 @@ Authority: [viewport-sizing.md](viewport-sizing.md), ADR-0020.
 - Measure before `visibility: visible`; remeasure on `fonts.ready` + `ResizeObserver`.
 - Overflow → `.content { overflow: auto }` inside clamped window.
 
-**Workspace mode (`page.layout === "workspace"` or `config.layout`):**
+**Workspace mode (`page.layout === "workspace"`):**
 
-- Wizard graph/DAG/Flowise pages only — same `/api/wizard/*` session.
-- Prefer command `width`/`height`, else `config.estimated_size`, else normalize `config.flowise.estimated_*`.
-- Expose `page.layout` in `GET /api/wizard/state` for `applyWizardLayout()`.
+- Generic wizard page layout — Rust passes `layout` and opaque `config` only.
+- `wyvern-api.js` applies viewport sizing; page HTML decides canvas content.
+- No tool-specific parsing in Rust (ADR-0006).
 
 ### Shared wizard chrome (`ui/wizard/` — new packaged templates)
 
@@ -76,7 +76,7 @@ Pages may opt in: `<script src="/shared/wizard-nav.js" data-wizard-chrome></scri
 ### L2 regression
 
 - `tests/l2/wizard-edge-cases.spec.ts` — first-page back hidden, N=1, empty data, dismissed
-- `tests/l2/viewport-sizing.spec.ts` — dialog slack fit + workspace Flowise hints
+- `tests/l2/viewport-sizing.spec.ts` — dialog slack fit + workspace-layout example
 
 ## Acceptance criteria
 

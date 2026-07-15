@@ -2,33 +2,36 @@
 
 Authority for embedded viewer auto-size on **wizard pages** and blocking dialogs. Implements product rule: **fit on screen when possible; ~25% slack is fine; scroll only when content exceeds the display.**
 
-**DAG / graph / Flowise UIs are wizard pages** — same `type: wizard` session, `/wizard/**` HTML, `/api/wizard/*` routes. Not a separate dialog type. A wizard may alternate form steps and full graph-editor steps in one flow.
+> **HTML-side examples only:** Docs may mention DAG, graph, or Flowise as **illustrative page content** — something you might build in wizard HTML/JS. Wyvern Rust code does **not** integrate Flowise or any graph engine. Host/wizard pass opaque JSON (`config`, `page.layout`); sizing policy is generic (ADR-0006, ADR-0020).
 
-Owned primarily by **d.6**; **d.5** proves DAG + workspace hints inside wizard examples.
+Owned primarily by **d.6**; **d.5** ships HTML examples that exercise workspace layout.
 
-Related: [http-wizard-contract.md](../phase-C/http-wizard-contract.md), [http-viewer-contract.md](../phase-C/http-viewer-contract.md), REQ-V008, ADR-0020.
+Related: [http-wizard-contract.md](../phase-C/http-wizard-contract.md), REQ-V008, ADR-0020.
 
 ---
 
 ## Two layout modes (per wizard page)
 
-| Mode | Wizard use | Blocking dialog use |
-|------|------------|-------------------|
-| **`dialog`** (default) | Form steps, cards, summaries | message, input, markdown, question |
-| **`workspace`** | DAG/graph/Flowise canvas pages | — (wizard only in Phase D) |
+| Mode | Typical HTML (examples) | Rust knows |
+|------|-------------------------|------------|
+| **`dialog`** (default) | Forms, cards, summaries | `layout` enum value only |
+| **`workspace`** | Large canvas pages (e.g. graph editor HTML) | `layout` enum value only |
 
 Layout is declared per page (preferred) or wizard-wide default in `config`:
 
 ```json
 {
-  "page": { "id": "flow-editor", "title": "Edit flow", "html": "pages/graph.html", "layout": "workspace" },
-  "config": { "layout": "dialog", "flowise": { "estimated_width": 1200, "estimated_height": 800 } }
+  "page": { "id": "editor", "title": "Edit", "html": "pages/editor.html", "layout": "workspace" },
+  "config": {
+    "layout": "dialog",
+    "estimated_size": { "width": 1200, "height": 800 }
+  }
 }
 ```
 
 - `page.layout` wins for that step; else `config.layout`; else `dialog`.
-- Host exposes `layout` and hints in `GET /api/wizard/state` (d.6); host does not interpret graph semantics (ADR-0006).
-- Graph page JS may embed Flowise (or similar); navigation out uses `wyvernWizardNext` / `wyvernWizardFinish` like any wizard page.
+- Host echoes `layout` and opaque `config` in `GET /api/wizard/state` — **no interpretation** of graph semantics.
+- What the HTML page embeds (Flowise, custom canvas, etc.) is entirely page JS.
 
 ---
 
@@ -41,88 +44,63 @@ Layout is declared per page (preferred) or wizard-wide default in `config`:
 5. Viewer **hidden until first valid resize** (or opens at viewport clamp, never 320×240 flash).
 6. Remeasure after `document.fonts.ready` + `ResizeObserver` for async assets; viewer accepts refinement IPC for ~300ms.
 
-**No fixed pixel tiers** (no “always 480px”). Works on laptop and 8K — caps are viewport-relative.
-
 Blocking dialogs (non-wizard) use the same dialog-mode policy via existing `wyvern-api.js` paths.
 
 ---
 
-## Workspace layout mode (wizard graph pages)
+## Workspace layout mode (wizard pages)
 
-For DAG/graph/Flowise steps inside a wizard — full-screen or tool-estimated:
+For HTML pages that need a large viewport (example: graph editor). Rust deliverables are **generic only**:
 
-| Source | Priority |
-|--------|----------|
-| Explicit `width` / `height` on wizard command | 1 — session default if both set |
-| `page.layout === "workspace"` + page or `config.estimated_size` | 2 |
-| `config.flowise` / `config.flowwise` size hints | 3 — normalized in page bootstrap |
-| Default for workspace page | Fill available viewport (work area) |
+| Source | Priority | Rust behaviour |
+|--------|----------|----------------|
+| `width` / `height` on wizard command | 1 | Pass through to state JSON |
+| `page.layout === "workspace"` | 2 | Pass through |
+| `config.estimated_size` (opaque object) | 3 | Pass through unchanged |
+| Default for workspace page | — | Fill available viewport |
 
-### `estimated_size` wire shape (authoritative)
+**Example** `config` shape (illustrative — any extra keys are opaque):
 
 ```json
 {
-  "type": "wizard",
-  "page": {
-    "id": "flow-editor",
-    "title": "Edit flow",
-    "html": "pages/graph.html",
-    "layout": "workspace"
-  },
-  "config": {
-    "layout": "dialog",
-    "estimated_size": { "width": 1200, "height": 800 },
-    "flowise": {
-      "estimated_width": 1200,
-      "estimated_height": 800
-    }
-  }
+  "estimated_size": { "width": 1200, "height": 800 }
 }
 ```
 
-- Flowise may emit `estimated_width` / `estimated_height` when it knows graph bounds; page or agent places them in wizard `config`.
-- Wyvern normalizes to `estimated_size` in `window.wyvern` bootstrap (`wyvern-api.js`); host passes through opaque JSON.
-- Small graph: use hints when provided; clamp to viewport.
-- Large graph: hints may exceed viewport → window at viewport max; **page** handles pan/zoom/scroll (Flowise canvas).
+Page JS may read `window.wyvern.config.estimated_size` (or any keys the HTML author chose). Wyvern does not define or parse Flowise-specific fields in Rust.
 
-### CSS
+### CSS (HTML/template)
 
-- Wizard graph pages use `dialog--workspace` on the page root — fills viewer; internal canvas controls sizing.
-- Dismiss/finish/stack behaviour unchanged — still wizard HTTP contract.
+- Workspace wizard pages use `dialog--workspace` on the page root — fills viewer.
+- Pan/zoom/scroll inside the canvas is **page JS**, not host logic.
 
 ---
 
-## Viewer ↔ page channel
+## Viewer ↔ page channel (d.6)
 
-**d.6 deliverable:** viewer sends available bounds before first paint (IPC `bounds:WxH` or query `?viewport=WxH`).
-
-Wizard pages call `WyvernApi.applyWizardLayout(state, viewport)` (wraps sizing policy):
+Viewer sends available bounds before first paint. Wizard pages call `WyvernApi.applyWizardLayout(state, viewport)` after `GET /api/wizard/state`:
 
 ```javascript
-// Pseudocode — wyvern-api.js (d.6); called after GET /api/wizard/state
-function layoutForWizardPage(state, viewport) {
-  var layout = state.page.layout || state.config.layout || "dialog";
-  if (layout === "workspace") return applyWorkspaceLayout(state, viewport);
-  return applyDialogFitWithSlack(measurePage(), viewport, 1.25);
-}
+var layout = state.page.layout || state.config.layout || "dialog";
+if (layout === "workspace") return applyWorkspaceLayout(state, viewport);
+return applyDialogFitWithSlack(measurePage(), viewport, 1.25);
 ```
 
 ---
 
 ## Sprint ownership
 
-| Work | Sprint |
-|------|--------|
-| `viewport-sizing.md` (this doc) | plan hardening |
-| Wizard examples: layout-picker (form DAG) + workspace-hint (graph page) | **d.5** |
-| `page.layout`, state passthrough, `wyvern-api.js`, viewer bounds IPC | **d.6** |
-| `http-wizard-contract.md` — wizard page `layout`, Flowise hints | **d.6** |
-| Golden L2: form wizard step + graph wizard step in one flow | **d.5–d.6** |
+| Work | Sprint | Rust? |
+|------|--------|-------|
+| `viewport-sizing.md` | plan hardening | — |
+| HTML examples (layout-picker, workspace-hint) | **d.5** | tests only |
+| `page.layout`, opaque `config` in state; `wyvern-api.js` sizing; viewer bounds IPC | **d.6** | yes (passthrough + viewer) |
+| Golden L2 sizing | **d.6** | — |
 
 ---
 
 ## Non-goals (Phase D)
 
-- Separate `type: flowise` or non-wizard host session for graphs
-- Rust-side `CHAR_W` heuristics
-- Live Flowise server API (hint JSON + embedded page only)
+- Rust integration with Flowise, Flowwise, or any graph library
+- Parsing tool-specific keys in `config` (opaque blob only)
+- Separate non-wizard dialog type for canvases
