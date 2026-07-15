@@ -18,20 +18,49 @@ Close wizard UX edge cases and viewer-dismiss integration for wizard pages.
 
 ## Deliverables
 
-- First-page back button hidden/disabled in wizard templates
-- Last-page next label → "Finish"
-- Single-page wizard (N=1) path
-- Viewer close dismiss — `POST /api/wizard/finish` with `{ "button": "dismissed", ... }` per [http-viewer-contract.md](../phase-C/http-viewer-contract.md)
-- L2 regression: layout-picker + edge-case specs
+### Shared wizard chrome (`ui/wizard/` — new packaged templates)
+
+| File | Purpose |
+|------|---------|
+| `ui/wizard/chrome.html` | Optional wrapper template for wizard pages (nav bar slot) |
+| `ui/wizard/wizard-nav.js` | Back/next/finish button wiring via `wyvern-api.js` |
+
+**UX rules (implemented in `wizard-nav.js`, not host):**
+
+| Condition | Behaviour |
+|-----------|-----------|
+| First page (cursor=0, no prior stack entries) | Back button `hidden` or `disabled` |
+| Last page (page signals `isTerminal` via data attribute or JS convention) | Next label → `"Finish"`; click calls `wyvernWizardFinish` not `wyvernWizardNext` |
+| Single-page wizard (N=1) | Back hidden; sole page shows Finish immediately |
+| Empty `data` on submit | Treat as `{}`; no `undefined` access in helpers |
+
+Pages may opt in: `<script src="/shared/wizard-nav.js" data-wizard-chrome></script>` — paths follow existing `ui/` static layout.
+
+### Viewer dismiss (`wyvern-viewer` + host)
+
+| File | Change |
+|------|--------|
+| `crates/wyvern-viewer/src/dismiss.rs` (or session handler) | Detect wizard session (`GET /api/wizard/state` reachable or URL path `/wizard/`); on OS-close POST **`/api/wizard/finish`** not `/api/result` |
+| `crates/wyvern-viewer/tests/wizard_dismiss.rs` | **new** — viewer routes wizard dismiss correctly |
+
+- Viewer OS-close on wizard session → viewer posts `POST /api/wizard/finish` with `{ "button": "dismissed", "data": {}, "stack": <current stack from state> }` per [http-viewer-contract.md](../phase-C/http-viewer-contract.md)
+- Host accepts `dismissed` on finish route (d.2); d.6 adds viewer wiring + stack passthrough
+- `crates/wyvern-host/tests/wizard_polish.rs` — **new**
+- `crates/wyvern-wizard/tests/single_page.rs` — **new** — N=1 snapshot + navigate/finish paths
+
+### L2 regression
+
+- `tests/l2/wizard-edge-cases.spec.ts` — first-page back hidden, N=1, empty data, dismissed
 
 ## Acceptance criteria
 
 1. `cargo build --workspace` + `cargo clippy --workspace -- -D warnings` green
 2. First page: back button hidden or disabled
 3. Last page: next button label changes to "Finish"
-4. Empty `data` on a page handled gracefully (no undefined errors)
-5. Wizard with a single page (N=1) works correctly
-6. Viewer close on any wizard page returns `{"button":"dismissed","stack":[...]}` via `POST /api/wizard/finish` (aligned with d.2 route — not `navigate`)
+4. Empty `data` on a page handled gracefully (no undefined errors in console)
+5. Wizard with a single page (N=1) works correctly end-to-end
+6. Viewer close on any wizard page returns `{"button":"dismissed","stack":[...]}` via `POST /api/wizard/finish` (not `navigate`)
+7. Layout-picker example still passes full smoke from d.5
 
 ## Required validation
 
@@ -39,8 +68,9 @@ Close wizard UX edge cases and viewer-dismiss integration for wizard pages.
 cargo build --workspace
 cargo clippy --workspace -- -D warnings
 cargo test -p wyvern-host wizard_polish
-cargo test -p wyvern-wizard
+cargo test -p wyvern-wizard single_page
 # L2: wizard edge cases --viewer none
+npx playwright test tests/l2/wizard-edge-cases.spec.ts
 ```
 
 ## Non-closure
@@ -52,3 +82,4 @@ cargo test -p wyvern-wizard
 
 - [http-wizard-contract.md](../phase-C/http-wizard-contract.md)
 - [http-viewer-contract.md](../phase-C/http-viewer-contract.md) — viewer dismiss protocol
+- REQ-0066 (`dismissed` button)

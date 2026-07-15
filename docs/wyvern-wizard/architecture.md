@@ -20,8 +20,30 @@ Cursor-over-array browser-history model:
 **Consequences:**
 - Users explore back/forward freely without losing entered data
 - Branching correctly clears stale forward history
-- Host owns the history array and cursor; pages direct navigation by returning their own descriptor plus an explicit next-page descriptor when advancing
+- **`wyvern-wizard`** owns history logic (cursor, truncate, restore) inside private modules
+- **`wyvern-host`** owns HTTP session storage of `Box<dyn WizardNavigator>` and serializes `snapshot()` only
+- Pages direct navigation by returning their own descriptor plus an explicit next-page descriptor when advancing
 - Slightly more complex than a simple stack but well-understood (browser model)
+
+---
+
+## ADR-0007: Wizard logic exposed only through traits
+
+**Status:** Accepted (planning)
+
+**Context:**
+Exposing `BrowserHistory` internals to `wyvern-host` would couple HTTP routes to navigation implementation details and block future refactors (e.g. alternative history models for tests).
+
+**Decision:**
+- Public API of `wyvern-wizard` is trait-based: `WizardEngine`, `WizardNavigator`
+- Concrete history types (`BrowserHistory`, `HistoryEntry`) live in private modules
+- `wyvern-host` may depend on `wyvern-wizard` but imports **only** `lib.rs` re-exports
+- Integration tests outside `wyvern-wizard` use HTTP or trait mocks — never `browser_history` internals
+
+**Consequences:**
+- Host route handlers stay thin serializers around trait calls
+- d.3 can replace stub history without host changes
+- Boundaries enforce `wizard_engine_trait` ownership in `boundaries/wyvern-wizard/wizard.toml`
 
 ---
 

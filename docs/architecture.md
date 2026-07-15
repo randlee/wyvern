@@ -48,6 +48,30 @@ Wyvern should solve the product with the fewest command shapes that preserve cle
 
 ---
 
+### ADR-0005: Wizard navigation uses browser-history model
+
+**Status:** Accepted — implementation Phase D (d.3)
+
+Cursor-over-array model: back moves cursor without discarding forward entries; forward to the same page restores cached data; forward to a different page truncates stale forward history. Full text: [docs/wyvern-wizard/architecture.md](wyvern-wizard/architecture.md).
+
+---
+
+### ADR-0006: Host is domain-agnostic — wizard data is opaque
+
+**Status:** Accepted — NFR-0008
+
+Host stores and passes through page `data` without inspection. Domain branching lives in page JS. Full text: [docs/wyvern-wizard/architecture.md](wyvern-wizard/architecture.md).
+
+---
+
+### ADR-0007: Wizard logic exposed only through traits
+
+**Status:** Accepted (planning — Phase D d.1)
+
+`wyvern-wizard` publishes `WizardEngine` / `WizardNavigator` traits; `BrowserHistory` internals stay private. `wyvern-host` routes call traits only. Full text: [docs/wyvern-wizard/architecture.md](wyvern-wizard/architecture.md).
+
+---
+
 ### ADR-0011: Cargo workspace crate structure and boundaries
 
 **Status:** Accepted — **amended c.9** (HTTP host delivery)

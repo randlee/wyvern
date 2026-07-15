@@ -323,6 +323,21 @@ pub struct BrowserRegistryEntry {
 See [http-wizard-contract.md](http-wizard-contract.md). `WizardCommand` / `WizardResult` land in `wyvern-schema` (d.1).
 
 ```rust
+/// Minimal page descriptor — REQ-0026.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct WizardPageDescriptor {
+    pub id: String,
+    pub title: String,
+    pub html: String,
+}
+
+/// One stack entry — REQ-0024.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct WizardStackEntry {
+    pub page: WizardPageDescriptor,
+    pub data: serde_json::Value,
+}
+
 /// Wizard command ingress — validated in d.1.
 pub struct WizardCommand {
     #[serde(rename = "type")]

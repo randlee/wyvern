@@ -4,11 +4,15 @@ name = "WyvernWizard"
 
 [dependencies]
 allowed_dependencies = ["wyvern-schema"]
-forbidden_dependencies = ["wyvern", "wyvern-window", "wyvern-mcp", "wry", "winit", "rfd"]
+forbidden_dependencies = ["wyvern", "wyvern-window", "wyvern-host", "wyvern-mcp", "wry", "winit", "rfd", "axum", "tokio", "tower", "hyper", "reqwest"]
 
 [ownership]
-io_owns = ["history_cursor", "page_resolution", "stack_management", "navigation_signals"]
-io_forbidden = ["file_io", "network_io", "window_creation", "webview", "ipc", "async_runtime"]
+io_owns = ["wizard_engine_trait", "wizard_navigator_trait", "history_cursor", "page_resolution", "stack_management", "navigation_signals"]
+io_forbidden = ["file_io", "network_io", "window_creation", "webview", "ipc", "async_runtime", "http_routes", "browser_history_internals"]
+
+[public_api]
+# Host and tests may import only these modules (enforced by sc-lint + review):
+allowed_modules = ["wyvern_wizard::WizardEngine", "wyvern_wizard::WizardNavigator", "wyvern_wizard::WizardSnapshot", "wyvern_wizard::WizardError", "wyvern_wizard::NavigateOutcome"]
 
 [enforcement]
 lint_rules = ["LINT-BOUNDARY-WIZARD-PURE-LOGIC"]

@@ -299,14 +299,15 @@ Wizard uses **navigation + finish** routes — not a single `POST /api/result` p
 {
   "action": "next",
   "page_id": "step-2",
-  "data": { "choice": "layout-a" }
+  "data": { "choice": "layout-a" },
+  "next": { "id": "step-2", "title": "Step 2", "html": "pages/step-2.html" }
 }
 ```
 
 | `action` | Meaning |
 |----------|---------|
-| `next` | Push history; host loads new page URL |
-| `back` | Pop history cursor; host serves prior page |
+| `next` | Advance history cursor; push new page when branching (requires `next` descriptor for DAG) |
+| `back` | Move cursor back **without truncating** forward history (ADR-0005); host serves prior page |
 
 Terminal outcomes (`finish`, `cancel`, `dismissed`) use **`POST /api/wizard/finish` only** — not `navigate`.
 
