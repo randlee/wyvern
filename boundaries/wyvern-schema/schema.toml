@@ -4,7 +4,7 @@ name = "WyvernSchema"
 
 [dependencies]
 allowed_dependencies = ["serde", "serde_json", "strsim"]
-forbidden_dependencies = ["wyvern", "wyvern-wizard", "wyvern-mcp", "wry", "winit", "rfd"]
+forbidden_dependencies = ["wyvern-cli", "wyvern-wizard", "wyvern-mcp", "wry", "winit", "rfd"]
 
 [ownership]
 io_owns = ["type_definitions", "validation_logic", "error_message_formatting"]

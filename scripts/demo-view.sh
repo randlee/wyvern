@@ -67,7 +67,7 @@ resolve_view() {
 
 build_if_needed() {
   cd "$ROOT"
-  cargo build -q -p wyvern -p wyvern-viewer 2>/dev/null || cargo build -p wyvern -p wyvern-viewer
+  cargo build -q -p wyvern-cli -p wyvern-viewer 2>/dev/null || cargo build -p wyvern-cli -p wyvern-viewer
 }
 
 wait_for_viewers() {

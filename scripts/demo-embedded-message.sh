@@ -3,7 +3,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
-cargo build -q -p wyvern -p wyvern-viewer 2>/dev/null || cargo build -p wyvern -p wyvern-viewer
+cargo build -q -p wyvern-cli -p wyvern-viewer 2>/dev/null || cargo build -p wyvern-cli -p wyvern-viewer
 echo "Launching embedded viewer (window stays until you click OK or close it)..."
 echo "Worktree: $ROOT"
 exec ./target/debug/wyvern \

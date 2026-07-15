@@ -140,7 +140,7 @@ jobs:
 
       - name: Build release binaries
         run: |
-          cargo build --release -p wyvern -p wyvern-viewer --target ${{ matrix.target }}
+          cargo build --release -p wyvern-cli -p wyvern-viewer --target ${{ matrix.target }}
 
       - name: Package (Unix)
         if: runner.os != 'Windows'

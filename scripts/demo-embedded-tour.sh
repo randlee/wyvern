@@ -8,7 +8,7 @@ cd "$ROOT"
 WYVERN="./target/debug/wyvern"
 UI="$ROOT/ui"
 
-cargo build -q -p wyvern -p wyvern-viewer 2>/dev/null || cargo build -p wyvern -p wyvern-viewer
+cargo build -q -p wyvern-cli -p wyvern-viewer 2>/dev/null || cargo build -p wyvern-cli -p wyvern-viewer
 
 next_demo() {
   local step="$1"
