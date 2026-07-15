@@ -26,6 +26,16 @@ Host does not interpret `data`. Pages do not touch the cursor. **DAG branching i
 
 > **Examples only:** Sample HTML (layout-picker, canvas pages) illustrates usage — not extra Rust subsystems.
 
+## Rust engine vs HTML pages
+
+| Rust (`wyvern-wizard` + `wyvern-host`) | HTML/JS (wizard pages) |
+|----------------------------------------|------------------------|
+| General-purpose engine: fast, low memory, reliable | Infinitely expandable per use case |
+| `WizardSession`: `entries` + `cursor`; `next` / `back` / `finish` / `snapshot` | Branching, DAG UI, custom forms, graph canvases, Flowise embeds |
+| HTTP glue only — serve HTML, call session, return JSON | Opaque `data`; domain logic and `next` page choice in page JS |
+
+Wyvern does **not** interpret page `data`, graph semantics, or tool-specific `config` keys in Rust. d.5 HTML examples may illustrate DAG branching or a Flowise embed — page author concern only.
+
 ## Code baseline
 
 Post-**c.16**: `wyvern-host`, packaged `ui/`, no `wyvern-window`. `integrate/phase-D` from that baseline.
@@ -54,7 +64,7 @@ Multi-page wizards: navigate, back, restore data, return final `stack` JSON.
 ## What Phase D does not close
 
 - `--interactive` / MCP — **Phase E**
-- Rust graph/DAG/Flowise integrations — page HTML only
+- Rust graph/DAG/Flowise integration — see [Rust engine vs HTML pages](#rust-engine-vs-html-pages)
 
 ## Boundaries
 

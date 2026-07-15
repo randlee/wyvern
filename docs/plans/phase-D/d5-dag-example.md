@@ -10,7 +10,7 @@ target: integrate/phase-D
 
 ## Goal
 
-HTML **examples** that exercise `WizardSession` branching via page JS — not new Rust stack code.
+HTML **examples** that exercise `WizardSession` branching via page JS — not new Rust stack code. Rust stays `entries` + `cursor` + HTTP glue; branching, DAG UI, and optional Flowise embeds are page-author HTML only.
 
 ## Hard dependencies
 
@@ -50,7 +50,9 @@ Example wizard page that needs a larger viewport (e.g. a graph canvas in HTML). 
 }
 ```
 
-- `pages/editor.html` is placeholder/minimal canvas — authors replace with any HTML (Flowise embed, custom DAG, etc.)
+- `pages/editor.html` is placeholder/minimal canvas — authors replace with any HTML
+- **Optional Flowise embed (HTML pattern):** page may use an `<iframe>` or script tag toward a local Flowise instance as illustrative content — no Rust routes, parsers, or Flowise SDK
+- Authors may also use custom DAG canvases, forms, or other page JS — Wyvern does not interpret page data in Rust
 - **d.5** proves wire shape in fixtures; **d.6** implements generic workspace sizing in `wyvern-api.js`
 
 ### `wizard.json` (authoritative fixture)
