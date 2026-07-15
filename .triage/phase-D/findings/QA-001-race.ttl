@@ -11,25 +11,26 @@
   triage:severity "important" ;
   triage:repeatable false ;
   triage:sweepScope "file_only" ;
-  triage:status "open" ;
+  triage:status "closed" ;
   triage:dispatchReady true ;
   triage:originatingSprintDoc "docs/plans/phase-D/d2-wizard-ipc.md" ;
   triage:promoteToBranch "feature/phase-D-qa-end-fix" ;
   triage:hasOccurrence <urn:atm:triage:occurrence/QA-001-race/feature/phase-D-qa-end-fix/1> ;
-  triage:triagedAt "2026-07-15T20:27:12Z"^^xsd:dateTime .
+  triage:fixedOn <urn:atm:triage:worktree/feature/phase-D-qa-end-fix/d1dae3b> ;
+  triage:triagedAt "2026-07-15T21:05:00Z"^^xsd:dateTime .
 
 <urn:atm:triage:occurrence/QA-001-race/feature/phase-D-qa-end-fix/1>
   a triage:Occurrence ;
   triage:file "crates/wyvern-host/src/session.rs" ;
   triage:line 182 ;
-  triage:status "open" ;
-  triage:closed false ;
+  triage:status "fixed" ;
+  triage:closed true ;
   triage:branch "feature/phase-D-qa-end-fix" ;
-  triage:headSha "69ab376" ;
-  triage:occursIn <urn:atm:triage:worktree/feature/phase-D-qa-end-fix/69ab376> .
+  triage:headSha "d1dae3b" ;
+  triage:occursIn <urn:atm:triage:worktree/feature/phase-D-qa-end-fix/d1dae3b> .
 
-<urn:atm:triage:worktree/feature/phase-D-qa-end-fix/69ab376>
+<urn:atm:triage:worktree/feature/phase-D-qa-end-fix/d1dae3b>
   a triage:WorktreeSnapshot ;
   triage:branch "feature/phase-D-qa-end-fix" ;
   triage:path "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-D-qa-end-fix" ;
-  triage:headSha "69ab376" .
+  triage:headSha "d1dae3b" .
