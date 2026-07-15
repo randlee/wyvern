@@ -48,7 +48,7 @@ pub struct WizardSnapshot {
 pub enum WizardError {
     AtFirstPage,
     InvalidCommand(String),
-    // …
+    StackMismatch, // client finish stack ≠ session-derived stack
 }
 
 impl WizardSession {

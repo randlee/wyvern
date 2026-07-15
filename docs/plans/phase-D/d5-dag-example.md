@@ -87,7 +87,7 @@ Example wizard page that needs a larger viewport (e.g. a graph canvas in HTML). 
 2. **agent.html** — read `window.wyvern.stack` to determine current agent index (`agent-1` … `agent-N`); on submit:
    - If more agents remain: `next` → next `agent-{k}` page (same `agent.html`, new id/title)
    - If last agent: `next` → `{ id: "finish", title: "Review", html: "pages/finish.html" }`
-3. **finish.html** — display summary from `stack`; `wyvernWizardFinish({ button: "finish", data: {}, stack })` where `stack` is built from `window.wyvern.stack` + current page data
+3. **finish.html** — display summary from prior `stack` + current `page_data`; `wyvernWizardFinish({ button: "finish", data: {}, stack })` where `stack` = `window.wyvern.stack` entries plus `{ page: window.wyvern.page, data: <current> }` (full visited stack per d.2 finish algorithm)
 
 Domain logic stays in JS — host/wizard only store opaque `data` blobs (ADR-0006).
 

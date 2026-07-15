@@ -33,7 +33,7 @@ pub struct NavigateOutcome {
 impl WizardSession {
     pub fn navigate_next(&mut self, data: Value, next: WizardPageDescriptor) -> Result<NavigateOutcome, WizardError>;
     pub fn navigate_back(&mut self, data: Value) -> Result<NavigateOutcome, WizardError>;
-    pub fn finish(&self, button: ButtonLabel, data: Value, stack: Vec<WizardStackEntry>) -> WizardResult;
+    pub fn finish(&self, button: ButtonLabel, data: Value, stack: Vec<WizardStackEntry>) -> Result<WizardResult, WizardError>;
 }
 ```
 
@@ -51,9 +51,24 @@ let stack: Vec<_> = entries[0..cursor]
 
 `history.rs` implements ADR-0005 (cursor, truncate on branch, restore on forward-same-page).
 
+**`navigate_next` data write (normative):** write `data` onto `entries[cursor]` **before** push/truncate-forward/advance. Forward-same-page restore returns cached entry data unless new `data` is non-empty (overwrite).
+
+**`navigate_back` data write (normative):** write `data` onto `entries[cursor]` **before** `cursor--`. Restored `page_data` comes from destination entry.
+
 **`navigate_back` at cursor=0:** returns `WizardError::AtFirstPage` → host maps to HTTP **400** (no silent no-op).
 
-**Finish stack authority:** host reconstructs authoritative `stack` from session `entries` on `POST /api/wizard/finish`. Client-supplied `stack` is validated against session-derived entries; mismatch → **400**. Page JS may assemble `stack` for convenience; host is authoritative for stdout `WizardResult`.
+**Finish stack algorithm (normative):**
+
+1. Apply `request.data` onto `entries[cursor].data` (merge/replace per opaque blob rules).
+2. Build session-derived stack: `entries[0..=cursor]` as `{page, data}` — **full visited stack for stdout** (includes current).
+3. **`button: finish`:** `WizardResult.stack` = session-derived stack. If client supplies `stack`, it must equal session-derived stack → else `WizardError::StackMismatch` → HTTP 400. Host may omit client validation and always reconstruct (recommended).
+4. **`button: cancel`:** `WizardResult.stack` = `[]` always; client `stack` ignored.
+5. **`button: dismissed`:** same as finish for stack reconstruction (full visited stack); `data` typically `{}`.
+
+```rust
+pub fn finish(&self, button: ButtonLabel, data: Value, stack: Vec<WizardStackEntry>)
+    -> Result<WizardResult, WizardError>;
+```
 
 ### Host (`wyvern-host`)
 

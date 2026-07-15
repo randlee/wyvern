@@ -320,7 +320,15 @@ pub struct BrowserRegistryEntry {
 
 ## Wizard HTTP types (Phase D)
 
-See [http-wizard-contract.md](http-wizard-contract.md). `WizardCommand` / `WizardResult` land in `wyvern-schema` (d.1).
+See [http-wizard-contract.md](http-wizard-contract.md).
+
+**Crate ownership:**
+
+| Type | Crate |
+|------|-------|
+| `WizardCommand`, `WizardResult`, `WizardPageDescriptor`, `WizardPageLayout`, `WizardStackEntry` | `wyvern-schema` |
+| `WizardSession`, `WizardSnapshot`, `NavigateOutcome`, `WizardError` | `wyvern-wizard` |
+| `WizardStateResponse`, `WizardNavigateRequest`, `WizardFinishRequest` | `wyvern-schema` (wire DTOs built from `snapshot()` / `NavigateOutcome`) |
 
 ```rust
 /// Minimal page descriptor — REQ-0026.

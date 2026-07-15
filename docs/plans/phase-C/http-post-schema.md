@@ -348,7 +348,7 @@ Terminal outcomes (`finish`, `cancel`, `dismissed`) use **`POST /api/wizard/fini
 | `data` | object | yes (may be `{}`) |
 | `stack` | array | yes |
 
-**Stdout:** same object. Full wizard HTTP contract is owned by Phase D [d2-wizard-ipc.md](../phase-D/d2-wizard-ipc.md) migration — update that sprint to HTTP when D starts.
+**Stdout:** same object. Full wizard HTTP contract: [http-wizard-contract.md](http-wizard-contract.md) (implemented in d.2).
 
 ---
 

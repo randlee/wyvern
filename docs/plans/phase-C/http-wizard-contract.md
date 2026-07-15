@@ -22,7 +22,7 @@ Related: [http-post-schema.md](http-post-schema.md), [http-dialog-contract.md](h
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| `GET` | `/wizard/` or `/wizard/{page_id}/` | Current wizard page HTML |
+| `GET` | `/wizard/**` | Wizard page HTML + static assets under `--ui-root` (`page.html` paths) |
 | `GET` | `/api/wizard/state` | `page`, `page_data`, `stack`, `config` |
 | `POST` | `/api/wizard/navigate` | Non-terminal: `next`, `back` |
 | `POST` | `/api/wizard/finish` | Terminal: `finish`, `cancel`, `dismissed` |
@@ -126,6 +126,13 @@ Host updates history cursor; viewer navigates to `url` (or full page reload).
 ---
 
 ## `POST /api/wizard/finish` (terminal)
+
+**Finish stack (normative — mirrors d.2):**
+
+1. Host applies `data` to current entry, then builds session-derived stack = all visited entries `entries[0..=cursor]` (includes current).
+2. **`finish`:** stdout `stack` = session-derived; client `stack` if present must match or **400**.
+3. **`cancel`:** `stack: []` always (client `stack` ignored).
+4. **`dismissed`:** stdout `stack` = session-derived full visited stack (same as `finish`).
 
 **Finish:**
 

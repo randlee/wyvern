@@ -31,7 +31,7 @@ Verify `window.wyvern` bootstrap and `stack` / `page_data` round-trip via tests 
 | `crates/wyvern-wizard/tests/stack_restore.rs` | Round-trip / restore tests |
 | `crates/wyvern-host/tests/wizard_stack.rs` | HTTP multi-step + state GET asserts bootstrap fields |
 
-**No JS production changes in d.4.** Assert `window.wyvern.{config,page,page_data,stack}` via host/wizard integration tests against d.2 `wyvern-api.js` bootstrap.
+**No JS production changes in d.4.** Assert `GET /api/wizard/state` returns `config`, `page`, `page_data`, and prior-only `stack` per d.2 bootstrap contract via host/wizard integration tests.
 
 ## Acceptance criteria
 

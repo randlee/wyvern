@@ -61,6 +61,10 @@ npx playwright test tests/l2/viewport-sizing.spec.ts
 |------|---------|
 | `ui/shared/wizard-nav.js` | Back/next/finish button wiring via `wyvern-api.js` |
 | `ui/wizard/chrome.html` | Optional wrapper template for wizard pages (nav bar slot) |
+| `examples/wizards/single-page/wizard.json` | N=1 fixture for Track B AC |
+| `examples/wizards/single-page/pages/only.html` | Single page with `data-wizard-terminal="true"` |
+| `crates/wyvern-wizard/tests/single_page.rs` | N=1 snapshot + navigate/finish paths |
+| `tests/l2/wizard-edge-cases.spec.ts` | L2 chrome edge cases — first-page back hidden, N=1, empty data |
 
 **Terminal page contract (normative):** page root MUST set `data-wizard-terminal="true"` when it is the last step. `wizard-nav.js` reads this attribute only — no other `isTerminal` convention.
 
@@ -111,9 +115,10 @@ npx playwright test tests/l2/wizard-edge-cases.spec.ts --grep "chrome|first-page
 **Dismissed algorithm (normative):**
 
 1. Viewer detects wizard session (`GET /api/wizard/state` succeeds or URL path `/wizard/`)
-2. `GET /api/wizard/state` → read current `stack` (prior entries per REQ-0024)
-3. `POST /api/wizard/finish` with `{ "button": "dismissed", "data": {}, "stack": <from state> }`
-4. Host validates stack against session; stdout = same body
+2. `GET /api/wizard/state` → read `page`, `page_data`, `stack` (prior entries)
+3. Build full visited stack = `stack` + `{ page, data: page_data }` (matches d.2 finish algorithm)
+4. `POST /api/wizard/finish` with `{ "button": "dismissed", "data": {}, "stack": <full visited stack> }`
+5. Host validates/reconstructs; stdout = same body
 
 ### Acceptance criteria (Track C)
 
