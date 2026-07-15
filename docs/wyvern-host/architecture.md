@@ -65,8 +65,12 @@ wyvern-host/
     browser_catalog.rs  # hardcoded id → per-OS discovery recipes (c.15)
     browser_registry.rs # local browsers.json cache; refresh on first run / miss
     browser_launch.rs   # system + named browser dispatch (c.15) — NOT embedded
+    routes/
+      wizard.rs       # GET /api/wizard/state, POST navigate/finish, GET /wizard/** (d.1–d.2)
     error.rs        # HostError — mapped at CLI via emit_host_error
 ```
+
+**Wizard session (Phase D):** `session.rs` holds `WizardSession`. Route handlers call `snapshot` / `navigate_*` / `finish` — no imports from private `history` internals (ADR-0007).
 
 **Not in host:** `viewer.rs` for embedded spawn, `show`/`hide`, or `wry`/`winit`. Embedded viewer is **`wyvern` CLI → `wyvern-viewer` subprocess** — [http-viewer-contract.md](../plans/phase-C/http-viewer-contract.md).
 

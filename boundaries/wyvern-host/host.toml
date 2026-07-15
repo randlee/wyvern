@@ -8,8 +8,8 @@ forbidden_dependencies = ["wyvern", "wyvern-mcp", "wry", "winit"]
 forbidden_edges = ["wyvern-host -> wyvern", "wyvern-host -> wyvern-mcp"]
 
 [ownership]
-io_owns = ["tcp_bind", "http_server", "static_file_serve", "dialog_session", "result_channel", "native_file_picker", "browser_registry", "system_browser_launch", "dialog_content_html", "dialog_preview_html"]
-io_forbidden = ["stdin_reading", "stdout_writing", "arg_parsing", "webview_creation", "inline_html_embed", "html_template_generation", "mcp_protocol", "embedded_viewer_spawn"]
+io_owns = ["tcp_bind", "http_server", "static_file_serve", "dialog_session", "wizard_session", "wizard_routes", "result_channel", "native_file_picker", "browser_registry", "system_browser_launch", "dialog_content_html", "dialog_preview_html"]
+io_forbidden = ["stdin_reading", "stdout_writing", "arg_parsing", "webview_creation", "inline_html_embed", "html_template_generation", "mcp_protocol", "embedded_viewer_spawn", "wizard_history_internals", "wizard_domain_logic"]
 
 [enforcement]
 lint_rules = ["LINT-BOUNDARY-HOST-NO-CLI", "LINT-BOUNDARY-HOST-NO-WEBVIEW"]

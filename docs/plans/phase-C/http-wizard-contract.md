@@ -22,19 +22,20 @@ Related: [http-post-schema.md](http-post-schema.md), [http-dialog-contract.md](h
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| `GET` | `/wizard/` or `/wizard/{page_id}/` | Current wizard page HTML |
+| `GET` | `/wizard/**` | Wizard page HTML + example assets under `--ui-root` (`page.html` paths) |
+| `GET` | `/shared/**` | Packaged shared JS/CSS from `ui/shared/` (not `--ui-root`) |
 | `GET` | `/api/wizard/state` | `page`, `page_data`, `stack`, `config` |
 | `POST` | `/api/wizard/navigate` | Non-terminal: `next`, `back` |
 | `POST` | `/api/wizard/finish` | Terminal: `finish`, `cancel`, `dismissed` |
 | `GET` | `/api/dialog` | *Not used* for wizard — use `/api/wizard/state` |
 
-Static assets: `GET /wizard/**` maps under wizard HTML directory from command `page.html` paths.
+**Static routing (normative — dual mount):** `GET /wizard/**` from `--ui-root`; `GET /shared/**` from `HostOptions.shared_ui_root` (packaged `ui/`, not overridden by `--ui-root`).
 
 ---
 
 ## `GET /api/wizard/state`
 
-**Response:**
+**Response (initial load — cursor=0):**
 
 ```json
 {
@@ -46,6 +47,24 @@ Static assets: `GET /wizard/**` maps under wizard HTML directory from command `p
     "html": "pages/start.html"
   },
   "page_data": {},
+  "stack": [],
+  "width": 640,
+  "height": 480
+}
+```
+
+**Response (after navigating to step-2 — cursor=1):**
+
+```json
+{
+  "type": "wizard",
+  "config": { "theme": "dark" },
+  "page": {
+    "id": "step-2",
+    "title": "Step 2",
+    "html": "pages/step-2.html"
+  },
+  "page_data": { "choice": "layout-a" },
   "stack": [
     {
       "page": { "id": "start", "title": "Start", "html": "pages/start.html" },
@@ -58,7 +77,7 @@ Static assets: `GET /wizard/**` maps under wizard HTML directory from command `p
 ```
 
 - `config` → available to JS as `window.wyvern.config` (set in page bootstrap from this payload).
-- `stack` — full history per ADR-0005 / REQ-0024.
+- `stack` — **prior entries only** per REQ-0024 / ADR-0005: `entries[0..cursor]`, exclusive of current page (current via `page` + `page_data`).
 - `width` / `height` — optional from command; viewer uses when `--viewer embedded`.
 
 ---
@@ -109,6 +128,16 @@ Host updates history cursor; viewer navigates to `url` (or full page reload).
 
 ## `POST /api/wizard/finish` (terminal)
 
+**Opaque data write (normative):** whole-blob replace only — `entries[cursor].data = data`; no deep merge (ADR-0006). See d.2 for forward-same-page overwrite predicate.
+
+**Finish stack (normative — mirrors d.2):**
+
+1. Derive current entry data from request `data` (in-memory; session not mutated after finish).
+2. Build session-derived stack = all visited entries `entries[0..=cursor]` (includes current).
+3. **`finish`:** stdout `stack` = session-derived; stdout `data` = request `data`; client `stack` if present must match or **400** (`StackMismatch`).
+4. **`cancel`:** `stack: []`, `data: {}` always (client `stack` ignored).
+5. **`dismissed`:** stdout `stack` = session-derived full visited stack (same as `finish`); stdout `data` = `{}`.
+
 **Finish:**
 
 ```json
@@ -131,15 +160,26 @@ Host updates history cursor; viewer navigates to `url` (or full page reload).
 }
 ```
 
-**Dismissed:**
+**Dismissed (viewer OS-close — d.8):**
+
+Viewer algorithm (normative — full visited stack):
+
+1. `GET /api/wizard/state` → read `page`, `page_data`, and prior `stack` (entries before current).
+2. Build full visited stack = prior `stack` + `{ page, data: page_data }` (matches d.2 finish algorithm).
+3. `POST /api/wizard/finish` with `{ "button": "dismissed", "data": {}, "stack": <full visited stack> }` before process exit.
 
 ```json
 {
   "button": "dismissed",
   "data": {},
-  "stack": []
+  "stack": [
+    { "page": { "id": "start" }, "data": { "choice": "a" } },
+    { "page": { "id": "step-2" }, "data": { "name": "agent" } }
+  ]
 }
 ```
+
+Host validates client `stack` against session-derived full visited stack; mismatch → **400**.
 
 **Stdout:** identical body. Host shuts down session (one-shot) or returns to interactive loop (Phase E).
 
@@ -149,10 +189,15 @@ Host updates history cursor; viewer navigates to `url` (or full page reload).
 
 | Sprint | HTTP work |
 |--------|-------------|
-| d.1 | Serve wizard HTML paths; `GET /api/wizard/state` initial load |
-| d.2 | `navigate` + `finish` routes; replace d2 IPC acceptance with this doc |
-| d.3–d.6 | History, stack inject, DAG example, polish — all via HTTP |
+| d.1 | Dual static mount (`/wizard/**`, `/shared/**`); `GET /api/wizard/state` initial load |
+| d.2 | `navigate` + `finish` routes; `wyvern-api.js` helpers |
+| d.3 | History regression tests (no new routes) |
+| d.4 | Bootstrap round-trip tests (no new routes) |
+| d.5 | Example wizards exercising HTTP stack |
+| d.6 | Viewport sizing (orthogonal) |
+| d.7 | Shared wizard chrome (`wizard-nav.js`) |
+| d.8 | Viewer dismiss with full visited stack |
 
 ## Replaces
 
-- Phase D sprint doc [d2-wizard-ipc.md](d2-wizard-ipc.md) wry `action` messages — **historical only**.
+- Phase D sprint doc [d2-wizard-ipc.md](../phase-D/d2-wizard-ipc.md) wry `action` messages — **historical only**.

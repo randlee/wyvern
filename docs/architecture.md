@@ -48,6 +48,30 @@ Wyvern should solve the product with the fewest command shapes that preserve cle
 
 ---
 
+### ADR-0005: Wizard navigation uses browser-history model
+
+**Status:** Accepted — implementation d.2; regression tests d.3
+
+Cursor-over-array model: back moves cursor without discarding forward entries; forward to the same page restores cached data; forward to a different page truncates stale forward history. Full text: [docs/wyvern-wizard/architecture.md](wyvern-wizard/architecture.md).
+
+---
+
+### ADR-0006: Host is domain-agnostic — wizard data is opaque
+
+**Status:** Accepted — NFR-0008
+
+Host stores and passes through page `data` without inspection. Domain branching lives in page JS. Full text: [docs/wyvern-wizard/architecture.md](wyvern-wizard/architecture.md).
+
+---
+
+### ADR-0007: Single `WizardSession` type hides history internals
+
+**Status:** Accepted (planning — Phase D d.1)
+
+`wyvern-wizard` exposes one concrete `WizardSession`; private `history` holds `entries` + `cursor`. `wyvern-host` holds the session and serializes `snapshot()`. Full text: [docs/wyvern-wizard/architecture.md](wyvern-wizard/architecture.md).
+
+---
+
 ### ADR-0011: Cargo workspace crate structure and boundaries
 
 **Status:** Accepted — **amended c.9** (HTTP host delivery)
@@ -76,6 +100,21 @@ wyvern-mcp      →  wyvern-host, wyvern-schema
 - `wyvern-window` is **removed** — do not extend. Optional URL webview = **`wyvern-viewer`** (c.15).
 
 Boundary rules are encoded in `boundaries/` and enforced in CI.
+
+---
+
+### ADR-0020: Viewport-fit sizing with slack; workspace layout mode
+
+**Status:** Accepted (planning — Phase D d.6)
+
+**Context:** Agent-driven dialogs are high-churn (many unique payloads per day). Fixed pixel tiers and measure-time width caps cause manual resize iteration. Some wizard HTML pages need large viewports (e.g. canvas editors — **HTML-side only**).
+
+**Decision:**
+
+1. **Dialog layout (default):** intrinsic DOM measure + ~25% slack → clamp to available viewport → internal scroll on overflow.
+2. **Workspace layout:** optional `page.layout: "workspace"` — opaque passthrough + `wyvern-api.js` sizing. **Not part of the stack model.**
+
+**Consequences:** Wizard Rust code is `WizardSession` + HTTP glue. d.3–d.4 are tests/bootstrap. Viewport sizing (d.6) is separate from stack semantics.
 
 ---
 

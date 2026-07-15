@@ -1,41 +1,89 @@
 # Phase D — Wizard (`integrate/phase-D`)
 
-Phase D implementation PRs target **`integrate/phase-D`**. This directory is the **sole authority** for sprint-level deliverables, acceptance criteria, and validation. `docs/plans/project-plan.md` carries phase-level goals and acceptance criteria only.
+Phase D implementation PRs target **`integrate/phase-D`**. Sprint docs (`d1`–`d8`) are the authority for deliverables and validation.
 
-Sprints are **sequentially numbered** `d.1` → `d.6` (strict dependency order — not parallel sub-sprints).
+## Core model (read this first)
 
-Each individual sprint doc (`d1`–`d6`) is the **sole authority** for that sprint's deliverables, acceptance criteria, and required validation.
+**The wizard is browser-style stack state management.** Nothing more in Rust.
+
+```
+entries: [{ page, data }, ...]   // visited pages + opaque data per step
+cursor: usize                    // current index (like browser history)
+
+navigate_next(data, next_page) → push or truncate-forward-then-push; advance cursor
+navigate_back(data)              → cursor-- (forward entries kept)
+snapshot()                       → { page, page_data, stack, config }  // for GET /api/wizard/state
+finish(button, …)                → terminal result; session ends
+```
+
+> **Pseudocode above.** Normative public API names: `navigate_next`, `navigate_back`, `finish`, `snapshot` (ADR-0007). See [d2-wizard-ipc.md](d2-wizard-ipc.md) for signatures.
+
+| Layer | Responsibility |
+|-------|----------------|
+| **`wyvern-wizard`** | `WizardSession` — stack + cursor (ADR-0005). Pure logic. ~1 module. |
+| **`wyvern-host`** | HTTP: serve HTML, call `WizardSession`, return JSON |
+| **Page HTML/JS** | Branching, forms, graphs — opaque `data`; picks `next` page descriptor |
+
+Host does not interpret `data`. Pages do not touch the cursor. **DAG branching is page JS**, not Rust.
+
+> **Examples only:** Sample HTML (layout-picker, canvas pages) illustrates usage — not extra Rust subsystems.
+
+## Rust engine vs HTML pages
+
+| Rust (`wyvern-wizard` + `wyvern-host`) | HTML/JS (wizard pages) |
+|----------------------------------------|------------------------|
+| General-purpose engine: fast, low memory, reliable | Infinitely expandable per use case |
+| `WizardSession`: `entries` + `cursor`; `navigate_next` / `navigate_back` / `finish` / `snapshot` | Branching, DAG UI, custom forms, graph canvases, Flowise embeds |
+| HTTP glue only — serve HTML, call session, return JSON | Opaque `data`; domain logic and `next` page choice in page JS |
+
+Wyvern does **not** interpret page `data`, graph semantics, or tool-specific `config` keys in Rust. d.5 HTML examples may illustrate DAG branching or a Flowise embed — page author concern only.
+
+## Code baseline
+
+Post-**c.16**: `wyvern-host`, packaged `ui/`, no `wyvern-window`. `integrate/phase-D` from that baseline.
 
 ## Phase goal
 
-Multi-page wizards with branching navigation and data persistence across pages.
+Multi-page wizards: navigate, back, restore data, return final `stack` JSON.
 
-## Phase acceptance criteria (smoke)
+## Phase acceptance (smoke)
 
-The example DAG layout-picker wizard completes a full flow with branching, back-navigation, data restoration, and returns the correct stack JSON.
+`examples/wizards/layout-picker/` completes with branching, back-navigation, data restoration, correct stdout `stack`.
 
-## What Phase D closes
+## Sprint map (what each adds)
 
-- Wizard on **`wyvern-host`** HTTP (not wry IPC) — [http-wizard-contract.md](../phase-C/http-wizard-contract.md)
-- Browser-history navigation model (ADR-0005) in `wyvern-wizard`
-- Stack injection and data restoration across pages
-- Example DAG layout-picker wizard
-- Wizard polish and edge cases
+| Sprint | Adds to the stack model | Not a new subsystem |
+|--------|-------------------------|---------------------|
+| **d.1** | Schema + `GET /api/wizard/state` + static HTML + `WizardSession::new` / `snapshot` | |
+| **d.2** | `POST navigate` / `finish` + `navigate_next` / `navigate_back` / `finish` + `wyvern-api.js` bootstrap | |
+| **d.3** | ADR-0005 edge-case **tests** (four history cases) — same private `history.rs` | ✓ tests only |
+| **d.4** | `window.wyvern` bootstrap **round-trip tests** | ✓ tests only |
+| **d.5** | HTML **examples** exercising the stack | ✓ examples |
+| **d.6** | Viewport sizing ([viewport-sizing.md](viewport-sizing.md)) | orthogonal to stack |
+| **d.7** | Shared wizard chrome (`wizard-nav.js`) | ✓ page JS |
+| **d.8** | Viewer dismiss with full visited stack | orthogonal to stack |
 
-**Hard dependency:** Phase C **c.16** complete (`wyvern-host`, packaged `ui/`, `wyvern-viewer` optional).
+**d.3 and d.4 do not add traits, routes, or new state machines** — they harden the stack from d.2.
 
 ## What Phase D does not close
 
-- `--interactive` / lifecycle actions — **Phase E** (`integrate/phase-E`)
-- MCP server — **Phase E**
+- `--interactive` / MCP — **Phase E**
+- Rust graph/DAG/Flowise integration — see [Rust engine vs HTML pages](#rust-engine-vs-html-pages)
 
-## Sprint index (sequential: d.1–d.6)
+## Boundaries
 
-| Sprint | Doc | Branch (pattern) |
-|--------|-----|------------------|
-| d.1 | [d1-wizard-host.md](d1-wizard-host.md) | `feature/phase-D-d1-wizard-host` |
-| d.2 | [d2-wizard-ipc.md](d2-wizard-ipc.md) — Wizard HTTP navigation | `feature/phase-D-d2-wizard-ipc` |
-| d.3 | [d3-history-nav.md](d3-history-nav.md) | `feature/phase-D-d3-history-nav` |
-| d.4 | [d4-stack-inject.md](d4-stack-inject.md) | `feature/phase-D-d4-stack-inject` |
-| d.5 | [d5-dag-example.md](d5-dag-example.md) | `feature/phase-D-d5-dag-example` |
-| d.6 | [d6-wizard-polish.md](d6-wizard-polish.md) | `feature/phase-D-d6-wizard-polish` |
+- `wyvern-wizard` — stack + cursor only ([wizard.toml](../../boundaries/wyvern-wizard/wizard.toml))
+- `wyvern-host` — HTTP glue ([host.toml](../../boundaries/wyvern-host/host.toml))
+
+## Sprint index
+
+| Sprint | Doc |
+|--------|-----|
+| d.1 | [d1-wizard-host.md](d1-wizard-host.md) |
+| d.2 | [d2-wizard-ipc.md](d2-wizard-ipc.md) |
+| d.3 | [d3-history-nav.md](d3-history-nav.md) |
+| d.4 | [d4-stack-inject.md](d4-stack-inject.md) |
+| d.5 | [d5-dag-example.md](d5-dag-example.md) |
+| d.6 | [d6-viewport-sizing.md](d6-viewport-sizing.md) |
+| d.7 | [d7-wizard-chrome.md](d7-wizard-chrome.md) |
+| d.8 | [d8-viewer-dismiss.md](d8-viewer-dismiss.md) |

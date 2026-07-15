@@ -1,49 +1,58 @@
 ---
 id: d.4
-title: Stack injection and data restoration
+title: Page bootstrap + stack snapshot tests
 status: planning
 branch: feature/phase-D-d4-stack-inject
 target: integrate/phase-D
 ---
 
-# Sprint d.4 — Stack injection and data restoration
+# Sprint d.4 — Page bootstrap + stack snapshot tests
 
 ## Goal
 
-Ensure full stack and per-page data round-trip through navigation and `GET /api/wizard/state`.
+Verify `window.wyvern` bootstrap and `stack` / `page_data` round-trip via tests — **no new stack logic or JS production changes** (bootstrap shipped in d.2).
 
 ## Hard dependencies
 
 - **d.3** merged
 
+## Snapshot fields (reference only — normative derivation in d.2)
+
+See d.2 `snapshot()` derivation and [HTTP-TYPES.md](../phase-C/HTTP-TYPES.md) `WizardStateResponse`.
+
+| Field | Maps from session |
+|-------|-------------------|
+| `page` | `entries[cursor].page` |
+| `page_data` | `entries[cursor].data` |
+| `stack` | `entries[0..cursor]` — prior entries only |
+
 ## Deliverables
 
-- `GET /api/wizard/state` returns complete `stack` with all prior `{page, data}` entries
-- `page_data` populated with this page's previously collected data on restore
-- `ui/shared/wyvern-api.js` — page bootstrap reads `stack` from wizard state
-- Integration tests — back/forward data restoration
+| File | Change |
+|------|--------|
+| `crates/wyvern-wizard/tests/stack_restore.rs` | Round-trip / restore tests |
+| `crates/wyvern-host/tests/wizard_stack.rs` | HTTP multi-step + state GET asserts bootstrap fields |
+
+**No JS production changes in d.4.** Assert `GET /api/wizard/state` returns `config`, `page`, `page_data`, and prior-only `stack` per d.2 bootstrap contract via host/wizard integration tests.
 
 ## Acceptance criteria
 
-1. `cargo build --workspace` + `cargo clippy --workspace -- -D warnings` green
-2. `GET /api/wizard/state` returns `stack` with all prior `{page, data}` entries
-3. `page_data` populated with this page's previously collected data on restore
-4. Page JS reads `stack` from wizard state bootstrap (via `wyvern-api.js`)
-5. Data round-trips correctly through JSON serialization
+1. `page_data` restored after back/forward
+2. `stack` contains prior steps only after `navigate_next` (current page via `page` + `page_data`, not in `stack`)
+3. JSON round-trip loses no opaque keys
+4. REQ-0024 satisfied via HTTP (not IPC)
 
 ## Required validation
 
 ```bash
-cargo build --workspace
-cargo clippy --workspace -- -D warnings
 cargo test -p wyvern-wizard stack_restore
 cargo test -p wyvern-host wizard_stack
 ```
 
 ## Non-closure
 
-- DAG example wizard (d.5), polish (d.6)
+- Examples (d.5), viewport (d.6), chrome (d.7), dismiss (d.8)
 
 ## Authority
 
-- [http-wizard-contract.md](../phase-C/http-wizard-contract.md) — `GET /api/wizard/state`
+- REQ-0024, NFR-0008, ADR-0007

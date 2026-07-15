@@ -66,10 +66,14 @@ pub struct QuestionResult {
 #[derive(Debug, Clone)]
 pub struct HostOptions {
     pub bind: SocketAddr,           // default 127.0.0.1:0
-    pub ui_root: PathBuf,           // default share/wyvern/ui/
+    pub ui_root: PathBuf,           // wizard pages: `--ui-root` or default share/wyvern/ui/
+    pub shared_ui_root: PathBuf,    // packaged shared JS/CSS: always share/wyvern/ui/ (not overridden by --ui-root)
     pub viewer: ViewerMode,
     pub dialog_url_env: bool,       // set WYVERN_DIALOG_URL when viewer is None
 }
+
+// shared_ui_root: GET /shared/** always maps to packaged ui/ (install share/wyvern/ui/;
+// dev workspace = repo ui/). --ui-root overrides wizard pages only (GET /wizard/**).
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ViewerMode {
@@ -116,6 +120,7 @@ impl DialogHandle {
     pub fn await_result(self) -> Result<CommandResult, HostError>;
     /// CLI-only fallback: `wyvern-viewer` child exited without posting a result.
     /// Returns `Ok(CommandResult)` with dismissed semantics for the active type (REQ-0068).
+    /// Wizard: derives full visited stack via `WizardSession::finish(dismissed, …)` (d.2 algorithm).
     pub fn viewer_exited_without_result(self) -> Result<CommandResult, HostError>;
 }
 
@@ -325,21 +330,73 @@ pub struct BrowserRegistryEntry {
 
 ## Wizard HTTP types (Phase D)
 
-See [http-wizard-contract.md](http-wizard-contract.md). `WizardCommand` / `WizardResult` land in `wyvern-schema` (d.1).
+See [http-wizard-contract.md](http-wizard-contract.md).
+
+**Crate ownership:**
+
+| Type | Crate |
+|------|-------|
+| `WizardCommand`, `WizardResult`, `WizardPageDescriptor`, `WizardPageLayout`, `WizardStackEntry` | `wyvern-schema` |
+| `WizardSession`, `WizardSnapshot`, `NavigateOutcome`, `WizardError` | `wyvern-wizard` |
+| `WizardStateResponse`, `WizardNavigateRequest`, `WizardFinishRequest` | `wyvern-schema` (wire DTOs built from `snapshot()` / `NavigateOutcome`) |
 
 ```rust
+/// Minimal page descriptor — REQ-0026.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct WizardPageDescriptor {
+    pub id: String,
+    pub title: String,
+    pub html: String,
+    /// Per-page layout: `dialog` (default) or `workspace`. Validated d.1; sizing behavior d.6.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub layout: Option<WizardPageLayout>,
+}
+
+/// `dialog` = typical form step; `workspace` = HTML page requesting viewport-sized canvas (example: graph editor).
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum WizardPageLayout { Dialog, Workspace }
+
+/// One stack entry — REQ-0024.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct WizardStackEntry {
+    pub page: WizardPageDescriptor,
+    pub data: serde_json::Value,
+}
+
 /// Wizard command ingress — validated in d.1.
+/// Static HTML paths resolve from `page.html` relative to `--ui-root` (no separate `page_html` field).
 pub struct WizardCommand {
     #[serde(rename = "type")]
     pub type_name: &'static str, // "wizard"
     pub page: WizardPageDescriptor,
     #[serde(default)]
     pub config: serde_json::Value,
-    pub page_html: String,       // root HTML path under ui_root
     #[serde(skip_serializing_if = "Option::is_none")]
     pub width: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub height: Option<u32>,
+}
+
+/// GET /api/wizard/state shape — `stack` = prior entries only (REQ-0024).
+pub struct WizardSnapshot {
+    pub config: serde_json::Value,
+    pub page: WizardPageDescriptor,
+    pub page_data: serde_json::Value,
+    pub stack: Vec<WizardStackEntry>,
+}
+
+/// Host uses this after navigate to build response URL + state refresh.
+pub struct NavigateOutcome {
+    pub page: WizardPageDescriptor,
+    pub page_data: serde_json::Value,
+    pub stack: Vec<WizardStackEntry>,
+}
+
+pub enum WizardError {
+    AtFirstPage,
+    InvalidCommand(String),
+    StackMismatch,
 }
 
 /// Wizard stdout — POST /api/wizard/finish body matches this.
@@ -363,9 +420,17 @@ pub struct WizardStateResponse {
     pub height: Option<u32>,
 }
 
+/// Wire: `"next"` | `"back"` only. Cancel/finish/dismissed use `POST /api/wizard/finish`.
+#[derive(Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum WizardNavAction {
+    Next,
+    Back,
+}
+
 #[derive(Deserialize)]
 pub struct WizardNavigateRequest {
-    pub action: WizardNavAction, // Next | Back only — cancel/finish/dismissed via /finish
+    pub action: WizardNavAction,
     #[serde(default)]
     pub data: serde_json::Value,
     pub page_id: Option<String>,

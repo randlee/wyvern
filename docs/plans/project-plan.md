@@ -140,18 +140,20 @@ See [docs/plans/phase-C/README.md](phase-C/README.md#delivery-rewrite-c9c16--htt
 
 **Phase acceptance criteria:** The example DAG layout-picker wizard completes a full flow with branching, back-navigation, data restoration, and returns the correct stack JSON.
 
-Phase D sprint PRs target `integrate/phase-D`. Sprint authority: `docs/plans/phase-D/` (sprints **d.1–d.6**, sequential — not parallel sub-sprints).
+Phase D sprint PRs target `integrate/phase-D`. Sprint authority: `docs/plans/phase-D/` (sprints **d.1–d.8**, sequential).
 
-**Sprints:** six active (**d.1–d.6**). See [docs/plans/phase-D/README.md](phase-D/README.md).
+**Sprints:** eight active (**d.1–d.8**). See [docs/plans/phase-D/README.md](phase-D/README.md).
 
 | Sprint | Title | Doc |
 |--------|-------|-----|
-| d.1 | Wizard host: HTML load and config injection | [d1-wizard-host.md](phase-D/d1-wizard-host.md) |
-| d.2 | Wizard HTTP navigation | [d2-wizard-ipc.md](phase-D/d2-wizard-ipc.md) |
-| d.3 | Browser-history navigation model | [d3-history-nav.md](phase-D/d3-history-nav.md) |
-| d.4 | Stack injection and data restoration | [d4-stack-inject.md](phase-D/d4-stack-inject.md) |
+| d.1 | Wizard host — HTTP + initial stack snapshot | [d1-wizard-host.md](phase-D/d1-wizard-host.md) |
+| d.2 | Wizard HTTP navigation + finish + browser stack | [d2-wizard-ipc.md](phase-D/d2-wizard-ipc.md) |
+| d.3 | Browser-history regression tests | [d3-history-nav.md](phase-D/d3-history-nav.md) |
+| d.4 | Page bootstrap + stack snapshot tests | [d4-stack-inject.md](phase-D/d4-stack-inject.md) |
 | d.5 | Example DAG layout-picker wizard | [d5-dag-example.md](phase-D/d5-dag-example.md) |
-| d.6 | Wizard polish and edge cases | [d6-wizard-polish.md](phase-D/d6-wizard-polish.md) |
+| d.6 | Wizard viewport sizing | [d6-viewport-sizing.md](phase-D/d6-viewport-sizing.md) |
+| d.7 | Shared wizard chrome | [d7-wizard-chrome.md](phase-D/d7-wizard-chrome.md) |
+| d.8 | Wizard viewer dismiss | [d8-viewer-dismiss.md](phase-D/d8-viewer-dismiss.md) |
 
 ---
 
@@ -185,7 +187,7 @@ Phase E sprint PRs target `integrate/phase-E`. Sprint authority: `docs/plans/pha
 | Phase A — Foundation | 7 | Working binary, `chrome` command |
 | Phase B — Core Dialogs | 8 | **MVP — all dialog types usable** |
 | Phase C — Release v0.1.0 | 5 + 3 fixes + 8 delivery | **v0.1.0** after c.16 HTTP host |
-| Phase D — Wizard | 6 | Multi-page wizard with branching |
+| Phase D — Wizard | 8 | Multi-page wizard with branching |
 | Phase E — Interactive & MCP | 4 | Agent-driveable status viewer + MCP |
 
 ## Dependency Map

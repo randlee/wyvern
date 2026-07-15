@@ -162,13 +162,17 @@ When the user closes the OS window without clicking a dialog button, the host mu
 
 **Locked protocol (c.15):**
 
-1. **`wyvern-viewer`** registers a close handler. On window close, POST `{ "button": "dismissed" }` to `POST /api/result` (or wizard `POST /api/wizard/finish` with dismissed shape when on a wizard page) **before** process exit.
+1. **`wyvern-viewer`** registers a close handler. On wizard session close:
+   - `GET /api/wizard/state` → read `page`, `page_data`, and prior `stack`
+   - Build full visited stack = prior `stack` + `{ page, data: page_data }` ([d8-viewer-dismiss.md](../phase-D/d8-viewer-dismiss.md) / [http-wizard-contract.md](http-wizard-contract.md))
+   - `POST /api/wizard/finish` with `{ "button": "dismissed", "data": {}, "stack": <full visited stack> }` **before** process exit
+   - On blocking dialog: `POST /api/result` with `{ "button": "dismissed" }` only
 2. **`wyvern` CLI** watches the viewer child process. If the child exits without the host having received a result:
    - **One-shot:** call `DialogHandle::viewer_exited_without_result()` (in-process — see [HTTP-TYPES.md](HTTP-TYPES.md)).
    - **Persistent (`--interactive` / `--mcp`):** CLI posts `{ "button": "dismissed" }` to `POST /api/result` via localhost HTTP client.
 3. **`wyvern-host`** REQ-0097: if no result POST arrives before session timeout, map to dismissed.
 
-Cross-links: [c15-wyvern-viewer.md](c15-wyvern-viewer.md), [d6-wizard-polish.md](../phase-D/d6-wizard-polish.md), [e2-blocking-question.md](../phase-E/e2-blocking-question.md).
+Cross-links: [c15-wyvern-viewer.md](c15-wyvern-viewer.md), [d8-viewer-dismiss.md](../phase-D/d8-viewer-dismiss.md), [e2-blocking-question.md](../phase-E/e2-blocking-question.md).
 
 ### Implementation modules (c.15)
 
