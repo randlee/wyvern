@@ -5,7 +5,10 @@ use serde_json::{Map, Value};
 use crate::command::Command;
 use crate::error::ValidationError;
 use crate::field_name::FieldName;
-use crate::wizard::{WizardCommand, WizardPageDescriptor, WizardPageLayout};
+use crate::wizard::{
+    WizardCommand, WizardPageDescriptor, WizardPageHtml, WizardPageId, WizardPageLayout,
+    WizardPageTitle,
+};
 
 use super::helpers::{
     json_type_name, optional_window_size_fields, WIZARD_FIELDS, WIZARD_PAGE_FIELDS,
@@ -51,9 +54,9 @@ pub(super) fn validate_wizard(obj: &Map<String, Value>) -> Result<Command, Valid
         }
     }
 
-    let id = require_non_empty_page_string(page_value, "id")?;
-    let title = require_non_empty_page_string(page_value, "title")?;
-    let html = require_non_empty_page_string(page_value, "html")?;
+    let id = WizardPageId::new(require_non_empty_page_string(page_value, "id")?);
+    let title = WizardPageTitle::new(require_non_empty_page_string(page_value, "title")?);
+    let html = WizardPageHtml::new(require_non_empty_page_string(page_value, "html")?);
     let layout = optional_page_layout(page_value)?;
 
     let config = match obj.get("config") {

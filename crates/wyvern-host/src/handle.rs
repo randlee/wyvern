@@ -148,15 +148,7 @@ fn run_begin_worker(
     rt.block_on(async move {
         let (result_tx, result_rx) = oneshot::channel();
         let (dismiss_tx, dismiss_rx) = oneshot::channel();
-        let session =
-            match SessionState::new(command.clone(), result_tx, options.mock_picker.clone()) {
-                Ok(s) => s,
-                Err(message) => {
-                    let err = HostError::Internal { message };
-                    let _ = ready_tx.send(Err(clone_host_error_message(&err)));
-                    return Err(err);
-                }
-            };
+        let session = SessionState::new(command.clone(), result_tx, options.mock_picker.clone());
         let (bound, roots) = match bind_server(
             options.bind,
             options.allow_non_loopback,
@@ -215,8 +207,7 @@ pub(crate) async fn run_owned_async(
 ) -> Result<CommandResult, HostError> {
     let (result_tx, result_rx) = oneshot::channel();
     let (_dismiss_tx, dismiss_rx) = oneshot::channel();
-    let session = SessionState::new(command.clone(), result_tx, options.mock_picker.clone())
-        .map_err(|message| HostError::Internal { message })?;
+    let session = SessionState::new(command.clone(), result_tx, options.mock_picker.clone());
     let (bound, roots) = bind_server(
         options.bind,
         options.allow_non_loopback,
@@ -294,6 +285,9 @@ fn clone_host_error_message(err: &HostError) -> HostError {
         },
         HostError::Internal { message } => HostError::Internal {
             message: message.clone(),
+        },
+        HostError::Wizard { source } => HostError::Wizard {
+            source: source.clone(),
         },
     }
 }

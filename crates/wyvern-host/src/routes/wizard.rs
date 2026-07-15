@@ -17,6 +17,13 @@ pub async fn get_wizard_state(
 ) -> Result<Json<WizardStateResponse>, ApiError> {
     let command = session.command().await;
     let Command::Wizard(ref wizard_cmd) = command else {
+        let session_type = command_type_name(&command);
+        tracing::warn!(
+            route = "/api/wizard/state",
+            error_class = "bad_request",
+            session_type,
+            "GET /api/wizard/state requires an active wizard session"
+        );
         return Err(ApiError::bad_request(
             "GET /api/wizard/state requires an active wizard session",
         )
@@ -25,8 +32,15 @@ pub async fn get_wizard_state(
         .docs(WIZARD_STATE_DOCS));
     };
 
-    let snapshot = session.wizard_snapshot().await.map_err(|message| {
-        ApiError::internal(message)
+    let snapshot = session.wizard_snapshot().await.map_err(|err| {
+        tracing::warn!(
+            route = "/api/wizard/state",
+            error_class = "internal",
+            session_type = "wizard",
+            error = %err,
+            "wizard snapshot failed"
+        );
+        ApiError::internal(err.to_string())
             .cause("wizard session was not initialized for this dialog")
             .recovery("Report a bug if a validated wizard command has no session")
             .docs(WIZARD_STATE_DOCS)
@@ -40,4 +54,15 @@ pub async fn get_wizard_state(
         wizard_cmd.width,
         wizard_cmd.height,
     )))
+}
+
+fn command_type_name(command: &Command) -> &'static str {
+    match command {
+        Command::Chrome { .. } => "chrome",
+        Command::Message { .. } => "message",
+        Command::Input { .. } => "input",
+        Command::Markdown { .. } => "markdown",
+        Command::Question { .. } => "question",
+        Command::Wizard(_) => "wizard",
+    }
 }

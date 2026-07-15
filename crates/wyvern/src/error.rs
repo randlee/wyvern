@@ -173,10 +173,49 @@ fn validation_recovery(field: &str, message: &str) -> Vec<String> {
     }
     if field == "type" && message.contains("expected one of") {
         return vec![
-            "Set \"type\" to an executable value for this phase (chrome or message)".into(),
-            "Example: {\"type\":\"message\",\"title\":\"T\",\"message\":\"Hi\",\"buttons\":\"ok\"}"
+            "Set \"type\" to one of: chrome, message, input, markdown, question, wizard".into(),
+            "Example: {\"type\":\"wizard\",\"page\":{\"id\":\"start\",\"title\":\"Start\",\"html\":\"pages/start.html\"}}"
                 .into(),
         ];
+    }
+    if field == "page" && message.contains("missing required field") {
+        return vec![
+            "Add required object field \"page\" with id, title, and html".into(),
+            "Example: {\"type\":\"wizard\",\"page\":{\"id\":\"start\",\"title\":\"Start\",\"html\":\"pages/start.html\"}}"
+                .into(),
+        ];
+    }
+    if field == "page" && message.contains("expected object") {
+        return vec!["Provide \"page\" as a JSON object with id, title, and html".into()];
+    }
+    if field == "page.id" {
+        return vec![
+            "Set \"page.id\" to a non-empty string page identity".into(),
+            "Example: \"page\":{\"id\":\"start\",\"title\":\"Start\",\"html\":\"pages/start.html\"}"
+                .into(),
+        ];
+    }
+    if field == "page.title" {
+        return vec![
+            "Set \"page.title\" to a non-empty string display title".into(),
+            "Example: \"page\":{\"id\":\"start\",\"title\":\"Start\",\"html\":\"pages/start.html\"}"
+                .into(),
+        ];
+    }
+    if field == "page.html" {
+        return vec![
+            "Set \"page.html\" to a non-empty path relative to --ui-root".into(),
+            "Example: \"page\":{\"id\":\"start\",\"title\":\"Start\",\"html\":\"pages/start.html\"}"
+                .into(),
+        ];
+    }
+    if field == "page.layout" {
+        return vec!["Set \"page.layout\" to one of: dialog, workspace (or omit the field)".into()];
+    }
+    if field.starts_with("page.") && message.contains("unknown field") {
+        return vec![format!(
+            "Remove unknown field \"{field}\"; page allows only id, title, html, and layout"
+        )];
     }
     if field == "buttons" {
         return vec![
@@ -277,9 +316,10 @@ pub fn emit_host_error(err: &wyvern_host::HostError) -> Result<String, EmitError
             (
                 ErrorCode::UiNotFound,
                 message,
-                "Packaged UI root or dialog template is missing".to_string(),
+                "Packaged UI root, dialog template, or wizard page HTML is missing".to_string(),
                 vec![
                     "Pass --ui-root pointing at a directory with message/, input/, markdown/, question/, and chrome/ templates".into(),
+                    "For wizard commands, ensure page.html exists relative to --ui-root (served under /wizard/**)".into(),
                     "Ensure ui/{message,input,markdown,question,chrome}/ exist in the workspace for development".into(),
                 ],
                 "docs/wyvern-host/requirements.md (REQ-0093, REQ-0100)",
@@ -344,6 +384,16 @@ pub fn emit_host_error(err: &wyvern_host::HostError) -> Result<String, EmitError
                 "Report a bug if it persists".into(),
             ],
             "docs/wyvern-host/architecture.md",
+        ),
+        HostError::Wizard { source } => (
+            ErrorCode::HostError,
+            source.to_string(),
+            "Wizard session failed during host setup or state access".to_string(),
+            vec![
+                "Ensure the command is type: wizard with a validated page object".into(),
+                "Retry the command; report a bug if a validated wizard has no session".into(),
+            ],
+            "docs/plans/phase-C/http-wizard-contract.md",
         ),
     };
 

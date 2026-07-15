@@ -3,6 +3,8 @@
 use std::fmt;
 use std::path::PathBuf;
 
+use wyvern_wizard::WizardError;
+
 use crate::options::{BrowserId, ViewerMode};
 
 /// Closed set of dialog `type` wire names known to the host matrix.
@@ -105,6 +107,11 @@ pub enum HostError {
         /// Failure detail.
         message: String,
     },
+    /// Wizard session construction or route failure.
+    Wizard {
+        /// Structured wizard error from `wyvern-wizard`.
+        source: WizardError,
+    },
 }
 
 impl fmt::Display for HostError {
@@ -134,6 +141,7 @@ impl fmt::Display for HostError {
             }
             Self::Registry { message } => write!(f, "browser registry error: {message}"),
             Self::Internal { message } => write!(f, "internal host error: {message}"),
+            Self::Wizard { source } => write!(f, "wizard error: {source}"),
         }
     }
 }
@@ -147,6 +155,7 @@ impl std::error::Error for HostError {
             | Self::UiNotFound {
                 source: Some(err), ..
             } => Some(err),
+            Self::Wizard { source } => Some(source),
             _ => None,
         }
     }

@@ -18,7 +18,7 @@ use std::time::Duration;
 
 use tokio::sync::{oneshot, Mutex, OwnedSemaphorePermit, Semaphore};
 use wyvern_schema::Command;
-use wyvern_wizard::{WizardSession, WizardSnapshot};
+use wyvern_wizard::{WizardError, WizardSession, WizardSnapshot};
 
 use crate::picker::MockPickerConfig;
 
@@ -44,22 +44,16 @@ struct SessionInner {
 
 impl SessionState {
     /// Create a session that will deliver the result once via `result_tx`.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error string when wizard session construction fails.
     pub(crate) fn new(
         command: Command,
         result_tx: oneshot::Sender<wyvern_schema::CommandResult>,
         mock_picker: Option<MockPickerConfig>,
-    ) -> Result<Self, String> {
+    ) -> Self {
         let wizard = match &command {
-            Command::Wizard(wizard_cmd) => {
-                Some(WizardSession::new(wizard_cmd).map_err(|e| e.to_string())?)
-            }
+            Command::Wizard(wizard_cmd) => Some(WizardSession::new(wizard_cmd)),
             _ => None,
         };
-        Ok(Self {
+        Self {
             inner: Arc::new(Mutex::new(SessionInner {
                 command,
                 wizard,
@@ -69,7 +63,7 @@ impl SessionState {
             // the blocking pool (RSH-006).
             picker_slots: Arc::new(Semaphore::new(1)),
             mock_picker,
-        })
+        }
     }
 
     /// Clone of the active command for `/api/dialog`.
@@ -78,12 +72,15 @@ impl SessionState {
     }
 
     /// Snapshot of the wizard session, if this is a wizard dialog.
-    pub(crate) async fn wizard_snapshot(&self) -> Result<WizardSnapshot, String> {
-        let guard = self.inner.lock().await;
-        match &guard.wizard {
-            Some(session) => Ok(session.snapshot()),
-            None => Err("no wizard session for this dialog".into()),
-        }
+    ///
+    /// Clones the session under the mutex, then builds the snapshot after the
+    /// lock is released so cloning config/page/stack does not extend hold time.
+    pub(crate) async fn wizard_snapshot(&self) -> Result<WizardSnapshot, WizardError> {
+        let session = {
+            let guard = self.inner.lock().await;
+            guard.wizard.clone().ok_or(WizardError::NotInitialized)?
+        };
+        Ok(session.snapshot())
     }
 
     /// In-process mock picker config, if any.

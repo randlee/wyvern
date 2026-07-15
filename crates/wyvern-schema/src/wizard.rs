@@ -1,8 +1,120 @@
 //! Wizard command, stack, and HTTP wire types (Phase D).
 
+use std::fmt;
+use std::ops::Deref;
+
 use serde::{Deserialize, Serialize};
 
 use crate::button::ButtonLabel;
+
+/// Error when a wizard page identity field is empty.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct WizardPageFieldError;
+
+impl fmt::Display for WizardPageFieldError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("wizard page field must be a non-empty string")
+    }
+}
+
+impl std::error::Error for WizardPageFieldError {}
+
+macro_rules! wizard_page_newtype {
+    ($(#[$meta:meta])* $name:ident, $doc:literal) => {
+        $(#[$meta])*
+        #[doc = $doc]
+        ///
+        /// Construct via [`Self::try_new`] at the validation boundary so downstream
+        /// code can treat the value as already checked non-empty.
+        #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+        #[serde(transparent)]
+        pub struct $name(String);
+
+        impl $name {
+            /// Wrap a validated non-empty string.
+            ///
+            /// Prefer [`Self::try_new`] at trust boundaries; this constructor is for
+            /// already-validated values (e.g. after [`crate::validate`]).
+            pub fn new(value: impl Into<String>) -> Self {
+                Self(value.into())
+            }
+
+            /// Construct from a non-empty string.
+            ///
+            /// # Errors
+            ///
+            /// Returns [`WizardPageFieldError`] when `value` is empty.
+            pub fn try_new(value: impl Into<String>) -> Result<Self, WizardPageFieldError> {
+                let value = value.into();
+                if value.is_empty() {
+                    return Err(WizardPageFieldError);
+                }
+                Ok(Self(value))
+            }
+
+            /// Borrow as a string slice.
+            pub fn as_str(&self) -> &str {
+                &self.0
+            }
+
+            /// Consume and return the inner string.
+            pub fn into_inner(self) -> String {
+                self.0
+            }
+        }
+
+        impl Deref for $name {
+            type Target = str;
+
+            fn deref(&self) -> &Self::Target {
+                &self.0
+            }
+        }
+
+        impl AsRef<str> for $name {
+            fn as_ref(&self) -> &str {
+                self.as_str()
+            }
+        }
+
+        impl fmt::Display for $name {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                self.0.fmt(f)
+            }
+        }
+
+        impl From<String> for $name {
+            fn from(value: String) -> Self {
+                Self::new(value)
+            }
+        }
+
+        impl From<&str> for $name {
+            fn from(value: &str) -> Self {
+                Self::new(value)
+            }
+        }
+
+        impl PartialEq<str> for $name {
+            fn eq(&self, other: &str) -> bool {
+                self.0 == other
+            }
+        }
+
+        impl PartialEq<&str> for $name {
+            fn eq(&self, other: &&str) -> bool {
+                self.0 == *other
+            }
+        }
+    };
+}
+
+wizard_page_newtype!(WizardPageId, "Validated wizard page id (non-empty).");
+wizard_page_newtype!(WizardPageTitle, "Validated wizard page title (non-empty).");
+wizard_page_newtype!(
+    WizardPageHtml,
+    "Validated wizard page HTML path relative to `--ui-root` (non-empty)."
+);
 
 /// Per-page layout hint (`dialog` | `workspace`).
 ///
@@ -44,11 +156,11 @@ impl WizardPageLayout {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WizardPageDescriptor {
     /// Stable page identity.
-    pub id: String,
+    pub id: WizardPageId,
     /// Display title for the page.
-    pub title: String,
+    pub title: WizardPageTitle,
     /// HTML path relative to `--ui-root` (no separate `page_html` field).
-    pub html: String,
+    pub html: WizardPageHtml,
     /// Optional per-page layout (`dialog` | `workspace`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub layout: Option<WizardPageLayout>,
@@ -154,9 +266,9 @@ mod tests {
         let resp = WizardStateResponse::from_snapshot(
             serde_json::json!({"theme": "dark"}),
             WizardPageDescriptor {
-                id: "start".into(),
-                title: "Start".into(),
-                html: "pages/start.html".into(),
+                id: WizardPageId::new("start"),
+                title: WizardPageTitle::new("Start"),
+                html: WizardPageHtml::new("pages/start.html"),
                 layout: None,
             },
             serde_json::json!({}),
@@ -177,12 +289,18 @@ mod tests {
     #[test]
     fn page_layout_omitted_when_none() {
         let page = WizardPageDescriptor {
-            id: "a".into(),
-            title: "A".into(),
-            html: "a.html".into(),
+            id: WizardPageId::new("a"),
+            title: WizardPageTitle::new("A"),
+            html: WizardPageHtml::new("a.html"),
             layout: None,
         };
         let value = serde_json::to_value(&page).expect("serialize");
         assert!(value.get("layout").is_none());
+    }
+
+    #[test]
+    fn page_id_try_new_rejects_empty() {
+        assert_eq!(WizardPageId::try_new(""), Err(WizardPageFieldError));
+        assert_eq!(WizardPageId::try_new("ok").unwrap().as_str(), "ok");
     }
 }

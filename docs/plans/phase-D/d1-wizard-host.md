@@ -49,12 +49,14 @@ pub struct WizardSnapshot {
 
 pub enum WizardError {
     AtFirstPage,
-    InvalidCommand(String),
+    InvalidCommand { field: String, reason: String },
     StackMismatch, // client finish stack ≠ session-derived stack
+    NotInitialized,
 }
 
 impl WizardSession {
-    pub fn new(command: &WizardCommand) -> Result<Self, WizardError>;
+    /// Schema-validated page newtypes make construction infallible in d.1.
+    pub fn new(command: &WizardCommand) -> Self;
     pub fn snapshot(&self) -> WizardSnapshot;
 }
 ```

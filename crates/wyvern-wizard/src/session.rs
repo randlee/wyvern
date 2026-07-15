@@ -22,18 +22,38 @@ pub struct WizardSnapshot {
 pub enum WizardError {
     /// `navigate_back` when already on the first page (d.2).
     AtFirstPage,
-    /// Invalid navigate/finish payload (d.2).
-    InvalidCommand(String),
+    /// Navigate/finish payload failed a field check (d.2).
+    InvalidCommand {
+        /// Dot-path of the offending field (e.g. `page.id`, `stack`).
+        field: String,
+        /// Human-readable failure detail.
+        reason: String,
+    },
     /// Client finish stack ≠ session-derived stack (d.2).
     StackMismatch,
+    /// Host asked for a snapshot but no wizard session was initialized.
+    NotInitialized,
+}
+
+impl WizardError {
+    /// Construct a structured invalid-command error.
+    pub fn invalid_command(field: impl Into<String>, reason: impl Into<String>) -> Self {
+        Self::InvalidCommand {
+            field: field.into(),
+            reason: reason.into(),
+        }
+    }
 }
 
 impl std::fmt::Display for WizardError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::AtFirstPage => f.write_str("already at the first wizard page"),
-            Self::InvalidCommand(msg) => write!(f, "invalid wizard command: {msg}"),
+            Self::InvalidCommand { field, reason } => {
+                write!(f, "invalid wizard command ({field}): {reason}")
+            }
             Self::StackMismatch => f.write_str("client stack does not match session stack"),
+            Self::NotInitialized => f.write_str("no wizard session for this dialog"),
         }
     }
 }
@@ -50,23 +70,13 @@ pub struct WizardSession {
 impl WizardSession {
     /// Create a session seeded with the command's first page at cursor 0.
     ///
-    /// # Errors
-    ///
-    /// Returns [`WizardError::InvalidCommand`] when page identity fields are empty
-    /// (defense in depth — schema validation should already reject these).
-    pub fn new(command: &WizardCommand) -> Result<Self, WizardError> {
-        if command.page.id.is_empty()
-            || command.page.title.is_empty()
-            || command.page.html.is_empty()
-        {
-            return Err(WizardError::InvalidCommand(
-                "page.id, page.title, and page.html must be non-empty".into(),
-            ));
-        }
-        Ok(Self {
+    /// Page identity fields are validated newtypes from schema validation; this
+    /// constructor does not re-check emptiness.
+    pub fn new(command: &WizardCommand) -> Self {
+        Self {
             config: command.config.clone(),
             history: History::seed(command.page.clone()),
-        })
+        }
     }
 
     /// Current snapshot for `GET /api/wizard/state`.
@@ -86,14 +96,14 @@ impl WizardSession {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use wyvern_schema::WizardPageDescriptor;
+    use wyvern_schema::{WizardPageHtml, WizardPageId, WizardPageTitle};
 
     fn cmd(page_html: &str) -> WizardCommand {
         WizardCommand {
             page: WizardPageDescriptor {
-                id: "start".into(),
-                title: "Start".into(),
-                html: page_html.into(),
+                id: WizardPageId::new("start"),
+                title: WizardPageTitle::new("Start"),
+                html: WizardPageHtml::new(page_html),
                 layout: None,
             },
             config: serde_json::json!({"theme": "dark"}),
@@ -104,20 +114,12 @@ mod tests {
 
     #[test]
     fn new_and_snapshot_first_page_empty_stack() {
-        let session = WizardSession::new(&cmd("pages/start.html")).expect("new");
+        let session = WizardSession::new(&cmd("pages/start.html"));
         let snap = session.snapshot();
         assert_eq!(snap.page.id, "start");
         assert_eq!(snap.page.html, "pages/start.html");
         assert_eq!(snap.page_data, serde_json::json!({}));
         assert!(snap.stack.is_empty());
         assert_eq!(snap.config["theme"], "dark");
-    }
-
-    #[test]
-    fn new_rejects_empty_page_id() {
-        let mut command = cmd("a.html");
-        command.page.id.clear();
-        let err = WizardSession::new(&command).expect_err("empty id");
-        assert!(matches!(err, WizardError::InvalidCommand(_)));
     }
 }
