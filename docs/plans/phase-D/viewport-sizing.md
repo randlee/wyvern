@@ -78,7 +78,7 @@ Page JS may read `window.wyvern.config.estimated_size` (or any keys the HTML aut
 
 ## Viewer ↔ page channel (d.6)
 
-Viewer sends available bounds before first paint. Wizard pages call `WyvernApi.applyWizardLayout(state, viewport)` after `GET /api/wizard/state`:
+Viewer dispatches `wyvern:viewport-bounds` before first paint (see [d6-viewport-sizing.md](d6-viewport-sizing.md)). Wizard pages call `WyvernApi.applyWizardLayout(state, viewport)` after `GET /api/wizard/state`:
 
 ```javascript
 var layout = state.page.layout || state.config.layout || "dialog";
@@ -95,6 +95,8 @@ return applyDialogFitWithSlack(measurePage(), viewport, 1.25);
 | `viewport-sizing.md` | plan hardening | — |
 | HTML examples (layout-picker, workspace-hint) | **d.5** | tests only |
 | `page.layout`, opaque `config` in state; `wyvern-api.js` sizing; viewer bounds IPC | **d.6** | yes (passthrough + viewer) |
+| Shared wizard chrome | **d.7** | — |
+| Viewer dismiss | **d.8** | yes (viewer + host) |
 | Golden L2 sizing | **d.6** | — |
 
 ---

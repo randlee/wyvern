@@ -16,13 +16,15 @@ Verify `window.wyvern` bootstrap and `stack` / `page_data` round-trip via tests 
 
 - **d.3** merged
 
-## Snapshot fields (reference — normative, REQ-0024)
+## Snapshot fields (reference only — normative derivation in d.2)
 
-| Field | From stack |
-|-------|------------|
+See d.2 `snapshot()` derivation and [HTTP-TYPES.md](../phase-C/HTTP-TYPES.md) `WizardStateResponse`.
+
+| Field | Maps from session |
+|-------|-------------------|
 | `page` | `entries[cursor].page` |
 | `page_data` | `entries[cursor].data` |
-| `stack` | `entries[0..cursor]` as `{page, data}` — **prior entries only**, excludes current |
+| `stack` | `entries[0..cursor]` — prior entries only |
 
 ## Deliverables
 
@@ -49,7 +51,7 @@ cargo test -p wyvern-host wizard_stack
 
 ## Non-closure
 
-- Examples (d.5), polish/sizing (d.6)
+- Examples (d.5), viewport (d.6), chrome (d.7), dismiss (d.8)
 
 ## Authority
 

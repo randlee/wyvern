@@ -31,6 +31,7 @@ Lock ADR-0005 behaviour with the four canonical tests. **No new routes, traits, 
 | `back_moves_cursor_without_truncation` | Back does not delete forward entries |
 | `forward_same_page_restores_data` | Same `next` descriptor restores cached `data`; overwrite only when request `data` is a meaningful payload per d.2 overwrite predicate (`null`/`{}`/`[]`/`""` → restore) |
 | `forward_different_page_truncates` | New branch drops stale forward entries |
+| `forward_same_html_different_id_truncates` | Same `html`, different `id` → truncate (not restore) |
 
 ## Acceptance criteria
 
@@ -47,7 +48,7 @@ cargo test -p wyvern-host wizard_history
 
 ## Non-closure
 
-- Bootstrap round-trip tests (d.4), examples (d.5), polish (d.6)
+- Bootstrap round-trip tests (d.4), examples (d.5), viewport (d.6+)
 
 ## Authority
 

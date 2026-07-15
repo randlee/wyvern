@@ -337,7 +337,7 @@ pub struct WizardPageDescriptor {
     pub id: String,
     pub title: String,
     pub html: String,
-    /// Per-page layout: `dialog` (default) or `workspace` (large-canvas HTML pages). Phase D d.5–d.6.
+    /// Per-page layout: `dialog` (default) or `workspace`. Validated d.1; sizing behavior d.6.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub layout: Option<WizardPageLayout>,
 }

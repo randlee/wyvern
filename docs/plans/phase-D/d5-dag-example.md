@@ -23,7 +23,7 @@ Exact paths (authoritative):
 | Path | Purpose |
 |------|---------|
 | `examples/wizards/layout-picker/wizard.json` | CLI command fixture (`type: wizard`) |
-| `examples/wizards/layout-picker/pages/layout-picker.html` | Step 1 — layout card selection |
+| `examples/wizards/layout-picker/pages/layout-picker.html` | Step 1 — includes `<script src="/shared/wyvern-api.js">` |
 | `examples/wizards/layout-picker/pages/agent.html` | Agent name/description form (reused per agent count) |
 | `examples/wizards/layout-picker/pages/finish.html` | Optional summary page before finish |
 | `examples/wizards/layout-picker/app.js` | DAG branching via `wyvernWizardNext` + explicit `next` descriptors |
@@ -118,9 +118,7 @@ npx playwright test tests/l2/wizard-layout-picker.spec.ts
 
 ## Non-closure
 
-- Viewport slack sizing implementation in `wyvern-api.js` / viewer (d.6)
-- Workspace-hint embedded viewer sizing / no-manual-resize (d.6)
-- Wizard polish and edge cases (d.6)
+- Viewport sizing (d.6), chrome (d.7), dismiss (d.8)
 
 ## Authority
 

@@ -53,6 +53,8 @@ let stack: Vec<_> = entries[0..cursor]
 
 `history.rs` implements ADR-0005 (cursor, truncate on branch, restore on forward-same-page).
 
+**Page descriptor equality (normative):** forward-same-page restore compares full `WizardPageDescriptor` via `PartialEq` (`id`, `title`, `html`, `layout`). Same `html` but different `id` → truncate branch, not restore.
+
 **Opaque data write rule (normative — all navigate + finish paths):**
 
 Whole-blob replace only — no deep merge. `entries[cursor].data = data` replaces the entire stored blob. Host and wizard never interpret keys inside `data` (ADR-0006).
@@ -122,7 +124,7 @@ cargo test -p wyvern-host wizard_navigate wizard_finish
 
 - Four-case history test matrix formalized (d.3)
 - Bootstrap round-trip tests (d.4)
-- Examples (d.5), polish/sizing (d.6)
+- Examples (d.5), viewport sizing (d.6), chrome (d.7), dismiss (d.8)
 
 ## Authority
 

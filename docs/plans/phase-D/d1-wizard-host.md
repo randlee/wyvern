@@ -66,7 +66,7 @@ No separate `WizardEngine` / `WizardNavigator` traits unless a second impl appea
 |------|--------|
 | `routes/wizard.rs` | `GET /api/wizard/state`, `GET /wizard/**`, `GET /shared/**` |
 | `session.rs` | `WizardSession` holder |
-| `tests/wizard_state.rs`, `tests/wizard_routes.rs` | |
+| `tests/wizard_state.rs`, `tests/wizard_routes.rs`, `tests/wizard_shared_mount.rs` | |
 
 **Static routing (normative — dual mount):**
 
@@ -97,9 +97,9 @@ Wizard pages load shared helpers via absolute `/shared/…` URLs regardless of `
 2. `GET /api/wizard/state` returns full `WizardStateResponse` wire shape: `{ type, config, page, page_data, stack, width?, height? }` — on first page `stack: []` (REQ-0024); authority: [HTTP-TYPES.md](../phase-C/HTTP-TYPES.md)
 3. Wizard HTML served at `/wizard/**` from `--ui-root` + `page.html`
 4. `GET /shared/wyvern-api.js` succeeds when `--ui-root` is an example directory (dual-mount)
-4. `page.layout` optional field validates (`dialog` | `workspace`) when present
-5. Blocking dialogs still pass `--viewer none`
-6. `sc-lint check native --config .sc-lint.toml` passes after host→wizard dep lands
+5. `page.layout` optional field validates (`dialog` | `workspace`) when present
+6. Blocking dialogs still pass `--viewer none`
+7. `sc-lint check native --config .sc-lint.toml` passes
 
 ## Required validation
 

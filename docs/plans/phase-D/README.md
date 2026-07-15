@@ -1,6 +1,6 @@
 # Phase D — Wizard (`integrate/phase-D`)
 
-Phase D implementation PRs target **`integrate/phase-D`**. Sprint docs (`d1`–`d6`) are the authority for deliverables and validation.
+Phase D implementation PRs target **`integrate/phase-D`**. Sprint docs (`d1`–`d8`) are the authority for deliverables and validation.
 
 ## Core model (read this first)
 
@@ -59,7 +59,9 @@ Multi-page wizards: navigate, back, restore data, return final `stack` JSON.
 | **d.3** | ADR-0005 edge-case **tests** (four history cases) — same private `history.rs` | ✓ tests only |
 | **d.4** | `window.wyvern` bootstrap **round-trip tests** | ✓ tests only |
 | **d.5** | HTML **examples** exercising the stack | ✓ examples |
-| **d.6** | UX polish, viewer dismiss, viewport sizing ([viewport-sizing.md](viewport-sizing.md)) | orthogonal to stack |
+| **d.6** | Viewport sizing ([viewport-sizing.md](viewport-sizing.md)) | orthogonal to stack |
+| **d.7** | Shared wizard chrome (`wizard-nav.js`) | ✓ page JS |
+| **d.8** | Viewer dismiss with full visited stack | orthogonal to stack |
 
 **d.3 and d.4 do not add traits, routes, or new state machines** — they harden the stack from d.2.
 
@@ -82,4 +84,6 @@ Multi-page wizards: navigate, back, restore data, return final `stack` JSON.
 | d.3 | [d3-history-nav.md](d3-history-nav.md) |
 | d.4 | [d4-stack-inject.md](d4-stack-inject.md) |
 | d.5 | [d5-dag-example.md](d5-dag-example.md) |
-| d.6 | [d6-wizard-polish.md](d6-wizard-polish.md) |
+| d.6 | [d6-viewport-sizing.md](d6-viewport-sizing.md) |
+| d.7 | [d7-wizard-chrome.md](d7-wizard-chrome.md) |
+| d.8 | [d8-viewer-dismiss.md](d8-viewer-dismiss.md) |
