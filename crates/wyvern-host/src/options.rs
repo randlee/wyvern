@@ -92,8 +92,10 @@ impl std::fmt::Display for BrowserId {
 pub struct HostOptions {
     /// TCP bind address (default `127.0.0.1:0`).
     pub bind: SocketAddr,
-    /// Static UI root directory (default `ui/` in the workspace / install tree).
+    /// Wizard pages / dialog type templates: `--ui-root` or default share/wyvern/ui/.
     pub ui_root: PathBuf,
+    /// Packaged shared JS/CSS root (`ui/`); not overridden by `--ui-root` (d.1 dual mount).
+    pub shared_ui_root: PathBuf,
     /// Viewer launch mode (c.15: `embedded` / `none` / `system` / named).
     pub viewer: ViewerMode,
     /// When true, publish dialog URL via stderr / optional file after bind (typical for `none`).
@@ -113,6 +115,7 @@ impl Default for HostOptions {
         Self {
             bind: SocketAddr::from(([127, 0, 0, 1], 0)),
             ui_root: PathBuf::from("ui"),
+            shared_ui_root: PathBuf::from("ui"),
             viewer: ViewerMode::None,
             dialog_url_env: true,
             dialog_url_file: None,
@@ -179,6 +182,7 @@ fn command_window_title(command: &wyvern_schema::Command) -> Option<String> {
             .map(|card| card.header.as_str())
             .filter(|header| !header.is_empty())
             .unwrap_or("Question"),
+        wyvern_schema::Command::Wizard(cmd) => cmd.page.title.as_str(),
     };
     if title.is_empty() {
         None

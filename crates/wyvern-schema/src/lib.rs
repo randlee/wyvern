@@ -1,10 +1,9 @@
 //! Wyvern JSON types, validation, and protocol results.
 //!
-//! Phase B executable surface (through b.7): [`Command::Chrome`],
-//! [`Command::Message`], [`Command::Input`] (text / file / folder),
-//! [`Command::Markdown`] (file path or inline `content`), and
-//! [`Command::Question`] (card radio/checkbox). Call [`validate`] on
-//! loaded JSON before opening a window.
+//! Executable surface: [`Command::Chrome`], [`Command::Message`],
+//! [`Command::Input`], [`Command::Markdown`], [`Command::Question`], and
+//! [`Command::Wizard`]. Call [`validate`] on loaded JSON before opening a host
+//! session.
 
 #![cfg_attr(
     not(test),
@@ -28,6 +27,7 @@ mod media;
 mod result;
 mod stderr;
 mod validate;
+mod wizard;
 
 #[doc(inline)]
 pub use button::ButtonLabel;
@@ -54,3 +54,8 @@ pub use result::{
 pub use stderr::{SerializeError, StderrError};
 #[doc(inline)]
 pub use validate::{validate, MARKDOWN_CONTENT_MAX_BYTES};
+#[doc(inline)]
+pub use wizard::{
+    WizardCommand, WizardPageDescriptor, WizardPageFieldError, WizardPageHtml, WizardPageId,
+    WizardPageLayout, WizardPageTitle, WizardResult, WizardStackEntry, WizardStateResponse,
+};

@@ -26,7 +26,9 @@ pub struct CliArgs {
 /// Returns [`LoadError::Usage`] for bad flags or values.
 pub fn parse_cli_args(args: &[String]) -> Result<CliArgs, LoadError> {
     let mut bind = SocketAddr::from(([127, 0, 0, 1], 0));
-    let mut ui_root = default_ui_root();
+    // Packaged shared assets are never overridden by `--ui-root` (d.1 dual mount).
+    let shared_ui_root = default_ui_root();
+    let mut ui_root = shared_ui_root.clone();
     let mut viewer = viewer_from_env().unwrap_or(ViewerMode::Embedded);
     let mut allow_non_loopback = false;
     let mut positionals = Vec::new();
@@ -91,6 +93,7 @@ pub fn parse_cli_args(args: &[String]) -> Result<CliArgs, LoadError> {
         host: HostOptions {
             bind,
             ui_root,
+            shared_ui_root,
             viewer,
             dialog_url_env,
             dialog_url_file: std::env::var_os("WYVERN_DIALOG_URL_FILE").map(PathBuf::from),

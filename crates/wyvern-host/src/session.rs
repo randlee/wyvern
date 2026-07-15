@@ -18,6 +18,7 @@ use std::time::Duration;
 
 use tokio::sync::{oneshot, Mutex, OwnedSemaphorePermit, Semaphore};
 use wyvern_schema::Command;
+use wyvern_wizard::{WizardError, WizardSession, WizardSnapshot};
 
 use crate::picker::MockPickerConfig;
 
@@ -36,6 +37,8 @@ pub(crate) struct SessionState {
 
 struct SessionInner {
     command: Command,
+    /// Present when the active command is [`Command::Wizard`].
+    wizard: Option<WizardSession>,
     result_tx: Option<oneshot::Sender<wyvern_schema::CommandResult>>,
 }
 
@@ -46,9 +49,14 @@ impl SessionState {
         result_tx: oneshot::Sender<wyvern_schema::CommandResult>,
         mock_picker: Option<MockPickerConfig>,
     ) -> Self {
+        let wizard = match &command {
+            Command::Wizard(wizard_cmd) => Some(WizardSession::new(wizard_cmd)),
+            _ => None,
+        };
         Self {
             inner: Arc::new(Mutex::new(SessionInner {
                 command,
+                wizard,
                 result_tx: Some(result_tx),
             })),
             // Serialize picker spawn_blocking so repeated POSTs cannot exhaust
@@ -61,6 +69,18 @@ impl SessionState {
     /// Clone of the active command for `/api/dialog`.
     pub(crate) async fn command(&self) -> Command {
         self.inner.lock().await.command.clone()
+    }
+
+    /// Snapshot of the wizard session, if this is a wizard dialog.
+    ///
+    /// Clones the session under the mutex, then builds the snapshot after the
+    /// lock is released so cloning config/page/stack does not extend hold time.
+    pub(crate) async fn wizard_snapshot(&self) -> Result<WizardSnapshot, WizardError> {
+        let session = {
+            let guard = self.inner.lock().await;
+            guard.wizard.clone().ok_or(WizardError::NotInitialized)?
+        };
+        Ok(session.snapshot())
     }
 
     /// In-process mock picker config, if any.

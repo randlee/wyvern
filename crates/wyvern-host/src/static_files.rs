@@ -29,8 +29,46 @@ pub(crate) fn require_type_dir(ui_root: &Path, type_name: &str) -> Result<PathBu
     Ok(root)
 }
 
+/// Resolve `--ui-root` for a wizard and ensure `page.html` exists under it.
+pub(crate) fn require_wizard_page(ui_root: &Path, page_html: &str) -> Result<PathBuf, HostError> {
+    let root = ui_root
+        .canonicalize()
+        .map_err(|source| HostError::UiNotFound {
+            path: ui_root.to_path_buf(),
+            source: Some(source),
+        })?;
+    let page_path = safe_join(&root, page_html).ok_or_else(|| HostError::UiNotFound {
+        path: root.join(page_html),
+        source: None,
+    })?;
+    if !page_path.is_file() {
+        return Err(HostError::UiNotFound {
+            path: page_path,
+            source: None,
+        });
+    }
+    Ok(root)
+}
+
+/// Canonicalize packaged `shared_ui_root` and require `shared/wyvern-api.js`.
+pub(crate) fn require_shared_ui_root(shared_ui_root: &Path) -> Result<PathBuf, HostError> {
+    let root = shared_ui_root
+        .canonicalize()
+        .map_err(|source| HostError::UiNotFound {
+            path: shared_ui_root.to_path_buf(),
+            source: Some(source),
+        })?;
+    let api_js = root.join("shared").join("wyvern-api.js");
+    if !api_js.is_file() {
+        return Err(HostError::UiNotFound {
+            path: api_js,
+            source: None,
+        });
+    }
+    Ok(root)
+}
+
 /// Join `root` with a URL path, rejecting `..` and absolute components.
-#[cfg(test)]
 pub(crate) fn safe_join(root: &Path, url_path: &str) -> Option<PathBuf> {
     use std::path::Component;
 

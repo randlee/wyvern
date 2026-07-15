@@ -1,8 +1,9 @@
 ---
 id: d.1
 title: Wizard host — HTTP + initial stack snapshot
-status: planning
+status: complete
 branch: feature/phase-D-d1-wizard-host
+worktree: /Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-D-d1-wizard-host
 target: integrate/phase-D
 ---
 
@@ -48,12 +49,14 @@ pub struct WizardSnapshot {
 
 pub enum WizardError {
     AtFirstPage,
-    InvalidCommand(String),
+    InvalidCommand { field: String, reason: String },
     StackMismatch, // client finish stack ≠ session-derived stack
+    NotInitialized,
 }
 
 impl WizardSession {
-    pub fn new(command: &WizardCommand) -> Result<Self, WizardError>;
+    /// Schema-validated page newtypes make construction infallible in d.1.
+    pub fn new(command: &WizardCommand) -> Self;
     pub fn snapshot(&self) -> WizardSnapshot;
 }
 ```

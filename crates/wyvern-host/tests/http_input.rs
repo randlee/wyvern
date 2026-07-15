@@ -27,6 +27,7 @@ fn host_options(url_file: PathBuf) -> HostOptions {
     HostOptions {
         bind: SocketAddr::from(([127, 0, 0, 1], 0)),
         ui_root: workspace_ui_root(),
+        shared_ui_root: workspace_ui_root(),
         viewer: ViewerMode::None,
         dialog_url_env: true,
         dialog_url_file: Some(url_file),

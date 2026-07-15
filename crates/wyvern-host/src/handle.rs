@@ -148,12 +148,14 @@ fn run_begin_worker(
     rt.block_on(async move {
         let (result_tx, result_rx) = oneshot::channel();
         let (dismiss_tx, dismiss_rx) = oneshot::channel();
-        let session = SessionState::new(command, result_tx, options.mock_picker.clone());
-        let (bound, ui_root) = match bind_server(
+        let session = SessionState::new(command.clone(), result_tx, options.mock_picker.clone());
+        let (bound, roots) = match bind_server(
             options.bind,
             options.allow_non_loopback,
             &options.ui_root,
-            type_name.as_str(),
+            &options.shared_ui_root,
+            &command,
+            type_name,
         )
         .await
         {
@@ -186,7 +188,7 @@ fn run_begin_worker(
         serve_until_result(
             bound,
             session,
-            ui_root,
+            roots,
             result_rx,
             options.session_timeout,
             dismiss_rx,
@@ -205,12 +207,14 @@ pub(crate) async fn run_owned_async(
 ) -> Result<CommandResult, HostError> {
     let (result_tx, result_rx) = oneshot::channel();
     let (_dismiss_tx, dismiss_rx) = oneshot::channel();
-    let session = SessionState::new(command, result_tx, options.mock_picker.clone());
-    let (bound, ui_root) = bind_server(
+    let session = SessionState::new(command.clone(), result_tx, options.mock_picker.clone());
+    let (bound, roots) = bind_server(
         options.bind,
         options.allow_non_loopback,
         &options.ui_root,
-        type_name.as_str(),
+        &options.shared_ui_root,
+        &command,
+        type_name,
     )
     .await?;
 
@@ -233,7 +237,7 @@ pub(crate) async fn run_owned_async(
     serve_until_result(
         bound,
         session,
-        ui_root,
+        roots,
         result_rx,
         options.session_timeout,
         dismiss_rx,
@@ -248,6 +252,7 @@ pub(crate) fn dialog_type_name(command: &Command) -> DialogTypeName {
         Command::Input { .. } => DialogTypeName::Input,
         Command::Markdown { .. } => DialogTypeName::Markdown,
         Command::Question { .. } => DialogTypeName::Question,
+        Command::Wizard(_) => DialogTypeName::Wizard,
     }
 }
 
@@ -280,6 +285,9 @@ fn clone_host_error_message(err: &HostError) -> HostError {
         },
         HostError::Internal { message } => HostError::Internal {
             message: message.clone(),
+        },
+        HostError::Wizard { source } => HostError::Wizard {
+            source: source.clone(),
         },
     }
 }
