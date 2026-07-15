@@ -151,7 +151,7 @@ Phase D sprint PRs target `integrate/phase-D`. Sprint authority: `docs/plans/pha
 | d.3 | Browser-history navigation model | [d3-history-nav.md](phase-D/d3-history-nav.md) |
 | d.4 | Stack injection and data restoration | [d4-stack-inject.md](phase-D/d4-stack-inject.md) |
 | d.5 | Example DAG layout-picker wizard | [d5-dag-example.md](phase-D/d5-dag-example.md) |
-| d.6 | Wizard polish and edge cases | [d6-wizard-polish.md](phase-D/d6-wizard-polish.md) |
+| d.6 | Wizard polish, viewport sizing, workspace layout | [d6-wizard-polish.md](phase-D/d6-wizard-polish.md) |
 
 ---
 
