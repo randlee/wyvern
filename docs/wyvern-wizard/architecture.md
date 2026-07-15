@@ -21,7 +21,7 @@ Cursor-over-array browser-history model:
 - Users explore back/forward freely without losing entered data
 - Branching correctly clears stale forward history
 - **`wyvern-wizard`** owns history logic (cursor, truncate, restore) inside private modules
-- **`wyvern-host`** owns HTTP session storage of `Box<dyn WizardNavigator>` and serializes `snapshot()` only
+- **`wyvern-host`** owns HTTP session storage of `WizardSession` and serializes `snapshot()` only
 - Pages direct navigation by returning their own descriptor plus an explicit next-page descriptor when advancing
 - Slightly more complex than a simple stack but well-understood (browser model)
 

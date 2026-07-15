@@ -64,11 +64,11 @@ Host stores and passes through page `data` without inspection. Domain branching 
 
 ---
 
-### ADR-0007: Wizard logic exposed only through traits
+### ADR-0007: Single `WizardSession` type hides history internals
 
 **Status:** Accepted (planning — Phase D d.1)
 
-`wyvern-wizard` publishes `WizardEngine` / `WizardNavigator` traits; `BrowserHistory` internals stay private. `wyvern-host` routes call traits only. Full text: [docs/wyvern-wizard/architecture.md](wyvern-wizard/architecture.md).
+`wyvern-wizard` exposes one concrete `WizardSession`; private `history` holds `entries` + `cursor`. `wyvern-host` holds the session and serializes `snapshot()`. Full text: [docs/wyvern-wizard/architecture.md](wyvern-wizard/architecture.md).
 
 ---
 
