@@ -2,10 +2,12 @@
 //!
 //! Asserts `config`, `page`, `page_data`, and prior-only `stack` (no IPC).
 
+mod support;
+use support::http::{http_client, wait_for_url_file, wait_for_wizard_state};
+
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::thread;
 use std::time::Duration;
 
 use wyvern_host::{begin, DialogHandle, HostOptions, ViewerMode};
@@ -82,47 +84,6 @@ fn host_options(ui_root: PathBuf, url_file: PathBuf) -> HostOptions {
         allow_non_loopback: false,
         session_timeout: Duration::from_secs(30),
         mock_picker: None,
-    }
-}
-
-fn http_client() -> reqwest::blocking::Client {
-    reqwest::blocking::Client::builder()
-        .timeout(Duration::from_secs(5))
-        .build()
-        .expect("http client")
-}
-
-fn wait_for_url_file(path: &std::path::Path) -> String {
-    let start = std::time::Instant::now();
-    loop {
-        if let Ok(url) = std::fs::read_to_string(path) {
-            let url = url.trim().to_string();
-            if !url.is_empty() {
-                return url;
-            }
-        }
-        if start.elapsed() > Duration::from_secs(15) {
-            panic!("timed out waiting for dialog URL file {}", path.display());
-        }
-        thread::sleep(Duration::from_millis(20));
-    }
-}
-
-fn wait_for_wizard_state(client: &reqwest::blocking::Client, base: &str) -> serde_json::Value {
-    let url = format!("{base}/api/wizard/state");
-    let start = std::time::Instant::now();
-    loop {
-        match client.get(&url).send() {
-            Ok(resp) if resp.status() == reqwest::StatusCode::OK => {
-                return resp.json().expect("state json");
-            }
-            Ok(_) | Err(_) => {
-                if start.elapsed() > Duration::from_secs(15) {
-                    panic!("timed out waiting for GET /api/wizard/state at {url}");
-                }
-                thread::sleep(Duration::from_millis(20));
-            }
-        }
     }
 }
 

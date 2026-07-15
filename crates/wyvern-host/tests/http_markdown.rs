@@ -1,7 +1,10 @@
 //! L1 HTTP tests for markdown dialog — content_html + result shape.
 
+mod support;
+use support::http::{http_client, wait_for_dialog_ready, wait_for_url_file};
+
 use std::net::SocketAddr;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::thread;
 use std::time::Duration;
 
@@ -21,7 +24,7 @@ fn host_options(url_file: PathBuf) -> HostOptions {
         dialog_url_env: true,
         dialog_url_file: Some(url_file),
         allow_non_loopback: false,
-        session_timeout: wyvern_host::DEFAULT_SESSION_TIMEOUT,
+        session_timeout: Duration::from_secs(30),
         mock_picker: None,
     }
 }
@@ -39,41 +42,6 @@ fn markdown_command(content: &str) -> Command {
     }
 }
 
-fn wait_for_url_file(path: &Path) -> String {
-    let start = std::time::Instant::now();
-    loop {
-        if let Ok(url) = std::fs::read_to_string(path) {
-            let url = url.trim().to_string();
-            if url.starts_with("http://") {
-                return url;
-            }
-        }
-        if start.elapsed() > Duration::from_secs(15) {
-            panic!("timed out waiting for dialog URL file: {}", path.display());
-        }
-        thread::sleep(Duration::from_millis(20));
-    }
-}
-
-/// Poll `GET /api/dialog` until HTTP 200 (URL file alone is not readiness).
-fn wait_for_dialog_ready(client: &reqwest::blocking::Client, base: &str) -> serde_json::Value {
-    let url = format!("{base}/api/dialog");
-    let start = std::time::Instant::now();
-    loop {
-        match client.get(&url).send() {
-            Ok(resp) if resp.status() == reqwest::StatusCode::OK => {
-                return resp.json().expect("dialog json");
-            }
-            Ok(_) | Err(_) => {
-                if start.elapsed() > Duration::from_secs(15) {
-                    panic!("timed out waiting for GET /api/dialog at {url}");
-                }
-                thread::sleep(Duration::from_millis(20));
-            }
-        }
-    }
-}
-
 #[test]
 fn run_markdown_posts_ok_via_http() {
     let tmp = tempfile::tempdir().expect("temp dir");
@@ -86,7 +54,7 @@ fn run_markdown_posts_ok_via_http() {
         .trim_end_matches("/markdown/")
         .trim_end_matches('/');
 
-    let client = reqwest::blocking::Client::new();
+    let client = http_client();
     let dialog = wait_for_dialog_ready(&client, base);
     assert_eq!(dialog["type"], "markdown");
     assert_eq!(dialog["title"], "Doc");
@@ -148,7 +116,7 @@ fn dialog_content_html_strips_script_tags() {
         .trim_end_matches("/markdown/")
         .trim_end_matches('/');
 
-    let client = reqwest::blocking::Client::new();
+    let client = http_client();
     let dialog = wait_for_dialog_ready(&client, base);
 
     let content_html = dialog["content_html"].as_str().expect("content_html");
@@ -182,7 +150,7 @@ fn dialog_rejects_oversized_markdown_content() {
         .trim_end_matches("/markdown/")
         .trim_end_matches('/');
 
-    let client = reqwest::blocking::Client::new();
+    let client = http_client();
     let start = std::time::Instant::now();
     let response = loop {
         match client.get(format!("{base}/api/dialog")).send() {
@@ -225,7 +193,7 @@ fn result_invalid_markdown_includes_cause_recovery_docs() {
         .trim_end_matches("/markdown/")
         .trim_end_matches('/');
 
-    let client = reqwest::blocking::Client::new();
+    let client = http_client();
     let _ = wait_for_dialog_ready(&client, base);
     let response = client
         .post(format!("{base}/api/result"))
