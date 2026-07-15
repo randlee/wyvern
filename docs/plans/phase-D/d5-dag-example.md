@@ -28,7 +28,32 @@ Exact paths (authoritative):
 | `examples/wizards/layout-picker/pages/finish.html` | Optional summary page before finish |
 | `examples/wizards/layout-picker/app.js` | DAG branching via `wyvernWizardNext` + explicit `next` descriptors |
 | `examples/wizards/layout-picker/styles.css` | Layout card grid |
+| `examples/wizards/workspace-hint/` | **new** — minimal workspace page proving `config.layout` + Flowise-style hints |
 | `crates/wyvern-host/tests/wizard_layout_picker.rs` | **new** — HTTP integration against fixture |
+
+### Workspace size hints (Flowise / Flowwise-style)
+
+Small DAG/graph surfaces may not be full-screen. External tools (e.g. Flowise) can supply bounds Wyvern does not compute.
+
+**d.5 proves the wire shape** in `examples/wizards/workspace-hint/wizard.json`:
+
+```json
+{
+  "type": "wizard",
+  "page": { "id": "graph", "title": "Flow", "html": "pages/graph.html" },
+  "config": {
+    "layout": "workspace",
+    "estimated_size": { "width": 960, "height": 640 },
+    "flowise": { "estimated_width": 960, "estimated_height": 640 }
+  }
+}
+```
+
+- `pages/graph.html` uses `dialog--workspace` (CSS) — internal pan/scroll for canvas.
+- Page reads `window.wyvern.config.estimated_size` (normalized from `flowise.*` in bootstrap).
+- **d.5** documents hint passthrough only; **d.6** implements viewer sizing policy ([viewport-sizing.md](viewport-sizing.md)).
+
+Authority: [viewport-sizing.md](viewport-sizing.md) — workspace mode.
 
 ### `wizard.json` (authoritative fixture)
 
@@ -74,6 +99,7 @@ Domain logic stays in JS — host/wizard only store opaque `data` blobs (ADR-000
 6. `POST /api/wizard/finish` returns full stack with layout selection + all agent configs
 7. Phase D smoke: full flow with back-navigation and data restoration (select pair → agent-1 → back → change to solo → complete)
 8. `cargo test -p wyvern-host wizard_layout_picker` passes without a GUI
+9. `workspace-hint` example: `config.layout: "workspace"` + `estimated_size` / `flowise` hints render without manual resize
 
 ## Required validation
 
@@ -81,17 +107,21 @@ Domain logic stays in JS — host/wizard only store opaque `data` blobs (ADR-000
 cargo build --workspace
 cargo clippy --workspace -- -D warnings
 cargo test -p wyvern-host wizard_layout_picker
+cargo test -p wyvern-host wizard_workspace_hint
 # L2: examples/wizards/layout-picker end-to-end --viewer none
 wyvern "$(cat examples/wizards/layout-picker/wizard.json)" --viewer none --ui-root examples/wizards/layout-picker
+wyvern "$(cat examples/wizards/workspace-hint/wizard.json)" --viewer embedded --ui-root examples/wizards/workspace-hint
 npx playwright test tests/l2/wizard-layout-picker.spec.ts
 ```
 
 ## Non-closure
 
+- Viewport slack sizing implementation in `wyvern-api.js` / viewer (d.6)
 - Wizard polish and edge cases (d.6)
 
 ## Authority
 
 - [http-wizard-contract.md](../phase-C/http-wizard-contract.md)
 - [project-plan.md](../../project-plan.md) — Phase D acceptance criteria
+- [viewport-sizing.md](viewport-sizing.md)
 - ADR-0006

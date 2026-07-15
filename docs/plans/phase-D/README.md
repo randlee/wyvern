@@ -43,7 +43,8 @@ See [docs/wyvern-wizard/architecture.md](../../wyvern-wizard/architecture.md) AD
 - Browser-history navigation model (ADR-0005) in `wyvern-wizard` behind `WizardEngine`
 - Stack injection and data restoration across pages (REQ-0024)
 - Example DAG layout-picker wizard
-- Wizard polish and edge cases
+- Wizard polish, edge cases, and **viewport sizing policy** — [viewport-sizing.md](viewport-sizing.md)
+- Workspace layout path for DAG/graph pages (Flowise-style size hints supported)
 
 **Hard dependency:** Phase C **c.16** complete (`wyvern-host`, packaged `ui/`, `wyvern-viewer` optional).
 
@@ -61,7 +62,14 @@ See [docs/wyvern-wizard/architecture.md](../../wyvern-wizard/architecture.md) AD
 | d.3 | [d3-history-nav.md](d3-history-nav.md) | `feature/phase-D-d3-history-nav` |
 | d.4 | [d4-stack-inject.md](d4-stack-inject.md) | `feature/phase-D-d4-stack-inject` |
 | d.5 | [d5-dag-example.md](d5-dag-example.md) | `feature/phase-D-d5-dag-example` |
-| d.6 | [d6-wizard-polish.md](d6-wizard-polish.md) | `feature/phase-D-d6-wizard-polish` |
+| d.6 | [d6-wizard-polish.md](d6-wizard-polish.md) — polish, viewport sizing, workspace layout | `feature/phase-D-d6-wizard-polish` |
+
+## Viewport sizing (cross-cutting)
+
+High-churn agent dialogs must **fit on screen without manual resize iteration**. Policy: [viewport-sizing.md](viewport-sizing.md).
+
+- **Dialog steps** — intrinsic measure + ~25% slack, viewport clamp, scroll overflow (d.6).
+- **Workspace / DAG pages** — full viewport or Flowise-style `estimated_size` hints (d.5 example + d.6 viewer/API).
 
 ## Boundary files (tightened in plan hardening)
 

@@ -103,6 +103,24 @@ Boundary rules are encoded in `boundaries/` and enforced in CI.
 
 ---
 
+### ADR-0020: Viewport-fit sizing with slack; workspace layout mode
+
+**Status:** Accepted (planning — Phase D d.6)
+
+**Context:** Agent-driven dialogs are high-churn (many unique payloads per day). Fixed pixel tiers and measure-time width caps cause manual resize iteration. DAG/graph tools (Flowise, Flowwise-style) need full viewport or tool-supplied bounds.
+
+**Decision:**
+
+1. **Dialog mode (default):** intrinsic DOM measure + ~25% slack → clamp to available viewport → internal scroll on overflow. No fixed compact widths during measure.
+2. **Workspace mode:** `config.layout: "workspace"`; size from command `width`/`height`, `config.estimated_size`, or tool hints (`config.flowise.estimated_*`); clamp to viewport; page owns pan/zoom.
+3. Viewer hidden until first valid resize; passes viewport bounds to page.
+
+Full policy: [docs/plans/phase-D/viewport-sizing.md](plans/phase-D/viewport-sizing.md).
+
+**Consequences:** Applies to all dialog types via `wyvern-api.js`, not only wizard. Phase D d.6 implements; d.5 proves workspace hint wire shape.
+
+---
+
 ### ADR-0016: HTTP dialog host with packaged, pluggable UI
 
 **Status:** Accepted (planning — c.10+)

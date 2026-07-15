@@ -1,22 +1,47 @@
 ---
 id: d.6
-title: Wizard polish and edge cases
+title: Wizard polish, viewport sizing, and workspace layout
 status: planning
 branch: feature/phase-D-d6-wizard-polish
 target: integrate/phase-D
 ---
 
-# Sprint d.6 — Wizard polish and edge cases
+# Sprint d.6 — Wizard polish, viewport sizing, and workspace layout
 
 ## Goal
 
-Close wizard UX edge cases and viewer-dismiss integration for wizard pages.
+Close wizard UX edge cases, viewer-dismiss integration, and **zero-touch viewport sizing** for high-churn agent dialogs and workspace pages.
+
+Authority: [viewport-sizing.md](viewport-sizing.md), ADR-0020.
 
 ## Hard dependencies
 
-- **d.5** merged
+- **d.5** merged (includes `workspace-hint` example + hint wire shape)
 
 ## Deliverables
+
+### Viewport sizing (`ui/shared/wyvern-api.js` + `wyvern-viewer`)
+
+| File | Change |
+|------|--------|
+| `ui/shared/wyvern-api.js` | `applySizingPolicy()`, slack (~1.25×), viewport clamp, `applyWorkspaceLayout()` |
+| `ui/shared/embedded-chrome.css` | `dialog--workspace` styles |
+| `crates/wyvern-viewer/src/run.rs` | Hidden until first resize; viewport bounds IPC to page; multi-resize refinement window |
+| `crates/wyvern-viewer/src/platform.rs` | Document bootstrap policy (no 320×240 visible flash) |
+| `docs/plans/phase-C/http-wizard-contract.md` | `config.layout`, `estimated_size`, Flowise hint passthrough |
+| `tests/l2/viewport-sizing.spec.ts` | **new** — golden dialog fit + workspace hint cases |
+
+**Dialog mode (default):**
+
+- Measure at natural width; apply ~25% slack; clamp to viewer-reported viewport × 0.92.
+- Measure before `visibility: visible`; remeasure on `fonts.ready` + `ResizeObserver`.
+- Overflow → `.content { overflow: auto }` inside clamped window.
+
+**Workspace mode (`config.layout === "workspace"`):**
+
+- Prefer `width`/`height` on command, else `config.estimated_size`, else normalize `config.flowise.estimated_*`.
+- Clamp hints to viewport; fill viewport when hints omitted (full-screen DAG).
+- Skip compact `COMFORT_MAX_W` measure path.
 
 ### Shared wizard chrome (`ui/wizard/` — new packaged templates)
 
@@ -51,6 +76,7 @@ Pages may opt in: `<script src="/shared/wizard-nav.js" data-wizard-chrome></scri
 ### L2 regression
 
 - `tests/l2/wizard-edge-cases.spec.ts` — first-page back hidden, N=1, empty data, dismissed
+- `tests/l2/viewport-sizing.spec.ts` — dialog slack fit + workspace Flowise hints
 
 ## Acceptance criteria
 
@@ -61,6 +87,9 @@ Pages may opt in: `<script src="/shared/wizard-nav.js" data-wizard-chrome></scri
 5. Wizard with a single page (N=1) works correctly end-to-end
 6. Viewer close on any wizard page returns `{"button":"dismissed","stack":[...]}` via `POST /api/wizard/finish` (not `navigate`)
 7. Layout-picker example still passes full smoke from d.5
+8. Dialog auto-size: representative message/input payloads fit on first open with slack (golden L2, no manual resize)
+9. Workspace-hint example: Flowise-shaped `estimated_size` honored and viewport-clamped
+10. Viewer does not flash at 320×240 before first content-sized resize
 
 ## Required validation
 
@@ -69,17 +98,21 @@ cargo build --workspace
 cargo clippy --workspace -- -D warnings
 cargo test -p wyvern-host wizard_polish
 cargo test -p wyvern-wizard single_page
-# L2: wizard edge cases --viewer none
-npx playwright test tests/l2/wizard-edge-cases.spec.ts
+cargo test -p wyvern-viewer viewport_bounds
+# L2: wizard edge cases + viewport sizing
+npx playwright test tests/l2/wizard-edge-cases.spec.ts tests/l2/viewport-sizing.spec.ts
 ```
 
 ## Non-closure
 
 - `--interactive` wizard loops (Phase E)
 - MCP wizard tools (Phase E e.3, after d.2)
+- Live Flowise API integration (hint JSON only in Phase D)
 
 ## Authority
 
+- [viewport-sizing.md](viewport-sizing.md)
 - [http-wizard-contract.md](../phase-C/http-wizard-contract.md)
 - [http-viewer-contract.md](../phase-C/http-viewer-contract.md) — viewer dismiss protocol
-- REQ-0066 (`dismissed` button)
+- REQ-0066 (`dismissed` button), REQ-V008 (auto-size amendment)
+- ADR-0020
