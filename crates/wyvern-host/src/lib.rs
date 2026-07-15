@@ -102,6 +102,11 @@ pub fn run(command: Command, options: HostOptions) -> Result<CommandResult, Host
             let _ = done_tx.send(result);
         });
 
+        // Pump the main-thread picker while the worker runs. Do not treat
+        // `join.is_finished() + Empty` as failure: the worker sends on `done_tx`
+        // before exit, so a try_recv/is_finished race can observe Empty after
+        // the send and spuriously report "exited without a result" (macOS CI).
+        // Channel close (Disconnected) is the sole "no result" signal.
         loop {
             picker_pump.drain(Duration::from_millis(10));
             match done_rx.try_recv() {
@@ -109,13 +114,7 @@ pub fn run(command: Command, options: HostOptions) -> Result<CommandResult, Host
                     let _ = join.join();
                     return result;
                 }
-                Err(mpsc::TryRecvError::Empty) if !join.is_finished() => {}
-                Err(mpsc::TryRecvError::Empty) => {
-                    let _ = join.join();
-                    return Err(HostError::Internal {
-                        message: "host worker exited without a result".into(),
-                    });
-                }
+                Err(mpsc::TryRecvError::Empty) => {}
                 Err(mpsc::TryRecvError::Disconnected) => {
                     let _ = join.join();
                     return Err(HostError::Internal {
