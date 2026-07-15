@@ -1,5 +1,8 @@
 //! L1: dual-mount — `/shared/wyvern-api.js` when `--ui-root` is an example dir.
 
+mod support;
+use support::http::{http_client, wait_for_url_file};
+
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -43,22 +46,6 @@ fn wizard_command() -> Command {
     })
 }
 
-fn wait_for_url_file(path: &std::path::Path) -> String {
-    let start = std::time::Instant::now();
-    loop {
-        if let Ok(url) = std::fs::read_to_string(path) {
-            let url = url.trim().to_string();
-            if !url.is_empty() {
-                return url;
-            }
-        }
-        if start.elapsed() > Duration::from_secs(15) {
-            panic!("timed out waiting for dialog URL file {}", path.display());
-        }
-        thread::sleep(Duration::from_millis(20));
-    }
-}
-
 /// Poll shared JS GET until HTTP 200 (URL file alone is not readiness).
 fn wait_for_shared_js(client: &reqwest::blocking::Client, url: &str) -> String {
     let start = std::time::Instant::now();
@@ -99,7 +86,7 @@ fn wizard_shared_mount_serves_wyvern_api_js_with_example_ui_root() {
         .map(|(b, _)| b.trim_end_matches('/').to_string())
         .expect("wizard path");
 
-    let client = reqwest::blocking::Client::new();
+    let client = http_client();
     let js = wait_for_shared_js(&client, &format!("{base}/shared/wyvern-api.js"));
     assert!(
         js.contains("wyvern") || js.contains("fetch") || !js.is_empty(),
