@@ -1,5 +1,5 @@
 [package]
-name             = "wyvern"
+name             = "wyvern-cli"
 version.workspace    = true
 edition.workspace    = true
 rust-version.workspace = true
@@ -12,6 +12,10 @@ categories   = ["command-line-utilities", "gui"]
 readme       = "../../README.md"
 # ui/ is included here for cargo-install users (no separate share/wyvern/ui needed).
 include      = ["src/**", "ui/**", "Cargo.toml"]
+
+[lib]
+name = "wyvern"
+path = "src/lib.rs"
 
 [[bin]]
 name = "wyvern"
