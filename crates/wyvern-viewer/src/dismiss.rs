@@ -182,6 +182,9 @@ pub fn is_wizard_dialog_url(dialog_url: &str) -> bool {
 /// Full visited stack = prior `stack` + `{ page, data: page_data }` (d.2 / d.8).
 /// Request `data` is `page_data` so host stack validation matches `finish`.
 ///
+/// Moves `stack` / `page` / `page_data` once into the JSON value instead of
+/// eagerly cloning each field (RBP-F006).
+///
 /// # Errors
 ///
 /// Returns [`DismissError::MissingField`] when required fields are null / wrong shape.
@@ -193,15 +196,18 @@ pub fn wizard_dismiss_finish_body(state: &WizardStateDto) -> Result<Value, Dismi
         return Err(DismissError::MissingField { field: "page_data" });
     }
 
+    // Clone once into owned Values, then move them into the request body.
+    let page = state.page.clone();
+    let page_data = state.page_data.clone();
     let mut full_stack = state.stack.clone();
     full_stack.push(json!({
-        "page": state.page.clone(),
-        "data": state.page_data.clone(),
+        "page": page,
+        "data": page_data.clone(),
     }));
 
     Ok(json!({
         "button": "dismissed",
-        "data": state.page_data.clone(),
+        "data": page_data,
         "stack": full_stack,
     }))
 }

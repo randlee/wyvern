@@ -1,10 +1,10 @@
 //! Viewer dismiss routing: wizard finish stack vs blocking `/api/result` (d.8).
 
 use std::io::{Read, Write};
-use std::net::TcpListener;
+use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use serde_json::{json, Value};
 use wyvern_viewer::{
@@ -18,6 +18,58 @@ struct Recorded {
     bodies: Vec<String>,
 }
 
+/// Read a single HTTP request until headers + Content-Length body are complete (FTQ-002).
+fn read_http_request(stream: &mut TcpStream) -> String {
+    let mut buf = Vec::new();
+    let mut tmp = [0u8; 1024];
+    let deadline = Instant::now() + Duration::from_secs(2);
+    loop {
+        if Instant::now() > deadline {
+            break;
+        }
+        match stream.read(&mut tmp) {
+            Ok(0) => break,
+            Ok(n) => {
+                buf.extend_from_slice(&tmp[..n]);
+                if let Some(header_end) = find_header_end(&buf) {
+                    let content_len = parse_content_length(&buf[..header_end]).unwrap_or(0);
+                    if buf.len() >= header_end + content_len {
+                        break;
+                    }
+                }
+            }
+            Err(e)
+                if e.kind() == std::io::ErrorKind::WouldBlock
+                    || e.kind() == std::io::ErrorKind::TimedOut =>
+            {
+                if find_header_end(&buf).is_some() {
+                    break;
+                }
+            }
+            Err(_) => break,
+        }
+    }
+    String::from_utf8_lossy(&buf).into_owned()
+}
+
+fn find_header_end(buf: &[u8]) -> Option<usize> {
+    buf.windows(4)
+        .position(|w| w == b"\r\n\r\n")
+        .map(|i| i + 4)
+        .or_else(|| buf.windows(2).position(|w| w == b"\n\n").map(|i| i + 2))
+}
+
+fn parse_content_length(headers: &[u8]) -> Option<usize> {
+    let text = String::from_utf8_lossy(headers);
+    for line in text.lines() {
+        let lower = line.to_ascii_lowercase();
+        if let Some(rest) = lower.strip_prefix("content-length:") {
+            return rest.trim().parse().ok();
+        }
+    }
+    None
+}
+
 fn spawn_mock_host(state: Value, recorded: Arc<Mutex<Recorded>>) -> String {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
     let addr = listener.local_addr().expect("addr");
@@ -28,9 +80,7 @@ fn spawn_mock_host(state: Value, recorded: Arc<Mutex<Recorded>>) -> String {
                 break;
             };
             stream.set_read_timeout(Some(Duration::from_secs(2))).ok();
-            let mut buf = [0u8; 8192];
-            let n = stream.read(&mut buf).unwrap_or(0);
-            let req = String::from_utf8_lossy(&buf[..n]);
+            let req = read_http_request(&mut stream);
             let first = req.lines().next().unwrap_or("");
             let mut parts = first.split_whitespace();
             let method = parts.next().unwrap_or("").to_string();
@@ -70,6 +120,21 @@ fn spawn_mock_host(state: Value, recorded: Arc<Mutex<Recorded>>) -> String {
     format!("http://{addr}")
 }
 
+fn wait_for_recorded(recorded: &Arc<Mutex<Recorded>>, min_len: usize) {
+    let deadline = Instant::now() + Duration::from_secs(2);
+    loop {
+        let len = recorded.lock().expect("lock").methods.len();
+        if len >= min_len {
+            return;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "mock host recorded {len} requests; wanted at least {min_len}"
+        );
+        thread::sleep(Duration::from_millis(10));
+    }
+}
+
 #[test]
 fn wizard_dismiss_posts_finish_with_full_visited_stack() {
     let state = json!({
@@ -90,8 +155,7 @@ fn wizard_dismiss_posts_finish_with_full_visited_stack() {
     assert!(is_wizard_dialog_url(&dialog_url));
 
     post_dismissed(&dialog_url);
-    // Allow the mock thread to accept both requests.
-    thread::sleep(Duration::from_millis(100));
+    wait_for_recorded(&recorded, 2);
 
     let rec = recorded.lock().expect("lock");
     assert_eq!(rec.methods.len(), 2, "expected GET state + POST finish");
@@ -117,7 +181,7 @@ fn wizard_dismiss_blocking_posts_api_result_only() {
     assert!(!is_wizard_dialog_url(&dialog_url));
 
     post_dismissed(&dialog_url);
-    thread::sleep(Duration::from_millis(100));
+    wait_for_recorded(&recorded, 1);
 
     let rec = recorded.lock().expect("lock");
     assert_eq!(rec.methods.len(), 1);

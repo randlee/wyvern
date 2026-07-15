@@ -20,6 +20,13 @@ use crate::static_files::{require_shared_ui_root, require_type_dir, require_wiza
 /// Max JSON body size for `/api/*` routes (dialog payloads are small).
 const API_BODY_LIMIT_BYTES: usize = 256 * 1024;
 
+/// Per-request HTTP budget — above [`crate::session::PICKER_TIMEOUT`] so native
+/// pickers are not cut off by the tower timeout layer (RSH-001).
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(310);
+
+/// Header name for request correlation (RSH-003).
+const REQUEST_ID_HEADER: &str = "x-request-id";
+
 /// Bound listener + dialog URL after successful TCP bind.
 pub(crate) struct BoundServer {
     pub(crate) listener: TcpListener,
@@ -100,6 +107,10 @@ fn enforce_bind_policy(bind: SocketAddr, allow_non_loopback: bool) -> Result<(),
 
 /// Build the axum router for the one-shot session.
 pub(crate) fn build_router(session: SessionState, roots: StaticRoots) -> Router {
+    use tower_http::request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer};
+    use tower_http::timeout::TimeoutLayer;
+    use tower_http::trace::TraceLayer;
+
     let shared_dir = ServeDir::new(roots.shared_ui_root.join("shared"));
     let api = Router::new()
         .route("/api/dialog", get(dialog::get_dialog))
@@ -111,7 +122,7 @@ pub(crate) fn build_router(session: SessionState, roots: StaticRoots) -> Router 
         .route("/api/wizard/finish", post(wizard::post_wizard_finish))
         .layer(RequestBodyLimitLayer::new(API_BODY_LIMIT_BYTES));
 
-    if roots.is_wizard {
+    let app = if roots.is_wizard {
         let wizard_pages = ServeDir::new(roots.ui_root);
         Router::new()
             .merge(api)
@@ -127,7 +138,20 @@ pub(crate) fn build_router(session: SessionState, roots: StaticRoots) -> Router 
             .nest_service("/shared", shared_dir)
             .fallback_service(static_files)
             .with_state(session)
-    }
+    };
+
+    app.layer(TimeoutLayer::with_status_code(
+        axum::http::StatusCode::GATEWAY_TIMEOUT,
+        REQUEST_TIMEOUT,
+    ))
+    .layer(TraceLayer::new_for_http())
+    .layer(PropagateRequestIdLayer::new(
+        axum::http::HeaderName::from_static(REQUEST_ID_HEADER),
+    ))
+    .layer(SetRequestIdLayer::new(
+        axum::http::HeaderName::from_static(REQUEST_ID_HEADER),
+        MakeRequestUuid,
+    ))
 }
 
 /// Serve until a result arrives, session timeout, viewer-exit signal, or server failure.

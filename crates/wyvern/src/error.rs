@@ -385,16 +385,20 @@ pub fn emit_host_error(err: &wyvern_host::HostError) -> Result<String, EmitError
             ],
             "docs/wyvern-host/architecture.md",
         ),
-        HostError::Wizard { source } => (
-            ErrorCode::HostError,
-            source.to_string(),
-            "Wizard session failed during host setup or state access".to_string(),
-            vec![
-                "Ensure the command is type: wizard with a validated page object".into(),
-                "Retry the command; report a bug if a validated wizard has no session".into(),
-            ],
-            "docs/plans/phase-C/http-wizard-contract.md",
-        ),
+        HostError::Wizard { source } => {
+            let subcode = source.subcode();
+            (
+                ErrorCode::HostError,
+                format!("{subcode}: {source}"),
+                format!("{subcode}: wizard session failed during host setup or state access"),
+                vec![
+                    format!("See wizard error sub-code {subcode} for the specific failure"),
+                    "Ensure the command is type: wizard with a validated page object".into(),
+                    "Retry the command; report a bug if a validated wizard has no session".into(),
+                ],
+                "docs/plans/phase-C/http-wizard-contract.md",
+            )
+        }
     };
 
     let mut envelope = StderrError::new(code, message).cause(cause).docs(docs);

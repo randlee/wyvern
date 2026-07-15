@@ -27,8 +27,8 @@ fn cmd(first_html: &str) -> WizardCommand {
     }
 }
 
-// Module path so `cargo test history_four_cases` matches these names.
-mod history_four_cases {
+// Module path so `cargo test history_five_cases` matches these names.
+mod history_five_cases {
     use super::*;
 
     /// A→B→C advances the cursor (observed as growing prior `stack`).

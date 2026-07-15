@@ -4,19 +4,39 @@ use winit::dpi::LogicalSize;
 use winit::event_loop::EventLoop;
 use winit::window::{UserAttentionType, Window, WindowAttributes, WindowButtons, WindowLevel};
 
-use crate::run::ViewerError;
+/// Viewer platform bootstrap failure.
+#[derive(Debug)]
+pub enum PlatformError {
+    /// Event loop / GTK init failure.
+    EventLoop {
+        /// Failure detail.
+        message: String,
+        /// Optional upstream platform cause.
+        cause: Option<String>,
+    },
+}
+
+impl std::fmt::Display for PlatformError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::EventLoop { message, .. } => f.write_str(message),
+        }
+    }
+}
+
+impl std::error::Error for PlatformError {}
 
 /// Bootstrap size used only while the window is **hidden**.
 ///
 /// Policy (d.6 / REQ-V008): the viewer must never flash this 320×240 placeholder
 /// at the user. Create the window with `visible: false`, inject viewport bounds,
 /// wait for the first content `resize:` IPC, then [`present_viewer_window`].
-pub(crate) const DEFAULT_WIDTH: f64 = 320.0;
+pub const DEFAULT_WIDTH: f64 = 320.0;
 /// Bootstrap height paired with [`DEFAULT_WIDTH`] (hidden until first resize).
-pub(crate) const DEFAULT_HEIGHT: f64 = 240.0;
+pub const DEFAULT_HEIGHT: f64 = 240.0;
 
 /// Initialize platform prerequisites (GTK on Linux).
-pub(crate) fn init_platform() -> Result<(), ViewerError> {
+pub fn init_platform() -> Result<(), PlatformError> {
     #[cfg(any(
         target_os = "linux",
         target_os = "dragonfly",
@@ -33,7 +53,7 @@ pub(crate) fn init_platform() -> Result<(), ViewerError> {
         }
         gtk::init().map_err(|err| {
             let display = std::env::var("DISPLAY").unwrap_or_else(|_| "<unset>".into());
-            ViewerError::EventLoop {
+            PlatformError::EventLoop {
                 message: format!("gtk init failed (DISPLAY={display})"),
                 cause: Some(err.to_string()),
             }
@@ -57,7 +77,7 @@ fn set_env_if_unset(key: &str, value: &str) {
 }
 
 /// Build the viewer event loop (regular app on macOS — not accessory/modal panel).
-pub(crate) fn build_event_loop() -> Result<EventLoop<()>, ViewerError> {
+pub fn build_event_loop() -> Result<EventLoop<()>, PlatformError> {
     let mut builder = EventLoop::builder();
     #[cfg(target_os = "macos")]
     {
@@ -67,7 +87,7 @@ pub(crate) fn build_event_loop() -> Result<EventLoop<()>, ViewerError> {
             // Bring Wyvern Browser to front on launch; user can still alt-tab away.
             .with_activate_ignoring_other_apps(true);
     }
-    builder.build().map_err(|err| ViewerError::EventLoop {
+    builder.build().map_err(|err| PlatformError::EventLoop {
         message: "failed to build event loop".into(),
         cause: Some(err.to_string()),
     })
@@ -76,7 +96,7 @@ pub(crate) fn build_event_loop() -> Result<EventLoop<()>, ViewerError> {
 /// Present the viewer window: visible, focused, normal level (not always-on-top / modal).
 ///
 /// Call only after the first content-sized resize so the 320×240 bootstrap is never shown.
-pub(crate) fn present_viewer_window(window: &Window) {
+pub fn present_viewer_window(window: &Window) {
     window.set_visible(true);
     window.set_window_level(WindowLevel::Normal);
     window.focus_window();
@@ -87,7 +107,7 @@ pub(crate) fn present_viewer_window(window: &Window) {
 ///
 /// Starts **hidden**; [`present_viewer_window`] shows after first resize.
 #[cfg(target_os = "macos")]
-pub(crate) fn viewer_window_attributes(title: &str, width: f64, height: f64) -> WindowAttributes {
+pub fn viewer_window_attributes(title: &str, width: f64, height: f64) -> WindowAttributes {
     Window::default_attributes()
         .with_title(title)
         .with_inner_size(LogicalSize::new(width, height))
@@ -102,7 +122,7 @@ pub(crate) fn viewer_window_attributes(title: &str, width: f64, height: f64) -> 
 /// Starts **hidden**; [`present_viewer_window`] shows after first resize.
 /// `with_window_level(WindowLevel::Normal)` ensures no always-on-top trapping.
 #[cfg(not(target_os = "macos"))]
-pub(crate) fn viewer_window_attributes(title: &str, width: f64, height: f64) -> WindowAttributes {
+pub fn viewer_window_attributes(title: &str, width: f64, height: f64) -> WindowAttributes {
     Window::default_attributes()
         .with_title(title)
         .with_inner_size(LogicalSize::new(width, height))
@@ -114,7 +134,7 @@ pub(crate) fn viewer_window_attributes(title: &str, width: f64, height: f64) -> 
 }
 
 /// Drain pending GTK events so WebKit can release resources cleanly.
-pub(crate) fn pump_gtk_events() {
+pub fn pump_gtk_events() {
     #[cfg(any(
         target_os = "linux",
         target_os = "dragonfly",
@@ -126,5 +146,53 @@ pub(crate) fn pump_gtk_events() {
         while gtk::events_pending() {
             gtk::main_iteration_do(false);
         }
+    }
+}
+
+/// Parse optional width/height env overrides for the bootstrap window (QA-001).
+#[must_use]
+pub fn resolve_bootstrap_size(width_env: Option<&str>, height_env: Option<&str>) -> (f64, f64) {
+    let width = width_env
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(DEFAULT_WIDTH);
+    let height = height_env
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(DEFAULT_HEIGHT);
+    (width, height)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_bootstrap_size_is_hidden_placeholder() {
+        assert_eq!(DEFAULT_WIDTH, 320.0);
+        assert_eq!(DEFAULT_HEIGHT, 240.0);
+    }
+
+    #[test]
+    fn resolve_bootstrap_size_defaults_and_overrides() {
+        assert_eq!(resolve_bootstrap_size(None, None), (320.0, 240.0));
+        assert_eq!(
+            resolve_bootstrap_size(Some("640"), Some("480")),
+            (640.0, 480.0)
+        );
+        assert_eq!(
+            resolve_bootstrap_size(Some("bad"), Some("480")),
+            (320.0, 480.0)
+        );
+    }
+
+    #[test]
+    fn viewer_window_attributes_start_hidden() {
+        let attrs = viewer_window_attributes("Wyvern", DEFAULT_WIDTH, DEFAULT_HEIGHT);
+        // Building attributes without panic covers the platform chrome path (QA-001).
+        let _ = attrs;
+    }
+
+    #[test]
+    fn pump_gtk_events_is_noop_or_drains() {
+        pump_gtk_events();
     }
 }

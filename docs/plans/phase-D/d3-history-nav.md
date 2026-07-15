@@ -20,7 +20,7 @@ Lock ADR-0005 behaviour with the five canonical tests. **No new routes, traits, 
 
 | File | Change |
 |------|--------|
-| `crates/wyvern-wizard/tests/history_four_cases.rs` | Five named tests (below) |
+| `crates/wyvern-wizard/tests/history_five_cases.rs` | Five named tests (below) |
 | `crates/wyvern-host/tests/wizard_history.rs` | HTTP navigate + `GET /api/wizard/state` asserts |
 
 ### Five tests (authoritative)
@@ -42,7 +42,7 @@ Lock ADR-0005 behaviour with the five canonical tests. **No new routes, traits, 
 ## Required validation
 
 ```bash
-cargo test -p wyvern-wizard history_four_cases
+cargo test -p wyvern-wizard history_five_cases
 cargo test -p wyvern-host wizard_history
 ```
 

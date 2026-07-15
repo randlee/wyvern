@@ -3,6 +3,7 @@
 use axum::extract::State;
 use axum::Json;
 use serde_json::Value;
+use tracing::{event, Level};
 use wyvern_schema::{
     Command, WizardFinishRequest, WizardNavAction, WizardNavigateRequest, WizardNavigateResponse,
     WizardStateResponse,
@@ -29,9 +30,11 @@ pub async fn get_wizard_state(
     State(session): State<SessionState>,
 ) -> Result<Json<WizardStateResponse>, ApiError> {
     let command = session.command().await;
-    let Command::Wizard(ref wizard_cmd) = command else {
+    let Command::Wizard(wizard_cmd) = command.as_ref() else {
         let session_type = command_type_name(&command);
-        tracing::warn!(
+        event!(
+            name: "wizard.state.bad_request",
+            Level::WARN,
             route = "/api/wizard/state",
             error_class = "bad_request",
             session_type,
@@ -46,7 +49,9 @@ pub async fn get_wizard_state(
     };
 
     let snapshot = session.wizard_snapshot().await.map_err(|err| {
-        tracing::warn!(
+        event!(
+            name: "wizard.state.snapshot_failed",
+            Level::WARN,
             route = "/api/wizard/state",
             error_class = "internal",
             session_type = "wizard",
@@ -58,6 +63,13 @@ pub async fn get_wizard_state(
             .recovery("Report a bug if a validated wizard command has no session")
             .docs(WIZARD_STATE_DOCS)
     })?;
+
+    event!(
+        name: "wizard.state.ok",
+        Level::DEBUG,
+        route = "/api/wizard/state",
+        "wizard state snapshot returned"
+    );
 
     Ok(Json(WizardStateResponse::from_snapshot(
         snapshot.config,
@@ -114,6 +126,13 @@ pub async fn post_wizard_navigate(
             .map_err(map_wizard_navigate_error)?,
     };
 
+    event!(
+        name: "wizard.navigate.ok",
+        Level::DEBUG,
+        route = "/api/wizard/navigate",
+        "wizard navigate succeeded"
+    );
+
     Ok(Json(WizardNavigateResponse { ok: true, url }))
 }
 
@@ -137,11 +156,25 @@ pub async fn post_wizard_finish(
         .map_err(map_wizard_finish_error)?;
 
     let Some(result) = result else {
+        event!(
+            name: "wizard.finish.conflict",
+            Level::WARN,
+            route = "/api/wizard/finish",
+            error_class = "conflict",
+            "wizard finish rejected; result already submitted"
+        );
         return Err(ApiError::conflict("result already submitted")
             .cause("a finish/result was already accepted for this one-shot wizard session")
             .recovery("Do not POST /api/wizard/finish more than once per dialog")
             .docs(WIZARD_FINISH_DOCS));
     };
+
+    event!(
+        name: "wizard.finish.ok",
+        Level::DEBUG,
+        route = "/api/wizard/finish",
+        "wizard finish accepted"
+    );
 
     Ok(Json(result))
 }
@@ -152,11 +185,13 @@ async fn require_wizard_session(
     docs: &'static str,
 ) -> Result<(), ApiError> {
     let command = session.command().await;
-    if matches!(command, Command::Wizard(_)) {
+    if matches!(command.as_ref(), Command::Wizard(_)) {
         return Ok(());
     }
     let session_type = command_type_name(&command);
-    tracing::warn!(
+    event!(
+        name: "wizard.route.bad_request",
+        Level::WARN,
         route,
         error_class = "bad_request",
         session_type,
@@ -171,6 +206,13 @@ async fn require_wizard_session(
 }
 
 fn map_wizard_navigate_error(err: WizardError) -> ApiError {
+    event!(
+        name: "wizard.navigate.error",
+        Level::WARN,
+        error_class = err.subcode(),
+        error = %err,
+        "wizard navigate failed"
+    );
     match &err {
         WizardError::AtFirstPage => ApiError::bad_request(err.to_string())
             .cause("navigate_back was called while cursor was already 0")
@@ -206,6 +248,13 @@ fn map_wizard_navigate_error(err: WizardError) -> ApiError {
 }
 
 fn map_wizard_finish_error(err: WizardError) -> ApiError {
+    event!(
+        name: "wizard.finish.error",
+        Level::WARN,
+        error_class = err.subcode(),
+        error = %err,
+        "wizard finish failed"
+    );
     match &err {
         WizardError::StackMismatch {
             index,
@@ -220,7 +269,11 @@ fn map_wizard_finish_error(err: WizardError) -> ApiError {
                 cause.push_str(&format!("; index={i}"));
             }
             if let (Some(expected), Some(got)) = (expected_page_id, got_page_id) {
-                cause.push_str(&format!("; expected_page_id={expected}; got_page_id={got}"));
+                cause.push_str(&format!(
+                    "; expected_page_id={}; got_page_id={}",
+                    expected.as_str(),
+                    got.as_str()
+                ));
             }
             ApiError::bad_request(err.to_string())
                 .cause(cause)

@@ -16,11 +16,14 @@
 )]
 
 pub mod dismiss;
+pub mod platform;
 pub mod viewport;
 
 #[doc(inline)]
 pub use dismiss::{
     is_wizard_dialog_url, post_dismissed, wizard_dismiss_finish_body, DismissError, WizardStateDto,
 };
+#[doc(inline)]
+pub use platform::{resolve_bootstrap_size, DEFAULT_HEIGHT, DEFAULT_WIDTH};
 #[doc(inline)]
 pub use viewport::{HiddenUntilResize, ViewportBounds, FALLBACK_VIEWPORT};

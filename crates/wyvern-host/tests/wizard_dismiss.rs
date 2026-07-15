@@ -220,21 +220,33 @@ fn wizard_dismiss_viewer_exit_uses_full_visited_stack() {
 
 /// Session timeout fallback also derives the full visited stack.
 ///
-/// RSH-003 / FTQ-001: use a 10s session_timeout so setup+navigate finish before
-/// idle expiry, then sleep the remaining idle budget before `await_result`.
+/// FTQ-001: anchor the idle clock after the server is ready (post-`start_wizard`),
+/// use a generous session_timeout, and poll `try_recv_result` instead of a single
+/// sleep that races with slow CI setup.
 #[test]
 fn wizard_dismiss_session_timeout_uses_full_visited_stack() {
-    let session_timeout = Duration::from_secs(10);
-    let started = std::time::Instant::now();
-    let (handle, base, url_file, ui_root, client) = start_wizard(session_timeout);
+    let session_timeout = Duration::from_secs(15);
+    let (mut handle, base, url_file, ui_root, client) = start_wizard(session_timeout);
+    // Timeout budget starts when the host begins serving — after begin()/ready.
+    let idle_started = std::time::Instant::now();
     navigate_to_b(&client, &base);
     let state = wait_for_wizard_state(&client, &base);
     assert_eq!(state["page"]["id"], "b");
 
-    let remaining = session_timeout.saturating_sub(started.elapsed());
-    std::thread::sleep(remaining + Duration::from_millis(500));
-
-    let result = handle.await_result().expect("timeout dismissed");
+    let deadline = idle_started + session_timeout + Duration::from_secs(10);
+    let result = loop {
+        if let Some(result) = handle.try_recv_result() {
+            handle.join_host_worker();
+            break result.expect("timeout dismissed");
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "session timeout did not fire within {:?}; elapsed {:?}",
+            session_timeout + Duration::from_secs(10),
+            idle_started.elapsed()
+        );
+        std::thread::sleep(Duration::from_millis(50));
+    };
     match result {
         wyvern_schema::CommandResult::Wizard(w) => {
             assert_eq!(w.button.as_str(), "dismissed");
