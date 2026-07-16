@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 use url::Url;
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
-use winit::event_loop::ActiveEventLoop;
+use winit::event_loop::{ActiveEventLoop, EventLoopProxy};
 use winit::window::{Window, WindowId};
 use wry::dpi::{LogicalPosition, LogicalSize};
 use wry::http::Request;
@@ -28,6 +28,12 @@ const MIN_DIALOG_WIDTH: u32 = 200;
 const MIN_DIALOG_HEIGHT: u32 = 96;
 /// Accept refinement `resize:` IPC for this long after the first applied size.
 const RESIZE_REFINEMENT_WINDOW: Duration = Duration::from_millis(300);
+
+/// Wake the winit loop when wry IPC arrives on a hidden macOS window.
+#[derive(Debug, Clone, Copy)]
+enum ViewerWakeEvent {
+    PendingIpc,
+}
 
 fn parse_resize_message(msg: &str, max_w: u32, max_h: u32) -> Option<(u32, u32)> {
     let rest = msg.strip_prefix("resize:")?;
@@ -200,9 +206,10 @@ fn is_loopback_host(host: &str) -> bool {
 pub fn run(args: ViewerArgs) -> Result<(), ViewerError> {
     init_platform()?;
 
-    let event_loop = build_event_loop()?;
+    let event_loop = build_event_loop::<ViewerWakeEvent>()?;
+    let wake_proxy = event_loop.create_proxy();
     let close_requested = Arc::new(AtomicBool::new(false));
-    spawn_cli_exit_watcher(Arc::clone(&close_requested));
+    spawn_cli_exit_watcher(Arc::clone(&close_requested), wake_proxy.clone());
 
     let mut app = ViewerApp {
         args,
@@ -217,6 +224,7 @@ pub fn run(args: ViewerArgs) -> Result<(), ViewerError> {
         bounds_injected: false,
         close_requested,
         closing: false,
+        wake_proxy,
     };
 
     event_loop
@@ -231,7 +239,10 @@ pub fn run(args: ViewerArgs) -> Result<(), ViewerError> {
 }
 
 /// Background thread: CLI writes `exit\n` on stdin after host accepts POST /api/result.
-fn spawn_cli_exit_watcher(close_requested: Arc<AtomicBool>) {
+fn spawn_cli_exit_watcher(
+    close_requested: Arc<AtomicBool>,
+    wake_proxy: EventLoopProxy<ViewerWakeEvent>,
+) {
     thread::spawn(move || {
         let stdin = std::io::stdin();
         let mut reader = std::io::BufReader::new(stdin.lock());
@@ -243,6 +254,7 @@ fn spawn_cli_exit_watcher(close_requested: Arc<AtomicBool>) {
                 Ok(_) => {
                     if line.trim() == "exit" {
                         close_requested.store(true, Ordering::Relaxed);
+                        let _ = wake_proxy.send_event(ViewerWakeEvent::PendingIpc);
                         break;
                     }
                 }
@@ -286,6 +298,7 @@ struct ViewerApp {
     bounds_injected: bool,
     close_requested: Arc<AtomicBool>,
     closing: bool,
+    wake_proxy: EventLoopProxy<ViewerWakeEvent>,
 }
 
 impl ViewerApp {
@@ -364,6 +377,16 @@ impl ViewerApp {
         }
     }
 
+    fn drain_pending_ipc(&mut self, event_loop: &ActiveEventLoop) {
+        if self.close_requested.load(Ordering::Relaxed) {
+            self.request_shutdown(event_loop);
+            return;
+        }
+        self.inject_viewport_bounds_if_needed();
+        self.apply_pending_resize();
+        self.apply_pending_navigate();
+    }
+
     fn apply_pending_navigate(&mut self) {
         let pending = self
             .pending_navigate
@@ -390,7 +413,7 @@ impl ViewerApp {
     }
 }
 
-impl ApplicationHandler for ViewerApp {
+impl ApplicationHandler<ViewerWakeEvent> for ViewerApp {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if self.window.is_some() {
             return;
@@ -413,6 +436,7 @@ impl ApplicationHandler for ViewerApp {
         let pending_resize = Arc::clone(&self.pending_resize);
         let pending_navigate = Arc::clone(&self.pending_navigate);
         let close_requested = Arc::clone(&self.close_requested);
+        let wake_proxy = self.wake_proxy.clone();
         let init_script = self.viewport.dispatch_script();
         let builder = WebViewBuilder::new()
             .with_url(&self.args.dialog_url)
@@ -423,18 +447,21 @@ impl ApplicationHandler for ViewerApp {
                 // Legacy: pages no longer send "close" after POST; CLI uses stdin `exit`.
                 if msg == "close" {
                     close_requested.store(true, Ordering::Relaxed);
+                    let _ = wake_proxy.send_event(ViewerWakeEvent::PendingIpc);
                     return;
                 }
                 if let Some(url) = msg.strip_prefix("navigate:") {
                     if let Ok(mut slot) = pending_navigate.lock() {
                         *slot = Some(url.to_string());
                     }
+                    let _ = wake_proxy.send_event(ViewerWakeEvent::PendingIpc);
                     return;
                 }
                 if let Some(size) = parse_resize_message(msg, max_w, max_h) {
                     if let Ok(mut slot) = pending_resize.lock() {
                         *slot = Some(size);
                     }
+                    let _ = wake_proxy.send_event(ViewerWakeEvent::PendingIpc);
                 }
             });
 
@@ -482,13 +509,11 @@ impl ApplicationHandler for ViewerApp {
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
-        if self.close_requested.load(Ordering::Relaxed) {
-            self.request_shutdown(event_loop);
-            return;
-        }
-        self.inject_viewport_bounds_if_needed();
-        self.apply_pending_resize();
-        self.apply_pending_navigate();
+        self.drain_pending_ipc(event_loop);
+    }
+
+    fn user_event(&mut self, event_loop: &ActiveEventLoop, _event: ViewerWakeEvent) {
+        self.drain_pending_ipc(event_loop);
     }
 
     fn exiting(&mut self, _event_loop: &ActiveEventLoop) {

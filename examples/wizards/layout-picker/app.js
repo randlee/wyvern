@@ -111,6 +111,15 @@
     }
   }
 
+  function collectAgentFormData() {
+    var nameInput = document.querySelector("[data-testid='agent-name']");
+    var descInput = document.querySelector("[data-testid='agent-description']");
+    return {
+      name: nameInput ? nameInput.value.trim() : "",
+      description: descInput ? descInput.value.trim() : "",
+    };
+  }
+
   function restoreAgentForm() {
     var data = (global.wyvern && global.wyvern.page_data) || {};
     var nameInput = document.querySelector("[data-testid='agent-name']");
@@ -136,6 +145,7 @@
       "Agent " + current + " of " + agentCount
     );
     restoreAgentForm();
+    global.collectCurrentPageData = collectAgentFormData;
 
     form.addEventListener("submit", function (event) {
       event.preventDefault();
@@ -233,6 +243,15 @@
       var id = pageId();
       if (id === "layout-picker") {
         renderLayoutPicker();
+        if (
+          typeof WyvernApi !== "undefined" &&
+          typeof WyvernApi.applyWizardLayout === "function"
+        ) {
+          WyvernApi.applyWizardLayout(
+            global.wyvern,
+            window.__wyvernViewportBounds || null
+          );
+        }
       } else if (/^agent-\d+$/.test(id)) {
         wireAgentForm();
       } else if (id === "finish") {

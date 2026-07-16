@@ -137,7 +137,7 @@ mod history_five_cases {
             assert_eq!(out.stack.len(), 1);
         }
 
-        // Meaningful payload overwrites the restored destination.
+        // Meaningful payload on forward-restore still keeps cached destination data.
         let mut session = WizardSession::new(&cmd("a.html"));
         session
             .navigate_next(serde_json::json!({"a": 1}), page("b", "b.html"))
@@ -153,8 +153,9 @@ mod history_five_cases {
             .expect("back to A");
         let out = session
             .navigate_next(serde_json::json!({"b": "fresh"}), page("b", "b.html"))
-            .expect("overwrite B");
-        assert_eq!(out.page_data, serde_json::json!({"b": "fresh"}));
+            .expect("restore B");
+        assert_eq!(out.page_data, serde_json::json!({"b": "cached"}));
+        assert_eq!(out.stack[0].data, serde_json::json!({"b": "fresh"}));
     }
 
     /// Forward to a different page truncates stale forward entries.

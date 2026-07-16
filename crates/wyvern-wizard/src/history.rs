@@ -96,13 +96,14 @@ impl History {
     pub(crate) fn navigate_next(
         &mut self,
         next: WizardPageDescriptor,
-        data: serde_json::Value,
+        _data: serde_json::Value,
     ) -> Result<(), ()> {
         let forward = self.cursor + 1;
         if forward < self.entries.len() && self.entries[forward].page == next {
-            // Forward-same-page restore (ADR-0005).
+            // Forward-same-page restore (ADR-0005). Request `data` was already
+            // written to the outgoing current entry by `WizardSession::navigate_next`;
+            // never overwrite the restored entry's cached blob.
             self.cursor = forward;
-            self.write_current_if_meaningful(data);
             return Ok(());
         }
         // Branch: truncate stale forward entries, then push — if under depth cap.
@@ -164,6 +165,29 @@ mod tests {
         assert!(is_meaningful_payload(&serde_json::json!("x")));
         assert!(is_meaningful_payload(&serde_json::json!(0)));
         assert!(is_meaningful_payload(&serde_json::json!(false)));
+    }
+
+    #[test]
+    fn forward_same_page_restores_cached_data_even_with_meaningful_payload() {
+        let mut h = History::seed(page("agent-1", "agent-1.html"));
+        h.write_current_data(serde_json::json!({"description": "1/3"}));
+        h.navigate_next(page("agent-2", "agent-2.html"), serde_json::json!({}))
+            .expect("agent-2");
+        h.write_current_data(serde_json::json!({"description": "2/3"}));
+        assert!(h.navigate_back(serde_json::json!({})));
+        assert_eq!(h.cursor, 0);
+        // Re-commit agent-1, then forward-restore agent-2 — must not clobber 2/3.
+        h.write_current_data(serde_json::json!({"description": "1/3"}));
+        h.navigate_next(
+            page("agent-2", "agent-2.html"),
+            serde_json::json!({"description": "1/3"}),
+        )
+        .expect("restore agent-2");
+        assert_eq!(h.cursor, 1);
+        assert_eq!(
+            h.current().data,
+            serde_json::json!({"description": "2/3"})
+        );
     }
 
     #[test]
