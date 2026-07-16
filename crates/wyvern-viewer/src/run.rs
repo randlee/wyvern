@@ -28,6 +28,23 @@ const MIN_DIALOG_WIDTH: u32 = 200;
 const MIN_DIALOG_HEIGHT: u32 = 96;
 /// Accept refinement `resize:` IPC for this long after the first applied size.
 const RESIZE_REFINEMENT_WINDOW: Duration = Duration::from_millis(300);
+/// If the page never posts `resize:` IPC, nudge layout then present bootstrap size.
+const PRESENT_FALLBACK_DELAY: Duration = Duration::from_millis(750);
+/// JS fallback when a wizard page omits resize IPC (REQ-V008 safety net).
+const NUDGE_PAGE_RESIZE_SCRIPT: &str = r##"(function(){try{
+if(window.WyvernApi&&typeof window.WyvernApi.applyWizardLayout==='function'){
+window.WyvernApi.applyWizardLayout(window.wyvern||{},window.__wyvernViewportBounds||null);
+return;
+}
+if(window.ipc&&typeof window.ipc.postMessage==='function'){
+var wm=document.querySelector('meta[name="wyvern:width"]');
+var hm=document.querySelector('meta[name="wyvern:height"]');
+var w=wm&&wm.content?parseInt(wm.content,10):480;
+var h=hm&&hm.content?parseInt(hm.content,10):360;
+if(!isFinite(w)||w<=0)w=480;if(!isFinite(h)||h<=0)h=360;
+window.ipc.postMessage('resize:'+w+'x'+h);
+}
+}catch(_){}})();"##;
 
 /// Wake the winit loop when wry IPC arrives on a hidden macOS window.
 #[derive(Debug, Clone, Copy)]
@@ -225,6 +242,8 @@ pub fn run(args: ViewerArgs) -> Result<(), ViewerError> {
         close_requested,
         closing: false,
         wake_proxy,
+        webview_started: None,
+        resize_nudge_sent: false,
     };
 
     event_loop
@@ -299,6 +318,8 @@ struct ViewerApp {
     close_requested: Arc<AtomicBool>,
     closing: bool,
     wake_proxy: EventLoopProxy<ViewerWakeEvent>,
+    webview_started: Option<Instant>,
+    resize_nudge_sent: bool,
 }
 
 impl ViewerApp {
@@ -377,7 +398,49 @@ impl ViewerApp {
         }
     }
 
+    fn maybe_nudge_page_resize(&mut self) {
+        if self.present_gate.is_presented()
+            || self.resize_nudge_sent
+            || self.webview.is_none()
+        {
+            return;
+        }
+        let Some(started) = self.webview_started else {
+            return;
+        };
+        if started.elapsed() < PRESENT_FALLBACK_DELAY {
+            return;
+        }
+        self.resize_nudge_sent = true;
+        if let Some(webview) = self.webview.as_ref() {
+            if let Err(err) = webview.evaluate_script(NUDGE_PAGE_RESIZE_SCRIPT) {
+                tracing::warn!(error = %err, "failed to nudge page resize");
+            }
+        }
+    }
+
+    fn maybe_present_bootstrap_fallback(&mut self) {
+        if self.present_gate.is_presented() || self.window.is_none() {
+            return;
+        }
+        let Some(started) = self.webview_started else {
+            return;
+        };
+        if started.elapsed() < PRESENT_FALLBACK_DELAY {
+            return;
+        }
+        let width = self.args.width.round().max(MIN_DIALOG_WIDTH as f64) as u32;
+        let height = self.args.height.round().max(MIN_DIALOG_HEIGHT as f64) as u32;
+        if let Ok(mut guard) = self.pending_resize.lock() {
+            if guard.is_none() {
+                *guard = Some((width, height));
+            }
+        }
+    }
+
     fn drain_pending_ipc(&mut self, event_loop: &ActiveEventLoop) {
+        self.maybe_nudge_page_resize();
+        self.maybe_present_bootstrap_fallback();
         if self.close_requested.load(Ordering::Relaxed) {
             self.request_shutdown(event_loop);
             return;
@@ -504,6 +567,7 @@ impl ApplicationHandler<ViewerWakeEvent> for ViewerApp {
 
         self.webview = Some(webview);
         self.window = Some(window);
+        self.webview_started = Some(Instant::now());
         // Intentionally do NOT present yet — wait for first content resize (no 320×240 flash).
         self.inject_viewport_bounds_if_needed();
     }

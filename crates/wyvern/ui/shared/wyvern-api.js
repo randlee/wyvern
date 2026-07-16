@@ -283,6 +283,10 @@
       return applyWorkspaceLayout(state, vp);
     }
     markWorkspaceRoot(false);
+    var fixed = viewerSizeFromPayload(state);
+    if (fixed.width && fixed.height && applyFixedViewerSize(fixed)) {
+      return { w: fixed.width, h: fixed.height, layout: "dialog" };
+    }
     var measure = measureNaturalContent();
     return applyDialogFitWithSlack(measure, vp, DIALOG_SLACK);
   }
@@ -673,6 +677,12 @@
       page_data: state.page_data,
       stack: state.stack,
     };
+    if (state.width != null) {
+      global.wyvern.width = state.width;
+    }
+    if (state.height != null) {
+      global.wyvern.height = state.height;
+    }
     return state;
   }
 
@@ -755,24 +765,31 @@
 
   /** Production bootstrap: wizard pages load state into `window.wyvern`. */
   function bootstrapWizardIfNeeded() {
-    try {
-      var path = (global.location && global.location.pathname) || "";
-      if (path.indexOf("/wizard/") !== 0) {
-        return;
-      }
-      wyvernWizardState()
-        .then(function (state) {
-          runWithResizeRefinement(function () {
-            applyWizardLayout(state, lastViewport);
+    function run() {
+      try {
+        var path = (global.location && global.location.pathname) || "";
+        if (path.indexOf("/wizard/") !== 0) {
+          return;
+        }
+        wyvernWizardState()
+          .then(function (state) {
+            runWithResizeRefinement(function () {
+              applyWizardLayout(state, lastViewport);
+            });
+          })
+          .catch(function (err) {
+            if (typeof console !== "undefined" && console.warn) {
+              console.warn("wyvern wizard bootstrap failed", err);
+            }
           });
-        })
-        .catch(function (err) {
-          if (typeof console !== "undefined" && console.warn) {
-            console.warn("wyvern wizard bootstrap failed", err);
-          }
-        });
-    } catch (_) {
-      /* ignore */
+      } catch (_) {
+        /* ignore */
+      }
+    }
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", run);
+    } else {
+      run();
     }
   }
 
