@@ -58,7 +58,7 @@ pub(crate) async fn bind_server(
             (root, path, true)
         }
         _ => {
-            let root = require_type_dir(ui_root, type_name.as_str())?;
+            let root = require_type_dir(ui_root, type_name)?;
             let path = format!("/{}/", type_name.as_str());
             (root, path, false)
         }

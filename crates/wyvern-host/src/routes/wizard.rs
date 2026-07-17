@@ -205,6 +205,10 @@ async fn require_wizard_session(
     )
 }
 
+fn with_wizard_code(err: &WizardError, api: ApiError) -> ApiError {
+    api.code(err.subcode())
+}
+
 fn map_wizard_navigate_error(err: WizardError) -> ApiError {
     event!(
         name: "wizard.navigate.error",
@@ -213,13 +217,13 @@ fn map_wizard_navigate_error(err: WizardError) -> ApiError {
         error = %err,
         "wizard navigate failed"
     );
-    match &err {
+    let api = match &err {
         WizardError::AtFirstPage => ApiError::bad_request(err.to_string())
             .cause("navigate_back was called while cursor was already 0")
             .recovery("Disable Back on the first page, or ignore the 400 in page JS")
             .docs(WIZARD_NAVIGATE_DOCS),
         WizardError::InvalidCommand { field, reason } => ApiError::bad_request(err.to_string())
-            .cause(format!("invalid field '{field}': {reason}"))
+            .cause(format!("invalid field '{}': {reason}", field.as_str()))
             .recovery("POST action next|back with a valid next descriptor when advancing")
             .docs(WIZARD_NAVIGATE_DOCS),
         WizardError::StackDepthExceeded { max } => ApiError::bad_request(err.to_string())
@@ -244,7 +248,8 @@ fn map_wizard_navigate_error(err: WizardError) -> ApiError {
             .cause("stack mismatch is not expected on navigate")
             .recovery("Use POST /api/wizard/finish for terminal actions")
             .docs(WIZARD_NAVIGATE_DOCS),
-    }
+    };
+    with_wizard_code(&err, api)
 }
 
 fn map_wizard_finish_error(err: WizardError) -> ApiError {
@@ -255,7 +260,7 @@ fn map_wizard_finish_error(err: WizardError) -> ApiError {
         error = %err,
         "wizard finish failed"
     );
-    match &err {
+    let api = match &err {
         WizardError::StackMismatch {
             index,
             expected_page_id,
@@ -283,7 +288,7 @@ fn map_wizard_finish_error(err: WizardError) -> ApiError {
                 .docs(WIZARD_FINISH_DOCS)
         }
         WizardError::InvalidCommand { field, reason } => ApiError::bad_request(err.to_string())
-            .cause(format!("invalid field '{field}': {reason}"))
+            .cause(format!("invalid field '{}': {reason}", field.as_str()))
             .recovery("Use button finish|cancel|dismissed only on /api/wizard/finish")
             .docs(WIZARD_FINISH_DOCS),
         WizardError::AtFirstPage => ApiError::bad_request(err.to_string())
@@ -306,7 +311,8 @@ fn map_wizard_finish_error(err: WizardError) -> ApiError {
             .cause("a finish/result was already accepted for this one-shot wizard session")
             .recovery("Do not POST /api/wizard/finish more than once per dialog")
             .docs(WIZARD_FINISH_DOCS),
-    }
+    };
+    with_wizard_code(&err, api)
 }
 
 fn navigate_bad_request(message: impl Into<String>, cause: impl Into<String>) -> ApiError {

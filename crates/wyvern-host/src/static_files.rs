@@ -2,17 +2,20 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::error::HostError;
+use crate::error::{DialogTypeName, HostError};
 
 /// Resolve `ui_root` and ensure the dialog type template directory exists.
-pub(crate) fn require_type_dir(ui_root: &Path, type_name: &str) -> Result<PathBuf, HostError> {
+pub(crate) fn require_type_dir(
+    ui_root: &Path,
+    type_name: DialogTypeName,
+) -> Result<PathBuf, HostError> {
     let root = ui_root
         .canonicalize()
         .map_err(|source| HostError::UiNotFound {
             path: ui_root.to_path_buf(),
             source: Some(source),
         })?;
-    let type_dir = root.join(type_name);
+    let type_dir = root.join(type_name.as_str());
     if !type_dir.is_dir() {
         return Err(HostError::UiNotFound {
             path: type_dir,
@@ -115,7 +118,7 @@ mod tests {
                 .map(|d| d.as_nanos())
                 .unwrap_or(0)
         ));
-        let err = require_type_dir(&missing, "message").expect_err("missing root");
+        let err = require_type_dir(&missing, DialogTypeName::Message).expect_err("missing root");
         match err {
             HostError::UiNotFound { path, source } => {
                 assert_eq!(path, missing);

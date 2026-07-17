@@ -1,11 +1,11 @@
 //! [`WizardSession`] — concrete wizard stack state (ADR-0007).
 
 use wyvern_schema::{
-    WizardCommand, WizardPageDescriptor, WizardPageId, WizardResult, WizardStackEntry,
+    FieldName, WizardCommand, WizardPageDescriptor, WizardPageId, WizardResult, WizardStackEntry,
     WizardTerminalButton,
 };
 
-use crate::history::{History, MAX_WIZARD_STACK_DEPTH};
+use crate::history::{History, HistoryNavigateError, MAX_WIZARD_STACK_DEPTH};
 
 /// Snapshot for `GET /api/wizard/state` — prior entries only in `stack` (REQ-0024).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -39,7 +39,7 @@ pub enum WizardError {
     /// Navigate/finish payload failed a field check.
     InvalidCommand {
         /// Dot-path of the offending field (e.g. `page.id`, `stack`).
-        field: String,
+        field: FieldName,
         /// Human-readable failure detail.
         reason: String,
     },
@@ -69,7 +69,7 @@ pub enum WizardError {
 
 impl WizardError {
     /// Construct a structured invalid-command error.
-    pub fn invalid_command(field: impl Into<String>, reason: impl Into<String>) -> Self {
+    pub fn invalid_command(field: impl Into<FieldName>, reason: impl Into<String>) -> Self {
         Self::InvalidCommand {
             field: field.into(),
             reason: reason.into(),
@@ -146,7 +146,7 @@ impl std::fmt::Display for WizardError {
         match self {
             Self::AtFirstPage => f.write_str("already at the first wizard page"),
             Self::InvalidCommand { field, reason } => {
-                write!(f, "invalid wizard command ({field}): {reason}")
+                write!(f, "invalid wizard command ({}): {reason}", field.as_str())
             }
             Self::StackMismatch { reason, .. } => {
                 write!(f, "client stack does not match session stack: {reason}")
@@ -214,11 +214,11 @@ impl WizardSession {
         let request_data = data.clone();
         // Opaque whole-blob replace on current before push/restore/advance.
         self.history.write_current_data(data);
-        self.history
-            .navigate_next(next, request_data)
-            .map_err(|()| WizardError::StackDepthExceeded {
+        self.history.navigate_next(next, request_data).map_err(
+            |HistoryNavigateError::StackDepthExceeded| WizardError::StackDepthExceeded {
                 max: MAX_WIZARD_STACK_DEPTH,
-            })?;
+            },
+        )?;
         Ok(self.outcome_from_current())
     }
 

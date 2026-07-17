@@ -42,8 +42,11 @@ fn read_http_request(stream: &mut TcpStream) -> String {
                 if e.kind() == std::io::ErrorKind::WouldBlock
                     || e.kind() == std::io::ErrorKind::TimedOut =>
             {
-                if find_header_end(&buf).is_some() {
-                    break;
+                if let Some(header_end) = find_header_end(&buf) {
+                    let content_len = parse_content_length(&buf[..header_end]).unwrap_or(0);
+                    if buf.len() >= header_end + content_len {
+                        break;
+                    }
                 }
             }
             Err(_) => break,

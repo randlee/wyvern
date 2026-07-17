@@ -40,6 +40,13 @@ pub(crate) struct History {
     pub(crate) cursor: usize,
 }
 
+/// Navigation failure inside the private history stack (RBP-F011).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum HistoryNavigateError {
+    /// Branch push would exceed [`MAX_WIZARD_STACK_DEPTH`].
+    StackDepthExceeded,
+}
+
 impl History {
     /// Seed with the first page at cursor 0.
     pub(crate) fn seed(first_page: WizardPageDescriptor) -> Self {
@@ -89,7 +96,8 @@ impl History {
 
     /// Advance forward (restore same page or truncate-then-push).
     ///
-    /// Returns `Err(())` when a branch push would exceed [`MAX_WIZARD_STACK_DEPTH`].
+    /// Returns [`HistoryNavigateError::StackDepthExceeded`] when a branch push
+    /// would exceed [`MAX_WIZARD_STACK_DEPTH`].
     /// Forward-same-page restore always succeeds (no growth).
     ///
     /// Caller must have already written the *current* entry's data.
@@ -97,7 +105,7 @@ impl History {
         &mut self,
         next: WizardPageDescriptor,
         _data: serde_json::Value,
-    ) -> Result<(), ()> {
+    ) -> Result<(), HistoryNavigateError> {
         let forward = self.cursor + 1;
         if forward < self.entries.len() && self.entries[forward].page == next {
             // Forward-same-page restore (ADR-0005). Request `data` was already
@@ -108,7 +116,7 @@ impl History {
         }
         // Branch: truncate stale forward entries, then push — if under depth cap.
         if self.cursor + 1 >= MAX_WIZARD_STACK_DEPTH {
-            return Err(());
+            return Err(HistoryNavigateError::StackDepthExceeded);
         }
         self.entries.truncate(self.cursor + 1);
         self.entries.push(HistoryEntry::new(next));

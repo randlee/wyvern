@@ -180,3 +180,5 @@ jobs:
       - uses: actions/checkout@v4
       - name: Enforce boundaries/*.toml against Cargo.toml
         run: python3 scripts/check-boundaries.py
+      - name: Verify ui/ matches crates/wyvern/ui/
+        run: bash scripts/check-ui-sync.sh
