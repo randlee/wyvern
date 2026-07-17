@@ -399,10 +399,7 @@ impl ViewerApp {
     }
 
     fn maybe_nudge_page_resize(&mut self) {
-        if self.present_gate.is_presented()
-            || self.resize_nudge_sent
-            || self.webview.is_none()
-        {
+        if self.present_gate.is_presented() || self.resize_nudge_sent || self.webview.is_none() {
             return;
         }
         let Some(started) = self.webview_started else {

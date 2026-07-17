@@ -184,10 +184,7 @@ mod tests {
         )
         .expect("restore agent-2");
         assert_eq!(h.cursor, 1);
-        assert_eq!(
-            h.current().data,
-            serde_json::json!({"description": "2/3"})
-        );
+        assert_eq!(h.current().data, serde_json::json!({"description": "2/3"}));
     }
 
     #[test]

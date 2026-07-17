@@ -339,8 +339,12 @@ mod tests {
                 page("agent-3", "pages/agent.html"),
             )
             .expect("agent-3");
-        session.navigate_back(serde_json::json!({})).expect("back to agent-2");
-        session.navigate_back(serde_json::json!({})).expect("back to agent-1");
+        session
+            .navigate_back(serde_json::json!({}))
+            .expect("back to agent-2");
+        session
+            .navigate_back(serde_json::json!({}))
+            .expect("back to agent-1");
         assert_eq!(
             session.snapshot().page_data,
             serde_json::json!({"name": "1", "description": "1/3"})
