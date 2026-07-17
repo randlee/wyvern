@@ -283,6 +283,10 @@
       return applyWorkspaceLayout(state, vp);
     }
     markWorkspaceRoot(false);
+    var fixed = viewerSizeFromPayload(state);
+    if (fixed.width && fixed.height && applyFixedViewerSize(fixed)) {
+      return { w: fixed.width, h: fixed.height, layout: "dialog" };
+    }
     var measure = measureNaturalContent();
     return applyDialogFitWithSlack(measure, vp, DIALOG_SLACK);
   }
@@ -657,6 +661,20 @@
 
   applyEmbeddedChrome();
 
+  /** Apply opaque wizard `config.theme` to the document (light | dark). */
+  function applyWizardTheme(config) {
+    config = config || {};
+    var theme = config.theme;
+    var root = document.documentElement;
+    if (typeof theme === "string" && theme) {
+      root.setAttribute("data-wyvern-theme", theme);
+      root.style.colorScheme = theme === "dark" ? "dark" : "light";
+      return;
+    }
+    root.removeAttribute("data-wyvern-theme");
+    root.style.colorScheme = "";
+  }
+
   /** Fetch wizard state and populate `window.wyvern` (REQ-0024). */
   async function wyvernWizardState() {
     const res = await fetch("/api/wizard/state", {
@@ -673,6 +691,13 @@
       page_data: state.page_data,
       stack: state.stack,
     };
+    if (state.width != null) {
+      global.wyvern.width = state.width;
+    }
+    if (state.height != null) {
+      global.wyvern.height = state.height;
+    }
+    applyWizardTheme(state.config);
     return state;
   }
 
@@ -755,24 +780,31 @@
 
   /** Production bootstrap: wizard pages load state into `window.wyvern`. */
   function bootstrapWizardIfNeeded() {
-    try {
-      var path = (global.location && global.location.pathname) || "";
-      if (path.indexOf("/wizard/") !== 0) {
-        return;
-      }
-      wyvernWizardState()
-        .then(function (state) {
-          runWithResizeRefinement(function () {
-            applyWizardLayout(state, lastViewport);
+    function run() {
+      try {
+        var path = (global.location && global.location.pathname) || "";
+        if (path.indexOf("/wizard/") !== 0) {
+          return;
+        }
+        wyvernWizardState()
+          .then(function (state) {
+            runWithResizeRefinement(function () {
+              applyWizardLayout(state, lastViewport);
+            });
+          })
+          .catch(function (err) {
+            if (typeof console !== "undefined" && console.warn) {
+              console.warn("wyvern wizard bootstrap failed", err);
+            }
           });
-        })
-        .catch(function (err) {
-          if (typeof console !== "undefined" && console.warn) {
-            console.warn("wyvern wizard bootstrap failed", err);
-          }
-        });
-    } catch (_) {
-      /* ignore */
+      } catch (_) {
+        /* ignore */
+      }
+    }
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", run);
+    } else {
+      run();
     }
   }
 
@@ -796,6 +828,7 @@
     applyDialogFitWithSlack: applyDialogFitWithSlack,
     applyWorkspaceLayout: applyWorkspaceLayout,
     applyWizardLayout: applyWizardLayout,
+    applyWizardTheme: applyWizardTheme,
     measureNaturalContent: measureNaturalContent,
     applyEmbeddedChrome: applyEmbeddedChrome,
     wyvernWizardState: wyvernWizardState,

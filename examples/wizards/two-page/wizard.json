@@ -7,7 +7,5 @@
   },
   "config": {
     "note": "Minimal 2-page fixture for shared wizard chrome (d.7)"
-  },
-  "width": 480,
-  "height": 320
+  }
 }

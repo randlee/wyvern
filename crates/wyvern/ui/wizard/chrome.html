@@ -5,33 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Wizard</title>
   <link rel="stylesheet" href="/shared/embedded-chrome.css" />
+  <link rel="stylesheet" href="/shared/wizard-chrome.css" />
   <script src="/shared/wyvern-api.js"></script>
-  <style>
-    .wizard-chrome {
-      display: flex;
-      gap: 0.75rem;
-      justify-content: flex-end;
-      padding: 1rem 0 0;
-      margin-top: 1.5rem;
-      border-top: 1px solid rgba(0, 0, 0, 0.12);
-    }
-    .wizard-chrome button {
-      min-width: 5.5rem;
-      padding: 0.5rem 1rem;
-      font: inherit;
-      cursor: pointer;
-    }
-    .wizard-chrome button[hidden] {
-      display: none !important;
-    }
-    .wizard-chrome .primary {
-      font-weight: 600;
-    }
-    .wizard-error {
-      color: #b91c1c;
-      margin-top: 0.75rem;
-    }
-  </style>
 </head>
 <body>
   <!--
@@ -40,20 +15,19 @@
     last step root. Load with:
       <script src="/shared/wizard-nav.js" data-wizard-chrome></script>
   -->
-  <main id="wizard-page" data-wizard-page>
+  <main id="dialog" class="dialog dialog--frame" data-wizard-page>
     <!-- PAGE_CONTENT -->
+    <nav class="wizard-chrome" data-wizard-nav aria-label="Wizard navigation">
+      <button type="button" class="secondary" data-wizard-back data-testid="wizard-back">
+        Back
+      </button>
+      <button type="button" class="primary" data-wizard-next data-testid="wizard-next">
+        Next
+      </button>
+    </nav>
+    <p class="wizard-error" data-testid="wizard-error" hidden></p>
   </main>
 
-  <nav class="wizard-chrome" data-wizard-nav aria-label="Wizard navigation">
-    <button type="button" class="secondary" data-wizard-back data-testid="wizard-back">
-      Back
-    </button>
-    <button type="button" class="primary" data-wizard-next data-testid="wizard-next">
-      Next
-    </button>
-  </nav>
-
-  <p class="wizard-error" data-testid="wizard-error" hidden></p>
   <script src="/shared/wizard-nav.js" data-wizard-chrome></script>
 </body>
 </html>

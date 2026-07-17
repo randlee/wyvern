@@ -206,12 +206,26 @@
     }
   }
 
+  function scheduleWizardLayout() {
+    if (typeof global.WyvernApi === "undefined" || typeof global.WyvernApi.applyWizardLayout !== "function") {
+      if (typeof global.WyvernApi !== "undefined" && typeof global.WyvernApi.scheduleResize === "function") {
+        global.WyvernApi.scheduleResize({ mode: "auto" });
+      }
+      return;
+    }
+    global.WyvernApi.applyWizardLayout(
+      global.wyvern,
+      global.__wyvernViewportBounds || null
+    );
+  }
+
   async function boot() {
     try {
       await ensureState();
       var root = findNavRoot();
       applyChromeState(root);
       wireButtons(root);
+      scheduleWizardLayout();
     } catch (err) {
       showError(String(err && err.message ? err.message : err));
     }

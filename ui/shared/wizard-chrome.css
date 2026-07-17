@@ -1,0 +1,89 @@
+/**
+ * Shared wizard page chrome (sprint d.7).
+ * Use with embedded-chrome.css and <main id="dialog" class="dialog dialog--frame">.
+ */
+
+.dialog--frame h1 {
+  margin: 0 0 0.5rem;
+  font-size: 1.35rem;
+  font-weight: 650;
+  color: #0f172a;
+}
+
+.dialog--frame .lead {
+  margin: 0 0 1rem;
+  color: #475569;
+  line-height: 1.45;
+}
+
+.dialog--frame label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+html[data-wyvern-theme="dark"] .dialog--frame h1,
+html[data-wyvern-theme="dark"] .dialog--frame .summary__title {
+  color: #e2e8f0;
+}
+
+html[data-wyvern-theme="dark"] .dialog--frame .lead,
+html[data-wyvern-theme="dark"] .dialog--frame label,
+html[data-wyvern-theme="dark"] .dialog--frame .form label {
+  color: #cbd5e1;
+}
+
+html[data-wyvern-theme="dark"] .dialog--frame input[type="text"],
+html[data-wyvern-theme="dark"] .dialog--frame textarea,
+html[data-wyvern-theme="dark"] .dialog--frame .form input,
+html[data-wyvern-theme="dark"] .dialog--frame .form textarea {
+  color: #e2e8f0;
+  background: #0b1220;
+  border-color: #334155;
+}
+
+html[data-wyvern-theme="dark"] .dialog--frame .actions button.secondary,
+html[data-wyvern-theme="dark"] .dialog--frame .actions .secondary {
+  color: #e2e8f0;
+  background: #1e293b;
+  border-color: #334155;
+}
+
+.dialog--frame input[type="text"],
+.dialog--frame textarea {
+  width: 100%;
+  max-width: 24rem;
+  box-sizing: border-box;
+  padding: 0.45rem 0.6rem;
+  font: inherit;
+}
+
+.wizard-chrome {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  padding: 1rem 0 0;
+  margin-top: 1.5rem;
+  border-top: 1px solid #cbd5e1;
+}
+
+.wizard-chrome button {
+  min-width: 5.5rem;
+  padding: 0.5rem 1rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+.wizard-chrome button[hidden] {
+  display: none !important;
+}
+
+.wizard-chrome .primary {
+  font-weight: 600;
+}
+
+.wizard-error {
+  color: #b91c1c;
+  margin-top: 0.75rem;
+}

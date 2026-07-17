@@ -26,6 +26,16 @@
       text-align: center;
       opacity: 0.85;
     }
+    .done {
+      margin-top: 1rem;
+      padding: 0.5rem 1.25rem;
+      font: inherit;
+      cursor: pointer;
+      border-radius: 8px;
+      border: 1px solid #475569;
+      background: #1e293b;
+      color: #e2e8f0;
+    }
   </style>
 </head>
 <body>
@@ -38,6 +48,9 @@
         </p>
         <pre data-testid="estimated-size"></pre>
         <pre data-testid="applied-size"></pre>
+        <p>
+          <button type="button" class="done" data-testid="workspace-done">Done</button>
+        </p>
       </div>
     </div>
   </main>
@@ -63,6 +76,20 @@
       var appliedEl = document.querySelector("[data-testid='applied-size']");
       if (appliedEl && applied) {
         appliedEl.textContent = JSON.stringify(applied, null, 2);
+      }
+      var done = document.querySelector("[data-testid='workspace-done']");
+      if (done) {
+        done.addEventListener("click", function () {
+          if (typeof wyvernWizardFinish !== "function") {
+            return;
+          }
+          var stack = (window.wyvern && window.wyvern.stack) || [];
+          stack.push({
+            page: window.wyvern.page,
+            data: {},
+          });
+          wyvernWizardFinish({ button: "finish", data: {}, stack: stack });
+        });
       }
     })();
   </script>

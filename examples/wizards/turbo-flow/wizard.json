@@ -1,0 +1,14 @@
+{
+  "type": "wizard",
+  "page": {
+    "id": "canvas",
+    "title": "Flow graph",
+    "html": "pages/canvas.html",
+    "layout": "workspace"
+  },
+  "config": {
+    "theme": "dark",
+    "estimated_size": { "width": 1200, "height": 800 },
+    "note": "Turbo-flow workspace demo — graph first, per-node detail pages"
+  }
+}

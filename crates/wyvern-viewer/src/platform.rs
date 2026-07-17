@@ -76,9 +76,9 @@ fn set_env_if_unset(key: &str, value: &str) {
     }
 }
 
-/// Build the viewer event loop (regular app on macOS — not accessory/modal panel).
-pub fn build_event_loop() -> Result<EventLoop<()>, PlatformError> {
-    let mut builder = EventLoop::builder();
+/// Build a viewer event loop with custom user events (IPC wakeups).
+pub fn build_event_loop<T: 'static>() -> Result<EventLoop<T>, PlatformError> {
+    let mut builder = EventLoop::<T>::with_user_event();
     #[cfg(target_os = "macos")]
     {
         use winit::platform::macos::{ActivationPolicy, EventLoopBuilderExtMacOS};
@@ -113,7 +113,9 @@ pub fn viewer_window_attributes(title: &str, width: f64, height: f64) -> WindowA
         .with_inner_size(LogicalSize::new(width, height))
         .with_visible(false)
         .with_resizable(true)
-        .with_enabled_buttons(WindowButtons::CLOSE | WindowButtons::MINIMIZE)
+        .with_enabled_buttons(
+            WindowButtons::CLOSE | WindowButtons::MINIMIZE | WindowButtons::MAXIMIZE,
+        )
         .with_window_level(WindowLevel::Normal)
 }
 
@@ -128,7 +130,9 @@ pub fn viewer_window_attributes(title: &str, width: f64, height: f64) -> WindowA
         .with_inner_size(LogicalSize::new(width, height))
         .with_visible(false)
         .with_resizable(true)
-        .with_enabled_buttons(WindowButtons::CLOSE | WindowButtons::MINIMIZE)
+        .with_enabled_buttons(
+            WindowButtons::CLOSE | WindowButtons::MINIMIZE | WindowButtons::MAXIMIZE,
+        )
         .with_decorations(false)
         .with_window_level(WindowLevel::Normal)
 }

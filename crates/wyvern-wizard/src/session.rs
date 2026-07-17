@@ -199,8 +199,8 @@ impl WizardSession {
 
     /// Advance to `next`, writing opaque `data` on the current entry first.
     ///
-    /// Forward-same-page restore overwrites the destination's cached data only
-    /// when `data` is a meaningful payload (d.2 predicate).
+    /// Forward-same-page restore returns the destination entry's cached data.
+    /// Request `data` is written only to the outgoing current entry before advance.
     ///
     /// # Errors
     ///
@@ -316,6 +316,50 @@ mod tests {
         assert_eq!(snap.page_data, serde_json::json!({}));
         assert!(snap.stack.is_empty());
         assert_eq!(snap.config["theme"], "dark");
+    }
+
+    #[test]
+    fn forward_restore_preserves_destination_after_meaningful_next() {
+        let mut session = WizardSession::new(&cmd("pages/layout-picker.html"));
+        session
+            .navigate_next(
+                serde_json::json!({"layout_id": "trio", "agent_count": 3}),
+                page("agent-1", "pages/agent.html"),
+            )
+            .expect("agent-1");
+        session
+            .navigate_next(
+                serde_json::json!({"name": "1", "description": "1/3"}),
+                page("agent-2", "pages/agent.html"),
+            )
+            .expect("agent-2");
+        session
+            .navigate_next(
+                serde_json::json!({"name": "1", "description": "2/3"}),
+                page("agent-3", "pages/agent.html"),
+            )
+            .expect("agent-3");
+        session
+            .navigate_back(serde_json::json!({}))
+            .expect("back to agent-2");
+        session
+            .navigate_back(serde_json::json!({}))
+            .expect("back to agent-1");
+        assert_eq!(
+            session.snapshot().page_data,
+            serde_json::json!({"name": "1", "description": "1/3"})
+        );
+        let out = session
+            .navigate_next(
+                serde_json::json!({"name": "1", "description": "1/3"}),
+                page("agent-2", "pages/agent.html"),
+            )
+            .expect("forward restore");
+        assert_eq!(out.page.id.as_str(), "agent-2");
+        assert_eq!(
+            out.page_data,
+            serde_json::json!({"name": "1", "description": "2/3"})
+        );
     }
 
     #[test]
@@ -504,7 +548,7 @@ mod tests {
     }
 
     #[test]
-    fn forward_same_page_meaningful_overwrite() {
+    fn forward_same_page_restore_keeps_cached_destination_data() {
         let mut session = WizardSession::new(&cmd("a.html"));
         session
             .navigate_next(serde_json::json!({}), page("b", "b.html"))
@@ -515,9 +559,9 @@ mod tests {
         session.navigate_back(serde_json::json!({})).expect("back");
         let out = session
             .navigate_next(serde_json::json!({"new": 1}), page("b", "b.html"))
-            .expect("overwrite");
-        // Request data was written to A; destination B overwritten because meaningful.
-        assert_eq!(out.page_data, serde_json::json!({"new": 1}));
+            .expect("restore");
+        // Outgoing A gets request data; restored B keeps cached blob.
+        assert_eq!(out.page_data, serde_json::json!({"cached": true}));
         assert_eq!(out.stack[0].data, serde_json::json!({"new": 1}));
     }
 
