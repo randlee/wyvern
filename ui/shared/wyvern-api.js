@@ -661,6 +661,20 @@
 
   applyEmbeddedChrome();
 
+  /** Apply opaque wizard `config.theme` to the document (light | dark). */
+  function applyWizardTheme(config) {
+    config = config || {};
+    var theme = config.theme;
+    var root = document.documentElement;
+    if (typeof theme === "string" && theme) {
+      root.setAttribute("data-wyvern-theme", theme);
+      root.style.colorScheme = theme === "dark" ? "dark" : "light";
+      return;
+    }
+    root.removeAttribute("data-wyvern-theme");
+    root.style.colorScheme = "";
+  }
+
   /** Fetch wizard state and populate `window.wyvern` (REQ-0024). */
   async function wyvernWizardState() {
     const res = await fetch("/api/wizard/state", {
@@ -683,6 +697,7 @@
     if (state.height != null) {
       global.wyvern.height = state.height;
     }
+    applyWizardTheme(state.config);
     return state;
   }
 
@@ -813,6 +828,7 @@
     applyDialogFitWithSlack: applyDialogFitWithSlack,
     applyWorkspaceLayout: applyWorkspaceLayout,
     applyWizardLayout: applyWizardLayout,
+    applyWizardTheme: applyWizardTheme,
     measureNaturalContent: measureNaturalContent,
     applyEmbeddedChrome: applyEmbeddedChrome,
     wyvernWizardState: wyvernWizardState,

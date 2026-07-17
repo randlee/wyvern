@@ -18,6 +18,8 @@ WYVERN="$ROOT/target/debug/wyvern"
 CATALOG=(
   "layout-picker|Layout picker (DAG)|Solo/pair/trio cards, agent forms, back-nav branch|layout-picker"
   "workspace-hint|Workspace layout|page.layout=workspace + estimated_size chrome|workspace-hint"
+  "turbo-flow|Turbo flow graph (dark)|Svelte Flow workspace, node detail/extras, review|turbo-flow"
+  "turbo-flow-light|Turbo flow graph (light)|Same flow with config.theme=light|turbo-flow"
   "single-page|Single page (N=1)|Shared wizard chrome, terminal finish on one page|single-page"
   "two-page|Two-page chrome|Back/next across step-1 and step-2|two-page"
 )
@@ -61,6 +63,9 @@ resolve_sample() {
   fi
   local ui_root="$EXAMPLES/$subdir"
   local wizard_json="$ui_root/wizard.json"
+  if [[ "$id" == "turbo-flow-light" ]]; then
+    wizard_json="$ui_root/wizard.light.json"
+  fi
   if [[ ! -f "$wizard_json" ]]; then
     echo "Missing fixture: $wizard_json" >&2
     exit 1

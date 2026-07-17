@@ -113,7 +113,9 @@ pub fn viewer_window_attributes(title: &str, width: f64, height: f64) -> WindowA
         .with_inner_size(LogicalSize::new(width, height))
         .with_visible(false)
         .with_resizable(true)
-        .with_enabled_buttons(WindowButtons::CLOSE | WindowButtons::MINIMIZE)
+        .with_enabled_buttons(
+            WindowButtons::CLOSE | WindowButtons::MINIMIZE | WindowButtons::MAXIMIZE,
+        )
         .with_window_level(WindowLevel::Normal)
 }
 
@@ -128,7 +130,9 @@ pub fn viewer_window_attributes(title: &str, width: f64, height: f64) -> WindowA
         .with_inner_size(LogicalSize::new(width, height))
         .with_visible(false)
         .with_resizable(true)
-        .with_enabled_buttons(WindowButtons::CLOSE | WindowButtons::MINIMIZE)
+        .with_enabled_buttons(
+            WindowButtons::CLOSE | WindowButtons::MINIMIZE | WindowButtons::MAXIMIZE,
+        )
         .with_decorations(false)
         .with_window_level(WindowLevel::Normal)
 }

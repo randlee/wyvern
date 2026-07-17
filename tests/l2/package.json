@@ -6,7 +6,8 @@
     "test": "playwright test",
     "test:layout-picker": "playwright test wizard-layout-picker.spec.ts",
     "test:viewport": "playwright test viewport-sizing.spec.ts",
-    "test:edge-cases": "playwright test wizard-edge-cases.spec.ts"
+    "test:edge-cases": "playwright test wizard-edge-cases.spec.ts",
+    "test:turbo-flow": "playwright test wizard-turbo-flow.spec.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.49.0"

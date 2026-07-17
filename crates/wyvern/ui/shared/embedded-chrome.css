@@ -87,6 +87,18 @@ html.wyvern-embedded .dialog--frame {
   box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
 }
 
+html.wyvern-embedded[data-wyvern-theme="dark"] body {
+  background: #0b1220;
+  color: #e2e8f0;
+}
+
+html.wyvern-embedded[data-wyvern-theme="dark"] .dialog--frame {
+  background: #0f172a;
+  border-color: #334155;
+  color: #e2e8f0;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
 html.wyvern-embedded .dialog--panel {
   width: 100%;
   max-width: min(35rem, 560px);

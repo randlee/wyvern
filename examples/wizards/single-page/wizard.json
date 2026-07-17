@@ -7,7 +7,5 @@
   },
   "config": {
     "note": "N=1 fixture for shared wizard chrome (d.7)"
-  },
-  "width": 480,
-  "height": 320
+  }
 }
