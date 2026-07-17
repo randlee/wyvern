@@ -12,7 +12,7 @@
 
 **REQ-V002** — Default policy rejects non-loopback hosts and non-`http`/`https` schemes. Opt-in: `WYVERN_VIEWER_ALLOW_NON_LOOPBACK=1` (mirrors host `--allow-non-loopback`).
 
-**REQ-V003** — On OS window close without a prior successful button POST from the page, the viewer POSTs `{ "button": "dismissed" }` to `/api/result` with bounded connect/read/write timeouts (best-effort; failures are logged, not fatal).
+**REQ-V003** — On OS window close without a prior successful button POST from the page, the viewer posts dismissed with bounded connect/read/write timeouts (best-effort; failures are logged, not fatal): wizard URLs (`/wizard/**`) `GET /api/wizard/state` then `POST /api/wizard/finish` with the full visited stack (d.8); blocking dialogs `POST /api/result` with `{ "button": "dismissed" }`.
 
 **REQ-V004** — The viewer does not embed dialog HTML, run an HTTP server, or speak wry dialog IPC. Host + packaged `ui/` own presentation content.
 
@@ -22,7 +22,7 @@
 
 **REQ-V007** — Embedded-only presentation helpers (`embedded-chrome.css`, `window.ipc`) must not be required for correctness — the same pages must work in `--viewer system` / named browsers (browser-first gate).
 
-**REQ-V008** — When no explicit size is set (JSON or HTML meta), embedded viewer **auto-sizes** to rendered page content via IPC `resize:WxH`. Compact dialogs (`dialog--compact`) shrink to message-box proportions (~480px max width with word-wrap); full pages (wizard, chrome) measure document content up to viewer max (800×600).
+**REQ-V008** — When no explicit size is set (JSON or HTML meta), embedded viewer **auto-sizes** to rendered page content via IPC `resize:WxH` (ADR-0020). Dialog mode: intrinsic measure × ~25% slack, clamp to available viewport × 0.92, scroll overflow inside the clamped window. Workspace mode (`page.layout: "workspace"`): honor opaque `config.estimated_size` / command `width`+`height`, else fill viewport (also clamped). Viewer stays **hidden until the first content resize** (no 320×240 flash) and injects `wyvern:viewport-bounds` (`{ available_width, available_height }`) before first paint; accepts refinement resizes for ~300ms.
 
 **REQ-V009** — Optional window size on any command JSON (`width`, `height` in CSS pixels, 200–800 × 96–600). When **both** are set, embedded viewer uses that fixed size **instead of** auto-size. Pages may also declare `<meta name="wyvern:width">` / `<meta name="wyvern:height">` when JSON omits size. JSON from `GET /api/dialog` takes precedence over meta tags.
 

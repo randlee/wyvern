@@ -1,5 +1,6 @@
 //! Discover and spawn the `wyvern-viewer` subprocess for `--viewer embedded`.
 
+use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 
@@ -33,21 +34,51 @@ impl std::error::Error for ViewerSpawnError {}
 
 /// Resolve `wyvern-viewer` via sibling → `CARGO_BIN_EXE` → `WYVERN_VIEWER_BIN` → `PATH`.
 pub fn resolve_viewer_bin() -> Result<PathBuf, ViewerSpawnError> {
-    if let Some(sibling) = sibling_viewer_bin() {
+    let cargo_bin = std::env::var("CARGO_BIN_EXE_wyvern-viewer").ok();
+    let wyvern_bin = std::env::var("WYVERN_VIEWER_BIN").ok();
+    let path = std::env::var_os("PATH");
+    let exe_path = std::env::current_exe().ok();
+    let exe_dir = exe_path.as_deref().and_then(|p| p.parent());
+
+    resolve_viewer_bin_with(&ViewerResolveEnv {
+        exe_dir,
+        cargo_bin_exe: cargo_bin.as_deref(),
+        wyvern_viewer_bin: wyvern_bin.as_deref(),
+        path: path.as_deref(),
+    })
+}
+
+/// Injectable viewer discovery inputs (QA-002 — no `set_var` in unit tests).
+#[derive(Debug, Clone, Default)]
+pub struct ViewerResolveEnv<'a> {
+    /// Directory containing the running executable (sibling probe).
+    pub exe_dir: Option<&'a Path>,
+    /// `CARGO_BIN_EXE_wyvern-viewer` when set.
+    pub cargo_bin_exe: Option<&'a str>,
+    /// `WYVERN_VIEWER_BIN` when set.
+    pub wyvern_viewer_bin: Option<&'a str>,
+    /// `PATH` directories for `which` lookup.
+    pub path: Option<&'a OsStr>,
+}
+
+/// Resolve `wyvern-viewer` from injectable discovery inputs.
+pub fn resolve_viewer_bin_with(env: &ViewerResolveEnv<'_>) -> Result<PathBuf, ViewerSpawnError> {
+    if let Some(dir) = env.exe_dir {
+        let sibling = dir.join(viewer_bin_name());
         if is_executable_file(&sibling) {
             return Ok(sibling);
         }
     }
 
-    if let Ok(path) = std::env::var("CARGO_BIN_EXE_wyvern-viewer") {
-        let p = PathBuf::from(&path);
+    if let Some(path) = env.cargo_bin_exe {
+        let p = PathBuf::from(path);
         if is_executable_file(&p) {
             return Ok(p);
         }
     }
 
-    if let Ok(path) = std::env::var("WYVERN_VIEWER_BIN") {
-        let p = PathBuf::from(&path);
+    if let Some(path) = env.wyvern_viewer_bin {
+        let p = PathBuf::from(path);
         if is_executable_file(&p) {
             return Ok(p);
         }
@@ -65,9 +96,11 @@ pub fn resolve_viewer_bin() -> Result<PathBuf, ViewerSpawnError> {
         });
     }
 
-    if let Some(path) = which("wyvern-viewer") {
-        if is_executable_file(&path) {
-            return Ok(path);
+    if let Some(path_var) = env.path {
+        if let Some(path) = which_in_path(path_var, viewer_bin_name()) {
+            if is_executable_file(&path) {
+                return Ok(path);
+            }
         }
     }
 
@@ -148,12 +181,6 @@ pub fn wait_for_viewer_exit(child: &mut Child) {
     }
 }
 
-fn sibling_viewer_bin() -> Option<PathBuf> {
-    let exe = std::env::current_exe().ok()?;
-    let dir = exe.parent()?;
-    Some(dir.join(viewer_bin_name()))
-}
-
 fn viewer_bin_name() -> &'static str {
     if cfg!(windows) {
         "wyvern-viewer.exe"
@@ -162,9 +189,8 @@ fn viewer_bin_name() -> &'static str {
     }
 }
 
-fn which(name: &str) -> Option<PathBuf> {
-    let path = std::env::var_os("PATH")?;
-    for dir in std::env::split_paths(&path) {
+fn which_in_path(path_var: &OsStr, name: &str) -> Option<PathBuf> {
+    for dir in std::env::split_paths(path_var) {
         let candidate = dir.join(name);
         if is_executable_file(&candidate) {
             return Some(candidate);
@@ -201,119 +227,50 @@ fn is_executable_file(path: &Path) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::ffi::{OsStr, OsString};
-    use std::sync::{Mutex, MutexGuard};
 
-    /// Serializes tests that mutate process-global env (parallel `cargo test` safe).
-    static ENV_LOCK: Mutex<()> = Mutex::new(());
-
-    struct EnvLock {
-        _guard: MutexGuard<'static, ()>,
-    }
-
-    impl EnvLock {
-        fn acquire() -> Self {
-            Self {
-                _guard: ENV_LOCK
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner),
-            }
-        }
-    }
-
-    /// RAII env mutation: restores the prior value (or absence) on drop.
-    struct EnvGuard {
-        key: &'static str,
-        previous: Option<OsString>,
-    }
-
-    impl EnvGuard {
-        fn set(key: &'static str, value: impl AsRef<OsStr>) -> Self {
-            let previous = std::env::var_os(key);
-            // SAFETY: callers hold [`EnvLock`] so no concurrent env mutation.
-            unsafe { std::env::set_var(key, value) };
-            Self { key, previous }
-        }
-
-        fn remove(key: &'static str) -> Self {
-            let previous = std::env::var_os(key);
-            // SAFETY: callers hold [`EnvLock`] so no concurrent env mutation.
-            unsafe { std::env::remove_var(key) };
-            Self { key, previous }
-        }
-    }
-
-    impl Drop for EnvGuard {
-        fn drop(&mut self) {
-            // SAFETY: same exclusive [`EnvLock`] as set/remove; restore prior state.
-            unsafe {
-                match &self.previous {
-                    Some(v) => std::env::set_var(self.key, v),
-                    None => std::env::remove_var(self.key),
-                }
-            }
-        }
-    }
-
-    #[test]
-    fn resolve_respects_wyvern_viewer_bin_when_no_sibling() {
-        let _lock = EnvLock::acquire();
-        let tmp = tempfile::tempdir().expect("tmp");
-        let fake = tmp.path().join(viewer_bin_name());
-        std::fs::write(&fake, b"#!/bin/sh\n").expect("write");
+    fn make_executable(path: &Path) {
+        std::fs::write(path, b"#!/bin/sh\n").expect("write");
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            let mut perms = std::fs::metadata(&fake).unwrap().permissions();
+            let mut perms = std::fs::metadata(path).unwrap().permissions();
             perms.set_mode(0o755);
-            std::fs::set_permissions(&fake, perms).unwrap();
-        }
-        // Clear cargo bin env so WYVERN_VIEWER_BIN is reached when sibling is absent.
-        let _cargo = EnvGuard::remove("CARGO_BIN_EXE_wyvern-viewer");
-        let _guard = EnvGuard::set("WYVERN_VIEWER_BIN", &fake);
-
-        // Sibling of the test harness may exist (target/debug/wyvern-viewer). Prefer
-        // asserting that an explicit env override is accepted when resolve reaches it,
-        // or that resolve succeeds with some executable path.
-        match resolve_viewer_bin() {
-            Ok(resolved) => {
-                assert!(
-                    resolved == fake || is_executable_file(&resolved),
-                    "resolved={resolved:?}"
-                );
-            }
-            Err(err) => panic!("expected resolve ok, got {err}"),
+            std::fs::set_permissions(path, perms).unwrap();
         }
     }
 
     #[test]
-    fn missing_bin_env_errors_when_override_points_nowhere() {
-        let _lock = EnvLock::acquire();
+    fn resolve_prefers_wyvern_viewer_bin_override() {
+        let tmp = tempfile::tempdir().expect("tmp");
+        let fake = tmp.path().join(viewer_bin_name());
+        make_executable(&fake);
+        let env = ViewerResolveEnv {
+            exe_dir: None,
+            cargo_bin_exe: None,
+            wyvern_viewer_bin: Some(fake.to_str().expect("utf8")),
+            path: None,
+        };
+        let resolved = resolve_viewer_bin_with(&env).expect("override");
+        assert_eq!(resolved, fake);
+    }
+
+    #[test]
+    fn resolve_errors_when_override_missing() {
         let tmp = tempfile::tempdir().expect("tmp");
         let missing = tmp.path().join("no-such-viewer");
-        // Force override path and clear cargo bin; sibling may still win — only assert
-        // NotFound when the override is the sole candidate that resolve would use.
-        let _cargo = EnvGuard::remove("CARGO_BIN_EXE_wyvern-viewer");
-        let _guard = EnvGuard::set("WYVERN_VIEWER_BIN", &missing);
-
-        // If a sibling binary exists next to the test exe, resolve succeeds via sibling
-        // (documented order). Otherwise the missing override must error.
-        if sibling_viewer_bin()
-            .as_ref()
-            .is_some_and(|p| is_executable_file(p))
-        {
-            let resolved = resolve_viewer_bin().expect("sibling wins");
-            assert!(is_executable_file(&resolved));
-        } else {
-            let err = resolve_viewer_bin().expect_err("missing");
-            assert!(matches!(err, ViewerSpawnError::NotFound { .. }));
-        }
+        let env = ViewerResolveEnv {
+            exe_dir: None,
+            cargo_bin_exe: None,
+            wyvern_viewer_bin: Some(missing.to_str().expect("utf8")),
+            path: None,
+        };
+        let err = resolve_viewer_bin_with(&env).expect_err("missing");
+        assert!(matches!(err, ViewerSpawnError::NotFound { .. }));
     }
 
     #[cfg(unix)]
     #[test]
-    fn non_executable_bin_env_errors() {
-        let _lock = EnvLock::acquire();
+    fn non_executable_bin_override_errors() {
         let tmp = tempfile::tempdir().expect("tmp");
         let fake = tmp.path().join("not-exec-viewer");
         std::fs::write(&fake, b"#!/bin/sh\n").expect("write");
@@ -321,22 +278,15 @@ mod tests {
         let mut perms = std::fs::metadata(&fake).unwrap().permissions();
         perms.set_mode(0o644);
         std::fs::set_permissions(&fake, perms).unwrap();
-
-        // Call the permission helper directly — resolve may short-circuit on sibling.
         assert!(!is_executable_file(&fake));
-        let _cargo = EnvGuard::remove("CARGO_BIN_EXE_wyvern-viewer");
-        // Isolate PATH so which() cannot find a real viewer after the override fails.
-        let _path = EnvGuard::set("PATH", tmp.path());
-        let _guard = EnvGuard::set("WYVERN_VIEWER_BIN", &fake);
 
-        if sibling_viewer_bin()
-            .as_ref()
-            .is_some_and(|p| is_executable_file(p))
-        {
-            // Sibling discovered first — permission check still covered above.
-            return;
-        }
-        let err = resolve_viewer_bin().expect_err("not executable");
+        let env = ViewerResolveEnv {
+            exe_dir: None,
+            cargo_bin_exe: None,
+            wyvern_viewer_bin: Some(fake.to_str().expect("utf8")),
+            path: Some(tmp.path().as_os_str()),
+        };
+        let err = resolve_viewer_bin_with(&env).expect_err("not executable");
         match err {
             ViewerSpawnError::NotFound { hint } => {
                 assert!(
@@ -346,5 +296,22 @@ mod tests {
             }
             other => panic!("expected NotFound, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn resolve_prefers_sibling_before_path() {
+        let tmp = tempfile::tempdir().expect("tmp");
+        let sibling = tmp.path().join(viewer_bin_name());
+        make_executable(&sibling);
+        let other = tmp.path().join("other-viewer");
+        make_executable(&other);
+        let env = ViewerResolveEnv {
+            exe_dir: Some(tmp.path()),
+            cargo_bin_exe: None,
+            wyvern_viewer_bin: None,
+            path: Some(tmp.path().as_os_str()),
+        };
+        let resolved = resolve_viewer_bin_with(&env).expect("sibling");
+        assert_eq!(resolved, sibling);
     }
 }

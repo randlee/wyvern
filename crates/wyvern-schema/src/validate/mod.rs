@@ -1,5 +1,5 @@
-//! Validate JSON input against the Phase B executable surface
-//! (`chrome`, `message`, `input`, `markdown`, `question`).
+//! Validate JSON input against the executable command surface
+//! (`chrome`, `message`, `input`, `markdown`, `question`, `wizard`).
 
 mod chrome;
 mod helpers;
@@ -7,6 +7,7 @@ mod input;
 mod markdown;
 mod message;
 mod question;
+mod wizard;
 
 #[cfg(test)]
 mod tests;
@@ -22,11 +23,12 @@ use input::validate_input;
 use markdown::validate_markdown;
 use message::validate_message;
 use question::validate_question;
+use wizard::validate_wizard;
 
 #[doc(inline)]
 pub use helpers::MARKDOWN_CONTENT_MAX_BYTES;
 
-/// Validate `value` as a Phase B command.
+/// Validate `value` as an executable command.
 ///
 /// # Errors
 ///
@@ -74,6 +76,7 @@ pub fn validate(value: &Value) -> Result<Command, ValidationError> {
         "input" => validate_input(obj),
         "markdown" => validate_markdown(obj),
         "question" => validate_question(obj),
+        "wizard" => validate_wizard(obj),
         other => Err(unknown_type_error(other)),
     }
 }

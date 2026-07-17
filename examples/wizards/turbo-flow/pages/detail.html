@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Node detail</title>
+  <link rel="stylesheet" href="/shared/embedded-chrome.css" />
+  <link rel="stylesheet" href="/shared/wizard-chrome.css" />
+  <link rel="stylesheet" href="/wizard/styles.css" />
+  <script src="/shared/wyvern-api.js"></script>
+  <script src="/wizard/stack-merge.js"></script>
+</head>
+<body>
+  <main id="dialog" class="dialog dialog--frame" data-testid="node-detail-root">
+    <h1 data-testid="node-detail-heading">Configure node</h1>
+    <p class="lead" data-testid="node-detail-lead">Core fields for the selected graph node.</p>
+    <form class="form" data-testid="node-detail-form">
+      <label>
+        Name
+        <input type="text" name="name" data-testid="node-detail-name" required autocomplete="off" />
+      </label>
+      <label>
+        Role
+        <input type="text" name="role" data-testid="node-detail-role" placeholder="e.g. researcher" autocomplete="off" />
+      </label>
+      <label>
+        Description
+        <textarea name="description" data-testid="node-detail-description" required></textarea>
+      </label>
+      <div class="actions">
+        <button type="button" class="secondary" data-testid="node-detail-back-graph">Back to graph</button>
+        <button type="button" class="secondary" data-testid="node-detail-back">Back</button>
+        <button type="submit" class="primary" data-testid="node-detail-next">More options…</button>
+      </div>
+    </form>
+    <p class="error" data-testid="wizard-error" hidden></p>
+  </main>
+  <script src="/wizard/app.js"></script>
+</body>
+</html>

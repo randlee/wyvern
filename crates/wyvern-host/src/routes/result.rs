@@ -103,6 +103,10 @@ fn parse_result_for_command(command: &Command, body: &Value) -> Result<CommandRe
             questions_raw,
             ..
         } => parse_question_result(questions, questions_raw, body),
+        Command::Wizard(_) => Err(HostError::InvalidResult {
+            message: "POST /api/result is not used for wizard; use POST /api/wizard/finish (d.2)"
+                .into(),
+        }),
     }
 }
 

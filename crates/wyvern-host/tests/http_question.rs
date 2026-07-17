@@ -1,8 +1,11 @@
 //! L1 HTTP tests for question dialog — preview_html + result shapes.
 
+mod support;
+use support::http::{http_client, wait_for_dialog_ready, wait_for_url_file};
+
 use std::collections::HashMap;
 use std::net::SocketAddr;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::thread;
 use std::time::Duration;
 
@@ -19,11 +22,12 @@ fn host_options(url_file: PathBuf) -> HostOptions {
     HostOptions {
         bind: SocketAddr::from(([127, 0, 0, 1], 0)),
         ui_root: workspace_ui_root(),
+        shared_ui_root: workspace_ui_root(),
         viewer: ViewerMode::None,
         dialog_url_env: true,
         dialog_url_file: Some(url_file),
         allow_non_loopback: false,
-        session_timeout: wyvern_host::DEFAULT_SESSION_TIMEOUT,
+        session_timeout: Duration::from_secs(30),
         mock_picker: None,
     }
 }
@@ -65,41 +69,6 @@ fn single_select_command() -> Command {
     }
 }
 
-fn wait_for_url_file(path: &Path) -> String {
-    let start = std::time::Instant::now();
-    loop {
-        if let Ok(url) = std::fs::read_to_string(path) {
-            let url = url.trim().to_string();
-            if url.starts_with("http://") {
-                return url;
-            }
-        }
-        if start.elapsed() > Duration::from_secs(15) {
-            panic!("timed out waiting for dialog URL file: {}", path.display());
-        }
-        thread::sleep(Duration::from_millis(20));
-    }
-}
-
-/// Poll `GET /api/dialog` until HTTP 200 (URL file alone is not readiness).
-fn wait_for_dialog_ready(client: &reqwest::blocking::Client, base: &str) -> serde_json::Value {
-    let url = format!("{base}/api/dialog");
-    let start = std::time::Instant::now();
-    loop {
-        match client.get(&url).send() {
-            Ok(resp) if resp.status() == reqwest::StatusCode::OK => {
-                return resp.json().expect("dialog json");
-            }
-            Ok(_) | Err(_) => {
-                if start.elapsed() > Duration::from_secs(15) {
-                    panic!("timed out waiting for GET /api/dialog at {url}");
-                }
-                thread::sleep(Duration::from_millis(20));
-            }
-        }
-    }
-}
-
 fn dialog_base(dialog_url: &str) -> String {
     dialog_url
         .trim_end_matches("/question/")
@@ -122,7 +91,7 @@ fn run_question_posts_submit_via_http() {
     let dialog_url = wait_for_url_file(&url_file);
     let base = dialog_base(&dialog_url);
 
-    let client = reqwest::blocking::Client::new();
+    let client = http_client();
     let dialog = wait_for_dialog_ready(&client, &base);
     assert_eq!(dialog["type"], "question");
     assert_eq!(dialog["title"], "Question");
@@ -226,7 +195,7 @@ fn dialog_preview_html_strips_script_tags() {
     let dialog_url = wait_for_url_file(&url_file);
     let base = dialog_base(&dialog_url);
 
-    let client = reqwest::blocking::Client::new();
+    let client = http_client();
     let dialog = wait_for_dialog_ready(&client, &base);
 
     let preview_html = dialog["questions"][0]["options"][0]["preview_html"]
@@ -269,7 +238,7 @@ fn run_question_dismiss_extended_shape() {
     let dialog_url = wait_for_url_file(&url_file);
     let base = dialog_base(&dialog_url);
 
-    let client = reqwest::blocking::Client::new();
+    let client = http_client();
     let _ = wait_for_dialog_ready(&client, &base);
     let ack: serde_json::Value = client
         .post(format!("{base}/api/result"))
@@ -309,7 +278,7 @@ fn empty_answers_without_button_becomes_dismiss() {
     let dialog_url = wait_for_url_file(&url_file);
     let base = dialog_base(&dialog_url);
 
-    let client = reqwest::blocking::Client::new();
+    let client = http_client();
     let _ = wait_for_dialog_ready(&client, &base);
     let _ = client
         .post(format!("{base}/api/result"))
@@ -339,7 +308,7 @@ fn result_invalid_question_includes_cause_recovery_docs() {
     let dialog_url = wait_for_url_file(&url_file);
     let base = dialog_base(&dialog_url);
 
-    let client = reqwest::blocking::Client::new();
+    let client = http_client();
     let _ = wait_for_dialog_ready(&client, &base);
     let response = client
         .post(format!("{base}/api/result"))
@@ -400,7 +369,7 @@ fn validate_then_run_multi_select_shape() {
     let dialog_url = wait_for_url_file(&url_file);
     let base = dialog_base(&dialog_url);
 
-    let client = reqwest::blocking::Client::new();
+    let client = http_client();
     let dialog = wait_for_dialog_ready(&client, &base);
     assert_eq!(dialog["questions"][0]["multiSelect"], true);
 
@@ -439,7 +408,7 @@ fn result_rejects_unknown_answer_keys() {
     let dialog_url = wait_for_url_file(&url_file);
     let base = dialog_base(&dialog_url);
 
-    let client = reqwest::blocking::Client::new();
+    let client = http_client();
     let _ = wait_for_dialog_ready(&client, &base);
     let response = client
         .post(format!("{base}/api/result"))
@@ -486,7 +455,7 @@ fn result_rejects_unknown_top_level_fields() {
     let dialog_url = wait_for_url_file(&url_file);
     let base = dialog_base(&dialog_url);
 
-    let client = reqwest::blocking::Client::new();
+    let client = http_client();
     let _ = wait_for_dialog_ready(&client, &base);
     let response = client
         .post(format!("{base}/api/result"))
@@ -560,7 +529,7 @@ fn dialog_rejects_oversized_question_preview() {
     let dialog_url = wait_for_url_file(&url_file);
     let base = dialog_base(&dialog_url);
 
-    let client = reqwest::blocking::Client::new();
+    let client = http_client();
     let start = std::time::Instant::now();
     let response = loop {
         match client.get(format!("{base}/api/dialog")).send() {

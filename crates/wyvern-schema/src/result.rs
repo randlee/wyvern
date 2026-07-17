@@ -5,13 +5,14 @@ use std::collections::HashMap;
 use serde::Serialize;
 
 use crate::button::ButtonLabel;
+use crate::wizard::WizardResult;
 
 /// Successful command result for stdout JSON.
 ///
 /// Overlapping `{button}` shapes across chrome/message/markdown/input are intentional:
 /// `#[serde(untagged)]` keeps the wire shape `{ "button": "<label>" }` (and
 /// optional `input` for text/file results per REQ-0065). Question results use the
-/// AskUserQuestion shape (REQ-0067 / REQ-0068).
+/// AskUserQuestion shape (REQ-0067 / REQ-0068). Wizard results use REQ-0066.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(untagged)]
 pub enum CommandResult {
@@ -25,6 +26,8 @@ pub enum CommandResult {
     Input(InputResult),
     /// Question dialog result (Phase B / REQ-0067 / REQ-0068).
     Question(QuestionResult),
+    /// Wizard result (Phase D / REQ-0066).
+    Wizard(WizardResult),
 }
 
 /// Chrome command result payload.

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Step 2</title>
+  <link rel="stylesheet" href="/shared/embedded-chrome.css" />
+  <link rel="stylesheet" href="/shared/wizard-chrome.css" />
+  <script src="/shared/wyvern-api.js"></script>
+</head>
+<body>
+  <!-- Terminal page contract: root MUST set data-wizard-terminal="true". -->
+  <main
+    id="dialog"
+    class="dialog dialog--frame"
+    data-wizard-terminal="true"
+    data-testid="two-page-step-2"
+  >
+    <h1 data-testid="two-page-step-2-heading">Step 2</h1>
+    <p class="lead">
+      Terminal page: Next is labeled Finish.
+    </p>
+
+    <nav class="wizard-chrome" data-wizard-nav aria-label="Wizard navigation">
+      <button type="button" class="secondary" data-wizard-back data-testid="wizard-back">
+        Back
+      </button>
+      <button type="button" class="primary" data-wizard-next data-testid="wizard-next">
+        Next
+      </button>
+    </nav>
+    <p class="wizard-error" data-testid="wizard-error" hidden></p>
+  </main>
+
+  <script>
+    window.collectCurrentPageData = function () {
+      return { step: 2 };
+    };
+  </script>
+  <script src="/shared/wizard-nav.js" data-wizard-chrome></script>
+</body>
+</html>

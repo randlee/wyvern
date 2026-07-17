@@ -35,12 +35,14 @@ CATALOG=(
 )
 
 usage() {
-  echo "Wyvern canned demo views"
+  echo "Wyvern canned demo views (Phase C blocking dialogs)"
   echo ""
   echo "Usage:"
   echo "  $0 list"
   echo "  $0 <view-id> [--viewer embedded|safari|system|none ...]"
   echo "  $0 all [--viewer ...]     # Enter between views; Ctrl+C to stop"
+  echo ""
+  echo "Phase D wizards: ./scripts/demo-wizard.sh list"
   echo ""
   echo "Views:"
   list_views

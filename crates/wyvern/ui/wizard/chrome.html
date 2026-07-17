@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Wizard</title>
+  <link rel="stylesheet" href="/shared/embedded-chrome.css" />
+  <link rel="stylesheet" href="/shared/wizard-chrome.css" />
+  <script src="/shared/wyvern-api.js"></script>
+</head>
+<body>
+  <!--
+    Optional wizard page wrapper (sprint d.7).
+    Authors replace the page slot and set data-wizard-terminal="true" on the
+    last step root. Load with:
+      <script src="/shared/wizard-nav.js" data-wizard-chrome></script>
+  -->
+  <main id="dialog" class="dialog dialog--frame" data-wizard-page>
+    <!-- PAGE_CONTENT -->
+    <nav class="wizard-chrome" data-wizard-nav aria-label="Wizard navigation">
+      <button type="button" class="secondary" data-wizard-back data-testid="wizard-back">
+        Back
+      </button>
+      <button type="button" class="primary" data-wizard-next data-testid="wizard-next">
+        Next
+      </button>
+    </nav>
+    <p class="wizard-error" data-testid="wizard-error" hidden></p>
+  </main>
+
+  <script src="/shared/wizard-nav.js" data-wizard-chrome></script>
+</body>
+</html>

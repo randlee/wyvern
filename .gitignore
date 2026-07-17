@@ -11,4 +11,6 @@ Cargo.lock
 tests/e2e/node_modules/
 tests/e2e/test-results/
 tests/e2e/playwright-report/
-
+tests/l2/node_modules/
+tests/l2/test-results/
+tests/l2/playwright-report/

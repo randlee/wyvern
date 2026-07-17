@@ -63,6 +63,18 @@ IO_FORBIDDEN_GREPS: dict[str, list[re.Pattern[str]]] = {
         re.compile(r"with_html\s*\("),
         re.compile(r"include_str!\s*\([^\n]*\.html"),
     ],
+    "wizard_history_internals": [
+        re.compile(r"wyvern_wizard::history"),
+        re.compile(r"use\s+wyvern_wizard::history\b"),
+    ],
+    "wizard_domain_logic": [
+        re.compile(r"\bHistory::"),
+        re.compile(r"\bHistoryEntry::"),
+    ],
+    "browser_history_internals": [
+        re.compile(r"pub\s+mod\s+history\b"),
+        re.compile(r"pub\s+use\s+history::"),
+    ],
     "stdin_reading": [
         re.compile(r"\bstd::io::stdin\b"),
         re.compile(r"\bio::stdin\b"),
