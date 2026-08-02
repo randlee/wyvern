@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DAG Editor — Agent Pipeline Builder</title>
+<style>
+:root { --bg: #1a1a2e; --panel: #16213e; --accent: #0f3460; --text: #e0e0e0; --green: #4caf50; --red: #f44336; --blue: #2196f3; --input-bg: #0d1b2a; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.header h1 { font-size: 1.5em; }
+.toolbar { display: flex; gap: 10px; }
+.toolbar button { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; }
+.btn-add { background: var(--green); color: white; }
+.btn-export { background: var(--blue); color: white; }
+.btn-remove { background: var(--red); color: white; padding: 4px 8px; font-size: 0.8em; }
+.main { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.panel { background: var(--panel); border-radius: 8px; padding: 16px; }
+.panel h2 { font-size: 1.1em; margin-bottom: 12px; border-bottom: 1px solid var(--accent); padding-bottom: 8px; }
+.node-card { background: var(--accent); border-radius: 6px; padding: 12px; margin-bottom: 10px; position: relative; }
+.node-card h3 { font-size: 0.95em; margin-bottom: 8px; color: var(--green); }
+.node-card .btn-remove { position: absolute; top: 8px; right: 8px; }
+.form-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+.form-row label { min-width: 70px; font-size: 0.85em; color: #aaa; }
+.form-row select, .form-row input { flex: 1; padding: 6px 8px; background: var(--input-bg); border: 1px solid var(--accent); border-radius: 4px; color: var(--text); font-size: 0.85em; }
+.edge-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; padding: 8px; background: var(--accent); border-radius: 4px; }
+.edge-row span { font-size: 0.85em; }
+.edge-row select { padding: 4px 8px; background: var(--input-bg); border: 1px solid var(--accent); border-radius: 4px; color: var(--text); }
+.output { background: #000; color: var(--green); padding: 12px; border-radius: 6px; font-family: monospace; font-size: 0.8em; white-space: pre-wrap; max-height: 400px; overflow-y: auto; margin-top: 20px; }
+.hidden { display: none; }
+.loop-check { display: flex; align-items: center; gap: 4px; margin-left: 8px; }
+.loop-check input { margin: 0; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🔧 DAG Editor — Agent Pipeline Builder</h1>
+  <div class="toolbar">
+    <button class="btn-add" onclick="addNode()">+ Add Node</button>
+    <button class="btn-add" onclick="addEdge()" style="background:#ff9800">+ Add Edge</button>
+    <button class="btn-export" onclick="exportPipeline()">📋 Export</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="panel" id="nodes-panel">
+    <h2>Nodes</h2>
+    <div id="nodes-container"></div>
+  </div>
+  <div class="panel" id="edges-panel">
+    <h2>Edges</h2>
+    <div id="edges-container"></div>
+  </div>
+</div>
+
+<div class="output" id="output">Click "Export" to generate pipeline JSON...</div>
+
+<script>
+const HARNESS_MODELS = {
+  hermes: ['contessa', 'default', 'rust-architect', 'rust-developer'],
+  'claude-code': ['opus', 'sonnet', 'haiku', 'fable'],
+  codex: ['luna', 'terra', 'sol']
+};
+
+const OUTPUT_MODELS = ['Writer', 'Reviewer', 'WriterOk', 'WriterError', 'ReviewerOk', 'ReviewerError'];
+const INPUT_MODELS = ['None', 'Writer', 'Reviewer', 'WriterOk', 'ReviewerOk'];
+
+let nodes = [];
+let edges = [];
+let nodeCounter = 0;
+
+function getNodeOptions() {
+  return nodes.map(n => `<option value="${n.id}">${n.id} (${n.harness}/${n.model})</option>`).join('');
+}
+
+function addNode() {
+  const id = `node-${++nodeCounter}`;
+  nodes.push({
+    id, harness: 'hermes', model: 'contessa', identity: id,
+    model_out: 'Writer', model_in: 'None', session_mode: 'fresh',
+    effort: '', agent: '', template: '', prompt: ''
+  });
+  renderNodes();
+  renderEdges();
+}
+
+function removeNode(idx) {
+  nodes.splice(idx, 1);
+  edges = edges.filter(e => nodes.find(n => n.id === e.from) && nodes.find(n => n.id === e.to));
+  renderNodes();
+  renderEdges();
+}
+
+function updateNode(idx, field, value) {
+  nodes[idx][field] = value;
+  if (field === 'harness') {
+    nodes[idx].model = HARNESS_MODELS[value][0];
+  }
+  renderNodes();
+  renderEdges();
+}
+
+function renderNodes() {
+  const container = document.getElementById('nodes-container');
+  container.innerHTML = nodes.map((n, i) => {
+    const models = HARNESS_MODELS[n.harness] || [];
+    return `
+    <div class="node-card">
+      <h3>${n.id} <span style="color:#aaa;font-size:0.8em">(${n.harness}/${n.model})</span></h3>
+      <button class="btn-remove" onclick="removeNode(${i})">✕</button>
+      <div class="form-row">
+        <label>Harness</label>
+        <select onchange="updateNode(${i},'harness',this.value)">
+          ${Object.keys(HARNESS_MODELS).map(h => `<option ${n.harness===h?'selected':''}>${h}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Model</label>
+        <select onchange="updateNode(${i},'model',this.value)">
+          ${models.map(m => `<option ${n.model===m?'selected':''}>${m}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Identity</label>
+        <input value="${n.identity}" onchange="updateNode(${i},'identity',this.value)">
+      </div>
+      <div class="form-row">
+        <label>Model In</label>
+        <select onchange="updateNode(${i},'model_in',this.value)">
+          ${INPUT_MODELS.map(m => `<option ${n.model_in===m?'selected':''}>${m}</option>`).join('')}
+        </select>
+        <label style="margin-left:8px">Model Out</label>
+        <select onchange="updateNode(${i},'model_out',this.value)">
+          ${OUTPUT_MODELS.map(m => `<option ${n.model_out===m?'selected':''}>${m}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Session</label>
+        <select onchange="updateNode(${i},'session_mode',this.value)">
+          <option ${n.session_mode==='fresh'?'selected':''}>fresh</option>
+          <option ${n.session_mode==='same-session'?'selected':''}>same-session</option>
+        </select>
+        ${n.harness === 'claude-code' ? `<label style="margin-left:8px">Effort</label><select onchange="updateNode(${i},'effort',this.value)">
+          <option value="">default</option>
+          <option ${n.effort==='low'?'selected':''}>low</option>
+          <option ${n.effort==='medium'?'selected':''}>medium</option>
+          <option ${n.effort==='high'?'selected':''}>high</option>
+          <option ${n.effort==='xhigh'?'selected':''}>xhigh</option>
+        </select>` : ''}
+      </div>
+      <div class="form-row">
+        <label>Agent</label>
+        <input value="${n.agent}" placeholder=".claude/agents/*.md" onchange="updateNode(${i},'agent',this.value)">
+      </div>
+      <div class="form-row">
+        <label>Template</label>
+        <input value="${n.template}" placeholder="skills/*.j2" onchange="updateNode(${i},'template',this.value)">
+      </div>
+      <div class="form-row">
+        <label>Prompt</label>
+        <input value="${n.prompt}" placeholder="inline task prompt" onchange="updateNode(${i},'prompt',this.value)">
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function addEdge() {
+  if (nodes.length < 2) return alert('Need at least 2 nodes to add an edge');
+  edges.push({ from: nodes[0].id, to: nodes[nodes.length-1].id, loop: false, max_iterations: 3 });
+  renderEdges();
+}
+
+function removeEdge(idx) { edges.splice(idx, 1); renderEdges(); }
+
+function renderEdges() {
+  const container = document.getElementById('edges-container');
+  container.innerHTML = edges.map((e, i) => `
+    <div class="edge-row">
+      <span>From</span>
+      <select onchange="edges[${i}].from=this.value">
+        ${getNodeOptions().replace(new RegExp(`value="${e.from}"`), `value="${e.from}" selected`)}
+      </select>
+      <span>→</span>
+      <select onchange="edges[${i}].to=this.value">
+        ${getNodeOptions().replace(new RegExp(`value="${e.to}"`), `value="${e.to}" selected`)}
+      </select>
+      <span class="loop-check">
+        <input type="checkbox" ${e.loop?'checked':''} onchange="edges[${i}].loop=this.checked">
+        Loop
+        <input type="number" value="${e.max_iterations}" min="1" max="10" style="width:50px"
+          onchange="edges[${i}].max_iterations=parseInt(this.value)">
+      </span>
+      <button class="btn-remove" onclick="removeEdge(${i})">✕</button>
+    </div>
+  `).join('');
+}
+
+function exportPipeline() {
+  const cleanNodes = nodes.map(n => {
+    const entry = { id: n.id, harness: n.harness, model: n.model, identity: n.identity,
+      model_out: n.model_out, session_mode: n.session_mode };
+    if (n.model_in && n.model_in !== 'None') entry.model_in = n.model_in;
+    if (n.effort) entry.effort = n.effort;
+    if (n.agent) entry.agent = n.agent;
+    if (n.template) entry.template = n.template;
+    if (n.prompt) entry.prompt = n.prompt;
+    return entry;
+  });
+  
+  const cleanEdges = edges.map(e => {
+    const entry = { from: e.from, to: e.to };
+    if (e.loop) { entry.loop = true; entry.max_iterations = e.max_iterations; }
+    return entry;
+  });
+  
+  const output = {
+    pipeline: { name: prompt('Pipeline name:', 'my-pipeline') || 'my-pipeline' },
+    nodes: cleanNodes,
+    edges: cleanEdges
+  };
+  
+  // TOML output
+  let toml = `[pipeline]\nname = "${output.pipeline.name}"\n\n`;
+  for (const n of cleanNodes) {
+    toml += '[[nodes]]\n';
+    for (const [k, v] of Object.entries(n)) {
+      if (typeof v === 'boolean') toml += `${k} = ${v}\n`;
+      else toml += `${k} = "${v}"\n`;
+    }
+    toml += '\n';
+  }
+  for (const e of cleanEdges) {
+    toml += '[[edges]]\n';
+    for (const [k, v] of Object.entries(e)) {
+      if (typeof v === 'boolean') toml += `${k} = ${v}\n`;
+      else if (typeof v === 'number') toml += `${k} = ${v}\n`;
+      else toml += `${k} = "${v}"\n`;
+    }
+    toml += '\n';
+  }
+  
+  document.getElementById('output').textContent = 
+    '=== JSON (for Wyvern / JSONL pipeline) ===\n' + JSON.stringify(output, null, 2) + 
+    '\n\n=== TOML (for Dagu pipeline runner) ===\n' + toml;
+}
+
+// Start with 2 nodes and 1 edge
+addNode(); addNode(); addEdge();
+</script>
+</body>
+</html>

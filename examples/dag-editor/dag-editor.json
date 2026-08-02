@@ -1,0 +1,7 @@
+{
+  "type": "chrome",
+  "title": "DAG Editor — Agent Pipeline Builder",
+  "html": "examples/dag-editor/index.html",
+  "width": 1100,
+  "height": 800
+}
