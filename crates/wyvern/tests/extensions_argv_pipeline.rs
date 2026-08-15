@@ -111,10 +111,11 @@ fn version_flag_is_not_matched() {
 
 #[test]
 fn extensions_argv_pipeline_compose_render_survives_parse() {
-    let parsed = parse_cli_args(&args(&["compose", "render", "--root", "/tmp/ui"])).expect("parse");
+    let parsed =
+        parse_cli_args(&args(&["compose", "render", "--root", "test-ui-root"])).expect("parse");
     assert_eq!(
         parsed.positionals,
-        args(&["compose", "render", "--root", "/tmp/ui"])
+        args(&["compose", "render", "--root", "test-ui-root"])
     );
     let registry = prefix_registry();
     let matched = registry
@@ -124,7 +125,7 @@ fn extensions_argv_pipeline_compose_render_survives_parse() {
     assert_eq!(matched.extension().id.as_str(), "compose-render");
     let ctx = build_match_context(&matched, matched.extension());
     let (cmd, _) = expand_command_host(matched.extension(), &ctx).expect("expand");
-    assert_eq!(cmd["content"], "/tmp/ui");
+    assert_eq!(cmd["content"], "test-ui-root");
 }
 
 #[test]

@@ -290,7 +290,12 @@ pub enum ExtensionError {
         /// Template variable name.
         var: String,
     },
-    /// Template substitution failed.
+    /// Template expansion failure. Covers multiple sub-modes:
+    /// unclosed brace, unknown variable, phase-restricted variable
+    /// used in wrong context, {tmpdir}/{rendered_basename} not available.
+    /// All sub-modes map to ValidationError exit code.
+    /// Note: sub-mode discrimination requires parsing the message string.
+    /// Full variant decomposition is deferred to a future refactor.
     Template {
         /// Substitution failure detail.
         message: String,
