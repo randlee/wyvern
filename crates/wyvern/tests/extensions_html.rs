@@ -1,10 +1,10 @@
 //! Positional `.html` suffix: expand to a single-page wizard with inferred ui_root.
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use wyvern::extensions::{
     build_match_context, expand_and_validate, infer_wizard_root, relpath_from_ui_root,
-    ExtensionRegistry, SHIPPED_EXTENSIONS_JSON,
+    ExtensionRegistry,
 };
 
 fn workspace_root() -> PathBuf {
@@ -18,18 +18,9 @@ fn workspace_share_dir() -> PathBuf {
     workspace_root().join("share/wyvern")
 }
 
-fn isolate_workspace_share() {
-    static INIT: std::sync::Once = std::sync::Once::new();
-    INIT.call_once(|| {
-        std::env::set_var("WYVERN_SHARE", workspace_share_dir());
-    });
-}
-
 fn load_shipped() -> ExtensionRegistry {
-    isolate_workspace_share();
-    ExtensionRegistry::load_default().unwrap_or_else(|_| {
-        ExtensionRegistry::from_json_str(SHIPPED_EXTENSIONS_JSON).expect("shipped")
-    })
+    let defaults = workspace_share_dir().join("extensions.json");
+    ExtensionRegistry::load(&defaults, None).expect("shipped registry")
 }
 
 fn fixture(rel: &str) -> PathBuf {
@@ -45,7 +36,7 @@ fn extensions_html_expands_single_page_wizard() {
     let matched = registry
         .match_argv(&argv)
         .expect("html-suffix should match");
-    assert_eq!(matched.extension().id, "html-suffix");
+    assert_eq!(matched.extension().id.as_str(), "html-suffix");
 
     let ctx = build_match_context(&matched, matched.extension());
     let expanded = expand_and_validate(matched.extension(), &ctx).expect("expand");
@@ -87,7 +78,7 @@ fn extensions_html_md_regression() {
     let matched = registry
         .match_argv(&argv)
         .expect(".md should still match markdown-suffix");
-    assert_eq!(matched.extension().id, "markdown-suffix");
+    assert_eq!(matched.extension().id.as_str(), "markdown-suffix");
     assert_eq!(matched.path(), Some("docs/readme.md"));
 
     let ctx = build_match_context(&matched, matched.extension());
@@ -111,20 +102,14 @@ fn extensions_html_non_wizard_json_no_match() {
         assert!(
             matched.is_none(),
             "{token} must not match wizard-json-suffix (got {})",
-            matched.expect("checked none").extension().id
+            matched.expect("checked none").extension().id.as_str()
         );
     }
 }
 
 #[test]
 fn extensions_html_relative_pages_path_infers_parent_of_pages() {
-    let path = Path::new("examples/wizards/single-page/pages/only.html");
-    let cwd_path = std::env::current_dir()
-        .ok()
-        .map(|cwd| cwd.join(path))
-        .filter(|p| p.is_file());
-    let resolved =
-        cwd_path.unwrap_or_else(|| fixture("examples/wizards/single-page/pages/only.html"));
+    let resolved = fixture("examples/wizards/single-page/pages/only.html");
     let root = infer_wizard_root(&resolved);
     assert!(root.ends_with("single-page"), "{}", root.display());
     assert_eq!(relpath_from_ui_root(&resolved, &root), "pages/only.html");

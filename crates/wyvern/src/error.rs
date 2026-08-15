@@ -128,7 +128,7 @@ pub fn emit_extension_error(err: &crate::extensions::ExtensionError) -> Result<S
             "Extension template substitution failed".to_string(),
             vec!["Check expand/preexec templates in the extension registry".into()],
         ),
-        ExtensionError::Preexec { message } => (
+        ExtensionError::Preexec { message, .. } => (
             ErrorCode::IoError,
             message.clone(),
             "Extension preexec subprocess failed".to_string(),
@@ -140,7 +140,7 @@ pub fn emit_extension_error(err: &crate::extensions::ExtensionError) -> Result<S
         ExtensionError::InvalidCommand { source } => {
             return emit_validation_error(source);
         }
-        ExtensionError::Io { message } => (
+        ExtensionError::Io { message, .. } => (
             ErrorCode::IoError,
             message.clone(),
             "Extension engine filesystem operation failed".to_string(),

@@ -36,7 +36,7 @@ fn wyvern_share_resolve_finds_extensions_json() {
     assert!(registry
         .extensions()
         .iter()
-        .any(|ext| ext.id == "markdown-suffix"));
+        .any(|ext| ext.id.as_str() == "markdown-suffix"));
     assert!(
         share.join("extensions.json").is_file(),
         "extensions.json missing under {}",

@@ -4,7 +4,6 @@ use std::path::PathBuf;
 
 use wyvern::extensions::{
     build_match_context, expand_and_validate, infer_wizard_root, ExtensionRegistry,
-    SHIPPED_EXTENSIONS_JSON,
 };
 
 fn workspace_root() -> PathBuf {
@@ -18,18 +17,9 @@ fn workspace_share_dir() -> PathBuf {
     workspace_root().join("share/wyvern")
 }
 
-fn isolate_workspace_share() {
-    static INIT: std::sync::Once = std::sync::Once::new();
-    INIT.call_once(|| {
-        std::env::set_var("WYVERN_SHARE", workspace_share_dir());
-    });
-}
-
 fn load_shipped() -> ExtensionRegistry {
-    isolate_workspace_share();
-    ExtensionRegistry::load_default().unwrap_or_else(|_| {
-        ExtensionRegistry::from_json_str(SHIPPED_EXTENSIONS_JSON).expect("shipped")
-    })
+    let defaults = workspace_share_dir().join("extensions.json");
+    ExtensionRegistry::load(&defaults, None).expect("shipped registry")
 }
 
 fn fixture(rel: &str) -> PathBuf {
@@ -52,7 +42,7 @@ fn extensions_wizard_json_expands_turbo_flow() {
     let matched = registry
         .match_argv(&argv)
         .expect("wizard-json-suffix should match");
-    assert_eq!(matched.extension().id, "wizard-json-suffix");
+    assert_eq!(matched.extension().id.as_str(), "wizard-json-suffix");
 
     let ctx = build_match_context(&matched, matched.extension());
     let expanded = expand_and_validate(matched.extension(), &ctx).expect("expand");
@@ -84,7 +74,7 @@ fn extensions_wizard_json_expands_single_page() {
     let matched = registry
         .match_argv(&argv)
         .expect("wizard-json-suffix should match");
-    assert_eq!(matched.extension().id, "wizard-json-suffix");
+    assert_eq!(matched.extension().id.as_str(), "wizard-json-suffix");
 
     let ctx = build_match_context(&matched, matched.extension());
     let expanded = expand_and_validate(matched.extension(), &ctx).expect("expand");

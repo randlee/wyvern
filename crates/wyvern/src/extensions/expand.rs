@@ -117,9 +117,11 @@ pub fn expand_command_host(
         let path = env.expand_string(path_tmpl)?;
         let text = std::fs::read_to_string(&path).map_err(|err| ExtensionError::Io {
             message: format!("command_from_file '{path}': {err}"),
+            source: Some(Box::new(err)),
         })?;
         let value: Value = serde_json::from_str(&text).map_err(|err| ExtensionError::Io {
             message: format!("command_from_file '{path}' is not JSON: {err}"),
+            source: Some(Box::new(err)),
         })?;
         env.expand_value(&value)?
     } else {
@@ -192,8 +194,8 @@ pub fn expand_and_validate(
                 return Err(err);
             }
         };
-        let stdout_mode = ext.preexec.as_ref().and_then(|p| p.stdout.as_deref());
-        match run_preexec(&cmd, &args, stdout_mode) {
+        let stdout_capture = ext.preexec.as_ref().and_then(|p| p.stdout);
+        match run_preexec(&cmd, &args, stdout_capture) {
             Ok(stdout) => ctx.preexec_stdout = stdout,
             Err(err) => {
                 drop(temp_guard);

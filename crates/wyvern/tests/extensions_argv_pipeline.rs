@@ -120,7 +120,7 @@ fn extensions_argv_pipeline_compose_render_survives_parse() {
         .match_argv(&parsed.positionals)
         .expect("compose render must reach matcher");
     assert!(matches!(matched, ExtensionMatch::Prefix { .. }));
-    assert_eq!(matched.extension().id, "compose-render");
+    assert_eq!(matched.extension().id.as_str(), "compose-render");
     let ctx = build_match_context(&matched, matched.extension());
     let (cmd, _) = expand_command_host(matched.extension(), &ctx).expect("expand");
     assert_eq!(cmd["content"], "/tmp/ui");
@@ -140,7 +140,7 @@ fn extensions_argv_pipeline_prefix_suffix_table_and_md() {
     let matched = registry
         .match_argv(&md.positionals)
         .expect("md prefix+suffix");
-    assert_eq!(matched.extension().id, "md-csv");
+    assert_eq!(matched.extension().id.as_str(), "md-csv");
 }
 
 #[test]

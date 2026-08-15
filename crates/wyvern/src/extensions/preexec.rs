@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdout, Command, ExitStatus, Stdio};
 use std::time::{Duration, Instant};
 
-use super::ExtensionError;
+use super::{ExtensionError, StdoutCapture};
 
 /// Default preexec timeout in seconds. Override with `WYVERN_PREEXEC_TIMEOUT_SECS`.
 /// 30s covers compose/csv helpers without leaving a hung child unbounded.
@@ -83,19 +83,15 @@ fn candidate_exists(path: &Path) -> bool {
 /// # Errors
 ///
 /// Returns [`ExtensionError::Preexec`] when the process cannot be spawned,
-/// times out, exceeds the stdout cap, or exits non-zero. Unknown `stdout`
-/// modes are template/contract errors.
+/// times out, exceeds the stdout cap, or exits non-zero.
 pub fn run_preexec(
     cmd: &str,
     args: &[String],
-    stdout_mode: Option<&str>,
+    stdout_mode: Option<StdoutCapture>,
 ) -> Result<Option<String>, ExtensionError> {
     match stdout_mode {
         None => run_without_capture(cmd, args).map(|()| None),
-        Some("markdown") => run_capture_stdout(cmd, args).map(Some),
-        Some(other) => Err(ExtensionError::Template {
-            message: format!("unsupported preexec.stdout mode '{other}' (Phase F: markdown only)"),
-        }),
+        Some(StdoutCapture::Markdown) => run_capture_stdout(cmd, args).map(Some),
     }
 }
 
@@ -108,6 +104,7 @@ fn run_without_capture(cmd: &str, args: &[String]) -> Result<(), ExtensionError>
         .spawn()
         .map_err(|err| ExtensionError::Preexec {
             message: format!("failed to spawn '{cmd}': {err}"),
+            source: Some(Box::new(err)),
         })?;
     let deadline = Instant::now() + preexec_timeout();
     let status = wait_until(&mut child, cmd, deadline)?;
@@ -116,6 +113,7 @@ fn run_without_capture(cmd: &str, args: &[String]) -> Result<(), ExtensionError>
     } else {
         Err(ExtensionError::Preexec {
             message: format!("'{cmd}' exited with {status}"),
+            source: None,
         })
     }
 }
@@ -129,9 +127,11 @@ fn run_capture_stdout(cmd: &str, args: &[String]) -> Result<String, ExtensionErr
         .spawn()
         .map_err(|err| ExtensionError::Preexec {
             message: format!("failed to spawn '{cmd}': {err}"),
+            source: Some(Box::new(err)),
         })?;
     let stdout = child.stdout.take().ok_or_else(|| ExtensionError::Preexec {
         message: format!("failed to capture '{cmd}' stdout"),
+        source: None,
     })?;
     let timeout = preexec_timeout();
     let cmd_owned = cmd.to_string();
@@ -143,6 +143,7 @@ fn run_capture_stdout(cmd: &str, args: &[String]) -> Result<String, ExtensionErr
         })
         .map_err(|err| ExtensionError::Preexec {
             message: format!("thread spawn failed: {err}"),
+            source: Some(Box::new(err)),
         })?;
 
     match rx.recv_timeout(timeout) {
@@ -155,10 +156,12 @@ fn run_capture_stdout(cmd: &str, args: &[String]) -> Result<String, ExtensionErr
             if !status.success() {
                 return Err(ExtensionError::Preexec {
                     message: format!("'{cmd}' exited with {status}"),
+                    source: None,
                 });
             }
             String::from_utf8(raw).map_err(|err| ExtensionError::Preexec {
                 message: format!("{cmd} stdout is not valid UTF-8: {err}"),
+                source: Some(Box::new(err)),
             })
         }
         Ok(Err(err)) => {
@@ -169,6 +172,7 @@ fn run_capture_stdout(cmd: &str, args: &[String]) -> Result<String, ExtensionErr
             reap_killed(&mut child, reader);
             Err(ExtensionError::Preexec {
                 message: format!("{cmd} timed out after {}s", timeout.as_secs()),
+                source: None,
             })
         }
     }
@@ -182,10 +186,12 @@ fn read_capped_stdout(cmd: &str, stdout: ChildStdout) -> Result<Vec<u8>, Extensi
         .read_to_end(&mut buf)
         .map_err(|err| ExtensionError::Preexec {
             message: format!("failed to read stdout: {err}"),
+            source: Some(Box::new(err)),
         })?;
     if buf.len() > MAX_PREEXEC_STDOUT_BYTES {
         return Err(ExtensionError::Preexec {
             message: format!("{cmd} stdout exceeded {MAX_PREEXEC_STDOUT_BYTES} bytes"),
+            source: None,
         });
     }
     Ok(buf)
@@ -205,6 +211,7 @@ fn wait_until(
                     let _ = child.wait();
                     return Err(ExtensionError::Preexec {
                         message: format!("{cmd} timed out after {}s", preexec_timeout().as_secs()),
+                        source: None,
                     });
                 }
                 std::thread::sleep(PREEXEC_WAIT_POLL);
@@ -212,6 +219,7 @@ fn wait_until(
             Err(err) => {
                 return Err(ExtensionError::Preexec {
                     message: format!("{cmd} wait failed: {err}"),
+                    source: Some(Box::new(err)),
                 });
             }
         }
@@ -264,6 +272,7 @@ pub fn first_rendered_html(tmpdir: &Path) -> Result<String, ExtensionError> {
 pub fn create_tmpdir() -> Result<tempfile::TempDir, ExtensionError> {
     tempfile::TempDir::new().map_err(|err| ExtensionError::Io {
         message: format!("could not create extension temp dir: {err}"),
+        source: Some(Box::new(err)),
     })
 }
 
@@ -296,7 +305,8 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn preexec_markdown_stdout_capture() {
-        let out = run_preexec("printf", &["# hi".into()], Some("markdown")).expect("printf");
+        let out =
+            run_preexec("printf", &["# hi".into()], Some(StdoutCapture::Markdown)).expect("printf");
         assert_eq!(out.as_deref(), Some("# hi"));
     }
 
@@ -309,11 +319,11 @@ mod tests {
         let err = run_preexec(
             "dd",
             &["if=/dev/zero".into(), "bs=1024".into(), "count=2048".into()],
-            Some("markdown"),
+            Some(StdoutCapture::Markdown),
         )
         .expect_err("oversize stdout");
         assert!(
-            matches!(err, ExtensionError::Preexec { ref message } if message.contains("exceeded")),
+            matches!(err, ExtensionError::Preexec { ref message, .. } if message.contains("exceeded")),
             "{err:?}"
         );
     }
