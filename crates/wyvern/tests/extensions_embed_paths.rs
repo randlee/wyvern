@@ -7,6 +7,26 @@ use wyvern::extensions::{
     ScriptAssets, ShareAssets, SHIPPED_EXTENSIONS_JSON,
 };
 
+struct EnvVarGuard {
+    key: &'static str,
+    prev: Option<String>,
+}
+
+impl Drop for EnvVarGuard {
+    fn drop(&mut self) {
+        match &self.prev {
+            Some(value) => std::env::set_var(self.key, value),
+            None => std::env::remove_var(self.key),
+        }
+    }
+}
+
+fn remove_env_var_guard(key: &'static str) -> EnvVarGuard {
+    let prev = std::env::var(key).ok();
+    std::env::remove_var(key);
+    EnvVarGuard { key, prev }
+}
+
 #[test]
 fn shipped_extensions_json_is_valid() {
     ExtensionRegistry::from_json_str(SHIPPED_EXTENSIONS_JSON).expect("shipped JSON");
@@ -14,6 +34,7 @@ fn shipped_extensions_json_is_valid() {
 
 #[test]
 fn wyvern_share_resolve_finds_extensions_json() {
+    let _guard = remove_env_var_guard("WYVERN_SHARE");
     let registry = ExtensionRegistry::load_default().expect("load_default");
     assert!(registry
         .extensions()
@@ -51,6 +72,7 @@ fn script_assets_embed_contains_placeholder() {
 
 #[test]
 fn extensions_embed_paths_unified_share_has_registry_and_scripts() {
+    let _guard = remove_env_var_guard("WYVERN_SHARE");
     let share = resolve_wyvern_share();
     assert!(
         share.join("extensions.json").is_file(),
@@ -92,6 +114,7 @@ fn extensions_embed_paths_dev_workspace_layout() {
 
 #[test]
 fn extensions_embed_paths_embedded_extract_layout() {
+    let _guard = remove_env_var_guard("WYVERN_SHARE");
     let tmp = tempfile::tempdir().expect("tmp");
     // No workspace in tmp cwd/exe — force embed extract.
     let share = resolve_wyvern_share_with(None, Some(tmp.path()), Some(tmp.path()), None, true);

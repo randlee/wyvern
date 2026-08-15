@@ -72,9 +72,13 @@ pub fn expand_preexec_args(
     ext: &ExtensionDef,
     ctx: &MatchContext<'_>,
 ) -> Result<(String, Vec<String>), ExtensionError> {
+    debug_assert!(
+        ext.preexec.is_some(),
+        "expand_preexec_args requires ext.preexec to be set"
+    );
     let Some(pre) = ext.preexec.as_ref() else {
         return Err(ExtensionError::Template {
-            message: "expand_preexec_args called without preexec".into(),
+            message: "expand_preexec_args requires ext.preexec to be set".into(),
         });
     };
     let env = ExpandEnv::from_context(ext, ctx, Phase::Preexec)?;
@@ -135,11 +139,21 @@ pub fn expand_command_host(
     Ok((command, host_overrides))
 }
 
+// Thread-local storage for the last created tmpdir path.
+// Used only in tests via `last_created_tmpdir()` to verify cleanup behaviour
+// without exposing `TempDir` handles across API boundaries.
+// Interior mutability is required because the test hook must write to this
+// slot inside `expand_and_validate` which takes `&ExtensionDef` (non-mut).
+// Production code never reads this slot; it is populated only when preexec
+// creates a tmpdir, and tests call `last_created_tmpdir()` after the fact.
+// Kept `pub` (not `#[cfg(test)]`) so integration-test binaries can call it.
 thread_local! {
     static LAST_CREATED_TMPDIR: std::cell::RefCell<Option<PathBuf>> = const { std::cell::RefCell::new(None) };
 }
 
 /// Path of the temp dir created by the last [`expand_and_validate`] on this thread.
+///
+/// Integration tests use this hook; it is not part of the supported public API.
 #[doc(hidden)]
 #[must_use]
 pub fn last_created_tmpdir() -> Option<PathBuf> {
@@ -512,11 +526,21 @@ fn parse_template(template: &str) -> Result<Vec<TemplatePart>, ExtensionError> {
 }
 
 fn collect_template_vars(template: &str, into: &mut BTreeSet<String>) {
-    if let Ok(parts) = parse_template(template) {
-        for part in parts {
-            if let TemplatePart::Var(name) = part {
-                into.insert(name);
+    // Template parse errors are deferred to expand-time for richer context.
+    match parse_template(template) {
+        Ok(parts) => {
+            for part in parts {
+                if let TemplatePart::Var(name) = part {
+                    into.insert(name);
+                }
             }
+        }
+        Err(e) => {
+            tracing::debug!(
+                template,
+                error = %e,
+                "collect_template_vars: skipping malformed template in registry ({template}): {e}"
+            );
         }
     }
 }
@@ -844,5 +868,59 @@ mod tests {
         assert!(tmp.is_dir());
         drop(expanded);
         assert!(!tmp.exists());
+    }
+
+    #[test]
+    fn rendered_basename_substitutes_foo_html() {
+        let json = r#"{
+          "version": 1,
+          "extensions": [{
+            "id": "rendered",
+            "match": { "positional_suffix": ".md" },
+            "expand": {
+              "command": { "type": "markdown", "content": "{rendered_basename}" }
+            }
+          }]
+        }"#;
+        let registry = ExtensionRegistry::from_json_str(json).expect("parse");
+        let argv = vec!["doc.md".to_string()];
+        let matched = registry.match_argv(&argv).expect("match");
+        let mut ctx = build_match_context(&matched, matched.extension());
+        ctx.rendered_basename = Some("foo.html".to_string());
+        let (cmd, _) = expand_command_host(matched.extension(), &ctx).expect("expand");
+        assert_eq!(cmd["content"], "foo.html");
+        assert!(cmd["content"]
+            .as_str()
+            .is_some_and(|s| s.contains("foo.html")));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rendered_basename_end_to_end_from_tmpdir_pages() {
+        let json = r#"{
+          "version": 1,
+          "extensions": [{
+            "id": "rendered-e2e",
+            "match": { "positional_suffix": ".md" },
+            "preexec": {
+              "cmd": "sh",
+              "args": [
+                "-c",
+                "mkdir -p \"$1/pages\" && printf '<p>x</p>' > \"$1/pages/foo.html\"",
+                "preexec",
+                "{tmpdir}"
+              ]
+            },
+            "expand": {
+              "command": { "type": "markdown", "content": "{rendered_basename}" }
+            }
+          }]
+        }"#;
+        let registry = ExtensionRegistry::from_json_str(json).expect("parse");
+        let argv = vec!["doc.md".to_string()];
+        let matched = registry.match_argv(&argv).expect("match");
+        let ctx = build_match_context(&matched, matched.extension());
+        let expanded = expand_and_validate(matched.extension(), &ctx).expect("expand");
+        assert_eq!(expanded.command["content"], "foo.html");
     }
 }

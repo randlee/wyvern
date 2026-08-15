@@ -2,8 +2,25 @@
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::time::Duration;
 
 use super::ExtensionError;
+
+/// Default preexec timeout in seconds. Override with `WYVERN_PREEXEC_TIMEOUT_SECS`.
+/// 30s covers compose/csv helpers without leaving a hung child unbounded.
+const DEFAULT_PREEXEC_TIMEOUT_SECS: u64 = 30;
+
+/// Max captured preexec stdout. 1 MiB is enough for markdown capture and
+/// prevents a runaway child from exhausting CLI memory.
+const MAX_PREEXEC_STDOUT_BYTES: usize = 1024 * 1024;
+
+fn preexec_timeout() -> Duration {
+    std::env::var("WYVERN_PREEXEC_TIMEOUT_SECS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .map(Duration::from_secs)
+        .unwrap_or(Duration::from_secs(DEFAULT_PREEXEC_TIMEOUT_SECS))
+}
 
 /// Probe used at match time for `preexec.requires`.
 pub trait RequiresProbe {
@@ -54,12 +71,16 @@ fn candidate_exists(path: &Path) -> bool {
     path.is_file()
 }
 
-/// Run `cmd` with expanded `args`; optionally capture markdown stdout.
+/// Runs the extension preexec command. On timeout the error is returned but
+/// the child process continues running until it naturally exits or the OS
+/// reclaims it. Users who interrupt `wyvern` during a long preexec must
+/// manually terminate the child if needed. See `WYVERN_PREEXEC_TIMEOUT_SECS`.
 ///
 /// # Errors
 ///
-/// Returns [`ExtensionError::Preexec`] when the process cannot be spawned or
-/// exits non-zero. Unknown `stdout` modes are template/contract errors.
+/// Returns [`ExtensionError::Preexec`] when the process cannot be spawned,
+/// times out, exceeds the stdout cap, or exits non-zero. Unknown `stdout`
+/// modes are template/contract errors.
 pub fn run_preexec(
     cmd: &str,
     args: &[String],
@@ -75,15 +96,16 @@ pub fn run_preexec(
 }
 
 fn run_without_capture(cmd: &str, args: &[String]) -> Result<(), ExtensionError> {
-    let status = Command::new(cmd)
+    let mut child = Command::new(cmd)
         .args(args)
         .stdin(Stdio::null())
-        .stdout(Stdio::null())
         .stderr(Stdio::inherit())
-        .status()
+        .stdout(Stdio::null())
+        .spawn()
         .map_err(|err| ExtensionError::Preexec {
             message: format!("failed to spawn '{cmd}': {err}"),
         })?;
+    let status = wait_child_with_timeout(cmd, move || child.wait())?;
     if status.success() {
         Ok(())
     } else {
@@ -94,23 +116,62 @@ fn run_without_capture(cmd: &str, args: &[String]) -> Result<(), ExtensionError>
 }
 
 fn run_capture_stdout(cmd: &str, args: &[String]) -> Result<String, ExtensionError> {
-    let output = Command::new(cmd)
+    let child = Command::new(cmd)
         .args(args)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit())
-        .output()
+        .spawn()
         .map_err(|err| ExtensionError::Preexec {
             message: format!("failed to spawn '{cmd}': {err}"),
         })?;
+    let output = wait_child_with_timeout(cmd, move || child.wait_with_output())?;
     if !output.status.success() {
         return Err(ExtensionError::Preexec {
             message: format!("'{cmd}' exited with {}", output.status),
         });
     }
-    String::from_utf8(output.stdout).map_err(|err| ExtensionError::Preexec {
-        message: format!("preexec stdout was not UTF-8: {err}"),
+    let raw = output.stdout;
+    if raw.len() > MAX_PREEXEC_STDOUT_BYTES {
+        return Err(ExtensionError::Preexec {
+            message: format!("{cmd} stdout exceeded {MAX_PREEXEC_STDOUT_BYTES} bytes"),
+        });
+    }
+    String::from_utf8(raw).map_err(|err| ExtensionError::Preexec {
+        message: format!("{cmd} stdout is not valid UTF-8: {err}"),
     })
+}
+
+fn wait_child_with_timeout<T, F>(cmd: &str, child_wait: F) -> Result<T, ExtensionError>
+where
+    F: FnOnce() -> std::io::Result<T> + Send + 'static,
+    T: Send + 'static,
+{
+    let timeout = preexec_timeout();
+    let (done_tx, done_rx) = std::sync::mpsc::channel();
+    let handle = std::thread::Builder::new()
+        .name("preexec-wait".into())
+        .spawn(move || {
+            let result = child_wait();
+            let _ = done_tx.send(());
+            result
+        })
+        .map_err(|err| ExtensionError::Preexec {
+            message: format!("thread spawn failed: {err}"),
+        })?;
+    match done_rx.recv_timeout(timeout) {
+        Ok(()) => handle
+            .join()
+            .map_err(|_| ExtensionError::Preexec {
+                message: "preexec wait thread panicked".into(),
+            })?
+            .map_err(|err| ExtensionError::Preexec {
+                message: format!("{cmd} failed: {err}"),
+            }),
+        Err(_) => Err(ExtensionError::Preexec {
+            message: format!("{cmd} timed out after {}s", timeout.as_secs()),
+        }),
+    }
 }
 
 /// Lexicographically first `*.html` basename under `{tmpdir}/pages/`.
@@ -187,5 +248,15 @@ mod tests {
     fn preexec_markdown_stdout_capture() {
         let out = run_preexec("printf", &["# hi".into()], Some("markdown")).expect("printf");
         assert_eq!(out.as_deref(), Some("# hi"));
+    }
+
+    #[test]
+    fn first_rendered_html_picks_lexicographic_first() {
+        let tmp = tempfile::tempdir().expect("tmp");
+        let pages = tmp.path().join("pages");
+        std::fs::create_dir_all(&pages).expect("mkdir");
+        std::fs::write(pages.join("foo.html"), "<p>x</p>").expect("write");
+        std::fs::write(pages.join("zzz.html"), "<p>z</p>").expect("write");
+        assert_eq!(first_rendered_html(tmp.path()).expect("html"), "foo.html");
     }
 }

@@ -63,7 +63,11 @@ pub struct ExtensionRegistry {
 /// One registry entry after merge and `extends` resolution.
 #[derive(Debug, Clone, Deserialize)]
 pub struct ExtensionDef {
-    /// Stable extension id (merge key).
+    /// Stable extension id (merge key). Must be non-empty after trim.
+    ///
+    /// Validated at parse time via [`deserialize_extension_id`].
+    #[doc(alias = "ExtensionId")]
+    #[serde(deserialize_with = "deserialize_extension_id")]
     pub id: String,
     /// Argv match rule.
     #[serde(rename = "match")]
@@ -449,6 +453,17 @@ fn parse_registry_file(path: &Path) -> Result<Vec<ExtensionDef>, ExtensionError>
     parse_registry_str(&text, &path.display().to_string())
 }
 
+fn deserialize_extension_id<'de, D: serde::Deserializer<'de>>(d: D) -> Result<String, D::Error> {
+    let s = String::deserialize(d)?;
+    let trimmed = s.trim();
+    if trimmed.is_empty() {
+        return Err(serde::de::Error::custom(
+            "extension id must not be empty or whitespace",
+        ));
+    }
+    Ok(trimmed.to_string())
+}
+
 fn parse_registry_str(text: &str, origin: &str) -> Result<Vec<ExtensionDef>, ExtensionError> {
     let file: RegistryFile =
         serde_json::from_str(text).map_err(|err| ExtensionError::InvalidRegistry {
@@ -463,15 +478,27 @@ fn parse_registry_str(text: &str, origin: &str) -> Result<Vec<ExtensionDef>, Ext
         });
     }
     for ext in &file.extensions {
-        if ext.id.trim().is_empty() {
-            return Err(ExtensionError::InvalidRegistry {
-                message: format!("extension with empty id in {origin}"),
-            });
-        }
         if !has_match_field(&ext.match_spec) && ext.extends.is_none() {
             return Err(ExtensionError::InvalidRegistry {
                 message: format!("extension '{}' in {origin} has no match fields", ext.id),
             });
+        }
+        if let Some(preexec) = &ext.preexec {
+            for bin in &preexec.requires {
+                let t = bin.trim();
+                if t.is_empty() {
+                    return Err(ExtensionError::InvalidRegistry {
+                        message: "preexec.requires: binary name must not be empty".into(),
+                    });
+                }
+                if t.contains('/') || t.contains('\\') {
+                    return Err(ExtensionError::InvalidRegistry {
+                        message: format!(
+                            "preexec.requires: '{t}' looks like a path; use bare binary name"
+                        ),
+                    });
+                }
+            }
         }
     }
     Ok(file.extensions)
@@ -576,20 +603,35 @@ pub fn resolve_wyvern_share_with(
     use_embedded: bool,
 ) -> PathBuf {
     if let Some(path) = share_var {
+        tracing::debug!(path, "resolve_wyvern_share: using WYVERN_SHARE override");
         return PathBuf::from(path);
     }
     for start in [cwd, exe_dir, manifest_dir].into_iter().flatten() {
         if let Some(workspace) = find_workspace_root(start) {
             if let Some(unified) = materialize_workspace_share(&workspace) {
+                tracing::debug!(
+                    path = %unified.display(),
+                    "resolve_wyvern_share: materialized workspace share"
+                );
                 return unified;
             }
+            tracing::debug!(
+                workspace = %workspace.display(),
+                "resolve_wyvern_share: workspace found but materialize failed; trying next start"
+            );
         }
     }
     if use_embedded {
         if let Some(extracted) = extract_embedded_share() {
+            tracing::debug!(
+                path = %extracted.display(),
+                "resolve_wyvern_share: using embedded extract"
+            );
             return extracted;
         }
+        tracing::debug!("resolve_wyvern_share: embedded extract failed; using relative fallback");
     }
+    tracing::debug!("resolve_wyvern_share: falling back to share/wyvern");
     PathBuf::from("share/wyvern")
 }
 
@@ -607,7 +649,8 @@ pub fn find_workspace_root(start: &Path) -> Option<PathBuf> {
 }
 
 fn materialize_workspace_share(workspace: &Path) -> Option<PathBuf> {
-    let dest = workspace.join("target/wyvern-share");
+    // Use pid-suffixed dir to avoid races between concurrent test processes.
+    let dest = workspace.join(format!("target/wyvern-share-{}", std::process::id()));
     let marker = dest.join("extensions.json");
     if file_nonempty(&marker) {
         return Some(dest);
@@ -628,9 +671,37 @@ fn copy_dir_contents(src: &Path, dest: &Path) -> Option<()> {
     if !src.is_dir() {
         return Some(());
     }
-    std::fs::create_dir_all(dest).ok()?;
-    for entry in std::fs::read_dir(src).ok()? {
-        let entry = entry.ok()?;
+    if let Err(e) = std::fs::create_dir_all(dest) {
+        tracing::warn!(
+            "copy_dir_contents: failed to copy {} to {}: {e}",
+            src.display(),
+            dest.display()
+        );
+        return None;
+    }
+    let entries = match std::fs::read_dir(src) {
+        Ok(entries) => entries,
+        Err(e) => {
+            tracing::warn!(
+                "copy_dir_contents: failed to copy {} to {}: {e}",
+                src.display(),
+                dest.display()
+            );
+            return None;
+        }
+    };
+    for entry in entries {
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(e) => {
+                tracing::warn!(
+                    "copy_dir_contents: failed to copy {} to {}: {e}",
+                    src.display(),
+                    dest.display()
+                );
+                return None;
+            }
+        };
         let from = entry.path();
         let to = dest.join(entry.file_name());
         if from.is_dir() {
@@ -661,29 +732,68 @@ fn copy_file_replace(from: &Path, to: &Path) -> Option<()> {
     }
 }
 
+fn write_embedded_atomically(out: &Path, data: &[u8]) -> Option<()> {
+    if let Some(parent) = out.parent() {
+        if let Err(e) = std::fs::create_dir_all(parent) {
+            tracing::warn!(
+                "extract_embedded_share: failed to write {}: proceeding with fallback ({e})",
+                out.display()
+            );
+            return None;
+        }
+    }
+    let tmp_out = out.with_file_name(format!(
+        ".{}.part-{}",
+        out.file_name()?.to_string_lossy(),
+        std::process::id()
+    ));
+    if let Err(e) = std::fs::write(&tmp_out, data) {
+        tracing::warn!(
+            "extract_embedded_share: failed to write {}: proceeding with fallback ({e})",
+            out.display()
+        );
+        return None;
+    }
+    if let Err(e) = std::fs::rename(&tmp_out, out) {
+        let _ = std::fs::remove_file(&tmp_out);
+        tracing::warn!(
+            "extract_embedded_share: failed to write {}: proceeding with fallback ({e})",
+            out.display()
+        );
+        return None;
+    }
+    Some(())
+}
+
 fn extract_embedded_share() -> Option<PathBuf> {
     let dest = dirs::cache_dir()?
         .join("wyvern")
         .join(env!("CARGO_PKG_VERSION"))
         .join("share");
-    std::fs::create_dir_all(&dest).ok()?;
+    if let Err(e) = std::fs::create_dir_all(&dest) {
+        tracing::warn!(
+            "extract_embedded_share: failed to write {}: proceeding with fallback ({e})",
+            dest.display()
+        );
+        return None;
+    }
     for path in ShareAssets::iter() {
         let out = dest.join(path.as_ref());
-        if let Some(parent) = out.parent() {
-            std::fs::create_dir_all(parent).ok()?;
-        }
         let file = ShareAssets::get(path.as_ref())?;
-        std::fs::write(&out, file.data.as_ref()).ok()?;
+        write_embedded_atomically(&out, file.data.as_ref())?;
     }
     let scripts_dest = dest.join("scripts/ext");
-    std::fs::create_dir_all(&scripts_dest).ok()?;
+    if let Err(e) = std::fs::create_dir_all(&scripts_dest) {
+        tracing::warn!(
+            "extract_embedded_share: failed to write {}: proceeding with fallback ({e})",
+            scripts_dest.display()
+        );
+        return None;
+    }
     for path in ScriptAssets::iter() {
         let out = scripts_dest.join(path.as_ref());
-        if let Some(parent) = out.parent() {
-            std::fs::create_dir_all(parent).ok()?;
-        }
         let file = ScriptAssets::get(path.as_ref())?;
-        std::fs::write(&out, file.data.as_ref()).ok()?;
+        write_embedded_atomically(&out, file.data.as_ref())?;
     }
     dest.join("extensions.json").is_file().then_some(dest)
 }
@@ -825,5 +935,52 @@ mod tests {
         let matched = registry.match_argv(&argv).expect("match");
         assert!(matches!(matched, ExtensionMatch::PrefixSuffix { .. }));
         assert_eq!(matched.path(), Some("report.csv"));
+    }
+
+    #[test]
+    fn empty_extension_id_is_invalid() {
+        let json = r#"{
+          "version": 1,
+          "extensions": [{
+            "id": "   ",
+            "match": { "positional_suffix": ".md" },
+            "expand": { "command": { "type": "markdown", "file": "{path}" } }
+          }]
+        }"#;
+        let err = ExtensionRegistry::from_json_str(json).expect_err("empty id");
+        assert!(matches!(err, ExtensionError::InvalidRegistry { .. }));
+    }
+
+    #[test]
+    fn preexec_requires_rejects_empty_and_path() {
+        let empty = r#"{
+          "version": 1,
+          "extensions": [{
+            "id": "bad-empty",
+            "match": { "positional_suffix": ".md" },
+            "preexec": { "cmd": "true", "requires": ["  "] },
+            "expand": { "command": { "type": "markdown", "file": "{path}" } }
+          }]
+        }"#;
+        let err = ExtensionRegistry::from_json_str(empty).expect_err("empty requires");
+        assert!(
+            matches!(err, ExtensionError::InvalidRegistry { .. }),
+            "{err}"
+        );
+
+        let pathish = r#"{
+          "version": 1,
+          "extensions": [{
+            "id": "bad-path",
+            "match": { "positional_suffix": ".md" },
+            "preexec": { "cmd": "true", "requires": ["bin/foo"] },
+            "expand": { "command": { "type": "markdown", "file": "{path}" } }
+          }]
+        }"#;
+        let err = ExtensionRegistry::from_json_str(pathish).expect_err("path requires");
+        assert!(
+            matches!(err, ExtensionError::InvalidRegistry { .. }),
+            "{err}"
+        );
     }
 }
