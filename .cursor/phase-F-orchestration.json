@@ -1,0 +1,41 @@
+{
+  "phase": "F",
+  "integration_branch": "integrate/phase-F",
+  "created": "2026-08-15T05:40:00Z",
+  "active_sprint": "f.1",
+  "dev_model": "cursor-grok-4.6-high-fast",
+  "sprints": {
+    "f.1": {
+      "id": "f.1",
+      "title": "Extension runtime — registry, match, preexec, expand",
+      "branch": "feature/phase-F-f1-extension-runtime",
+      "sprint_doc": "docs/plans/phase-F/f1-extension-runtime.md",
+      "pr_target": "integrate/phase-F",
+      "status": "pending"
+    },
+    "f.2": {
+      "id": "f.2",
+      "title": "Positional extensions — HTML and wizard.json",
+      "branch": "feature/phase-F-f2-positional-extensions",
+      "sprint_doc": "docs/plans/phase-F/f2-positional-extensions.md",
+      "pr_target": "integrate/phase-F",
+      "status": "pending"
+    },
+    "f.3": {
+      "id": "f.3",
+      "title": "Compose render extension (sc-compose preexec)",
+      "branch": "feature/phase-F-f3-compose-extension",
+      "sprint_doc": "docs/plans/phase-F/f3-compose-extension.md",
+      "pr_target": "integrate/phase-F",
+      "status": "pending"
+    },
+    "f.4": {
+      "id": "f.4",
+      "title": "CSV table viewer — JS DOM, sort/filter, md alias",
+      "branch": "feature/phase-F-f4-csv-table-viewer",
+      "sprint_doc": "docs/plans/phase-F/f4-csv-table-viewer.md",
+      "pr_target": "integrate/phase-F",
+      "status": "pending"
+    }
+  }
+}
