@@ -54,6 +54,42 @@
         },
         "host": { "ui_root": "{tmpdir}" }
       }
+    },
+    {
+      "id": "csv-suffix",
+      "match": { "positional_suffix": ".csv" },
+      "preexec": {
+        "cmd": "python3",
+        "args": ["{wyvern_share}/scripts/ext/csv_to_view.py", "{path}", "--out", "{tmpdir}", "--format", "html"],
+        "requires": ["python3"]
+      },
+      "expand": {
+        "command": {
+          "type": "wizard",
+          "page": { "id": "{stem}", "title": "{basename}", "html": "pages/view.html", "layout": "workspace" },
+          "width": 800,
+          "height": 600
+        },
+        "host": { "ui_root": "{tmpdir}" }
+      }
+    },
+    {
+      "id": "csv-table-alias",
+      "match": { "argv_prefix": ["table"], "arg_suffix": ".csv" },
+      "extends": "csv-suffix"
+    },
+    {
+      "id": "csv-md",
+      "match": { "argv_prefix": ["md"], "arg_suffix": ".csv" },
+      "preexec": {
+        "cmd": "python3",
+        "args": ["{wyvern_share}/scripts/ext/csv_to_view.py", "{path}", "--out", "{tmpdir}", "--format", "markdown"],
+        "requires": ["python3"],
+        "stdout": "markdown"
+      },
+      "expand": {
+        "command": { "type": "markdown", "title": "{basename}", "content": "{preexec.stdout}" }
+      }
     }
   ]
 }

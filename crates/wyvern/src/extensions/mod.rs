@@ -955,7 +955,15 @@ mod tests {
         )
         .expect("write project");
         let registry = ExtensionRegistry::load(&defaults, Some(&project)).expect("load");
-        assert_eq!(registry.extensions().len(), 4);
+        let shipped_len = ExtensionRegistry::from_json_str(SHIPPED_EXTENSIONS_JSON)
+            .expect("shipped")
+            .extensions()
+            .len();
+        assert_eq!(
+            registry.extensions().len(),
+            shipped_len,
+            "project override must replace same id in-place, not append"
+        );
         let markdown = registry
             .extensions()
             .iter()
