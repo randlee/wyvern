@@ -712,4 +712,137 @@ mod tests {
         let err = expand_command_host(matched.extension(), &ctx).expect_err("missing");
         assert!(matches!(err, ExtensionError::MissingArg { .. }));
     }
+
+    #[test]
+    fn path_parts_expand() {
+        let json = r#"{
+          "version": 1,
+          "extensions": [{
+            "id": "parts",
+            "match": { "positional_suffix": ".md" },
+            "expand": {
+              "command": {
+                "type": "markdown",
+                "content": "{path}|{basename}|{stem}|{parent_dir}"
+              }
+            }
+          }]
+        }"#;
+        let registry = ExtensionRegistry::from_json_str(json).expect("parse");
+        let argv = vec!["docs/readme.md".to_string()];
+        let matched = registry.match_argv(&argv).expect("match");
+        let ctx = build_match_context(&matched, matched.extension());
+        let (cmd, _) = expand_command_host(matched.extension(), &ctx).expect("expand");
+        assert_eq!(cmd["content"], "docs/readme.md|readme.md|readme|docs");
+    }
+
+    #[test]
+    fn arg_equals_form_parses() {
+        let json = r#"{
+          "version": 1,
+          "extensions": [{
+            "id": "compose-render",
+            "match": { "argv_prefix": ["compose", "render"] },
+            "expand": {
+              "command": { "type": "markdown", "content": "{arg:root}" }
+            }
+          }]
+        }"#;
+        let registry = ExtensionRegistry::from_json_str(json).expect("parse");
+        let argv = vec!["compose".into(), "render".into(), "--root=/tmp/r".into()];
+        let matched = registry.match_argv(&argv).expect("match");
+        let ctx = build_match_context(&matched, matched.extension());
+        let (cmd, _) = expand_command_host(matched.extension(), &ctx).expect("expand");
+        assert_eq!(cmd["content"], "/tmp/r");
+    }
+
+    #[test]
+    fn arg_repeat_zero_occurrences_splices_empty() {
+        let json = r#"{
+          "version": 1,
+          "extensions": [{
+            "id": "compose-render",
+            "match": { "argv_prefix": ["compose", "render"] },
+            "preexec": {
+              "cmd": "true",
+              "args": ["--root", "{arg:root}", "{arg:var-file:repeat}"]
+            },
+            "expand": {
+              "command": { "type": "markdown", "content": "{arg:root}" }
+            }
+          }]
+        }"#;
+        let registry = ExtensionRegistry::from_json_str(json).expect("parse");
+        let argv = vec![
+            "compose".into(),
+            "render".into(),
+            "--root".into(),
+            "/tmp/r".into(),
+        ];
+        let matched = registry.match_argv(&argv).expect("match");
+        let ctx = build_match_context(&matched, matched.extension());
+        let (_, args) = expand_preexec_args(matched.extension(), &ctx).expect("preexec");
+        assert_eq!(args, vec!["--root", "/tmp/r"]);
+    }
+
+    #[test]
+    fn path_var_on_prefix_only_is_error() {
+        let json = r#"{
+          "version": 1,
+          "extensions": [{
+            "id": "compose-render",
+            "match": { "argv_prefix": ["compose", "render"] },
+            "expand": {
+              "command": { "type": "markdown", "file": "{path}" }
+            }
+          }]
+        }"#;
+        let registry = ExtensionRegistry::from_json_str(json).expect("parse");
+        let argv = vec!["compose".into(), "render".into()];
+        let matched = registry.match_argv(&argv).expect("match");
+        let ctx = build_match_context(&matched, matched.extension());
+        let err = expand_command_host(matched.extension(), &ctx).expect_err("path");
+        assert!(matches!(err, ExtensionError::PathVarWithoutPath { .. }));
+    }
+
+    #[test]
+    fn expand_and_validate_markdown_suffix() {
+        let registry = ExtensionRegistry::from_json_str(SHIPPED_EXTENSIONS_JSON).expect("shipped");
+        let argv = vec!["doc.md".to_string()];
+        let matched = registry.match_argv(&argv).expect("match");
+        let ctx = build_match_context(&matched, matched.extension());
+        let expanded = expand_and_validate(matched.extension(), &ctx).expect("expand");
+        assert_eq!(expanded.command["type"], "markdown");
+        assert_eq!(expanded.command["file"], "doc.md");
+        assert!(expanded.temp_guard.is_none());
+    }
+
+    #[test]
+    fn tmpdir_guard_present_then_dropped() {
+        let json = r#"{
+          "version": 1,
+          "extensions": [{
+            "id": "tmp-host",
+            "match": { "positional_suffix": ".md" },
+            "expand": {
+              "command": { "type": "markdown", "file": "{path}" },
+              "host": { "ui_root": "{tmpdir}" }
+            }
+          }]
+        }"#;
+        let registry = ExtensionRegistry::from_json_str(json).expect("parse");
+        let argv = vec!["doc.md".to_string()];
+        let matched = registry.match_argv(&argv).expect("match");
+        let ctx = build_match_context(&matched, matched.extension());
+        let expanded = expand_and_validate(matched.extension(), &ctx).expect("expand");
+        let tmp = expanded
+            .temp_guard
+            .as_ref()
+            .expect("temp_guard")
+            .path()
+            .to_path_buf();
+        assert!(tmp.is_dir());
+        drop(expanded);
+        assert!(!tmp.exists());
+    }
 }
