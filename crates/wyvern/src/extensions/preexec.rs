@@ -134,7 +134,6 @@ fn run_capture_stdout(cmd: &str, args: &[String]) -> Result<String, ExtensionErr
         message: format!("failed to capture '{cmd}' stdout"),
     })?;
     let timeout = preexec_timeout();
-    let deadline = Instant::now() + timeout;
     let cmd_owned = cmd.to_string();
     let (tx, rx) = std::sync::mpsc::channel();
     let reader = std::thread::Builder::new()
@@ -148,7 +147,10 @@ fn run_capture_stdout(cmd: &str, args: &[String]) -> Result<String, ExtensionErr
 
     match rx.recv_timeout(timeout) {
         Ok(Ok(raw)) => {
-            let status = wait_until(&mut child, cmd, deadline)?;
+            // Child closed stdout and should exit promptly; do not reuse the
+            // pre-spawn deadline, which may already be nearly exhausted.
+            let grace_deadline = Instant::now() + Duration::from_millis(500);
+            let status = wait_until(&mut child, cmd, grace_deadline)?;
             let _ = reader.join();
             if !status.success() {
                 return Err(ExtensionError::Preexec {
@@ -301,6 +303,9 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn preexec_stdout_cap_rejects_oversize() {
+        if !binary_on_path("dd") {
+            return; // dd not available on this platform
+        }
         let err = run_preexec(
             "dd",
             &["if=/dev/zero".into(), "bs=1024".into(), "count=2048".into()],
