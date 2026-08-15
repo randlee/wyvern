@@ -19,7 +19,9 @@ pub struct CliArgs {
 /// Split argv into host flags and positionals.
 ///
 /// Product default (c.15+): omitted `--viewer` → [`ViewerMode::Embedded`].
-/// `WYVERN_VIEWER` overrides when set. Unknown flags → usage error.
+/// `WYVERN_VIEWER` overrides when set. Host-only flags (`--bind`, `--ui-root`,
+/// `--viewer`, `--allow-non-loopback`) are stripped; all other tokens stay in
+/// the extension remainder.
 ///
 /// # Errors
 ///
@@ -79,11 +81,8 @@ pub fn parse_cli_args(args: &[String]) -> Result<CliArgs, LoadError> {
             i += 1;
             continue;
         }
-        if arg.starts_with('-') {
-            return Err(LoadError::Usage {
-                message: format!("unknown flag '{arg}'\n{}", usage_message()),
-            });
-        }
+        // Host-only flags are stripped above. All other tokens — including
+        // unknown flags such as `--root` — stay in the extension remainder.
         positionals.push(arg.clone());
         i += 1;
     }
@@ -103,6 +102,13 @@ pub fn parse_cli_args(args: &[String]) -> Result<CliArgs, LoadError> {
         },
         positionals,
     })
+}
+
+/// Apply extension `host.ui_root` over CLI `--ui-root` when set (contract §7).
+pub fn apply_host_overrides(host: &mut HostOptions, overrides: &crate::extensions::HostOverrides) {
+    if let Some(ui_root) = &overrides.ui_root {
+        host.ui_root = ui_root.clone();
+    }
 }
 
 fn parse_bind(value: &str) -> Result<SocketAddr, LoadError> {
@@ -228,6 +234,7 @@ pub fn usage_message() -> String {
         "Usage: wyvern '<json>' | <file.json> | <file.md> [options]\n",
         "       echo '<json>' | wyvern [options]\n",
         "       wyvern browsers list|refresh\n",
+        "       wyvern extensions list\n",
         "       wyvern --version\n",
         "\n",
         "Options:\n",
@@ -301,9 +308,34 @@ mod tests {
     }
 
     #[test]
-    fn parse_rejects_unknown_flag() {
-        let err = parse_cli_args(&args(&["--nope"])).expect_err("flag");
-        assert!(matches!(err, LoadError::Usage { .. }));
+    fn parse_keeps_unknown_flag_in_remainder() {
+        let parsed =
+            parse_cli_args(&args(&["compose", "render", "--root", "/tmp"])).expect("parse");
+        assert_eq!(
+            parsed.positionals,
+            args(&["compose", "render", "--root", "/tmp"])
+        );
+    }
+
+    #[test]
+    fn parse_strips_host_flags_from_remainder() {
+        let parsed = parse_cli_args(&args(&[
+            "--viewer",
+            "none",
+            "--ui-root",
+            "./custom-ui",
+            "compose",
+            "render",
+            "--root",
+            "/tmp",
+        ]))
+        .expect("parse");
+        assert_eq!(parsed.host.viewer, ViewerMode::None);
+        assert_eq!(parsed.host.ui_root, PathBuf::from("./custom-ui"));
+        assert_eq!(
+            parsed.positionals,
+            args(&["compose", "render", "--root", "/tmp"])
+        );
     }
 
     #[test]

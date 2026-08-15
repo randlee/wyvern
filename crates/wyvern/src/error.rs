@@ -84,6 +84,78 @@ impl Drop for ForceEmitStdoutFailGuard {
     }
 }
 
+/// Serialize an extension-engine error as stderr JSON.
+///
+/// # Errors
+///
+/// Returns [`EmitError::Serialize`] when the envelope cannot be serialized.
+pub fn emit_extension_error(err: &crate::extensions::ExtensionError) -> Result<String, EmitError> {
+    use crate::extensions::ExtensionError;
+    let (code, message, cause, recovery) = match err {
+        ExtensionError::InvalidRegistry { message } => (
+            ErrorCode::ParseError,
+            message.clone(),
+            "Extension registry JSON could not be loaded".to_string(),
+            vec![
+                "Fix share/wyvern/extensions.json or .wyvern/extensions.json".into(),
+                "Registry must be version 1 JSON with an extensions array".into(),
+            ],
+        ),
+        ExtensionError::MissingArg { name } => (
+            ErrorCode::ValidationError,
+            format!("missing required extension argument --{name}"),
+            "A declared {arg:name} flag was not present on the command line".to_string(),
+            vec![
+                format!("Pass --{name} VALUE after the extension prefix"),
+                "Run wyvern extensions list to see match kinds".into(),
+            ],
+        ),
+        ExtensionError::UnexpectedArg { token } => (
+            ErrorCode::ValidationError,
+            format!("unexpected argument after extension match: {token}"),
+            "The extension matched argv but leftover tokens are not declared".to_string(),
+            vec!["Remove unknown flags or declare them as {arg:name} in the registry".into()],
+        ),
+        ExtensionError::PathVarWithoutPath { var } => (
+            ErrorCode::ValidationError,
+            format!("template {{{var}}} requires a matched file path"),
+            "This extension is prefix-only and has no {{path}}".to_string(),
+            vec!["Use a suffix or prefix+suffix match when expanding path variables".into()],
+        ),
+        ExtensionError::Template { message } => (
+            ErrorCode::ValidationError,
+            message.clone(),
+            "Extension template substitution failed".to_string(),
+            vec!["Check expand/preexec templates in the extension registry".into()],
+        ),
+        ExtensionError::Preexec { message } => (
+            ErrorCode::IoError,
+            message.clone(),
+            "Extension preexec subprocess failed".to_string(),
+            vec![
+                "Install binaries listed in preexec.requires".into(),
+                "Inspect preexec.cmd and args after template expansion".into(),
+            ],
+        ),
+        ExtensionError::InvalidCommand { source } => {
+            return emit_validation_error(source);
+        }
+        ExtensionError::Io { message } => (
+            ErrorCode::IoError,
+            message.clone(),
+            "Extension engine filesystem operation failed".to_string(),
+            vec!["Check paths in the registry and working directory permissions".into()],
+        ),
+    };
+    let mut envelope = StderrError::new(code, message)
+        .cause(cause)
+        .docs("docs/plans/phase-F/cli-extensions-contract.md");
+    for step in recovery {
+        envelope = envelope.recovery(step);
+    }
+    envelope.to_json_string().map_err(EmitError::Serialize)
+}
+
 /// Serialize a parse load error as stderr JSON.
 ///
 /// # Errors

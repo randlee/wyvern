@@ -9,19 +9,30 @@ use wyvern_schema::FieldName;
 
 use crate::cli_args::usage_message;
 use crate::error::LoadError;
+use crate::extensions::{
+    build_match_context, expand_and_validate, ExtensionError, ExtensionRegistry,
+};
 
 /// Load a command [`Value`] from positional args or stdin.
 ///
-/// Detection for a single positional arg:
-/// - `.md` → `{ "type": "markdown", "file": <path> }` (path only; file not read)
+/// When an extension matches the remainder (including multi-token prefixes),
+/// the expanded Command JSON is returned. Otherwise:
 /// - `.json` → read file and parse JSON
 /// - otherwise → parse the argument as inline JSON
+///
+/// `.md` shorthand comes from the shipped `markdown-suffix` registry entry.
 ///
 /// # Errors
 ///
 /// Returns [`LoadError::Usage`] for invalid argv shapes or empty stdin,
-/// [`LoadError::Parse`] for invalid JSON, and [`LoadError::Io`] for read failures.
+/// [`LoadError::Parse`] for invalid JSON or registry load, and [`LoadError::Io`]
+/// for read failures.
 pub fn load_command_input(args: &[String], stdin: impl Read) -> Result<Value, LoadError> {
+    if !args.is_empty() {
+        if let Some(value) = try_extension_command(args)? {
+            return Ok(value);
+        }
+    }
     match args {
         [] => load_stdin(stdin),
         [arg] if arg.starts_with('-') => Err(LoadError::Usage {
@@ -34,13 +45,32 @@ pub fn load_command_input(args: &[String], stdin: impl Read) -> Result<Value, Lo
     }
 }
 
+fn try_extension_command(args: &[String]) -> Result<Option<Value>, LoadError> {
+    let registry = ExtensionRegistry::load_default().map_err(extension_to_load)?;
+    let Some(matched) = registry.match_argv(args) else {
+        return Ok(None);
+    };
+    let ctx = build_match_context(&matched, matched.extension());
+    let expanded = expand_and_validate(matched.extension(), &ctx).map_err(extension_to_load)?;
+    Ok(Some(expanded.command))
+}
+
+fn extension_to_load(err: ExtensionError) -> LoadError {
+    match err {
+        ExtensionError::InvalidRegistry { message } => LoadError::Parse { message },
+        ExtensionError::Io { message } | ExtensionError::Preexec { message } => LoadError::Io {
+            field: FieldName::new("extension"),
+            message,
+        },
+        other => LoadError::Parse {
+            message: other.to_string(),
+        },
+    }
+}
+
 fn load_positional(arg: &str) -> Result<Value, LoadError> {
     let path = Path::new(arg);
     match path.extension().and_then(|ext| ext.to_str()) {
-        Some(ext) if ext.eq_ignore_ascii_case("md") => Ok(serde_json::json!({
-            "type": "markdown",
-            "file": arg,
-        })),
         Some(ext) if ext.eq_ignore_ascii_case("json") => load_json_file(path),
         _ => parse_json(arg),
     }
