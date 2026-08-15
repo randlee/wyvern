@@ -114,7 +114,7 @@ pub struct ExtensionDef {
     pub match_spec: MatchSpec,
     /// Optional parent id whose preexec/expand are reused.
     #[serde(default)]
-    pub extends: Option<String>,
+    pub extends: Option<ExtensionId>,
     /// Optional subprocess step before command expand.
     #[serde(default)]
     pub preexec: Option<PreexecSpec>,
@@ -579,7 +579,7 @@ fn resolve_one(
     all: &[ExtensionDef],
     stack: &mut Vec<ExtensionId>,
 ) -> Result<ExtensionDef, ExtensionError> {
-    let Some(parent_id) = ext.extends.as_deref() else {
+    let Some(ref parent_id) = ext.extends else {
         return Ok(ext.clone());
     };
     if stack.iter().any(|id| id == &ext.id) {
@@ -590,7 +590,7 @@ fn resolve_one(
     stack.push(ext.id.clone());
     let parent = all
         .iter()
-        .find(|candidate| candidate.id.as_str() == parent_id)
+        .find(|candidate| candidate.id == *parent_id)
         .ok_or_else(|| ExtensionError::InvalidRegistry {
             message: format!("extension '{}' extends unknown id '{parent_id}'", ext.id),
         })?;

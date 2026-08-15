@@ -7,17 +7,6 @@ use wyvern::extensions::{
     MatchContext,
 };
 
-fn workspace_share_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../share/wyvern")
-}
-
-fn isolate_workspace_share() {
-    static INIT: std::sync::Once = std::sync::Once::new();
-    INIT.call_once(|| {
-        std::env::set_var("WYVERN_SHARE", workspace_share_dir());
-    });
-}
-
 fn registry_with(json: &str) -> ExtensionRegistry {
     ExtensionRegistry::from_json_str(json).expect("registry")
 }
@@ -57,7 +46,6 @@ fn failing_preexec() -> (&'static str, Vec<&'static str>) {
 
 #[test]
 fn tmpdir_present_during_invocation() {
-    isolate_workspace_share();
     let registry = registry_with(&tmpdir_host_extension(None));
     let argv = vec!["doc.md".to_string()];
     let matched = registry.match_argv(&argv).expect("match");
@@ -80,7 +68,6 @@ fn tmpdir_present_during_invocation() {
 
 #[test]
 fn tmpdir_deleted_on_preexec_failure() {
-    isolate_workspace_share();
     let (cmd, args) = failing_preexec();
     let registry = registry_with(&tmpdir_host_extension(Some((cmd, &args))));
     let argv = vec!["doc.md".to_string()];
@@ -107,7 +94,6 @@ fn tmpdir_path_persists_while_guard_held() {
 
 #[test]
 fn extensions_preexec_cleanup_deleted_after_host_exit() {
-    isolate_workspace_share();
     let registry = registry_with(&tmpdir_host_extension(None));
     let argv = vec!["doc.md".to_string()];
     let matched = registry.match_argv(&argv).expect("match");
@@ -134,7 +120,6 @@ fn extensions_preexec_cleanup_deleted_after_host_exit() {
 
 #[test]
 fn extensions_preexec_cleanup_deleted_on_preexec_failure() {
-    isolate_workspace_share();
     let (cmd, args) = failing_preexec();
     let registry = registry_with(&tmpdir_host_extension(Some((cmd, &args))));
     let argv = vec!["doc.md".to_string()];
@@ -152,7 +137,6 @@ fn extensions_preexec_cleanup_deleted_on_preexec_failure() {
 
 #[test]
 fn extensions_preexec_cleanup_present_during_host() {
-    isolate_workspace_share();
     let registry = registry_with(&tmpdir_host_extension(None));
     let argv = vec!["doc.md".to_string()];
     let matched = registry.match_argv(&argv).expect("match");
@@ -169,7 +153,6 @@ fn extensions_preexec_cleanup_present_during_host() {
 #[cfg(unix)]
 #[test]
 fn extensions_preexec_stdout_markdown_capture() {
-    isolate_workspace_share();
     let json = serde_json::json!({
         "version": 1,
         "extensions": [{

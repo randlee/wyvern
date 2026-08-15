@@ -245,7 +245,8 @@ pub fn usage_message() -> String {
         "                             (default: embedded; CI: WYVERN_VIEWER=none)\n",
         "\n",
         "Pass a JSON string, .json file, .md file, .html page, or wizard.json; or pipe JSON on stdin.\n",
-        "  See `wyvern extensions list` for available file-type extensions.",
+        "  See `wyvern extensions list` for available file-type extensions.\n",
+        "  See also: docs/plans/phase-F/README.md\n",
     )
     .to_string()
 }
