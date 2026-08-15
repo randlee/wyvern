@@ -1,7 +1,7 @@
 ---
 id: f.1
 title: Extension runtime — registry, match, preexec, expand
-status: planning
+status: qa_pending
 branch: feature/phase-F-f1-extension-runtime
 worktree: ../wyvern-worktrees/feature/phase-F-f1-extension-runtime
 target: integrate/phase-F

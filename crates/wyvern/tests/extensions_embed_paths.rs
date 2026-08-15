@@ -1,6 +1,6 @@
 //! `{wyvern_share}` resolves extensions.json and scripts in dev + embedded layouts.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use wyvern::extensions::{
     find_workspace_root, resolve_wyvern_share, resolve_wyvern_share_with, SHIPPED_EXTENSIONS_JSON,
@@ -53,7 +53,7 @@ fn extensions_embed_paths_embedded_extract_layout() {
     // No workspace in tmp cwd/exe — force embed extract.
     let share = resolve_wyvern_share_with(None, Some(tmp.path()), Some(tmp.path()), None, true);
     assert!(
-        share.join("extensions.json").is_file() || share == PathBuf::from("share/wyvern"),
+        share.join("extensions.json").is_file() || share == Path::new("share/wyvern"),
         "embedded or fallback share: {}",
         share.display()
     );
