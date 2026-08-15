@@ -106,7 +106,7 @@ Boundary rules are encoded in `boundaries/` and enforced in CI.
 
 ### ADR-0022: CLI extension registry as argv preprocessor (Phase F)
 
-**Status:** Accepted (planning — Phase F)
+**Status:** Accepted (Phase F f.1)
 
 **Context:** Phase F adds declarative argv → `Command` JSON expansion (suffix/subcommand aliases). Phase E needs `--interactive` argv expansion; MCP tools may need equivalent commands without duplicating registry logic.
 

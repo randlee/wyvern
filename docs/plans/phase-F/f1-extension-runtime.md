@@ -1,7 +1,7 @@
 ---
 id: f.1
 title: Extension runtime — registry, match, preexec, expand
-status: planning
+status: qa_pending
 branch: feature/phase-F-f1-extension-runtime
 worktree: ../wyvern-worktrees/feature/phase-F-f1-extension-runtime
 target: integrate/phase-F
@@ -27,7 +27,7 @@ Ship the CLI extension engine: load merged registry, match argv remainder, optio
 | `docs/plans/phase-F/cli-extensions-contract.md` | Normative schema (already in plan branch) |
 | `docs/architecture.md` | ADR-0022 entry (extensions preprocessor; MCP Path A) |
 | `share/wyvern/extensions.json` | Shipped defaults (`.md` only in f.1) |
-| `crates/wyvern/Cargo.toml` | `include` / rust-embed map for `share/wyvern/**`, `scripts/ext/**` |
+| `crates/wyvern/Cargo.toml` | rust-embed maps workspace `share/wyvern/**` and `scripts/ext/**` from crate-relative `../../` paths. Cargo `include` cannot package files outside the crate directory; embed compiles them into the binary. |
 | `crates/wyvern/src/extensions/mod.rs` | Loader, merge, `extends`, match precedence, `{wyvern_share}` resolve |
 | `crates/wyvern/src/extensions/expand.rs` | Phase-1 + phase-2 template substitution (all contract vars) |
 | `crates/wyvern/src/extensions/preexec.rs` | Subprocess spawn, requires-check, `{arg:*}` capture, stdout capture |
@@ -73,6 +73,8 @@ pub struct MatchContext<'a> {
     pub args_after_prefix: &'a [String],
     pub preexec_stdout: Option<String>,
     pub rendered_basename: Option<String>,
+    pub tmpdir: Option<PathBuf>,         // path to the temporary directory if one was created
+    pub wyvern_share: PathBuf,           // resolved path to the wyvern share directory
 }
 
 pub struct HostOverrides {

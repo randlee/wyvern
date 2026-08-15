@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "extensions": [
+    {
+      "id": "markdown-suffix",
+      "match": { "positional_suffix": ".md" },
+      "expand": {
+        "command": { "type": "markdown", "file": "{path}" }
+      }
+    }
+  ]
+}

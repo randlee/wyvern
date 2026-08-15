@@ -12,15 +12,18 @@ use crate::error::LoadError;
 
 /// Load a command [`Value`] from positional args or stdin.
 ///
-/// Detection for a single positional arg:
-/// - `.md` → `{ "type": "markdown", "file": <path> }` (path only; file not read)
+/// Called after extension dispatch fails (no argv match). Remaining cases:
 /// - `.json` → read file and parse JSON
 /// - otherwise → parse the argument as inline JSON
+///
+/// `.md` shorthand is handled by the shipped `markdown-suffix` registry in
+/// `main` before this function runs.
 ///
 /// # Errors
 ///
 /// Returns [`LoadError::Usage`] for invalid argv shapes or empty stdin,
-/// [`LoadError::Parse`] for invalid JSON, and [`LoadError::Io`] for read failures.
+/// [`LoadError::Parse`] for invalid JSON, and [`LoadError::Io`] for read
+/// failures.
 pub fn load_command_input(args: &[String], stdin: impl Read) -> Result<Value, LoadError> {
     match args {
         [] => load_stdin(stdin),
@@ -37,10 +40,6 @@ pub fn load_command_input(args: &[String], stdin: impl Read) -> Result<Value, Lo
 fn load_positional(arg: &str) -> Result<Value, LoadError> {
     let path = Path::new(arg);
     match path.extension().and_then(|ext| ext.to_str()) {
-        Some(ext) if ext.eq_ignore_ascii_case("md") => Ok(serde_json::json!({
-            "type": "markdown",
-            "file": arg,
-        })),
         Some(ext) if ext.eq_ignore_ascii_case("json") => load_json_file(path),
         _ => parse_json(arg),
     }
@@ -110,14 +109,6 @@ mod tests {
         assert_eq!(value["title"], "FromFile");
 
         let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn input_md_path_loads_markdown_value() {
-        let value =
-            load_command_input(&args(&["docs/readme.md"]), Cursor::new("")).expect("md path");
-        assert_eq!(value["type"], "markdown");
-        assert_eq!(value["file"], "docs/readme.md");
     }
 
     #[test]
