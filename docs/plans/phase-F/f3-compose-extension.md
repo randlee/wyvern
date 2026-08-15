@@ -1,7 +1,7 @@
 ---
 id: f.3
 title: Compose render extension (sc-compose preexec)
-status: planning
+status: complete
 branch: feature/phase-F-f3-compose-extension
 worktree: ../wyvern-worktrees/feature/phase-F-f3-compose-extension
 target: integrate/phase-F

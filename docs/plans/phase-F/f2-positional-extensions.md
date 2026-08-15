@@ -1,7 +1,7 @@
 ---
 id: f.2
 title: Positional extensions — HTML and wizard.json
-status: planning
+status: complete
 branch: feature/phase-F-f2-positional-extensions
 worktree: ../wyvern-worktrees/feature/phase-F-f2-positional-extensions
 target: integrate/phase-F

@@ -1,7 +1,7 @@
 ---
 id: f.4
 title: CSV table viewer — JS DOM, sort/filter, md alias
-status: planning
+status: complete
 branch: feature/phase-F-f4-csv-table-viewer
 worktree: ../wyvern-worktrees/feature/phase-F-f4-csv-table-viewer
 target: integrate/phase-F
@@ -12,6 +12,8 @@ target: integrate/phase-F
 ## Goal
 
 `wyvern report.csv` and `wyvern table report.csv` open an interactive HTML table wizard. Preexec writes JSON + staged static assets; **table DOM built in JavaScript** via fetch. `wyvern md report.csv` renders markdown pipe table via preexec.
+
+CSV preexec requires **`python3` on PATH**. On Windows, install Python 3 and ensure the `python3` command resolves — the Windows `py` launcher is not used.
 
 ## Hard dependencies
 

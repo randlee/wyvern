@@ -39,6 +39,8 @@ Functional requirements are prefixed **REQ**, non-functional **NFR**. Crate-spec
 
 **Blocking dialog commands** — `message`, `input`, `markdown`, `question`, `wizard` (Phase B+; validated incrementally as each type ships)
 
+**CLI extensions (Phase F)** — argv preprocessor (ADR-0022): suffix/prefix match → optional preexec → expand → existing pipeline. See [REQ-0130–REQ-0133](wyvern/requirements.md). Shipped pack: `.md`, `.html`, `wizard.json`, `.csv` / `table` / `md`, `compose render`.
+
 **`--interactive` lifecycle actions** — `show`, `hide`, `exit` (Phase E)
 
 **Deferred** — `notification` is reserved as the future fire-and-forget path for ephemeral updates. MVP does not overload `message` with modeless semantics.

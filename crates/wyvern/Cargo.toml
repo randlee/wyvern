@@ -34,6 +34,7 @@ serde_json         = { workspace = true }
 tracing            = { workspace = true }
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "env-filter", "std"] }
 sc-observability   = { workspace = true }
+sc-observability-types = "1.2"
 rust-embed         = { version = "8", features = ["compression"] }
 dirs               = { workspace = true }
 tempfile           = "3"

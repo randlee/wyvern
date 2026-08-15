@@ -1,0 +1,8 @@
+@prefix triage: <https://wyvern.dev/triage#> .
+
+triage:ATM-QA-001 a triage:Finding ;
+    triage:id "ATM-QA-001" ;
+    triage:severity "Blocking" ;
+    triage:promote_to_branch "integrate/phase-F" ;
+    triage:highest_open_branch "integrate/phase-F" ;
+    triage:required_fix "Set f1-f4 sprint doc frontmatter status: complete" .

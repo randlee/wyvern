@@ -1,0 +1,8 @@
+@prefix triage: <https://wyvern.dev/triage#> .
+
+triage:QA-001 a triage:Finding ;
+    triage:id "QA-001" ;
+    triage:severity "Minor" ;
+    triage:promote_to_branch "integrate/phase-F" ;
+    triage:highest_open_branch "integrate/phase-F" ;
+    triage:required_fix "Use tempfile for missing path test in input.rs" .

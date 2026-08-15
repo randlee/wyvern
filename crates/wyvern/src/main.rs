@@ -21,10 +21,9 @@ use wyvern::extensions::{
 };
 use wyvern::{
     apply_host_overrides, emit_extension_error, emit_fatal_internal, emit_io_error,
-    emit_parse_error, load_command_input, parse_cli_args, run_browsers_command, run_from_loaded,
-    usage_message, BrowsersError, EmitError, LoadError, PipelineError,
+    emit_parse_error, emit_usage_error, emit_usage_message, load_command_input, parse_cli_args,
+    run_browsers_command, run_from_loaded, usage_message, BrowsersError, LoadError, PipelineError,
 };
-use wyvern_schema::SerializeError;
 
 mod main_observability;
 
@@ -60,10 +59,13 @@ fn main() -> ExitCode {
                 print!("{stdout}");
                 ExitCode::SUCCESS
             }
-            Err(ExtensionsCmdError::Usage { message }) => {
-                eprintln!("{message}");
-                ExitCode::from(1)
-            }
+            Err(ExtensionsCmdError::Usage { message }) => match emit_usage_message(&message) {
+                Ok(stderr) => {
+                    eprintln!("{stderr}");
+                    ExitCode::from(2)
+                }
+                Err(e) => emit_fatal_internal(&e),
+            },
             Err(ExtensionsCmdError::Stage { stderr, exit_code }) => {
                 eprintln!("{stderr}");
                 ExitCode::from(u8::try_from(exit_code).unwrap_or(1))
@@ -74,10 +76,6 @@ fn main() -> ExitCode {
 
     let mut cli = match parse_cli_args(&args) {
         Ok(cli) => cli,
-        Err(LoadError::Usage { message }) => {
-            eprintln!("{message}");
-            return ExitCode::from(1);
-        }
         Err(err) => return emit_load_stage_failure(&err),
     };
 
@@ -114,10 +112,6 @@ fn main() -> ExitCode {
 
     let value = match load_command_input(&cli.positionals, io::stdin()) {
         Ok(value) => value,
-        Err(LoadError::Usage { message }) => {
-            eprintln!("{message}");
-            return ExitCode::from(1);
-        }
         Err(err) => return emit_load_stage_failure(&err),
     };
 
@@ -150,18 +144,10 @@ fn emit_extension_stage_failure(err: &ExtensionError) -> ExitCode {
 }
 
 fn emit_load_stage_failure(err: &LoadError) -> ExitCode {
-    debug_assert!(matches!(
-        err,
-        LoadError::Parse { .. } | LoadError::Io { .. }
-    ));
     let emit_result = match err {
         LoadError::Parse { .. } => emit_parse_error(err),
         LoadError::Io { .. } => emit_io_error(err),
-        LoadError::Usage { .. } => {
-            emit_fatal_internal(&EmitError::Serialize(SerializeError {
-                message: "miswired Usage in emit_load_stage_failure".into(),
-            }));
-        }
+        LoadError::Usage { .. } => emit_usage_error(err),
     };
     match emit_result {
         Ok(stderr) => {

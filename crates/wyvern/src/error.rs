@@ -43,7 +43,7 @@ impl LoadError {
         match self {
             Self::Parse { .. } => ErrorCode::ParseError.exit_code(),
             Self::Io { .. } => ErrorCode::IoError.exit_code(),
-            Self::Usage { .. } => 1,
+            Self::Usage { .. } => ErrorCode::ParseError.exit_code(),
         }
     }
 }
@@ -116,7 +116,7 @@ pub fn emit_extension_error(err: &crate::extensions::ExtensionError) -> Result<S
         ExtensionError::MissingArg { name } => (
             ErrorCode::ValidationError,
             format!("missing required extension argument --{name}"),
-            "A declared {arg:name} flag was not present on the command line".to_string(),
+            format!("A declared {{arg:{name}}} flag was not present on the command line"),
             vec![
                 format!("Pass --{name} VALUE after the extension prefix"),
                 "Run wyvern extensions list to see match kinds".into(),
@@ -125,8 +125,10 @@ pub fn emit_extension_error(err: &crate::extensions::ExtensionError) -> Result<S
         ExtensionError::UnexpectedArg { token } => (
             ErrorCode::ValidationError,
             format!("unexpected argument after extension match: {token}"),
-            "The extension matched argv but leftover tokens are not declared".to_string(),
-            vec!["Remove unknown flags or declare them as {arg:name} in the registry".into()],
+            format!("The extension matched argv but leftover token '{token}' is not declared"),
+            vec![format!(
+                "Remove unknown flag {token} or declare it as {{arg:name}} in the registry"
+            )],
         ),
         ExtensionError::PathVarWithoutPath { var } => (
             ErrorCode::ValidationError,
@@ -134,7 +136,7 @@ pub fn emit_extension_error(err: &crate::extensions::ExtensionError) -> Result<S
             "This extension is prefix-only and has no {{path}}".to_string(),
             vec!["Use a suffix or prefix+suffix match when expanding path variables".into()],
         ),
-        ExtensionError::Template { message } => (
+        ExtensionError::Template { message, .. } => (
             ErrorCode::ValidationError,
             message.clone(),
             "Extension template substitution failed".to_string(),
@@ -166,6 +168,38 @@ pub fn emit_extension_error(err: &crate::extensions::ExtensionError) -> Result<S
         envelope = envelope.recovery(step);
     }
     envelope.to_json_string().map_err(EmitError::Serialize)
+}
+
+/// Serialize a usage / unknown-subcommand error as stderr JSON (exit 2).
+///
+/// # Errors
+///
+/// Returns [`EmitError::Serialize`] when the envelope cannot be serialized.
+pub fn emit_usage_message(message: &str) -> Result<String, EmitError> {
+    StderrError::new(ErrorCode::ParseError, message.to_string())
+        .cause("CLI argv was not a valid command or extension invocation")
+        .recovery("Pass a JSON command, a .json file, or a path handled by an extension")
+        .recovery("Run wyvern extensions list to see file-type and prefix extensions")
+        .recovery("Run wyvern --help for host flags")
+        .docs("docs/wyvern/requirements.md (REQ-0130)")
+        .to_json_string()
+        .map_err(EmitError::Serialize)
+}
+
+/// Serialize [`LoadError::Usage`] as stderr JSON.
+///
+/// # Errors
+///
+/// Returns [`EmitError::Serialize`] when the envelope cannot be serialized, or
+/// when `err` is not [`LoadError::Usage`] (miswire).
+pub fn emit_usage_error(err: &LoadError) -> Result<String, EmitError> {
+    let LoadError::Usage { message } = err else {
+        debug_assert!(matches!(err, LoadError::Usage { .. }));
+        return Err(EmitError::Serialize(SerializeError {
+            message: "emit_usage_error: expected Usage".into(),
+        }));
+    };
+    emit_usage_message(message)
 }
 
 /// Serialize a parse load error as stderr JSON.
@@ -652,7 +686,7 @@ mod tests {
                 message: "usage".into()
             }
             .exit_code(),
-            1
+            2
         );
     }
 
@@ -674,5 +708,50 @@ mod tests {
             .exit_code(),
             5
         );
+    }
+
+    #[test]
+    fn emit_usage_error_is_structured_json() {
+        let err = LoadError::Usage {
+            message: "unknown subcommand".into(),
+        };
+        let out = emit_usage_error(&err).expect("emit");
+        let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
+        assert_eq!(value["error"], "parse");
+        assert_eq!(value["code"], "PARSE_ERROR");
+        assert!(value["message"].as_str().unwrap().contains("unknown"));
+        assert!(!value["recovery"].as_array().unwrap().is_empty());
+    }
+
+    #[test]
+    fn emit_missing_arg_interpolates_name() {
+        use crate::extensions::{ArgName, ExtensionError};
+        let err = ExtensionError::MissingArg {
+            name: ArgName::new("root"),
+        };
+        let out = emit_extension_error(&err).expect("emit");
+        let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
+        assert!(value["cause"].as_str().unwrap().contains("{arg:root}"));
+        assert!(value["recovery"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|s| s.as_str().unwrap().contains("--root")));
+    }
+
+    #[test]
+    fn emit_unexpected_arg_interpolates_token() {
+        use crate::extensions::ExtensionError;
+        let err = ExtensionError::UnexpectedArg {
+            token: "--help".into(),
+        };
+        let out = emit_extension_error(&err).expect("emit");
+        let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
+        assert!(value["cause"].as_str().unwrap().contains("--help"));
+        assert!(value["recovery"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|s| s.as_str().unwrap().contains("--help")));
     }
 }

@@ -68,14 +68,28 @@
 
     applyFilters();
 
-    // Finish button
+    // Finish button — REQ-0024 / wizard-nav buildFinishStack:
+    // stack = session prior stack + { page, data }. Never window.wyvern.finish.
     const finishBtn = document.createElement('button');
     finishBtn.id = 'finish-btn';
     finishBtn.textContent = 'Finish';
     finishBtn.addEventListener('click', () => {
-      if (window.wyvern) {
-        window.wyvern.finish({ button: 'finish', data: { row_count: allRows.length }, stack: [] });
+      if (typeof wyvernWizardFinish !== 'function') {
+        return;
       }
+      const data = { row_count: allRows.length };
+      const prior = (
+        window.wyvern && Array.isArray(window.wyvern.stack) ? window.wyvern.stack : []
+      ).slice();
+      prior.push({
+        page: window.wyvern ? window.wyvern.page : null,
+        data: data,
+      });
+      wyvernWizardFinish({
+        button: 'finish',
+        data: data,
+        stack: prior,
+      });
     });
     container.appendChild(finishBtn);
   }

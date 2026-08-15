@@ -114,6 +114,80 @@ impl AsRef<str> for ExtensionId {
     }
 }
 
+/// Declared `{arg:name}` flag name (no leading dashes).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct ArgName(String);
+
+impl ArgName {
+    /// Wrap a flag name without validating emptiness (empty is a caller bug).
+    #[must_use]
+    pub fn new(name: impl Into<String>) -> Self {
+        Self(name.into())
+    }
+
+    /// Returns the flag name as a string slice.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::fmt::Display for ArgName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl AsRef<str> for ArgName {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+/// Non-empty match token (suffix, filename, or argv prefix element).
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct MatchToken(String);
+
+impl MatchToken {
+    /// Returns the token as a string slice.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::fmt::Display for MatchToken {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl AsRef<str> for MatchToken {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl TryFrom<String> for MatchToken {
+    type Error = ExtensionIdError;
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        let trimmed = s.trim();
+        if trimmed.is_empty() {
+            return Err(ExtensionIdError(
+                "match token must not be empty or whitespace".into(),
+            ));
+        }
+        Ok(Self(trimmed.to_owned()))
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for MatchToken {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(d)?;
+        Self::try_from(s).map_err(serde::de::Error::custom)
+    }
+}
+
 impl<'de> serde::Deserialize<'de> for ExtensionId {
     fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         let s = String::deserialize(d)?;
@@ -142,19 +216,20 @@ pub struct ExtensionDef {
 
 /// Match fields from the registry schema.
 #[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct MatchSpec {
     /// Single positional ends with this suffix (`.md`).
     #[serde(default)]
-    pub positional_suffix: Option<String>,
+    pub positional_suffix: Option<MatchToken>,
     /// Exact basename match (`wizard.json`).
     #[serde(default)]
-    pub filename: Option<String>,
+    pub filename: Option<MatchToken>,
     /// First N argv tokens (`["compose", "render"]`).
     #[serde(default)]
-    pub argv_prefix: Option<Vec<String>>,
+    pub argv_prefix: Option<Vec<MatchToken>>,
     /// Token after prefix matches this suffix.
     #[serde(default)]
-    pub arg_suffix: Option<String>,
+    pub arg_suffix: Option<MatchToken>,
 }
 
 /// Stdout capture mode for [`PreexecSpec`].
@@ -167,6 +242,7 @@ pub enum StdoutCapture {
 
 /// Preexec subprocess declaration.
 #[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct PreexecSpec {
     /// Executable name or path (phase-1 expanded).
     #[serde(default)]
@@ -184,6 +260,7 @@ pub struct PreexecSpec {
 
 /// Expand templates for command JSON and host overrides.
 #[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ExpandSpec {
     /// Inline Command JSON after phase-2 substitution.
     #[serde(default)]
@@ -198,6 +275,7 @@ pub struct ExpandSpec {
 
 /// Host template object (`ui_root` only).
 #[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct HostExpandSpec {
     /// Template for [`HostOverrides::ui_root`].
     #[serde(default)]
@@ -267,6 +345,21 @@ impl<'a> ExtensionMatch<'a> {
     }
 }
 
+/// Why [`ExtensionError::Template`] failed (RBP-F006).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TemplateErrorKind {
+    /// Template contained `{` without a matching `}`.
+    UnclosedBrace,
+    /// `{name}` is not a known template variable.
+    UnknownVariable,
+    /// Variable is valid only in the other expansion phase.
+    PhaseRestricted,
+    /// Variable is known but not available in this context.
+    Unavailable,
+    /// Expand/preexec spec is incomplete or contradictory.
+    InvalidSpec,
+}
+
 /// Structured extension-engine failure.
 #[derive(Debug)]
 pub enum ExtensionError {
@@ -278,7 +371,7 @@ pub enum ExtensionError {
     /// Required `{arg:name}` flag was missing.
     MissingArg {
         /// Flag name without leading dashes.
-        name: String,
+        name: ArgName,
     },
     /// Unexpected token after a successful prefix match.
     UnexpectedArg {
@@ -290,13 +383,10 @@ pub enum ExtensionError {
         /// Template variable name.
         var: String,
     },
-    /// Template expansion failure. Covers multiple sub-modes:
-    /// unclosed brace, unknown variable, phase-restricted variable
-    /// used in wrong context, {tmpdir}/{rendered_basename} not available.
-    /// All sub-modes map to ValidationError exit code.
-    /// Note: sub-mode discrimination requires parsing the message string.
-    /// Full variant decomposition is deferred to a future refactor.
+    /// Template expansion failure (see [`TemplateErrorKind`] for the sub-mode).
     Template {
+        /// Discriminated substitution failure class.
+        kind: TemplateErrorKind,
         /// Substitution failure detail.
         message: String,
     },
@@ -332,7 +422,7 @@ impl std::fmt::Display for ExtensionError {
             Self::PathVarWithoutPath { var } => {
                 write!(f, "template {{{var}}} requires a matched file path")
             }
-            Self::Template { message } => write!(f, "extension template error: {message}"),
+            Self::Template { message, .. } => write!(f, "extension template error: {message}"),
             Self::Preexec { message, .. } => write!(f, "extension preexec failed: {message}"),
             Self::InvalidCommand { source } => {
                 write!(f, "expanded command failed validation: {source}")
@@ -365,6 +455,13 @@ impl ExtensionError {
             | Self::UnexpectedArg { .. }
             | Self::PathVarWithoutPath { .. }
             | Self::Template { .. } => wyvern_schema::ErrorCode::ValidationError.exit_code(),
+        }
+    }
+
+    pub(crate) fn template(kind: TemplateErrorKind, message: impl Into<String>) -> Self {
+        Self::Template {
+            kind,
+            message: message.into(),
         }
     }
 }
@@ -473,12 +570,19 @@ impl ExtensionDef {
         }
         let spec = &self.match_spec;
         if let Some(prefix) = &spec.argv_prefix {
-            if argv.len() < prefix.len() || argv[..prefix.len()] != prefix[..] {
+            if argv.len() < prefix.len()
+                || !prefix
+                    .iter()
+                    .zip(argv.iter())
+                    .all(|(expected, got)| expected.as_str() == got)
+            {
                 return None;
             }
             let rest = &argv[prefix.len()..];
             if let Some(suffix) = &spec.arg_suffix {
-                let path = rest.iter().find(|token| ends_with_suffix(token, suffix))?;
+                let path = rest
+                    .iter()
+                    .find(|token| ends_with_suffix(token, suffix.as_str()))?;
                 return Some(ExtensionMatch::PrefixSuffix {
                     ext: self,
                     path: path.as_str(),
@@ -496,7 +600,7 @@ impl ExtensionDef {
         let token = argv[0].as_str();
         if let Some(filename) = &spec.filename {
             let base = Path::new(token).file_name()?.to_str()?;
-            if base == filename {
+            if base == filename.as_str() {
                 return Some(ExtensionMatch::Suffix {
                     ext: self,
                     path: token,
@@ -505,7 +609,7 @@ impl ExtensionDef {
             return None;
         }
         if let Some(suffix) = &spec.positional_suffix {
-            if ends_with_suffix(token, suffix) {
+            if ends_with_suffix(token, suffix.as_str()) {
                 return Some(ExtensionMatch::Suffix {
                     ext: self,
                     path: token,
@@ -627,11 +731,26 @@ fn inherit_from(child: &ExtensionDef, parent: &ExtensionDef) -> ExtensionDef {
     let preexec = match (&child.preexec, &parent.preexec) {
         (None, parent_pre) => parent_pre.clone(),
         (Some(child_pre), Some(parent_pre)) => {
-            let mut merged = child_pre.clone();
-            if merged.requires.is_empty() {
-                merged.requires.clone_from(&parent_pre.requires);
-            }
-            Some(merged)
+            // Partial override: empty/absent child fields keep the parent value
+            // so a requires-only child still inherits cmd/args/stdout.
+            Some(PreexecSpec {
+                cmd: if child_pre.cmd.is_empty() {
+                    parent_pre.cmd.clone()
+                } else {
+                    child_pre.cmd.clone()
+                },
+                args: if child_pre.args.is_empty() {
+                    parent_pre.args.clone()
+                } else {
+                    child_pre.args.clone()
+                },
+                requires: if child_pre.requires.is_empty() {
+                    parent_pre.requires.clone()
+                } else {
+                    child_pre.requires.clone()
+                },
+                stdout: child_pre.stdout.or(parent_pre.stdout),
+            })
         }
         (Some(child_pre), None) => Some(child_pre.clone()),
     };
@@ -724,8 +843,8 @@ pub fn find_workspace_root(start: &Path) -> Option<PathBuf> {
 /// this helper is best-effort and logs via `tracing::warn!`. Callers fall back
 /// to other share-resolution paths.
 fn materialize_workspace_share(workspace: &Path) -> Option<PathBuf> {
-    // Use pid-suffixed dir to avoid races between concurrent test processes.
-    let dest = workspace.join(format!("target/wyvern-share-{}", std::process::id()));
+    // Pid + thread suffix avoids races between concurrent test threads/processes.
+    let dest = workspace.join(format!("target/wyvern-share-{}", unique_fs_suffix()));
     let marker = dest.join("extensions.json");
     if file_nonempty(&marker) {
         return Some(dest);
@@ -797,7 +916,13 @@ fn copy_dir_contents(src: &Path, dest: &Path) -> Option<()> {
     Some(())
 }
 
-/// Best-effort copy of `from` onto `to` via a pid-suffixed temp file + rename.
+fn unique_fs_suffix() -> String {
+    let tid = format!("{:?}", std::thread::current().id());
+    let tid: String = tid.chars().filter(|c| c.is_ascii_alphanumeric()).collect();
+    format!("{}-{tid}", std::process::id())
+}
+
+/// Best-effort copy of `from` onto `to` via a unique temp file + rename.
 ///
 /// # Errors
 ///
@@ -807,7 +932,7 @@ fn copy_file_replace(from: &Path, to: &Path) -> Option<()> {
     let tmp = to.with_file_name(format!(
         ".{}.part-{}",
         to.file_name()?.to_string_lossy(),
-        std::process::id()
+        unique_fs_suffix()
     ));
     std::fs::copy(from, &tmp).ok()?;
     match std::fs::rename(&tmp, to) {
@@ -832,7 +957,7 @@ fn write_embedded_atomically(out: &Path, data: &[u8]) -> Option<()> {
     let tmp_out = out.with_file_name(format!(
         ".{}.part-{}",
         out.file_name()?.to_string_lossy(),
-        std::process::id()
+        unique_fs_suffix()
     ));
     if let Err(e) = std::fs::write(&tmp_out, data) {
         tracing::warn!(
@@ -889,7 +1014,11 @@ fn extract_embedded_share() -> Option<PathBuf> {
 #[must_use]
 pub fn match_kind_summary(spec: &MatchSpec) -> String {
     if let Some(prefix) = &spec.argv_prefix {
-        let prefix_s = prefix.join(" ");
+        let prefix_s = prefix
+            .iter()
+            .map(MatchToken::as_str)
+            .collect::<Vec<_>>()
+            .join(" ");
         if let Some(suffix) = &spec.arg_suffix {
             return format!("prefix+suffix: {prefix_s} {suffix}");
         }
@@ -975,7 +1104,11 @@ mod tests {
             .find(|ext| ext.id.as_str() == "markdown-suffix")
             .expect("markdown-suffix");
         assert_eq!(
-            markdown.match_spec.positional_suffix.as_deref(),
+            markdown
+                .match_spec
+                .positional_suffix
+                .as_ref()
+                .map(MatchToken::as_str),
             Some(".markdown")
         );
     }
@@ -1093,6 +1226,65 @@ mod tests {
         assert!(
             format!("{err}").contains("in memory"),
             "path-requires error must include origin: {err}"
+        );
+    }
+
+    #[test]
+    fn inherit_from_requires_only_keeps_parent_cmd() {
+        let json = r#"{
+          "version": 1,
+          "extensions": [
+            {
+              "id": "parent",
+              "match": { "positional_suffix": ".csv" },
+              "preexec": {
+                "cmd": "python3",
+                "args": ["--parent-flag"],
+                "requires": ["python3"]
+              },
+              "expand": { "command": { "type": "markdown", "file": "{path}" } }
+            },
+            {
+              "id": "child",
+              "extends": "parent",
+              "match": { "argv_prefix": ["md"], "arg_suffix": ".csv" },
+              "preexec": { "requires": ["python3"] }
+            }
+          ]
+        }"#;
+        let registry = ExtensionRegistry::from_json_str(json).expect("parse");
+        let child = registry
+            .extensions()
+            .iter()
+            .find(|e| e.id.as_str() == "child")
+            .expect("child");
+        let pre = child.preexec.as_ref().expect("inherited preexec");
+        assert_eq!(pre.cmd, "python3");
+        assert_eq!(pre.args, vec!["--parent-flag"]);
+        assert_eq!(pre.requires, ["python3"]);
+    }
+
+    #[test]
+    fn unknown_host_viewer_field_fails_load() {
+        let json = r#"{
+          "version": 1,
+          "extensions": [{
+            "id": "bad-host",
+            "match": { "positional_suffix": ".md" },
+            "expand": {
+              "command": { "type": "markdown", "file": "{path}" },
+              "host": { "ui_root": ".", "viewer": "none" }
+            }
+          }]
+        }"#;
+        let err = ExtensionRegistry::from_json_str(json).expect_err("viewer");
+        assert!(
+            matches!(err, ExtensionError::InvalidRegistry { .. }),
+            "{err}"
+        );
+        assert!(
+            format!("{err}").contains("viewer") || format!("{err}").contains("unknown"),
+            "{err}"
         );
     }
 }

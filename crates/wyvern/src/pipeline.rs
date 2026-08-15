@@ -114,9 +114,12 @@ fn run_embedded(
         }
     };
 
+    // Arc<Mutex<Child>> lets the monitor thread call try_wait while the
+    // session thread later calls wait_for_viewer_exit. Child::try_wait
+    // needs &mut self; the mutex is the explicit sharing seam (RBP-F005).
     let child = Arc::new(Mutex::new(child));
     let dismiss_tx = handle.take_viewer_exit_signal();
-    if let Some(tx) = dismiss_tx {
+    let monitor = if let Some(tx) = dismiss_tx {
         let child_for_wait = Arc::clone(&child);
         thread::spawn(move || {
             loop {
@@ -130,7 +133,7 @@ fn run_embedded(
                 thread::sleep(Duration::from_millis(50));
             }
             let _ = tx.send(());
-        });
+        })
     } else {
         let child_for_wait = Arc::clone(&child);
         thread::spawn(move || loop {
@@ -142,8 +145,8 @@ fn run_embedded(
                 break;
             }
             thread::sleep(Duration::from_millis(50));
-        });
-    }
+        })
+    };
 
     // Give the child a brief moment to fail-fast (missing display, etc.).
     thread::sleep(Duration::from_millis(50));
@@ -170,6 +173,7 @@ fn run_embedded(
     if let Ok(mut c) = child.lock() {
         wait_for_viewer_exit(&mut c);
     }
+    let _ = monitor.join();
 
     Ok(result)
 }

@@ -15,7 +15,7 @@ Authoritative contract for declarative argv → `Command` JSON expansion. Extens
 2. Strip **host-only** flags: `--bind`, `--ui-root`, `--viewer`, `--allow-non-loopback`. Leave all other tokens in the **extension remainder**.
 3. **Built-ins (step 1, before extension match):** `browsers`, `extensions list`, `--version` / `-V` → early return (unchanged behavior).
 4. Call `ExtensionRegistry::match_argv(remainder)` before JSON/usage fallback. **First match wins:** walk merged `extensions` array in merge order; first matching id wins (project override replaces earlier id at same index).
-5. `load_command_input` must accept multi-token remainders when an extension matches.
+5. When **no** extension matches, `load_command_input` handles a single positional JSON / `.json` path or stdin. Multi-token unmatched remainders are unknown-subcommand usage (structured stderr, exit 2). Extension match is **not** implemented inside `input.rs`.
 6. On match: optional preexec → expand → validate → existing pipeline with `ExpandedInvocation.temp_guard` held until host exit.
 7. **Host override precedence:** when `ExpandedInvocation.host_overrides.ui_root` is `Some`, it **replaces** CLI `--ui-root`. CLI `--ui-root` applies only when extension does not set `host.ui_root`.
 

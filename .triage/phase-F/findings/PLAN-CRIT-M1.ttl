@@ -1,0 +1,8 @@
+@prefix triage: <https://wyvern.dev/triage#> .
+
+triage:PLAN-CRIT-M1 a triage:Finding ;
+    triage:id "PLAN-CRIT-M1" ;
+    triage:severity "Minor" ;
+    triage:promote_to_branch "integrate/phase-F" ;
+    triage:highest_open_branch "integrate/phase-F" ;
+    triage:required_fix "Sprint frontmatter status (same as ATM-QA-001)" .

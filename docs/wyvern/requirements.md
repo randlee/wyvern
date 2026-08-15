@@ -30,6 +30,16 @@
 
 **REQ-0118** — `wyvern browsers list` / `wyvern browsers refresh` (c.15).
 
+## CLI Extensions (Phase F)
+
+**REQ-0130** — After host-flag strip, match the argv remainder against the shipped + project extension registry before JSON / `.json` / stdin fallback (ADR-0022).
+
+**REQ-0131** — A matched extension expands to validated `Command` JSON. When the extension sets `host.ui_root`, that value replaces CLI `--ui-root`.
+
+**REQ-0132** — `wyvern extensions list` prints each extension id, match-kind summary, and `(requires: …)` when applicable.
+
+**REQ-0133** — Wizard finish from extension-hosted pages (including the CSV table viewer) calls `wyvernWizardFinish` with the full visited stack: `window.wyvern.stack` plus `{ page, data }` (REQ-0024).
+
 ---
 
 ## Interactive Mode (Phase E)

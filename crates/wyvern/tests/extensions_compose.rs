@@ -110,8 +110,9 @@ fn compose_render_var_file_in_expand_args() {
     let mut ctx = build_match_context(&matched, matched.extension());
     // `{tmpdir}` is referenced in preexec args; expand_preexec_args does not create it.
     ctx.tmpdir = Some(std::env::temp_dir().join("wyvern-compose-test"));
+    let pre = matched.extension().preexec.as_ref().expect("preexec");
     let (_cmd, expanded_args) =
-        expand_preexec_args(matched.extension(), &ctx).expect("expand args");
+        expand_preexec_args(pre, matched.extension(), &ctx).expect("expand args");
     assert!(
         expanded_args
             .iter()
@@ -151,4 +152,31 @@ fn compose_render_expand_produces_correct_html_path() {
         host.ui_root.as_deref(),
         Some(ctx.tmpdir.as_deref().expect("tmpdir"))
     );
+}
+
+/// PLAN-CRIT-003: unmatched `compose render` (no sc-compose) is usage exit 2.
+#[test]
+fn compose_render_unmatched_process_exits_2() {
+    let output = std::process::Command::new(env!("CARGO_BIN_EXE_wyvern"))
+        .args(["compose", "render", "--root", "r", "--file", "f.j2"])
+        .env("PATH", "")
+        .env("WYVERN_VIEWER", "none")
+        .env_remove("WYVERN_LOG")
+        .output()
+        .expect("spawn wyvern");
+    assert_eq!(
+        output.status.code(),
+        Some(2),
+        "unmatched compose render must exit 2; stderr={}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let json_line = stderr
+        .lines()
+        .rev()
+        .find(|line| line.trim_start().starts_with('{'))
+        .unwrap_or(stderr.trim());
+    let value: serde_json::Value =
+        serde_json::from_str(json_line.trim()).expect("structured usage JSON");
+    assert_eq!(value["code"], "PARSE_ERROR");
 }

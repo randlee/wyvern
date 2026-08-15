@@ -1,0 +1,8 @@
+@prefix triage: <https://wyvern.dev/triage#> .
+
+triage:RSH-004 a triage:Finding ;
+    triage:id "RSH-004" ;
+    triage:severity "Important" ;
+    triage:promote_to_branch "integrate/phase-F" ;
+    triage:highest_open_branch "integrate/phase-F" ;
+    triage:required_fix "Reject WYVERN_PREEXEC_TIMEOUT_SECS=0 in preexec.rs" .

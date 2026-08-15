@@ -53,6 +53,18 @@ wyvern examples/wizards/single-page/pages/only.html
 
 # Load a wizard from wizard.json (auto-infers --ui-root)
 wyvern examples/wizards/turbo-flow/wizard.json
+
+# Interactive CSV table (sort / filter / Finish → JSON)
+# Requires `python3` on PATH. On Windows, install Python 3 and ensure the
+# `python3` command resolves (the Windows `py` launcher is not used).
+wyvern fixtures/sample.csv
+wyvern table fixtures/sample.csv
+
+# CSV as a markdown pipe table
+wyvern md fixtures/sample.csv
+
+# List shipped file-type and prefix extensions
+wyvern extensions list
 ```
 
 ## Optional: Compose render

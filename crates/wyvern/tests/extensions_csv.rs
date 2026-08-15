@@ -6,8 +6,8 @@ use std::path::PathBuf;
 
 use test_support::{AbsentProbe, PresentProbe};
 use wyvern::extensions::{
-    binary_on_path, build_match_context, expand_and_validate, expand_command_host,
-    ExtensionRegistry,
+    build_match_context, expand_and_validate, expand_command_host, ExtensionRegistry,
+    PathRequiresProbe, RequiresProbe,
 };
 
 fn workspace_root() -> PathBuf {
@@ -201,15 +201,13 @@ fn csv_md_expand_produces_markdown() {
 /// Preexec stages the tmpdir layout when python3 is actually on PATH.
 #[test]
 fn csv_suffix_preexec_writes_tmpdir_layout() {
-    // TOCTOU: single binary_on_path guard is adequate for CI
-    if !binary_on_path("python3") {
+    let probe = PathRequiresProbe;
+    if !probe.binary_on_path("python3") {
         return;
     }
     let registry = load_shipped();
     let argv = vec![sample_csv()];
-    let matched = registry
-        .match_argv_with(&argv, &PresentProbe)
-        .expect("must match");
+    let matched = registry.match_argv_with(&argv, &probe).expect("must match");
     let ctx = build_match_context(&matched, matched.extension());
     let expanded = expand_and_validate(matched.extension(), &ctx).expect("expand");
     assert_eq!(expanded.command["type"], "wizard");
@@ -233,15 +231,13 @@ fn csv_suffix_preexec_writes_tmpdir_layout() {
 /// `wyvern md fixtures/sample.csv` expand → valid markdown command JSON.
 #[test]
 fn csv_md_expand_and_validate_markdown_content() {
-    // TOCTOU: single binary_on_path guard is adequate for CI
-    if !binary_on_path("python3") {
+    let probe = PathRequiresProbe;
+    if !probe.binary_on_path("python3") {
         return;
     }
     let registry = load_shipped();
     let argv = vec!["md".to_string(), sample_csv()];
-    let matched = registry
-        .match_argv_with(&argv, &PresentProbe)
-        .expect("must match");
+    let matched = registry.match_argv_with(&argv, &probe).expect("must match");
     let ctx = build_match_context(&matched, matched.extension());
     let expanded = expand_and_validate(matched.extension(), &ctx).expect("expand");
     assert_eq!(expanded.command["type"], "markdown");
@@ -250,4 +246,31 @@ fn csv_md_expand_and_validate_markdown_content() {
         .expect("markdown content");
     assert!(content.contains("Alice"), "{content}");
     assert!(content.contains('|'), "{content}");
+}
+
+/// PLAN-CRIT-002: table.js must use wyvernWizardFinish with a session-derived stack.
+#[test]
+fn table_js_uses_wizard_finish_stack() {
+    let js = std::fs::read_to_string(workspace_root().join("share/wyvern/ext/csv/shared/table.js"))
+        .expect("table.js");
+    assert!(
+        js.contains("wyvernWizardFinish"),
+        "table.js must call wyvernWizardFinish"
+    );
+    assert!(
+        !js.contains("window.wyvern.finish("),
+        "table.js must not call window.wyvern.finish"
+    );
+    assert!(
+        js.contains("stack: prior"),
+        "table.js must pass the session-derived prior stack to finish"
+    );
+    assert!(
+        js.contains("wyvern.stack"),
+        "table.js must derive finish stack from window.wyvern.stack"
+    );
+    assert!(
+        !js.contains("window.wyvern.finish({") && !js.contains("stack: []"),
+        "table.js must not send an empty finish stack via window.wyvern.finish"
+    );
 }

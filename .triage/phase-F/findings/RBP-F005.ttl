@@ -1,0 +1,8 @@
+@prefix triage: <https://wyvern.dev/triage#> .
+
+triage:RBP-F005 a triage:Finding ;
+    triage:id "RBP-F005" ;
+    triage:severity "Important" ;
+    triage:promote_to_branch "integrate/phase-F" ;
+    triage:highest_open_branch "integrate/phase-F" ;
+    triage:required_fix "Document Arc<Mutex<Child>> rationale in pipeline.rs" .

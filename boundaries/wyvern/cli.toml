@@ -13,6 +13,7 @@ allowed_dependencies = [
   "tracing",
   "tracing-subscriber",
   "sc-observability",
+  "sc-observability-types",
   "dirs",
   "rust-embed",
   "tempfile",

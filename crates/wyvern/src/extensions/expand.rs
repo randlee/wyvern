@@ -7,7 +7,14 @@ use serde_json::Value;
 use tempfile::TempDir;
 
 use super::preexec::{create_tmpdir, first_rendered_html, run_preexec, tmpdir_path};
-use super::{ExtensionDef, ExtensionError, ExtensionMatch};
+use std::io::Read;
+
+use super::{
+    ArgName, ExtensionDef, ExtensionError, ExtensionMatch, PreexecSpec, TemplateErrorKind,
+};
+
+/// 1 MiB cap for `command_from_file` JSON (RSH-003).
+const MAX_COMMAND_FROM_FILE_BYTES: usize = 1024 * 1024;
 
 /// Context collected from an [`ExtensionMatch`] plus optional preexec outputs.
 #[derive(Debug, Clone)]
@@ -65,22 +72,18 @@ pub fn build_match_context<'a>(m: &'a ExtensionMatch<'a>, _ext: &ExtensionDef) -
 
 /// Phase 1: expand `preexec.cmd` and `preexec.args` only.
 ///
+/// Takes [`PreexecSpec`] so callers cannot invoke this without a preexec block.
+/// `ext` is still required so `{arg:*}` declarations on command/host templates
+/// are accepted during remainder parsing.
+///
 /// # Errors
 ///
 /// Returns [`ExtensionError`] for missing args, unexpected tokens, or bad templates.
 pub fn expand_preexec_args(
+    pre: &PreexecSpec,
     ext: &ExtensionDef,
     ctx: &MatchContext<'_>,
 ) -> Result<(String, Vec<String>), ExtensionError> {
-    debug_assert!(
-        ext.preexec.is_some(),
-        "expand_preexec_args requires ext.preexec to be set"
-    );
-    let Some(pre) = ext.preexec.as_ref() else {
-        return Err(ExtensionError::Template {
-            message: "expand_preexec_args requires ext.preexec to be set".into(),
-        });
-    };
     let env = ExpandEnv::from_context(ext, ctx, Phase::Preexec)?;
     let cmd = env.expand_string(&pre.cmd)?;
     let args = env.expand_argv(&pre.args)?;
@@ -96,41 +99,41 @@ pub fn expand_command_host(
     ext: &ExtensionDef,
     ctx: &MatchContext<'_>,
 ) -> Result<(Value, HostOverrides), ExtensionError> {
-    let spec = ext
-        .expand
-        .as_ref()
-        .ok_or_else(|| ExtensionError::Template {
-            message: format!("extension '{}' has no expand block", ext.id),
-        })?;
+    let spec = ext.expand.as_ref().ok_or_else(|| {
+        ExtensionError::template(
+            TemplateErrorKind::InvalidSpec,
+            format!("extension '{}' has no expand block", ext.id),
+        )
+    })?;
     if spec.command.is_some() && spec.command_from_file.is_some() {
-        return Err(ExtensionError::Template {
-            message: format!(
+        return Err(ExtensionError::template(
+            TemplateErrorKind::InvalidSpec,
+            format!(
                 "extension '{}' sets both command and command_from_file",
                 ext.id
             ),
-        });
+        ));
     }
     let env = ExpandEnv::from_context(ext, ctx, Phase::Command)?;
     let command = if let Some(template) = &spec.command {
         env.expand_value(template)?
     } else if let Some(path_tmpl) = &spec.command_from_file {
         let path = env.expand_string(path_tmpl)?;
-        let text = std::fs::read_to_string(&path).map_err(|err| ExtensionError::Io {
-            message: format!("command_from_file '{path}': {err}"),
-            source: Some(Box::new(err)),
-        })?;
-        let value: Value = serde_json::from_str(&text).map_err(|err| ExtensionError::Io {
+        // Expand the path only — file contents are Command JSON as written
+        // (literal braces must survive, e.g. wizard.json).
+        let text = read_command_from_file(&path)?;
+        serde_json::from_str(&text).map_err(|err| ExtensionError::Io {
             message: format!("command_from_file '{path}' is not JSON: {err}"),
             source: Some(Box::new(err)),
-        })?;
-        env.expand_value(&value)?
+        })?
     } else {
-        return Err(ExtensionError::Template {
-            message: format!(
+        return Err(ExtensionError::template(
+            TemplateErrorKind::InvalidSpec,
+            format!(
                 "extension '{}' expand has neither command nor command_from_file",
                 ext.id
             ),
-        });
+        ));
     };
     let host_overrides = match spec.host.as_ref().and_then(|h| h.ui_root.as_ref()) {
         Some(tmpl) => HostOverrides {
@@ -186,8 +189,8 @@ pub fn expand_and_validate(
         None
     };
 
-    if ext.preexec.is_some() {
-        let (cmd, args) = match expand_preexec_args(ext, &ctx) {
+    if let Some(pre) = ext.preexec.as_ref() {
+        let (cmd, args) = match expand_preexec_args(pre, ext, &ctx) {
             Ok(pair) => pair,
             Err(err) => {
                 drop(temp_guard);
@@ -203,12 +206,12 @@ pub fn expand_and_validate(
             }
         }
         if references_rendered_basename(ext) {
-            let tmp = ctx
-                .tmpdir
-                .as_deref()
-                .ok_or_else(|| ExtensionError::Template {
-                    message: "{rendered_basename} requires {tmpdir}".into(),
-                })?;
+            let tmp = ctx.tmpdir.as_deref().ok_or_else(|| {
+                ExtensionError::template(
+                    TemplateErrorKind::Unavailable,
+                    "{rendered_basename} requires {tmpdir}",
+                )
+            })?;
             match first_rendered_html(tmp) {
                 Ok(name) => ctx.rendered_basename = Some(name),
                 Err(err) => {
@@ -412,7 +415,7 @@ impl<'a> ExpandEnv<'a> {
                 .and_then(|v| v.first())
                 .cloned()
                 .ok_or_else(|| ExtensionError::MissingArg {
-                    name: arg_name.to_string(),
+                    name: ArgName::new(arg_name),
                 });
         }
         match name {
@@ -427,8 +430,11 @@ impl<'a> ExpandEnv<'a> {
                     .file_stem()
                     .and_then(|s| s.to_str())
                     .map(ToOwned::to_owned)
-                    .ok_or_else(|| ExtensionError::Template {
-                        message: format!("{{stem}} has no file stem for '{path}'"),
+                    .ok_or_else(|| {
+                        ExtensionError::template(
+                            TemplateErrorKind::Unavailable,
+                            format!("{{stem}} has no file stem for '{path}'"),
+                        )
                     })
             }
             "parent_dir" => {
@@ -452,34 +458,44 @@ impl<'a> ExpandEnv<'a> {
             "tmpdir" => self
                 .tmpdir
                 .map(|p| p.to_string_lossy().into_owned())
-                .ok_or_else(|| ExtensionError::Template {
-                    message: "{tmpdir} was not created for this expansion".into(),
+                .ok_or_else(|| {
+                    ExtensionError::template(
+                        TemplateErrorKind::Unavailable,
+                        "{tmpdir} was not created for this expansion",
+                    )
                 }),
             "wyvern_share" => Ok(self.wyvern_share.to_string_lossy().into_owned()),
             "preexec.stdout" => match self.phase {
-                Phase::Preexec => Err(ExtensionError::Template {
-                    message: "{preexec.stdout} is only available in phase 2".into(),
-                }),
+                Phase::Preexec => Err(ExtensionError::template(
+                    TemplateErrorKind::PhaseRestricted,
+                    "{preexec.stdout} is only available in phase 2",
+                )),
                 Phase::Command => self.preexec_stdout.map(ToOwned::to_owned).ok_or_else(|| {
-                    ExtensionError::Template {
-                        message: "{preexec.stdout} is empty (no markdown capture)".into(),
-                    }
+                    ExtensionError::template(
+                        TemplateErrorKind::Unavailable,
+                        "{preexec.stdout} is empty (no markdown capture)",
+                    )
                 }),
             },
             "rendered_basename" => match self.phase {
-                Phase::Preexec => Err(ExtensionError::Template {
-                    message: "{rendered_basename} is only available in phase 2".into(),
-                }),
+                Phase::Preexec => Err(ExtensionError::template(
+                    TemplateErrorKind::PhaseRestricted,
+                    "{rendered_basename} is only available in phase 2",
+                )),
                 Phase::Command => self
                     .rendered_basename
                     .map(ToOwned::to_owned)
-                    .ok_or_else(|| ExtensionError::Template {
-                        message: "{rendered_basename} is not set".into(),
+                    .ok_or_else(|| {
+                        ExtensionError::template(
+                            TemplateErrorKind::Unavailable,
+                            "{rendered_basename} is not set",
+                        )
                     }),
             },
-            other => Err(ExtensionError::Template {
-                message: format!("unknown template variable {{{other}}}"),
-            }),
+            other => Err(ExtensionError::template(
+                TemplateErrorKind::UnknownVariable,
+                format!("unknown template variable {{{other}}}"),
+            )),
         }
     }
 
@@ -490,13 +506,43 @@ impl<'a> ExpandEnv<'a> {
     }
 }
 
+fn read_command_from_file(path: &str) -> Result<String, ExtensionError> {
+    let file = std::fs::File::open(path).map_err(|err| ExtensionError::Io {
+        message: format!("command_from_file '{path}': {err}"),
+        source: Some(Box::new(err)),
+    })?;
+    let mut buf = Vec::new();
+    let n = file
+        .take(MAX_COMMAND_FROM_FILE_BYTES as u64 + 1)
+        .read_to_end(&mut buf)
+        .map_err(|err| ExtensionError::Io {
+            message: format!("command_from_file '{path}': {err}"),
+            source: Some(Box::new(err)),
+        })?;
+    if n > MAX_COMMAND_FROM_FILE_BYTES {
+        return Err(ExtensionError::Io {
+            message: format!(
+                "command_from_file '{path}' exceeds maximum of {MAX_COMMAND_FROM_FILE_BYTES} bytes"
+            ),
+            source: None,
+        });
+    }
+    String::from_utf8(buf).map_err(|err| ExtensionError::Io {
+        message: format!("command_from_file '{path}' is not valid UTF-8: {err}"),
+        source: Some(Box::new(err)),
+    })
+}
+
 fn file_name(path: &str, var: &str) -> Result<String, ExtensionError> {
     Path::new(path)
         .file_name()
         .and_then(|s| s.to_str())
         .map(ToOwned::to_owned)
-        .ok_or_else(|| ExtensionError::Template {
-            message: format!("{{{var}}} has no file name for '{path}'"),
+        .ok_or_else(|| {
+            ExtensionError::template(
+                TemplateErrorKind::Unavailable,
+                format!("{{{var}}} has no file name for '{path}'"),
+            )
         })
 }
 
@@ -514,9 +560,10 @@ fn parse_template(template: &str) -> Result<Vec<TemplatePart>, ExtensionError> {
         }
         let after = &rest[start + 1..];
         let Some(end) = after.find('}') else {
-            return Err(ExtensionError::Template {
-                message: format!("unclosed '{{' in template '{template}'"),
-            });
+            return Err(ExtensionError::template(
+                TemplateErrorKind::UnclosedBrace,
+                format!("unclosed '{{' in template '{template}'"),
+            ));
         };
         out.push(TemplatePart::Var(after[..end].to_string()));
         rest = &after[end + 1..];
@@ -622,7 +669,9 @@ fn parse_named_args(
                 tokens
                     .get(i)
                     .cloned()
-                    .ok_or_else(|| ExtensionError::MissingArg { name: name.clone() })?
+                    .ok_or_else(|| ExtensionError::MissingArg {
+                        name: ArgName::new(name.clone()),
+                    })?
             };
             args.entry(name).or_default().push(value);
             i += 1;
@@ -702,7 +751,8 @@ mod tests {
         ];
         let matched = registry.match_argv(&argv).expect("match");
         let ctx = build_match_context(&matched, matched.extension());
-        let (cmd, args) = expand_preexec_args(matched.extension(), &ctx).expect("preexec");
+        let pre = matched.extension().preexec.as_ref().expect("preexec");
+        let (cmd, args) = expand_preexec_args(pre, matched.extension(), &ctx).expect("preexec");
         assert_eq!(cmd, "true");
         assert_eq!(
             args,
@@ -807,7 +857,8 @@ mod tests {
         ];
         let matched = registry.match_argv(&argv).expect("match");
         let ctx = build_match_context(&matched, matched.extension());
-        let (_, args) = expand_preexec_args(matched.extension(), &ctx).expect("preexec");
+        let pre = matched.extension().preexec.as_ref().expect("preexec");
+        let (_, args) = expand_preexec_args(pre, matched.extension(), &ctx).expect("preexec");
         assert_eq!(args, vec!["--root", "test-root"]);
     }
 
@@ -924,5 +975,64 @@ mod tests {
         let ctx = build_match_context(&matched, matched.extension());
         let expanded = expand_and_validate(matched.extension(), &ctx).expect("expand");
         assert_eq!(expanded.command["content"], "foo.html");
+    }
+
+    #[test]
+    fn command_from_file_does_not_expand_literal_braces() {
+        let tmp = tempfile::tempdir().expect("tmp");
+        let path = tmp.path().join("cmd.json");
+        std::fs::write(
+            &path,
+            r#"{"type":"markdown","content":"use {braces} literally"}"#,
+        )
+        .expect("write");
+        let json = format!(
+            r#"{{
+          "version": 1,
+          "extensions": [{{
+            "id": "from-file",
+            "match": {{ "positional_suffix": ".md" }},
+            "expand": {{ "command_from_file": "{}" }}
+          }}]
+        }}"#,
+            path.display().to_string().replace('\\', "/")
+        );
+        let registry = ExtensionRegistry::from_json_str(&json).expect("parse");
+        let argv = vec!["doc.md".to_string()];
+        let matched = registry.match_argv(&argv).expect("match");
+        let ctx = build_match_context(&matched, matched.extension());
+        let (cmd, _) = expand_command_host(matched.extension(), &ctx).expect("expand");
+        assert_eq!(cmd["content"], "use {braces} literally");
+    }
+
+    #[test]
+    fn command_from_file_rejects_oversize() {
+        let tmp = tempfile::tempdir().expect("tmp");
+        let path = tmp.path().join("huge.json");
+        let body = format!(
+            r#"{{"type":"markdown","content":"{}"}}"#,
+            "x".repeat(MAX_COMMAND_FROM_FILE_BYTES)
+        );
+        std::fs::write(&path, &body).expect("write");
+        let json = format!(
+            r#"{{
+          "version": 1,
+          "extensions": [{{
+            "id": "from-file",
+            "match": {{ "positional_suffix": ".md" }},
+            "expand": {{ "command_from_file": "{}" }}
+          }}]
+        }}"#,
+            path.display().to_string().replace('\\', "/")
+        );
+        let registry = ExtensionRegistry::from_json_str(&json).expect("parse");
+        let argv = vec!["doc.md".to_string()];
+        let matched = registry.match_argv(&argv).expect("match");
+        let ctx = build_match_context(&matched, matched.extension());
+        let err = expand_command_host(matched.extension(), &ctx).expect_err("oversize");
+        assert!(
+            matches!(err, ExtensionError::Io { ref message, .. } if message.contains("exceeds")),
+            "{err}"
+        );
     }
 }

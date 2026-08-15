@@ -1,0 +1,8 @@
+@prefix triage: <https://wyvern.dev/triage#> .
+
+triage:FTQ-001 a triage:Finding ;
+    triage:id "FTQ-001" ;
+    triage:severity "Important" ;
+    triage:promote_to_branch "integrate/phase-F" ;
+    triage:highest_open_branch "integrate/phase-F" ;
+    triage:required_fix "Per-thread unique suffix in materialize_workspace_share (mod.rs)" .
