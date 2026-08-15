@@ -32,6 +32,27 @@
         {"agent": "flaky-test-qa", "task_id": "00013e69-19e0-46a9-8480-fac2abaefe8d"},
         {"agent": "critical-plan-reviewer", "task_id": "80935546-b3f2-41a7-a19f-d73d2b5c132b", "supplemental": true}
       ]
+    },
+    {
+      "qa_pass": "qa-phase-F-end-6",
+      "commit": "8770d56b26d04464c32f46aa6bdb2a115f42f670",
+      "verdict": "FAIL",
+      "pr_comment_url": "https://github.com/randlee/wyvern/pull/81#issuecomment-5303755967",
+      "reviewer_spawn_gate": "pass",
+      "coordinator_task_id": "058f4fbc-56f3-40ab-9082-3ba519765cfb",
+      "finding_counts": {"blocking": 0, "important": 2, "minor": 0},
+      "deliverables": "23/23 (100%)",
+      "next_action": "triage_and_fix",
+      "open_finding_ids": ["QA-001", "RBP-F009"],
+      "reviewer_manifest": [
+        {"agent": "req-qa", "task_id": "0d6b8fbf-e746-4ac1-80ea-5c11796a55d7"},
+        {"agent": "arch-qa", "task_id": "66742222-2f41-44ff-9c6e-176b707ce4ae"},
+        {"agent": "rust-qa-agent", "task_id": "c1c5662b-d855-4e33-b4fc-1f1f3d02ea74"},
+        {"agent": "rust-best-practices-agent", "task_id": "bb56c214-61b3-49eb-9154-f69d2f7210be"},
+        {"agent": "rust-service-hardening-agent", "task_id": "5e1ccf0f-44bf-4250-a802-d538daaa9d19"},
+        {"agent": "flaky-test-qa", "task_id": "fd6506ac-c8e2-48b3-a882-e061c1c3b8c0"},
+        {"agent": "critical-plan-reviewer", "task_id": "38d2a596-c293-4d7d-b682-92189413cbc6", "supplemental": true}
+      ]
     }
   ],
   "sprints": {
