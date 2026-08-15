@@ -91,7 +91,7 @@ Named `{arg:*}` and `{arg:*:repeat}` capture is owned by f.1 `preexec.rs` (two-p
 ## Required validation
 
 ```bash
-cargo test -p wyvern extensions_compose
+cargo test -p wyvern-cli extensions_compose
 # if sc-compose present locally:
 wyvern compose render --root fixtures/compose-minimal --file page.j2
 ```

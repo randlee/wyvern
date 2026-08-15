@@ -53,7 +53,7 @@ CSV preexec requires **`python3` on PATH**. On Windows, install Python 3 and ens
 - Global search box
 - Sticky header on scroll
 - Truncation banner when `meta.truncated`
-- Finish via `wyvern-api.js`: `{ button: "finish", data: { row_count: N }, stack: [...] }` per Phase D
+- Finish via `wyvernWizardFinish`: `{ button: "finish", data: { row_count: N }, stack: window.wyvern.stack + [{ page, data }] }` per Phase D (REQ-0024 / REQ-0133)
 
 No external JS libraries (vanilla DOM).
 

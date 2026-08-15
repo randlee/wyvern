@@ -156,7 +156,7 @@ Preexec writes:
 
 `view.html` loads `../shared/table.js`, `../shared/table.css`, and packaged `/shared/wyvern-api.js` for wizard finish. `table.js` fetches `../data/rows.json`.
 
-Finish uses `wyvern-api.js` → `{ button: "finish", data: { row_count: N }, stack: [...] }` per Phase D wizard contract.
+Finish uses `wyvernWizardFinish` with the session-derived stack (`window.wyvern.stack` plus current `{ page, data }`) per Phase D wizard contract (REQ-0024 / REQ-0133).
 
 ## Phase E consumption (ADR-0022 — Path A)
 
