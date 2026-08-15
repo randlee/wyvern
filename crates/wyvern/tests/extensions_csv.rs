@@ -129,7 +129,8 @@ fn csv_suffix_expand_produces_wizard() {
         .match_argv_with(&argv, &PresentProbe)
         .expect("must match");
     let mut ctx = build_match_context(&matched, matched.extension());
-    ctx.tmpdir = Some(std::env::temp_dir().join("wyvern-csv-expand-test"));
+    ctx.tmpdir =
+        Some(std::env::temp_dir().join(format!("wyvern-csv-expand-test-{}", std::process::id())));
     let (command, host) = expand_command_host(matched.extension(), &ctx).expect("expand");
     assert_eq!(command["type"], "wizard");
     assert_eq!(command["page"]["html"], "pages/view.html");
@@ -158,7 +159,10 @@ fn csv_table_alias_expand_matches_suffix() {
         .expect("alias");
     let mut suffix_ctx = build_match_context(&suffix, suffix.extension());
     let mut alias_ctx = build_match_context(&alias, alias.extension());
-    let tmp = std::env::temp_dir().join("wyvern-csv-alias-expand-test");
+    let tmp = std::env::temp_dir().join(format!(
+        "wyvern-csv-alias-expand-test-{}",
+        std::process::id()
+    ));
     suffix_ctx.tmpdir = Some(tmp.clone());
     alias_ctx.tmpdir = Some(tmp);
     let (suffix_cmd, suffix_host) =
@@ -197,6 +201,7 @@ fn csv_md_expand_produces_markdown() {
 /// Preexec stages the tmpdir layout when python3 is actually on PATH.
 #[test]
 fn csv_suffix_preexec_writes_tmpdir_layout() {
+    // TOCTOU: single binary_on_path guard is adequate for CI
     if !binary_on_path("python3") {
         return;
     }
@@ -228,6 +233,7 @@ fn csv_suffix_preexec_writes_tmpdir_layout() {
 /// `wyvern md fixtures/sample.csv` expand → valid markdown command JSON.
 #[test]
 fn csv_md_expand_and_validate_markdown_content() {
+    // TOCTOU: single binary_on_path guard is adequate for CI
     if !binary_on_path("python3") {
         return;
     }
