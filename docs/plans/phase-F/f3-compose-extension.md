@@ -11,7 +11,7 @@ target: integrate/phase-F
 
 ## Goal
 
-When `sc-compose` is on `PATH`, `wyvern compose render ...` expands to a wizard over rendered HTML. Extension is **hidden** when dependency missing (no error on `extensions list` for missing tool — entry marked unavailable).
+When `sc-compose` is on `PATH`, `wyvern compose render ...` expands to a wizard over rendered HTML. When `sc-compose` is **absent**, the extension does **not** match argv (same as unknown subcommand). `wyvern extensions list` still shows `compose-render` marked `(requires: sc-compose)`.
 
 ## Hard dependencies
 
@@ -28,7 +28,11 @@ When `sc-compose` is on `PATH`, `wyvern compose render ...` expands to a wizard 
   "match": { "argv_prefix": ["compose", "render"] },
   "preexec": {
     "cmd": "sc-compose",
-    "args": ["render", "--root", "{arg:root}", "--file", "{arg:file}", "--out", "{tmpdir}/pages", "--format", "html"],
+    "args": [
+      "render", "--root", "{arg:root}", "--file", "{arg:file}",
+      "--out", "{tmpdir}/pages", "--format", "html",
+      "{arg:var-file:repeat}", "{arg:var:repeat}", "{arg:env:repeat}"
+    ],
     "requires": ["sc-compose"]
   },
   "expand": {
@@ -45,7 +49,14 @@ When `sc-compose` is on `PATH`, `wyvern compose render ...` expands to a wizard 
 }
 ```
 
-Pass-through flags (`--var`, `--var-file`, `--env`) forwarded via preexec arg template table (document in contract).
+Pass-through flags `--var`, `--var-file`, `--env` captured via `{arg:var:repeat}`, `{arg:var-file:repeat}`, `{arg:env:repeat}` (see contract).
+
+### Fixture (`fixtures/compose-minimal/`)
+
+| File | Purpose |
+|------|---------|
+| `page.j2` | Single-variable template (`{{ title }}`) |
+| `vars.json` | `{ "title": "Compose preview" }` |
 
 ### Preexec arg mapping
 
@@ -59,7 +70,7 @@ Pass-through flags (`--var`, `--var-file`, `--env`) forwarded via preexec arg te
 | Path | Change |
 |------|--------|
 | `crates/wyvern/tests/extensions_compose.rs` | Skip if `sc-compose` absent; expand + mock preexec in unit tests |
-| `fixtures/compose-minimal/` | Tiny `--root` + one `.j2` for CI when sc-compose installed |
+| `fixtures/compose-minimal/` | `page.j2` + `vars.json` (see table above) |
 
 ### Docs
 
@@ -70,11 +81,12 @@ Pass-through flags (`--var`, `--var-file`, `--env`) forwarded via preexec arg te
 
 ## Acceptance criteria
 
-1. With `sc-compose` on PATH: `wyvern compose render --root ./fixtures/compose-minimal --file page.j2` opens wizard preview
-2. Without `sc-compose`: `wyvern compose render ...` → structured CLI error `ExtensionError::RequiresBinary { name: "sc-compose" }` with exit code 2 (same as unknown subcommand); extension hidden from default match but explicit invocation surfaces requirement
+1. With `sc-compose` on PATH: `wyvern compose render --root ./fixtures/compose-minimal --file page.j2 --var-file vars.json` opens wizard preview
+2. Without `sc-compose` on PATH: `wyvern compose render ...` does **not** match any extension → standard unknown-subcommand usage error (exit 2); `wyvern extensions list` shows `compose-render (requires: sc-compose)`
 3. `wyvern extensions list` shows `compose-render` with `(requires: sc-compose)` status
 4. Preexec failure (non-zero exit) → CLI error with stderr snippet, no host launch
-5. No new Rust dependency on sc-compose crate — external binary only
+5. `--var-file` forwarded to sc-compose preexec args when present
+6. No new Rust dependency on sc-compose crate — external binary only
 
 ## Required validation
 

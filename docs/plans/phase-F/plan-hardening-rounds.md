@@ -2,6 +2,7 @@
 
 | Round | Step | Reviewer | reviewed_commit | status | blocking | important | minor | findings_hash | supersedes | Note |
 |-------|------|----------|-----------------|--------|----------|-----------|-------|---------------|------------|------|
+| STEP2-R1 | 2 | plan-scope-reviewer | 266c92a | FAIL | 1 | 8 | 3 | scope-r1-f1b0i3-f2b0i0-f3b0i2-f4b1i2 |  | initial scope review |
 
 Cap behavior reminder:
 

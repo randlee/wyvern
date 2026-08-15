@@ -11,7 +11,7 @@ target: integrate/phase-F
 
 ## Goal
 
-`wyvern report.csv` and `wyvern table report.csv` open an interactive HTML table wizard. Data is embedded as JSON; **the table DOM is built in JavaScript** (not server-side HTML strings). `wyvern md report.csv` renders markdown pipe table via preexec.
+`wyvern report.csv` and `wyvern table report.csv` open an interactive HTML table wizard. Preexec writes JSON to `{tmpdir}/data/rows.json`; **the table DOM is built in JavaScript** via `fetch` (not server-side HTML strings). `wyvern md report.csv` renders markdown pipe table via preexec.
 
 ## Hard dependencies
 
@@ -24,7 +24,7 @@ target: integrate/phase-F
 
 | Path | Change |
 |------|--------|
-| `scripts/ext/csv_to_view.py` | Read CSV → `{tmpdir}/data/rows.json` + stub `pages/view.html` |
+| `scripts/ext/csv_to_view.py` | Read CSV → `{tmpdir}/data/rows.json` + copy static `pages/view.html` shell |
 | | `--format html` (default) or `markdown` |
 | | Row cap default 10_000 with `truncated: true` in JSON metadata |
 
@@ -42,8 +42,8 @@ target: integrate/phase-F
 
 | Path | Change |
 |------|--------|
-| `share/wyvern/ext/csv/pages/view.html` | Shell: loads `../shared/table.css`, `table.js`, inline `<script type="application/json" id="csv-data">` |
-| `share/wyvern/ext/csv/shared/table.js` | Parse JSON → build `<table>` in DOM |
+| `share/wyvern/ext/csv/pages/view.html` | Static shell: loads `../shared/table.css`, `table.js`; no inline data |
+| `share/wyvern/ext/csv/shared/table.js` | `fetch('../data/rows.json')` → parse JSON → build `<table>` in DOM |
 | `share/wyvern/ext/csv/shared/table.css` | Zebra rows, hover, sticky header, filter row UI |
 
 **`table.js` behavior (in scope):**
@@ -53,7 +53,7 @@ target: integrate/phase-F
 - Global search box
 - Sticky header on scroll
 - Truncation banner when `meta.truncated`
-- Finish button → existing wizard `postResult` JSON (`{ "action": "finish", "values": { "row_count": N } }` or minimal ack)
+- Finish button → wizard `postResult` JSON: `{ "action": "finish", "values": { "row_count": N } }` where N = displayed row count
 
 No external JS libraries (vanilla DOM).
 
@@ -63,7 +63,11 @@ No external JS libraries (vanilla DOM).
 {
   "id": "csv-suffix",
   "match": { "positional_suffix": ".csv" },
-  "preexec": { "cmd": "python3", "args": ["{wyvern_share}/scripts/ext/csv_to_view.py", "{path}", "--out", "{tmpdir}"] },
+  "preexec": {
+    "cmd": "python3",
+    "args": ["{wyvern_share}/scripts/ext/csv_to_view.py", "{path}", "--out", "{tmpdir}"],
+    "requires": ["python3"]
+  },
   "expand": {
     "command": {
       "type": "wizard",
@@ -81,7 +85,12 @@ No external JS libraries (vanilla DOM).
 {
   "id": "csv-md",
   "match": { "argv_prefix": ["md"], "arg_suffix": ".csv" },
-  "preexec": { "cmd": "python3", "args": ["...", "--format", "markdown"], "stdout": "markdown" },
+  "preexec": {
+    "cmd": "python3",
+    "args": ["{wyvern_share}/scripts/ext/csv_to_view.py", "{path}", "--out", "{tmpdir}", "--format", "markdown"],
+    "requires": ["python3"],
+    "stdout": "markdown"
+  },
   "expand": {
     "command": { "type": "markdown", "title": "{basename}", "content": "{preexec.stdout}" }
   }
@@ -95,7 +104,7 @@ No external JS libraries (vanilla DOM).
 | Path | Change |
 |------|--------|
 | `fixtures/sample.csv` | Small dataset for tests |
-| `crates/wyvern/tests/extensions_csv.rs` | Expand + preexec output structure |
+| `crates/wyvern/tests/extensions_csv.rs` | Expand + preexec output structure; `extensions_csv_requires_python3` when PATH lacks python3 |
 | `scripts/ext/test_csv_to_view.py` | pytest or stdlib unittest for JSON shape |
 
 Host L1 optional: headless wizard load with `--viewer none` if harness supports CSV fixture path.
@@ -108,7 +117,7 @@ Host L1 optional: headless wizard load with `--viewer none` if harness supports 
 4. `wyvern table fixtures/sample.csv` identical to suffix form
 5. `wyvern md fixtures/sample.csv` opens markdown dialog with pipe table
 6. Finish returns exit 0; JSON result includes row metadata
-7. Python 3 required for CSV extensions; clear error if `python3` missing
+7. Python 3 required for CSV extensions; when `python3` absent, extension does not match (requires-check) and `extensions list` shows `(requires: python3)` — same pattern as sc-compose
 8. No new host dialog type; wizard + markdown only
 
 ## Required validation
@@ -116,7 +125,10 @@ Host L1 optional: headless wizard load with `--viewer none` if harness supports 
 ```bash
 python3 scripts/ext/csv_to_view.py fixtures/sample.csv --out /tmp/csv-test --format html
 test -f /tmp/csv-test/data/rows.json
+python3 -m pytest scripts/ext/test_csv_to_view.py
 cargo test -p wyvern extensions_csv
+# requires-check when python3 absent (mock PATH):
+PATH=/usr/bin:/bin cargo test -p wyvern extensions_csv_requires_python3
 cargo fmt --all --check && cargo clippy --workspace -- -D warnings
 ```
 

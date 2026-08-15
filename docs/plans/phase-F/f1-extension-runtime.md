@@ -27,8 +27,29 @@ Ship the CLI extension engine: load merged registry, match argv, optional `preex
 | `docs/plans/phase-F/cli-extensions-contract.md` | Normative schema (already in plan branch) |
 | `share/wyvern/extensions.json` | Shipped defaults (`.md` only in f.1) |
 | `crates/wyvern/src/extensions/mod.rs` | Loader, merge, `extends` resolution, match precedence |
-| `crates/wyvern/src/extensions/expand.rs` | Template vars + JSON expand |
-| `crates/wyvern/src/extensions/preexec.rs` | Spawn subprocess; `{tmpdir}` lifecycle |
+| `crates/wyvern/src/extensions/expand.rs` | Template vars + JSON expand (all contract vars — see below) |
+| `crates/wyvern/src/extensions/preexec.rs` | Spawn subprocess; `{tmpdir}` lifecycle; requires-check |
+
+### Template variables (`expand.rs` — f.1 ships all)
+
+f.1 must implement every contract template variable so f.2–f.4 do not discover missing vars at integration time:
+
+| Variable | f.1 test |
+|----------|----------|
+| `{path}`, `{basename}`, `{stem}`, `{parent_dir}` | `.md` expand unit test |
+| `{relpath_from_ui_root}` | expand unit test with nested path |
+| `{tmpdir}`, `{wyvern_share}` | preexec + expand unit test |
+| `{preexec.stdout}` | test-only extension with `stdout: "markdown"` preexec |
+| `{arg:name}` | test-only prefix extension with `--root` capture |
+| `{rendered_basename}` | test-only preexec that writes `{tmpdir}/pages/preview.html` |
+
+`MatchContext` carries preexec results (stdout, rendered basename) for expand substitution.
+
+### Preexec cleanup test
+
+| Path | Change |
+|------|--------|
+| `crates/wyvern/tests/extensions_preexec_cleanup.rs` | Test-only registry entry with preexec; assert tmpdir removed on success **and** on non-zero preexec exit |
 
 ### CLI integration
 
@@ -49,7 +70,9 @@ pub enum ExtensionMatch<'a> {
 }
 
 impl ExtensionRegistry {
-    pub fn load(defaults: &Path, project: Option<&Path>, user: Option<&Path>) -> Result<Self, ExtensionError>;
+    /// f.1: `defaults` + optional project `.wyvern/extensions.json` only.
+    /// User config path (`~/.config/wyvern/extensions.json`) deferred post-F.
+    pub fn load(defaults: &Path, project: Option<&Path>) -> Result<Self, ExtensionError>;
     pub fn match_argv(&self, argv: &[String]) -> Option<ExtensionMatch<'_>>;
 }
 
@@ -95,6 +118,7 @@ Removes duplicate logic from `load_positional` `.md` branch.
 
 ```bash
 cargo test -p wyvern extensions
+cargo test -p wyvern extensions_preexec_cleanup
 cargo test -p wyvern input_md_path_loads_markdown_value  # still passes via registry
 cargo fmt --all --check
 cargo clippy --workspace -- -D warnings
@@ -103,7 +127,7 @@ cargo clippy --workspace -- -D warnings
 ## Non-closure
 
 - `.html`, `.csv`, `compose` extensions (f.2–f.4)
-- User registry override merge beyond shipped + `.wyvern/extensions.json` path stub (may land if trivial)
+- User registry (`~/.config/wyvern/extensions.json`) merge — deferred post-F; f.1 `load()` accepts project path only
 
 ## Authority
 
