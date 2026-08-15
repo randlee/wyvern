@@ -11,7 +11,7 @@
       "branch": "feature/phase-F-f1-extension-runtime",
       "sprint_doc": "docs/plans/phase-F/f1-extension-runtime.md",
       "pr_target": "integrate/phase-F",
-      "status": "pending"
+      "status": "in_progress"
     },
     "f.2": {
       "id": "f.2",

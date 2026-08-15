@@ -8,12 +8,14 @@ allowed_dependencies = [
   "wyvern-schema",
   "wyvern-host",
   "wyvern-viewer",
+  "serde",
   "serde_json",
   "tracing",
   "tracing-subscriber",
   "sc-observability",
   "dirs",
   "rust-embed",
+  "tempfile",
 ]
 forbidden_dependencies = ["wyvern-wizard", "wyvern-mcp", "wry", "winit", "rfd"]
 forbidden_edges = ["wyvern-cli -> wyvern-mcp"]

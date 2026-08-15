@@ -11,6 +11,8 @@ keywords     = ["wyvern", "dialog", "webview", "cli", "json"]
 categories   = ["command-line-utilities", "gui"]
 readme       = "../../README.md"
 # ui/ is included here for cargo-install users (no separate share/wyvern/ui needed).
+# rust-embed maps workspace share/wyvern/** and scripts/ext/** (see extensions/mod.rs)
+# so {wyvern_share} resolves in both dev and cargo-install layouts.
 include      = ["src/**", "ui/**", "Cargo.toml"]
 
 [lib]
@@ -24,12 +26,14 @@ path = "src/main.rs"
 [dependencies]
 wyvern-schema      = { workspace = true }
 wyvern-host        = { workspace = true }
+serde              = { workspace = true }
 serde_json         = { workspace = true }
 tracing            = { workspace = true }
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "env-filter", "std"] }
 sc-observability   = { workspace = true }
 rust-embed         = { version = "8", features = ["compression"] }
 dirs               = { workspace = true }
+tempfile           = "3"
 
 [dev-dependencies]
 reqwest    = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "blocking"] }
