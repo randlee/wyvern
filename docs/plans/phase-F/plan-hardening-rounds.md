@@ -2,7 +2,7 @@
 
 | Round | Step | Reviewer | reviewed_commit | status | blocking | important | minor | findings_hash | supersedes | Note |
 |-------|------|----------|-----------------|--------|----------|-----------|-------|---------------|------------|------|
-| STEP2-R3 | 2 | plan-scope-reviewer | e2b54e0 | FAIL | 0 | 2 | 1 | scope-r3-f1b0i2-f2b0i0-f3b0i0-f4b0i0 | STEP2-R2 | cap cycle 3 — final fix applied |
+| STEP4-R1 | 4 | critical-plan-reviewer | b9cfca8 | FAIL | 5 | 9 | 3 | c1-b9cfca837-001-014 |  | initial critical review |
 
 Cap behavior reminder:
 

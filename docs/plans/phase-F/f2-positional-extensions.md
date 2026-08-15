@@ -21,7 +21,7 @@ Add suffix handlers for custom HTML and wizard fixture JSON. Infer `--ui-root` f
 
 ### Shipped registry entries (`share/wyvern/extensions.json`)
 
-**`.html` suffix** → single-page wizard:
+**`.html` suffix** → single-page wizard (wizard-root inference per contract):
 
 ```json
 {
@@ -36,12 +36,12 @@ Add suffix handlers for custom HTML and wizard fixture JSON. Infer `--ui-root` f
         "html": "{relpath_from_ui_root}"
       }
     },
-    "host": { "ui_root": "{parent_dir}" }
+    "host": { "ui_root": "{wizard_root}" }
   }
 }
 ```
 
-`{relpath_from_ui_root}`: path relative to `{parent_dir}` (ui_root). Example: for `examples/wizards/single-page/pages/only.html`, ui_root = `single-page/`, html = `pages/only.html`. See contract template table.
+For `examples/wizards/single-page/pages/only.html`: `{wizard_root}` = `single-page/`, `{relpath_from_ui_root}` = `pages/only.html` (matches Phase D fixture).
 
 **`wizard.json` suffix** → load JSON command file + ui root inference:
 
@@ -51,7 +51,7 @@ Add suffix handlers for custom HTML and wizard fixture JSON. Infer `--ui-root` f
   "match": { "positional_suffix": "wizard.json" },
   "expand": {
     "command_from_file": "{path}",
-    "host": { "ui_root": "{parent_dir}" }
+    "host": { "ui_root": "{wizard_root}" }
   }
 }
 ```
@@ -68,14 +68,14 @@ Add suffix handlers for custom HTML and wizard fixture JSON. Infer `--ui-root` f
 
 | Path | Change |
 |------|--------|
-| `crates/wyvern/tests/extensions_html.rs` | Expand `.html` → wizard JSON + ui_root |
+| `crates/wyvern/tests/extensions_html.rs` | Expand `.html` → wizard JSON; `extensions_html_wizard_root` asserts wizard_root paths |
 | `crates/wyvern/tests/extensions_wizard_json.rs` | Expand fixture wizard.json |
 
 Host L1 optional: headless `--viewer none` smoke that expanded wizard URL resolves (reuse wizard test helpers).
 
 ## Acceptance criteria
 
-1. `wyvern examples/wizards/single-page/pages/only.html` opens single-page wizard without manual `--ui-root` or inline JSON
+1. `wyvern examples/wizards/single-page/pages/only.html` opens wizard with `ui_root=single-page/`, `page.html=pages/only.html` (expand test asserts exact values)
 2. `wyvern examples/wizards/turbo-flow/wizard.json` loads turbo-flow with `--ui-root` = turbo-flow dir
 3. Expanded commands validate; missing page file → existing host `UiNotFound` error path
 4. `.md` shorthand still works via f.1 registry
@@ -84,9 +84,9 @@ Host L1 optional: headless `--viewer none` smoke that expanded wizard URL resolv
 ## Required validation
 
 ```bash
-cargo test -p wyvern extensions_html extensions_wizard_json
+cargo test -p wyvern extensions_html extensions_wizard_json extensions_html_wizard_root
 cargo test -p wyvern-host wizard_state  # regression
-scripts/demo-wizard.sh single-page  # manual smoke note in PR
+scripts/demo-wizard.sh single-page  # pre-existing from phase-D; skip if absent
 ```
 
 ## Non-closure

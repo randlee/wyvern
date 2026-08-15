@@ -2,7 +2,7 @@
 
 Phase F implementation PRs target **`integrate/phase-F`**. Sprint docs (`f.1`–`f.4`) are the **sole authority** for deliverables, acceptance criteria, and validation. `docs/plans/project-plan.md` carries phase-level goals only.
 
-**Ordering:** Phase F runs **before Phase E**. MCP and `--interactive` reuse the extension registry for tool-facing argv expansion (e.g. `show_csv` → same expand path as `wyvern report.csv`).
+**Ordering:** Phase F runs **before Phase E**. Phase E reuses `wyvern::extensions` library API for argv expansion in `--interactive` and MCP (ADR-0022 — see contract).
 
 ## Core model
 
@@ -28,10 +28,9 @@ Declarative CLI extensions: file suffix defaults and optional subcommand aliases
 ## Phase acceptance (smoke)
 
 ```bash
-# HTML file (suffix)
-wyvern ./examples/wizards/single-page/pages/only.html --ui-root ./examples/wizards/single-page
-# equivalent after f.2:
+# HTML file (suffix) — f.2 wizard-root inference
 wyvern ./examples/wizards/single-page/pages/only.html
+# expands to ui_root=single-page/, page.html=pages/only.html
 
 # CSV interactive table (suffix) — sort column, filter, Finish → JSON
 wyvern ./fixtures/sample.csv
@@ -56,14 +55,16 @@ All exit 0 with embedded viewer; expanded commands pass existing validation.
 
 ## What Phase F does not close
 
-- MCP tool wrappers — **Phase E** (consumes same registry)
-- `--interactive` — **Phase E**
-- User-authored `preexec` without signing/trust policy (defer post-F)
-- Multi-page sc-compose site generator (defer; wizard already supports multi-page HTML)
+- MCP tool wrappers — **Phase E** (calls `wyvern::extensions` API per ADR-0022)
+- `--interactive` argv expansion — **Phase E**
+- User registry (`~/.config/wyvern/extensions.json`) — post-F
+- User-authored unsigned `preexec` outside trusted project tree (post-F)
+- Multi-page sc-compose site generator (defer)
 
 ## Boundaries
 
-- Extension runtime lives in **`wyvern` CLI crate only** — not `wyvern-host` or `wyvern-wizard`
+- Extension runtime lives in **`wyvern` CLI crate** with public `wyvern::extensions` module — not `wyvern-host` or `wyvern-wizard`
+- Project `.wyvern/extensions.json` is trusted for preexec (working-tree policy)
 - `preexec` must not mutate process env used by parallel tests (inject cwd/temp paths only)
 - No new `Command` enum variants in Phase F
 

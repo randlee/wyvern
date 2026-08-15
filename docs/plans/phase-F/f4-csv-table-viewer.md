@@ -11,12 +11,12 @@ target: integrate/phase-F
 
 ## Goal
 
-`wyvern report.csv` and `wyvern table report.csv` open an interactive HTML table wizard. Preexec writes JSON to `{tmpdir}/data/rows.json`; **the table DOM is built in JavaScript** via `fetch` (not server-side HTML strings). `wyvern md report.csv` renders markdown pipe table via preexec.
+`wyvern report.csv` and `wyvern table report.csv` open an interactive HTML table wizard. Preexec writes JSON + staged static assets; **table DOM built in JavaScript** via fetch. `wyvern md report.csv` renders markdown pipe table via preexec.
 
 ## Hard dependencies
 
 - f.1 merged to `integrate/phase-F`
-- f.2 patterns for ui_root + wizard page layout
+- f.2 patterns for wizard page layout
 
 ## Deliverables
 
@@ -24,26 +24,24 @@ target: integrate/phase-F
 
 | Path | Change |
 |------|--------|
-| `scripts/ext/csv_to_view.py` | Read CSV → `{tmpdir}/data/rows.json` + copy static `pages/view.html` shell |
-| | `--format html` (default) or `markdown` |
+| `scripts/ext/csv_to_view.py` | Read CSV → write tmpdir layout (see contract); `--format html` or `markdown` |
 | | Row cap default 10_000 with `truncated: true` in JSON metadata |
 
-**`rows.json` shape:**
+**Tmpdir layout (required):**
 
-```json
-{
-  "columns": ["Name", "Score"],
-  "rows": [["Alice", "98"], ["Bob", "87"]],
-  "meta": { "source": "report.csv", "truncated": false, "total_rows": 2 }
-}
+```
+{tmpdir}/data/rows.json
+{tmpdir}/pages/view.html       # from share/wyvern/ext/csv/pages/view.html
+{tmpdir}/shared/table.js       # from share/wyvern/ext/csv/shared/
+{tmpdir}/shared/table.css
 ```
 
-### Static assets (JS DOM builder)
+### Static assets (packaged source)
 
 | Path | Change |
 |------|--------|
-| `share/wyvern/ext/csv/pages/view.html` | Static shell: loads `../shared/table.css`, `table.js`; no inline data |
-| `share/wyvern/ext/csv/shared/table.js` | `fetch('../data/rows.json')` → parse JSON → build `<table>` in DOM |
+| `share/wyvern/ext/csv/pages/view.html` | Shell: `../shared/table.css`, `../shared/table.js`, `/shared/wyvern-api.js` |
+| `share/wyvern/ext/csv/shared/table.js` | `fetch('../data/rows.json')` → build `<table>` in DOM |
 | `share/wyvern/ext/csv/shared/table.css` | Zebra rows, hover, sticky header, filter row UI |
 
 **`table.js` behavior (in scope):**
@@ -53,7 +51,7 @@ target: integrate/phase-F
 - Global search box
 - Sticky header on scroll
 - Truncation banner when `meta.truncated`
-- Finish button → wizard `postResult` JSON: `{ "action": "finish", "values": { "row_count": N } }` where N = displayed row count
+- Finish via `wyvern-api.js`: `{ button: "finish", data: { row_count: N }, stack: [...] }` per Phase D
 
 No external JS libraries (vanilla DOM).
 
@@ -97,48 +95,47 @@ No external JS libraries (vanilla DOM).
 }
 ```
 
-(`csv-table-alias` uses `"extends": "csv-suffix"` per contract inheritance rule.)
-
 ### Fixtures + tests
 
 | Path | Change |
 |------|--------|
 | `fixtures/sample.csv` | Small dataset for tests |
-| `crates/wyvern/tests/extensions_csv.rs` | Expand + preexec output structure; `extensions_csv_requires_python3` when PATH lacks python3 |
-| `scripts/ext/test_csv_to_view.py` | pytest or stdlib unittest for JSON shape |
-
-Host L1 optional: headless wizard load with `--viewer none` if harness supports CSV fixture path.
+| `crates/wyvern/tests/extensions_csv.rs` | Expand + preexec layout (all staged files exist) |
+| `scripts/ext/test_csv_to_view.py` | JSON shape + **DOM test** (pytest + html parsing): table rows, sort, filter, truncation banner |
 
 ## Acceptance criteria
 
-1. `wyvern fixtures/sample.csv` opens wizard; table visible; column sort changes order
-2. Column filter + global search reduce visible rows without reload
-3. Truncated CSV (> cap) shows banner; table shows first N rows only
-4. `wyvern table fixtures/sample.csv` identical to suffix form
-5. `wyvern md fixtures/sample.csv` opens markdown dialog with pipe table
-6. Finish returns exit 0; JSON result includes row metadata
-7. Python 3 required for CSV extensions; when `python3` absent, extension does not match (requires-check) and `extensions list` shows `(requires: python3)` — same pattern as sc-compose
-8. No new host dialog type; wizard + markdown only
+### Automated
+
+1. Preexec produces complete tmpdir layout; every path referenced by `view.html` exists
+2. `python3 -m pytest scripts/ext/test_csv_to_view.py` passes (includes DOM sort/filter/banner assertions)
+3. `cargo test -p wyvern extensions_csv` passes expand + layout gates
+4. `wyvern md fixtures/sample.csv` expand → valid markdown command JSON
+5. `wyvern table fixtures/sample.csv` expand identical to suffix form
+6. Requires-check: when `python3` absent, `.csv` suffix does not match (fallthrough)
+7. No new host dialog type; wizard + markdown only
+
+### Manual (non-gating)
+
+- Open `fixtures/sample.csv` in embedded viewer; sort/filter/Finish smoke
 
 ## Required validation
 
 ```bash
 python3 scripts/ext/csv_to_view.py fixtures/sample.csv --out /tmp/csv-test --format html
-test -f /tmp/csv-test/data/rows.json
+test -f /tmp/csv-test/data/rows.json && test -f /tmp/csv-test/shared/table.js
 python3 -m pytest scripts/ext/test_csv_to_view.py
 cargo test -p wyvern extensions_csv
-# requires-check when python3 absent (mock PATH):
 PATH=/usr/bin:/bin cargo test -p wyvern extensions_csv_requires_python3
 cargo fmt --all --check && cargo clippy --workspace -- -D warnings
 ```
-
-Manual: open `fixtures/sample.csv`, sort/filter, Finish.
 
 ## Non-closure
 
 - Excel `.xlsx`, Parquet, SQL query UI
 - Server-side pagination for million-row files
-- MCP `show_csv` tool wrapper (Phase E)
+- MCP `show_csv` tool wrapper (Phase E — uses `wyvern::extensions` API)
+- Embedded viewer manual smoke (listed above)
 
 ## Authority
 
