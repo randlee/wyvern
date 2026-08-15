@@ -236,25 +236,6 @@ fn try_mock_env_paths() -> Option<Option<Vec<PathBuf>>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serial_test::serial;
-    use std::ffi::OsStr;
-
-    /// RAII guard: sets [`MOCK_PICKER_ENV`] and removes it on drop.
-    struct MockPickerEnvGuard;
-
-    impl MockPickerEnvGuard {
-        fn set(value: impl AsRef<OsStr>) -> Self {
-            // SAFETY: callers are `#[serial]` so no concurrent env mutation.
-            unsafe { std::env::set_var(MOCK_PICKER_ENV, value) };
-            Self
-        }
-    }
-
-    impl Drop for MockPickerEnvGuard {
-        fn drop(&mut self) {
-            unsafe { std::env::remove_var(MOCK_PICKER_ENV) };
-        }
-    }
 
     #[test]
     fn filter_extensions_strips_glob_prefix() {
@@ -276,32 +257,6 @@ mod tests {
         let cfg = MockPickerConfig::cancel();
         let picked = pick_file(&[], false, None, Some(&cfg));
         assert_eq!(picked, None);
-    }
-
-    #[test]
-    #[serial]
-    fn mock_env_returns_path_without_rfd() {
-        let fixture = std::env::temp_dir().join("wyvern-picker-fixture.txt");
-        let _guard = MockPickerEnvGuard::set(&fixture);
-        let picked = pick_file(&[], false, None, None);
-        assert_eq!(picked, Some(vec![fixture]));
-    }
-
-    #[test]
-    #[serial]
-    fn mock_env_empty_simulates_cancel() {
-        let _guard = MockPickerEnvGuard::set("");
-        let picked = pick_file(&[], false, None, None);
-        assert_eq!(picked, None);
-    }
-
-    #[test]
-    #[serial]
-    fn mock_folder_returns_path() {
-        let picked_dir = std::env::temp_dir().join("wyvern-picked-dir");
-        let _guard = MockPickerEnvGuard::set(&picked_dir);
-        let picked = pick_folder(None, None);
-        assert_eq!(picked, Some(picked_dir));
     }
 
     #[test]

@@ -1,0 +1,12 @@
+{
+  "type": "wizard",
+  "page": {
+    "id": "editor",
+    "title": "Canvas",
+    "html": "pages/editor.html",
+    "layout": "workspace"
+  },
+  "config": {
+    "estimated_size": { "width": 960, "height": 640 }
+  }
+}

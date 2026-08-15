@@ -1,0 +1,11 @@
+{
+  "type": "wizard",
+  "page": {
+    "id": "only",
+    "title": "Single page",
+    "html": "pages/only.html"
+  },
+  "config": {
+    "note": "N=1 fixture for shared wizard chrome (d.7)"
+  }
+}

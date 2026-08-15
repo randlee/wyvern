@@ -3,10 +3,10 @@
 use std::fmt;
 use std::ops::Deref;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// Button label returned on stdout for chrome and dialog types.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct ButtonLabel(String);
 

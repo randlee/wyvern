@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Review</title>
+  <link rel="stylesheet" href="/shared/embedded-chrome.css" />
+  <link rel="stylesheet" href="/shared/wizard-chrome.css" />
+  <link rel="stylesheet" href="/wizard/styles.css" />
+  <script src="/shared/wyvern-api.js"></script>
+  <script src="/wizard/stack-merge.js"></script>
+</head>
+<body>
+  <main id="dialog" class="dialog dialog--frame dialog--scrollable" data-testid="turbo-flow-review" data-wizard-terminal="true">
+    <div class="content">
+      <h1 data-testid="review-heading">Review flow</h1>
+      <p class="lead">Confirm the graph and per-node configuration before finishing.</p>
+      <div data-testid="review-graph-summary"></div>
+      <ul class="summary" data-testid="review-node-summary"></ul>
+    </div>
+    <div class="actions">
+      <button type="button" class="secondary" data-testid="review-back">Back</button>
+      <button type="button" class="primary" data-testid="review-finish">Finish</button>
+    </div>
+    <p class="error" data-testid="wizard-error" hidden></p>
+  </main>
+  <script src="/wizard/app.js"></script>
+</body>
+</html>

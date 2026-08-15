@@ -20,8 +20,27 @@ Cursor-over-array browser-history model:
 **Consequences:**
 - Users explore back/forward freely without losing entered data
 - Branching correctly clears stale forward history
-- Host owns the history array and cursor; pages direct navigation by returning their own descriptor plus an explicit next-page descriptor when advancing
+- **`wyvern-wizard`** owns history logic (cursor, truncate, restore) inside private modules
+- **`wyvern-host`** owns HTTP session storage of `WizardSession` and serializes `snapshot()` only
+- Pages direct navigation by returning their own descriptor plus an explicit next-page descriptor when advancing
 - Slightly more complex than a simple stack but well-understood (browser model)
+
+---
+
+## ADR-0007: Single `WizardSession` type hides history internals
+
+**Status:** Accepted (planning)
+
+**Context:** The wizard is a browser-style stack (`entries` + `cursor`). Exposing `BrowserHistory` or multiple traits adds surface without benefit — there is one implementation.
+
+**Decision:**
+- Public API: concrete `WizardSession` with `new`, `snapshot`, `navigate_next`, `navigate_back`, `finish`
+- Private `history` module holds entries + cursor
+- `wyvern-host` holds `WizardSession` (or `Box<WizardSession>`); no graph/wizard domain logic
+
+**Consequences:**
+- d.1–d.2 own all stack behaviour; d.3–d.4 are tests + page bootstrap only
+- Drop `WizardEngine` / `WizardNavigator` split unless a second impl is required later
 
 ---
 

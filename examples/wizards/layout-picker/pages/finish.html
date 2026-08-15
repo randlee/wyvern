@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Review</title>
+  <link rel="stylesheet" href="/wizard/styles.css" />
+  <script src="/shared/wyvern-api.js"></script>
+</head>
+<body>
+  <h1 data-testid="finish-heading">Review</h1>
+  <p class="lead">Confirm the layout and agent configuration before finishing.</p>
+  <ul class="summary" data-testid="finish-summary"></ul>
+  <div class="actions">
+    <button type="button" class="secondary" data-testid="finish-back">Back</button>
+    <button type="button" class="primary" data-testid="finish-submit">Finish</button>
+  </div>
+  <p class="error" data-testid="wizard-error" hidden></p>
+  <script src="/wizard/app.js"></script>
+</body>
+</html>

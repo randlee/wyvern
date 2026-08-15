@@ -4,8 +4,8 @@ name = "WyvernViewer"
 status = "active"
 
 [dependencies]
-allowed_dependencies = ["wry", "winit", "url", "tracing", "gtk"]
-forbidden_dependencies = ["wyvern-cli", "wyvern-mcp", "wyvern-host", "wyvern-schema"]
+allowed_dependencies = ["wry", "winit", "url", "tracing", "serde", "serde_json", "gtk"]
+forbidden_dependencies = ["wyvern", "wyvern-mcp", "wyvern-host", "wyvern-schema"]
 forbidden_edges = ["wyvern-viewer -> wyvern-host", "wyvern-viewer -> wyvern-schema"]
 
 [ownership]

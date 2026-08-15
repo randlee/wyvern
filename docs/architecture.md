@@ -48,6 +48,30 @@ Wyvern should solve the product with the fewest command shapes that preserve cle
 
 ---
 
+### ADR-0005: Wizard navigation uses browser-history model
+
+**Status:** Accepted — implementation d.2; regression tests d.3
+
+Cursor-over-array model: back moves cursor without discarding forward entries; forward to the same page restores cached data; forward to a different page truncates stale forward history. Full text: [docs/wyvern-wizard/architecture.md](wyvern-wizard/architecture.md).
+
+---
+
+### ADR-0006: Host is domain-agnostic — wizard data is opaque
+
+**Status:** Accepted — NFR-0008
+
+Host stores and passes through page `data` without inspection. Domain branching lives in page JS. Full text: [docs/wyvern-wizard/architecture.md](wyvern-wizard/architecture.md).
+
+---
+
+### ADR-0007: Single `WizardSession` type hides history internals
+
+**Status:** Accepted — implemented (Phase D d.1–d.2)
+
+`wyvern-wizard` exposes one concrete `WizardSession`; private `history` holds `entries` + `cursor`. `wyvern-host` holds the session and serializes `snapshot()`. Full text: [docs/wyvern-wizard/architecture.md](wyvern-wizard/architecture.md).
+
+---
+
 ### ADR-0011: Cargo workspace crate structure and boundaries
 
 **Status:** Accepted — **amended c.9** (HTTP host delivery)
@@ -58,7 +82,7 @@ Wyvern should solve the product with the fewest command shapes that preserve cle
 wyvern-schema   →  (no internal deps — pure types + logic)
 wyvern-wizard   →  wyvern-schema
 wyvern-host     →  wyvern-schema [, wyvern-wizard for Phase D wizard routes], HTTP stack (axum/tokio)
-wyvern-viewer   →  wry, winit (optional crate — URL only)
+wyvern-viewer   →  wry, winit [, serde/serde_json for OS-close dismiss JSON only — ADR-0021] (optional crate — URL navigate + dismiss)
 wyvern          →  wyvern-host, wyvern-schema  (spawns wyvern-viewer via subprocess — not a required Cargo dep)
 wyvern-mcp      →  wyvern-host, wyvern-schema
 ```
@@ -74,8 +98,36 @@ wyvern-mcp      →  wyvern-host, wyvern-schema
 - `wyvern-mcp` accesses dialogs only through `wyvern-host`'s public API
 - `wyvern` binary is a thin entry point — logic belongs in library crates
 - `wyvern-window` is **removed** — do not extend. Optional URL webview = **`wyvern-viewer`** (c.15).
+- `wyvern-viewer` may use `serde`/`serde_json` **only** for OS-close dismiss JSON (ADR-0021) — no general JSON protocol ownership; still must not depend on `wyvern-schema` / `wyvern-host`
 
 Boundary rules are encoded in `boundaries/` and enforced in CI.
+
+---
+
+### ADR-0021: Minimal serde_json in wyvern-viewer for wizard dismiss
+
+**Status:** Accepted (Phase D d.8)
+
+**Context:** OS-close on wizard sessions must `GET /api/wizard/state`, build the full visited stack, and `POST /api/wizard/finish` with a JSON body before process exit (REQ-0097 / d.8). ADR-0011 framed `wyvern-viewer` as wry/winit URL-only with no JSON dependency.
+
+**Decision:** Authorize **minimal-scope** `serde` + `serde_json` in `wyvern-viewer` solely for dismiss JSON (parse wizard state DTO, serialize finish/result bodies). Do **not** import `wyvern-schema` or grow a general HTTP/JSON client stack (`reqwest` remains forbidden). Boundary record: `boundaries/wyvern-viewer/viewer.toml`.
+
+**Consequences:** Viewer stays URL-navigate + dismiss; host remains the JSON schema authority. Further JSON surface in the viewer requires a new ADR amendment.
+
+---
+
+### ADR-0020: Viewport-fit sizing with slack; workspace layout mode
+
+**Status:** Accepted (Phase D d.6)
+
+**Context:** Agent-driven dialogs are high-churn (many unique payloads per day). Fixed pixel tiers and measure-time width caps cause manual resize iteration. Some wizard HTML pages need large viewports (e.g. canvas editors — **HTML-side only**).
+
+**Decision:**
+
+1. **Dialog layout (default):** intrinsic DOM measure + ~25% slack → clamp to available viewport → internal scroll on overflow.
+2. **Workspace layout:** optional `page.layout: "workspace"` — opaque passthrough + `wyvern-api.js` sizing. **Not part of the stack model.**
+
+**Consequences:** Wizard Rust code is `WizardSession` + HTTP glue. d.3–d.4 are tests/bootstrap. Viewport sizing (d.6) is separate from stack semantics.
 
 ---
 

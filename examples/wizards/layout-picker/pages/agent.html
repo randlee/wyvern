@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Agent</title>
+  <link rel="stylesheet" href="/wizard/styles.css" />
+  <script src="/shared/wyvern-api.js"></script>
+</head>
+<body>
+  <h1 data-testid="agent-heading">Agent</h1>
+  <p class="lead">Name this agent and describe its role.</p>
+  <form class="form" data-testid="agent-form">
+    <label>
+      Name
+      <input
+        type="text"
+        name="name"
+        data-testid="agent-name"
+        required
+        autocomplete="off"
+      />
+    </label>
+    <label>
+      Description
+      <textarea
+        name="description"
+        data-testid="agent-description"
+        required
+      ></textarea>
+    </label>
+    <div class="actions">
+      <button type="button" class="secondary" data-testid="agent-back">Back</button>
+      <button type="submit" class="primary" data-testid="agent-next">Next</button>
+    </div>
+  </form>
+  <p class="error" data-testid="wizard-error" hidden></p>
+  <script src="/wizard/app.js"></script>
+</body>
+</html>
