@@ -549,13 +549,15 @@ fn parse_registry_str(text: &str, origin: &str) -> Result<Vec<ExtensionDef>, Ext
                 let t = bin.trim();
                 if t.is_empty() {
                     return Err(ExtensionError::InvalidRegistry {
-                        message: "preexec.requires: binary name must not be empty".into(),
+                        message: format!(
+                            "preexec.requires: binary name must not be empty in {origin}"
+                        ),
                     });
                 }
                 if t.contains('/') || t.contains('\\') {
                     return Err(ExtensionError::InvalidRegistry {
                         message: format!(
-                            "preexec.requires: '{t}' looks like a path; use bare binary name"
+                            "preexec.requires: '{t}' looks like a path; use bare binary name in {origin}"
                         ),
                     });
                 }
@@ -901,9 +903,9 @@ pub fn match_kind_summary(spec: &MatchSpec) -> String {
 mod tests {
     use super::*;
 
-    struct AbsentProbe;
+    struct LocalAbsentProbe;
 
-    impl RequiresProbe for AbsentProbe {
+    impl RequiresProbe for LocalAbsentProbe {
         fn binary_on_path(&self, _name: &str) -> bool {
             false
         }
@@ -985,7 +987,7 @@ mod tests {
             "--root".into(),
             "r".into(),
         ];
-        assert!(registry.match_argv_with(&argv, &AbsentProbe).is_none());
+        assert!(registry.match_argv_with(&argv, &LocalAbsentProbe).is_none());
         assert_eq!(registry.extensions()[0].requires(), ["sc-compose"]);
     }
 
@@ -1056,6 +1058,10 @@ mod tests {
             matches!(err, ExtensionError::InvalidRegistry { .. }),
             "{err}"
         );
+        assert!(
+            format!("{err}").contains("in memory"),
+            "empty-requires error must include origin: {err}"
+        );
 
         let pathish = r#"{
           "version": 1,
@@ -1070,6 +1076,10 @@ mod tests {
         assert!(
             matches!(err, ExtensionError::InvalidRegistry { .. }),
             "{err}"
+        );
+        assert!(
+            format!("{err}").contains("in memory"),
+            "path-requires error must include origin: {err}"
         );
     }
 }

@@ -1,21 +1,15 @@
 //! Integration tests for compose-render extension.
-//! Tests that require sc-compose on PATH are skipped when it is absent.
+//! Match-time PATH checks use [`test_support`] probes so tests never re-read PATH.
+
+mod test_support;
 
 use std::path::PathBuf;
 
+use test_support::{AbsentProbe, PresentProbe};
 use wyvern::extensions::{
-    binary_on_path, build_match_context, expand_preexec_args, format_extensions_list,
-    ExtensionRegistry, RequiresProbe,
+    build_match_context, expand_command_host, expand_preexec_args, format_extensions_list,
+    ExtensionRegistry,
 };
-
-/// Probe that always reports required binaries as absent.
-struct AbsentProbe;
-
-impl RequiresProbe for AbsentProbe {
-    fn binary_on_path(&self, _: &str) -> bool {
-        false
-    }
-}
 
 fn workspace_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -78,12 +72,9 @@ fn compose_render_list_shows_requires() {
     );
 }
 
-/// With sc-compose on PATH: compose render argv matches.
+/// With a present-path probe, compose render argv matches.
 #[test]
 fn compose_render_matches_when_sc_compose_present() {
-    if !binary_on_path("sc-compose") {
-        return; // skip when absent
-    }
     let registry = load_shipped();
     let argv = vec![
         "compose".to_string(),
@@ -93,23 +84,15 @@ fn compose_render_matches_when_sc_compose_present() {
         "--file".to_string(),
         "page.j2".to_string(),
     ];
-    let matched = registry.match_argv(&argv);
-    assert!(
-        matched.is_some(),
-        "compose render must match when sc-compose is present"
-    );
-    assert_eq!(
-        matched.expect("matched").extension().id.as_str(),
-        "compose-render"
-    );
+    let matched = registry
+        .match_argv_with(&argv, &PresentProbe)
+        .expect("compose render must match with PresentProbe");
+    assert_eq!(matched.extension().id.as_str(), "compose-render");
 }
 
-/// --var-file is forwarded in preexec args.
+/// `--var-file` is forwarded in preexec args (pure expand; no PATH dependency).
 #[test]
 fn compose_render_var_file_in_expand_args() {
-    if !binary_on_path("sc-compose") {
-        return;
-    }
     let registry = load_shipped();
     let argv = vec![
         "compose".to_string(),
@@ -121,7 +104,9 @@ fn compose_render_var_file_in_expand_args() {
         "--var-file".to_string(),
         "fixtures/compose-minimal/vars.json".to_string(),
     ];
-    let matched = registry.match_argv(&argv).expect("should match");
+    let matched = registry
+        .match_argv_with(&argv, &PresentProbe)
+        .expect("compose render must match with PresentProbe");
     let mut ctx = build_match_context(&matched, matched.extension());
     // `{tmpdir}` is referenced in preexec args; expand_preexec_args does not create it.
     ctx.tmpdir = Some(std::env::temp_dir().join("wyvern-compose-test"));
@@ -132,5 +117,38 @@ fn compose_render_var_file_in_expand_args() {
             .iter()
             .any(|a| a == "fixtures/compose-minimal/vars.json"),
         "var-file path must appear in expanded preexec args; got: {expanded_args:?}"
+    );
+}
+
+/// Expand produces the wizard command regardless of sc-compose presence.
+///
+/// `expand_and_validate` would run preexec. Phase-2 expand instead requires
+/// `{rendered_basename}` and `{tmpdir}` to be seeded — unresolved
+/// `{rendered_basename}` is an error, not a leftover template token.
+#[test]
+fn compose_render_expand_produces_correct_html_path() {
+    let registry = load_shipped();
+    let argv = vec![
+        "compose".to_string(),
+        "render".to_string(),
+        "--root".to_string(),
+        "/some/root".to_string(),
+        "--file".to_string(),
+        "page.j2".to_string(),
+    ];
+    let matched = registry
+        .match_argv_with(&argv, &PresentProbe)
+        .expect("compose render must match with PresentProbe");
+    assert_eq!(matched.extension().id.as_str(), "compose-render");
+    let mut ctx = build_match_context(&matched, matched.extension());
+    ctx.rendered_basename = Some("page.html".to_string());
+    ctx.tmpdir = Some(std::env::temp_dir().join("wyvern-compose-expand-test"));
+    let (command, host) = expand_command_host(matched.extension(), &ctx).expect("expand");
+    assert_eq!(command["type"], "wizard");
+    assert_eq!(command["page"]["id"], "compose-preview");
+    assert_eq!(command["page"]["html"], "pages/page.html");
+    assert_eq!(
+        host.ui_root.as_deref(),
+        Some(ctx.tmpdir.as_deref().expect("tmpdir"))
     );
 }
