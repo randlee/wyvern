@@ -104,6 +104,22 @@ Boundary rules are encoded in `boundaries/` and enforced in CI.
 
 ---
 
+### ADR-0022: CLI extension registry as argv preprocessor (Phase F)
+
+**Status:** Accepted (planning — Phase F)
+
+**Context:** Phase F adds declarative argv → `Command` JSON expansion (suffix/subcommand aliases). Phase E needs `--interactive` argv expansion; MCP tools may need equivalent commands without duplicating registry logic.
+
+**Decision (Path A):**
+
+1. Extension engine lives in **`wyvern` crate** as public `wyvern::extensions` module; used by `wyvern` binary and Phase E `--interactive` loop.
+2. Extensions produce existing `Command` JSON only — **no new schema variants**.
+3. **`wyvern-mcp` boundary unchanged:** MCP tools accept **pre-expanded `Command` JSON** (compose in tool handler or subprocess `wyvern` for expand-only). No `wyvern-mcp → wyvern-cli` dependency.
+
+**Consequences:** Phase F f.1 lands ADR-0022 + contract. Phase E e.3 documents MCP tool pattern for CSV/HTML. Path B (mcp → wyvern lib) deferred unless explicitly re-opened.
+
+---
+
 ### ADR-0021: Minimal serde_json in wyvern-viewer for wizard dismiss
 
 **Status:** Accepted (Phase D d.8)

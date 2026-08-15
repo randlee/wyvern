@@ -14,6 +14,7 @@ A sprint is a single testable deliverable that fits within one AI context window
 | `integrate/phase-B` | Phase B — Core Dialogs | `docs/plans/phase-B/` |
 | `integrate/phase-C` | Phase C — Release v0.1.0 | `docs/plans/phase-C/` |
 | `integrate/phase-D` | Phase D — Wizard | `docs/plans/phase-D/` |
+| `integrate/phase-F` | Phase F — CLI Extensions | `docs/plans/phase-F/` |
 | `integrate/phase-E` | Phase E — Persistent & MCP | `docs/plans/phase-E/` |
 
 Phase A sprint PRs target `integrate/phase-A`. Sprint authority: `docs/plans/phase-A/` (sprints **a.1–a.7**).
@@ -159,13 +160,34 @@ Phase D sprint PRs target `integrate/phase-D`. Sprint authority: `docs/plans/pha
 
 ---
 
+## Phase F — CLI Extensions
+
+**Phase goal:** Declarative argv → validated `Command` JSON via an extension registry — file suffix defaults and subcommand aliases without new host dialog types.
+
+**Prerequisite:** Phase D complete (wizard + `--ui-root`).
+
+**Phase acceptance criteria:** `wyvern page.html`, `wyvern report.csv` (interactive JS table with sort/filter), `wyvern md report.csv`, and `wyvern compose render ...` (when `sc-compose` on PATH) all expand, validate, and run through the existing pipeline.
+
+Phase F sprint PRs target `integrate/phase-F`. Sprint authority: `docs/plans/phase-F/` (sprints **f.1–f.4**, sequential — not parallel sub-sprints).
+
+**Sprints:** four active (**f.1–f.4**). See [docs/plans/phase-F/README.md](phase-F/README.md).
+
+| Sprint | Title | Doc |
+|--------|-------|-----|
+| f.1 | Extension runtime — registry, match, preexec, expand | [f1-extension-runtime.md](phase-F/f1-extension-runtime.md) |
+| f.2 | Positional extensions — HTML and wizard.json | [f2-positional-extensions.md](phase-F/f2-positional-extensions.md) |
+| f.3 | Compose render extension (sc-compose preexec) | [f3-compose-extension.md](phase-F/f3-compose-extension.md) |
+| f.4 | CSV table viewer — JS DOM, sort/filter, md alias | [f4-csv-table-viewer.md](phase-F/f4-csv-table-viewer.md) |
+
+---
+
 ## Phase E — Interactive & MCP
 
 **Phase goal:** Wyvern runs as a persistent process, driveable by agents over stdin or as an MCP server.
 
 **Transport:** [http-interactive-mcp-contract.md](phase-C/http-interactive-mcp-contract.md) — persistent `HostSession`.
 
-**Prerequisite:** Phase C **c.16** complete.
+**Prerequisite:** Phase C **c.16** complete; **Phase F** complete for extension-aware MCP tools and argv expansion in interactive mode.
 
 **Phase acceptance criteria:** A Claude Code agent can open Wyvern in `--interactive` mode from a background shell, issue multiple blocking dialog commands against one persistent process, receive the JSON results, and exit — with no MCP required.
 
@@ -188,8 +210,8 @@ Phase E sprint PRs target `integrate/phase-E`. Sprint authority: `docs/plans/pha
 |-------|---------|-------|
 | Phase A — Foundation | 7 | Working binary, `chrome` command |
 | Phase B — Core Dialogs | 8 | **MVP — all dialog types usable** |
-| Phase C — Release v0.1.0 | 5 + 3 fixes + 8 delivery | **v0.1.0** after c.16 HTTP host |
 | Phase D — Wizard | 8 | Multi-page wizard with branching |
+| Phase F — CLI Extensions | 4 | Suffix/subcommand argv expansion (CSV table, HTML, compose) |
 | Phase E — Interactive & MCP | 4 | Agent-driveable status viewer + MCP |
 
 ## Dependency Map
@@ -199,5 +221,6 @@ Phase A
   └─ Phase B
        └─ Phase C (c.9–c.16 HTTP delivery + wyvern-viewer + v0.1.0)
             └─ Phase D (wizard — HTTP on same host)
-                 └─ Phase E (persistent host + MCP)
+                 └─ Phase F (CLI extension registry)
+                      └─ Phase E (persistent host + MCP)
 ```
