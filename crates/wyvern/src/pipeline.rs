@@ -1,5 +1,7 @@
 //! CLI pipeline: validate → load markdown files → host run / embedded spawn → emit.
 
+use std::fs::File;
+use std::io::Read;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -251,22 +253,35 @@ fn load_markdown_file(command: Command) -> Result<Command, LoadError> {
             width,
             height,
         } => {
-            let body = std::fs::read_to_string(&path).map_err(|err| LoadError::Io {
+            let file = File::open(&path).map_err(|err| LoadError::Io {
                 field: FieldName::new("file"),
                 message: format!("could not read path '{path}': {err}"),
                 source: Some(Box::new(err)),
             })?;
-            if body.len() > wyvern_schema::MARKDOWN_CONTENT_MAX_BYTES {
+            let max = wyvern_schema::MARKDOWN_CONTENT_MAX_BYTES;
+            let mut buf = Vec::new();
+            let n = file
+                .take(max as u64 + 1)
+                .read_to_end(&mut buf)
+                .map_err(|err| LoadError::Io {
+                    field: FieldName::new("file"),
+                    message: format!("could not read path '{path}': {err}"),
+                    source: Some(Box::new(err)),
+                })?;
+            if n > max {
                 return Err(LoadError::Io {
                     field: FieldName::new("file"),
                     message: format!(
-                        "markdown content exceeds maximum of {} bytes (got {} bytes)",
-                        wyvern_schema::MARKDOWN_CONTENT_MAX_BYTES,
-                        body.len()
+                        "markdown content exceeds maximum of {max} bytes (file '{path}')"
                     ),
                     source: None,
                 });
             }
+            let body = String::from_utf8(buf).map_err(|err| LoadError::Io {
+                field: FieldName::new("file"),
+                message: format!("markdown file '{path}' is not valid UTF-8: {err}"),
+                source: Some(Box::new(err)),
+            })?;
             Ok(Command::Markdown {
                 title,
                 file: Some(path),

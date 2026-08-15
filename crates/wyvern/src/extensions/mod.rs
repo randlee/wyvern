@@ -25,6 +25,7 @@ mod expand;
 mod list;
 mod preexec;
 
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
@@ -627,9 +628,32 @@ fn ends_with_suffix(token: &str, suffix: &str) -> bool {
 }
 
 fn parse_registry_file(path: &Path) -> Result<Vec<ExtensionDef>, ExtensionError> {
-    let text = std::fs::read_to_string(path).map_err(|err| ExtensionError::Io {
+    const MAX_REGISTRY_BYTES: usize = 1024 * 1024;
+    let file = std::fs::File::open(path).map_err(|err| ExtensionError::Io {
         message: format!("could not read '{}': {err}", path.display()),
         source: Some(Box::new(err)),
+    })?;
+    let mut buf = Vec::new();
+    let n = file
+        .take(MAX_REGISTRY_BYTES as u64 + 1)
+        .read_to_end(&mut buf)
+        .map_err(|err| ExtensionError::Io {
+            message: format!("could not read '{}': {err}", path.display()),
+            source: Some(Box::new(err)),
+        })?;
+    if n > MAX_REGISTRY_BYTES {
+        return Err(ExtensionError::InvalidRegistry {
+            message: format!(
+                "registry file '{}' exceeds maximum of {MAX_REGISTRY_BYTES} bytes",
+                path.display()
+            ),
+        });
+    }
+    let text = String::from_utf8(buf).map_err(|err| ExtensionError::InvalidRegistry {
+        message: format!(
+            "registry file '{}' is not valid UTF-8: {err}",
+            path.display()
+        ),
     })?;
     parse_registry_str(&text, &path.display().to_string())
 }

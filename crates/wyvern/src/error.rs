@@ -136,12 +136,31 @@ pub fn emit_extension_error(err: &crate::extensions::ExtensionError) -> Result<S
             "This extension is prefix-only and has no {{path}}".to_string(),
             vec!["Use a suffix or prefix+suffix match when expanding path variables".into()],
         ),
-        ExtensionError::Template { message, .. } => (
-            ErrorCode::ValidationError,
-            message.clone(),
-            "Extension template substitution failed".to_string(),
-            vec!["Check expand/preexec templates in the extension registry".into()],
-        ),
+        ExtensionError::Template { kind, message, .. } => {
+            let (cause, recovery) = match kind {
+                crate::extensions::TemplateErrorKind::UnclosedBrace => (
+                    "Template contains an unclosed `{` brace".to_string(),
+                    vec!["Close every `{variable}` in the registry expand/preexec templates".into()],
+                ),
+                crate::extensions::TemplateErrorKind::UnknownVariable => (
+                    "Template references an unknown `{variable}`".to_string(),
+                    vec!["Use only documented template variables from cli-extensions-contract.md".into()],
+                ),
+                crate::extensions::TemplateErrorKind::PhaseRestricted => (
+                    "Template variable is not allowed in this expansion phase".to_string(),
+                    vec!["Move path-only variables to expand phase-1; use phase-2 for preexec stdout vars".into()],
+                ),
+                crate::extensions::TemplateErrorKind::Unavailable => (
+                    "Template variable is not available in this match context".to_string(),
+                    vec!["Ensure the match provides path/tmpdir/preexec stdout before using this variable".into()],
+                ),
+                crate::extensions::TemplateErrorKind::InvalidSpec => (
+                    "Expand/preexec spec is incomplete or contradictory".to_string(),
+                    vec!["Check command_from_file, preexec cmd/args, and host overrides in the registry".into()],
+                ),
+            };
+            (ErrorCode::ValidationError, message.clone(), cause, recovery)
+        }
         ExtensionError::Preexec { message, .. } => (
             ErrorCode::IoError,
             message.clone(),

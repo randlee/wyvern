@@ -41,10 +41,13 @@ fn main() -> ExitCode {
                 print!("{stdout}");
                 ExitCode::SUCCESS
             }
-            Err(BrowsersError::Usage { message }) => {
-                eprintln!("{message}");
-                ExitCode::from(1)
-            }
+            Err(BrowsersError::Usage { message }) => match emit_usage_message(&message) {
+                Ok(stderr) => {
+                    eprintln!("{stderr}");
+                    ExitCode::from(2)
+                }
+                Err(e) => emit_fatal_internal(&e),
+            },
             Err(BrowsersError::Stage { stderr, exit_code }) => {
                 eprintln!("{stderr}");
                 ExitCode::from(u8::try_from(exit_code).unwrap_or(1))
@@ -86,10 +89,15 @@ fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     }
 
-    // No positional args on a TTY: print usage instead of blocking on stdin.
+    // No positional args on a TTY: emit structured usage JSON instead of blocking on stdin.
     if cli.positionals.is_empty() && io::stdin().is_terminal() {
-        eprintln!("{}", usage_message());
-        return ExitCode::from(1);
+        return match emit_usage_message(&usage_message()) {
+            Ok(stderr) => {
+                eprintln!("{stderr}");
+                ExitCode::from(2)
+            }
+            Err(e) => emit_fatal_internal(&e),
+        };
     }
 
     let registry = match ExtensionRegistry::load_default() {
