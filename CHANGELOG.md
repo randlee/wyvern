@@ -5,6 +5,40 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] — 2026-08-15
+
+Phase D — multi-page **wizard** flows on the HTTP host stack.
+
+### Wizard runtime
+
+- New `type: "wizard"` command with browser-style stack navigation (ADR-0005/0007)
+- `wyvern-wizard` crate: `WizardSession` with `navigate_next`, `navigate_back`, `finish`, `snapshot`
+- Host HTTP API: `GET /api/wizard/state`, `POST /api/wizard/navigate`, `POST /api/wizard/finish`
+- Dual-mount static assets: `/wizard/**` + `/shared/**`
+- Viewer dismiss returns full visited stack JSON on OS window close (ADR-0021)
+- Shared wizard chrome (`wizard-nav.js`, `chrome.html`) and viewport sizing helpers
+
+### Examples
+
+- `layout-picker` — DAG branching with back-navigation and data restore
+- `turbo-flow` — Svelte Flow workspace graph (dark/light themes)
+- `two-page`, `single-page`, `workspace-hint` fixtures
+
+### Quality / CI
+
+- UI sync check (`ui/` ↔ packaged UI) and boundary grep enforcement in CI
+- Phase D L2 Playwright specs (layout-picker, viewport-sizing, edge cases, turbo-flow)
+- Release workflow quality gates (fmt, clippy, test, audit, deny, boundaries)
+
+### Distribution
+
+- **crates.io** — same publish order as 0.1.0; all published crates bump to 0.2.0
+- **GitHub Releases** — tag `v0.2.0` triggers matrix build (macOS/Windows/Linux)
+
+### Not in 0.2.0
+
+- `--interactive` lifecycle / MCP server — Phase E
+
 ## [0.1.0] — 2026-07-14
 
 First public release of Wyvern on the **HTTP dialog host** stack (Phase C delivery rewrite).
