@@ -1,7 +1,7 @@
 ---
 id: d.8
 title: Wizard viewer dismiss
-status: planning
+status: complete
 branch: feature/phase-D-d8-viewer-dismiss
 target: integrate/phase-D
 ---
@@ -21,6 +21,7 @@ OS-close on wizard sessions returns `dismissed` with full visited stack via `POS
 | File | Change |
 |------|--------|
 | `crates/wyvern-viewer/src/dismiss.rs` (or session handler) | Detect wizard session; on OS-close POST `/api/wizard/finish` |
+| `boundaries/wyvern-viewer/viewer.toml` | Allow `serde` / `serde_json` for dismiss JSON (ADR-0021) |
 | `crates/wyvern-viewer/tests/wizard_dismiss.rs` | Viewer routes wizard dismiss correctly |
 | `crates/wyvern-host/tests/wizard_dismiss.rs` | Host accepts dismissed finish with full visited stack |
 | `docs/plans/phase-C/http-viewer-contract.md` | Update dismissed wizard steps (owned here) |
@@ -31,10 +32,10 @@ OS-close on wizard sessions returns `dismissed` with full visited stack via `POS
 1. Viewer detects wizard session (`GET /api/wizard/state` succeeds or URL path `/wizard/`)
 2. `GET /api/wizard/state` → read `page`, `page_data`, `stack` (prior entries per REQ-0024)
 3. Build full visited stack = `stack` + `{ page, data: page_data }`
-4. `POST /api/wizard/finish` with `{ "button": "dismissed", "data": {}, "stack": <full visited stack> }`
-5. Host validates client `stack` against session-derived stack; mismatch → 400; stdout = validated result
+4. `POST /api/wizard/finish` with `{ "button": "dismissed", "data": <page_data>, "stack": <full visited stack> }` (request `data` must equal `page_data` so host `visited_stack_with_current(data)` validation succeeds; stdout `data` remains `{}`)
+5. Host validates client `stack` against session-derived stack; mismatch → 400; stdout = validated result (`button: dismissed`, `data: {}`, full visited stack)
 
-**Host/CLI fallback (normative — REQ-0097):** when viewer exits without POST or session times out, host derives dismissed result via `WizardSession::finish(Dismissed, {}, derived_stack)` using the same in-memory algorithm as d.2 (full visited stack, `data: {}`). Applies to `DialogHandle::viewer_exited_without_result()` and host session-timeout path.
+**Host/CLI fallback (normative — REQ-0097):** when viewer exits without POST or session times out, host derives dismissed result via `WizardSession::finish(Dismissed, page_data, derived_stack)` using the same in-memory algorithm as d.2 (full visited stack; stdout `data: {}`). Applies to `DialogHandle::viewer_exited_without_result()` and host session-timeout path.
 
 ## Acceptance criteria
 

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Single page</title>
+  <link rel="stylesheet" href="/shared/embedded-chrome.css" />
+  <link rel="stylesheet" href="/shared/wizard-chrome.css" />
+  <script src="/shared/wyvern-api.js"></script>
+</head>
+<body>
+  <!-- Terminal page contract: root MUST set data-wizard-terminal="true". -->
+  <main
+    id="dialog"
+    class="dialog dialog--frame"
+    data-wizard-terminal="true"
+    data-testid="single-page-root"
+  >
+    <h1 data-testid="single-page-heading">Single page</h1>
+    <p class="lead">
+      N=1 wizard: Back is hidden; Next is labeled Finish immediately.
+    </p>
+    <label for="note">Optional note</label>
+    <input
+      id="note"
+      type="text"
+      data-testid="single-page-note"
+      placeholder="Leave empty to submit {}"
+      autocomplete="off"
+    />
+
+    <nav class="wizard-chrome" data-wizard-nav aria-label="Wizard navigation">
+      <button type="button" class="secondary" data-wizard-back data-testid="wizard-back">
+        Back
+      </button>
+      <button type="button" class="primary" data-wizard-next data-testid="wizard-next">
+        Next
+      </button>
+    </nav>
+    <p class="wizard-error" data-testid="wizard-error" hidden></p>
+  </main>
+
+  <script>
+    // Page-author opaque collector. Empty / whitespace → {} (graceful empty data).
+    window.collectCurrentPageData = function () {
+      var input = document.querySelector("[data-testid='single-page-note']");
+      var value = input && typeof input.value === "string" ? input.value.trim() : "";
+      if (!value) {
+        return {};
+      }
+      return { note: value };
+    };
+  </script>
+  <script src="/shared/wizard-nav.js" data-wizard-chrome></script>
+</body>
+</html>

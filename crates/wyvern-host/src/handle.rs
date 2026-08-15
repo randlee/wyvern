@@ -148,12 +148,14 @@ fn run_begin_worker(
     rt.block_on(async move {
         let (result_tx, result_rx) = oneshot::channel();
         let (dismiss_tx, dismiss_rx) = oneshot::channel();
-        let session = SessionState::new(command, result_tx, options.mock_picker.clone());
-        let (bound, ui_root) = match bind_server(
+        let session = SessionState::new(command.clone(), result_tx, options.mock_picker.clone());
+        let (bound, roots) = match bind_server(
             options.bind,
             options.allow_non_loopback,
             &options.ui_root,
-            type_name.as_str(),
+            &options.shared_ui_root,
+            &command,
+            type_name,
         )
         .await
         {
@@ -165,6 +167,10 @@ fn run_begin_worker(
         };
 
         let dialog_url = bound.dialog_url.clone();
+        session
+            .set_public_origin(public_origin_from_dialog_url(&dialog_url))
+            .await;
+
         if options.dialog_url_env {
             publish_dialog_url(&dialog_url, options.dialog_url_file.as_deref());
         }
@@ -186,7 +192,7 @@ fn run_begin_worker(
         serve_until_result(
             bound,
             session,
-            ui_root,
+            roots,
             result_rx,
             options.session_timeout,
             dismiss_rx,
@@ -205,14 +211,20 @@ pub(crate) async fn run_owned_async(
 ) -> Result<CommandResult, HostError> {
     let (result_tx, result_rx) = oneshot::channel();
     let (_dismiss_tx, dismiss_rx) = oneshot::channel();
-    let session = SessionState::new(command, result_tx, options.mock_picker.clone());
-    let (bound, ui_root) = bind_server(
+    let session = SessionState::new(command.clone(), result_tx, options.mock_picker.clone());
+    let (bound, roots) = bind_server(
         options.bind,
         options.allow_non_loopback,
         &options.ui_root,
-        type_name.as_str(),
+        &options.shared_ui_root,
+        &command,
+        type_name,
     )
     .await?;
+
+    session
+        .set_public_origin(public_origin_from_dialog_url(&bound.dialog_url))
+        .await;
 
     if options.dialog_url_env {
         publish_dialog_url(&bound.dialog_url, options.dialog_url_file.as_deref());
@@ -233,7 +245,7 @@ pub(crate) async fn run_owned_async(
     serve_until_result(
         bound,
         session,
-        ui_root,
+        roots,
         result_rx,
         options.session_timeout,
         dismiss_rx,
@@ -248,6 +260,7 @@ pub(crate) fn dialog_type_name(command: &Command) -> DialogTypeName {
         Command::Input { .. } => DialogTypeName::Input,
         Command::Markdown { .. } => DialogTypeName::Markdown,
         Command::Question { .. } => DialogTypeName::Question,
+        Command::Wizard(_) => DialogTypeName::Wizard,
     }
 }
 
@@ -281,5 +294,21 @@ fn clone_host_error_message(err: &HostError) -> HostError {
         HostError::Internal { message } => HostError::Internal {
             message: message.clone(),
         },
+        HostError::Wizard { source } => HostError::Wizard {
+            source: source.clone(),
+        },
     }
+}
+
+/// Extract `http://host:port` from a dialog URL for absolute wizard navigate links.
+fn public_origin_from_dialog_url(dialog_url: &str) -> String {
+    if let Some((base, _)) = dialog_url.split_once("/wizard/") {
+        return base.to_string();
+    }
+    // Blocking dialogs: `http://host:port/message/` → `http://host:port`
+    dialog_url
+        .trim_end_matches('/')
+        .rsplit_once('/')
+        .map(|(base, _)| base.to_string())
+        .unwrap_or_else(|| dialog_url.to_string())
 }

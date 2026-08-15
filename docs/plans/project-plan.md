@@ -97,6 +97,8 @@ Phase B ──┬──► c.1 ──► c.2 ──┐
 
 **Inherited from Phase B:** Dialog auto-size **min 320×200** / **max 800×600**; Win/Linux native OS decorations until c.3; b.2 placeholder icons at `assets/icons/placeholder/` until c.1 production bundle.
 
+> **Supersession (Phase D d.6 / ADR-0020 / REQ-V008):** Embedded-viewer auto-size is no longer capped at a hard **800×600** maximum. Dialog mode measures intrinsic content × ~25% slack and clamps to available viewport × 0.92. The **800×600** figures remain only as the browser / no-`viewport-bounds` fallback in `ui/shared/wyvern-api.js` (`VIEWER_MAX_W` / `VIEWER_MAX_H`) when the embedded viewer has not injected bounds.
+
 **Sprints:** c.1–c.5 (historical, old stack) + c.6–c.8 (fixes) + **c.9–c.16 (delivery rewrite)**. See [docs/plans/phase-C/README.md](phase-C/README.md).
 
 | Sprint | Title | Doc | Target branch |

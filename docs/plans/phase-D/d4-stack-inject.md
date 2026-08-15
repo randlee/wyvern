@@ -1,7 +1,7 @@
 ---
 id: d.4
 title: Page bootstrap + stack snapshot tests
-status: planning
+status: complete
 branch: feature/phase-D-d4-stack-inject
 target: integrate/phase-D
 ---

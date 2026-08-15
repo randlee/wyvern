@@ -1,7 +1,7 @@
 ---
 id: d.2
 title: Wizard HTTP navigation + finish + browser stack
-status: planning
+status: complete
 branch: feature/phase-D-d2-wizard-ipc
 target: integrate/phase-D
 ---

@@ -1,7 +1,7 @@
 ---
 id: d.7
 title: Shared wizard chrome
-status: planning
+status: complete
 branch: feature/phase-D-d7-wizard-chrome
 target: integrate/phase-D
 ---
@@ -65,7 +65,7 @@ Pages opt in: `<script src="/shared/wizard-nav.js" data-wizard-chrome></script>`
 cargo build --workspace
 cargo clippy --workspace -- -D warnings
 cargo test -p wyvern-wizard single_page
-npx playwright test tests/l2/wizard-edge-cases.spec.ts
+cd tests/l2 && npx playwright test wizard-edge-cases.spec.ts
 sc-lint check native --config .sc-lint.toml
 ```
 

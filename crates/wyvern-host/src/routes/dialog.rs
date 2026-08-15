@@ -196,6 +196,12 @@ pub(crate) async fn dialog_payload(command: &Command) -> Result<Value, ApiError>
             attach_window_hints(&mut obj, command);
             Ok(obj)
         }
+        Command::Wizard(_) => Err(ApiError::bad_request(
+            "GET /api/dialog is not used for wizard; use GET /api/wizard/state",
+        )
+        .cause("wizard sessions expose state via /api/wizard/state only")
+        .recovery("Call GET /api/wizard/state for the active wizard")
+        .docs("docs/plans/phase-C/http-wizard-contract.md")),
     }
 }
 

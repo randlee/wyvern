@@ -63,4 +63,3 @@ sc-lint check native --config .sc-lint.toml
 ## Supersession note (post-c.11)
 
 Sprint c.10 originally limited `wyvern` → `wyvern_host::run` routing to **`Command::Message` only**. That routing scope was **superseded by c.11** (`input` + picker routes). On `integrate/phase-c-web-server`, the host matrix includes `message` and `input`; remaining types still return `HostError::UnsupportedType` until c.12–c.14.
-

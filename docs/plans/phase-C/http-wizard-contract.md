@@ -44,7 +44,8 @@ Related: [http-post-schema.md](http-post-schema.md), [http-dialog-contract.md](h
   "page": {
     "id": "start",
     "title": "Start",
-    "html": "pages/start.html"
+    "html": "pages/start.html",
+    "layout": "dialog"
   },
   "page_data": {},
   "stack": [],
@@ -76,9 +77,29 @@ Related: [http-post-schema.md](http-post-schema.md), [http-dialog-contract.md](h
 }
 ```
 
-- `config` → available to JS as `window.wyvern.config` (set in page bootstrap from this payload).
+**Workspace page example** (`page.layout: "workspace"` + opaque `config`):
+
+```json
+{
+  "type": "wizard",
+  "config": {
+    "estimated_size": { "width": 960, "height": 640 }
+  },
+  "page": {
+    "id": "editor",
+    "title": "Canvas",
+    "html": "pages/editor.html",
+    "layout": "workspace"
+  },
+  "page_data": {},
+  "stack": []
+}
+```
+
+- `page.layout` — optional `dialog` | `workspace` (omit = `dialog`). Host **passes through** only; sizing is page JS via `WyvernApi.applyWizardLayout` (d.6 / ADR-0020).
+- `config` — **opaque** JSON object echoed to `window.wyvern.config`. Host does not interpret keys. Example shape used by workspace pages: `estimated_size: { width, height }` (illustrative; any extra keys remain opaque).
 - `stack` — **prior entries only** per REQ-0024 / ADR-0005: `entries[0..cursor]`, exclusive of current page (current via `page` + `page_data`).
-- `width` / `height` — optional from command; viewer uses when `--viewer embedded`.
+- `width` / `height` — optional from command; when both set they take priority for workspace/dialog fixed size (viewer / `applyWorkspaceLayout`).
 
 ---
 
@@ -162,11 +183,29 @@ Host updates history cursor; viewer navigates to `url` (or full page reload).
 
 **Dismissed (viewer OS-close — d.8):**
 
-Viewer algorithm (normative — full visited stack):
+Viewer algorithm (normative — full visited stack; owned detail in [http-viewer-contract.md](http-viewer-contract.md)):
 
-1. `GET /api/wizard/state` → read `page`, `page_data`, and prior `stack` (entries before current).
-2. Build full visited stack = prior `stack` + `{ page, data: page_data }` (matches d.2 finish algorithm).
-3. `POST /api/wizard/finish` with `{ "button": "dismissed", "data": {}, "stack": <full visited stack> }` before process exit.
+1. Detect wizard session (`dialog_url` path under `/wizard/`, or `GET /api/wizard/state` succeeds).
+2. `GET /api/wizard/state` → read `page`, `page_data`, and prior `stack` (entries before current — REQ-0024).
+3. Build full visited stack = prior `stack` + `{ page, data: page_data }` (matches d.2 `visited_stack_with_current`).
+4. `POST /api/wizard/finish` with `{ "button": "dismissed", "data": <page_data>, "stack": <full visited stack> }` before process exit.
+   - Request `data` must equal `page_data` so host stack validation matches d.2 `finish` (same `visited_stack_with_current(data)`).
+   - Stdout `data` is always `{}` for `dismissed` (step 5 above); only the stack carries visited page blobs.
+
+```json
+{
+  "button": "dismissed",
+  "data": { "name": "agent" },
+  "stack": [
+    { "page": { "id": "start" }, "data": { "choice": "a" } },
+    { "page": { "id": "step-2" }, "data": { "name": "agent" } }
+  ]
+}
+```
+
+Host validates client `stack` against session-derived full visited stack; mismatch → **400**.
+
+**Stdout:**
 
 ```json
 {
@@ -179,9 +218,9 @@ Viewer algorithm (normative — full visited stack):
 }
 ```
 
-Host validates client `stack` against session-derived full visited stack; mismatch → **400**.
+**Host/CLI fallback (REQ-0097):** when the viewer exits without POST or the session times out, the host derives the same stdout via `WizardSession::finish(Dismissed, page_data, derived_stack)` (full visited stack, stdout `data: {}`). See [d8-viewer-dismiss.md](../phase-D/d8-viewer-dismiss.md).
 
-**Stdout:** identical body. Host shuts down session (one-shot) or returns to interactive loop (Phase E).
+Host shuts down session (one-shot) or returns to interactive loop (Phase E).
 
 ---
 

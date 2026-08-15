@@ -273,15 +273,15 @@ fn cli_wrong_title_type_expected_got() {
     assert!(message.contains("number"));
 }
 
-/// README Phase B acceptance #5 — wizard still Phase D validation error.
+/// Incomplete wizard JSON still fails validation (missing `page`).
 #[test]
-fn cli_wizard_still_validation_error() {
-    let (code, stdout, stderr) = run_json(r#"{"type":"wizard","title":"T"}"#);
+fn cli_wizard_incomplete_is_validation_error() {
+    let (code, stdout, stderr) = run_json(r#"{"type":"wizard"}"#);
     assert_ne!(code, 0);
     assert!(stdout.trim().is_empty(), "stdout={stdout}");
     let value = stderr_json(&stderr);
     assert_eq!(value["error"], "validation");
-    assert_eq!(value["field"], "type");
+    assert_eq!(value["field"], "page");
 }
 
 #[test]

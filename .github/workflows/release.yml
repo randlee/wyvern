@@ -12,8 +12,69 @@ env:
   RELEASE_ARTIFACT_MANIFEST: release/publish-artifacts.toml
 
 jobs:
+  release-gates:
+    name: Release quality gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Resolve release version from tag
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag='${{ github.ref_name }}'
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Refusing to run release gates for non-semver tag: $tag" >&2
+            exit 1
+          fi
+          echo "release_version=${tag#v}" >> "$GITHUB_OUTPUT"
+
+      - name: cargo fmt --check
+        run: cargo fmt --all -- --check
+
+      - name: cargo clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: cargo test
+        run: cargo test --workspace
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+
+      - name: cargo audit
+        run: cargo audit
+
+      - name: Install cargo-deny
+        run: cargo install cargo-deny --locked
+
+      - name: cargo deny check
+        run: cargo deny check
+
+      - name: Enforce boundaries
+        run: python3 scripts/check-boundaries.py
+
+      - name: Verify ui sync
+        run: bash scripts/check-ui-sync.sh
+
+      - name: Validate release artifacts
+        run: |
+          python3 scripts/validate_release.py all \
+            --version '${{ steps.meta.outputs.release_version }}'
+
   publish-crates:
     name: Publish crates.io
+    needs: release-gates
     runs-on: ubuntu-latest
     environment: crates-io
     steps:
@@ -71,6 +132,7 @@ jobs:
 
   release:
     name: Release (${{ matrix.artifact }})
+    needs: release-gates
     strategy:
       fail-fast: false
       matrix:

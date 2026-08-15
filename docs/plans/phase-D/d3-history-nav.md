@@ -1,7 +1,7 @@
 ---
 id: d.3
 title: Browser-history regression tests
-status: planning
+status: complete
 branch: feature/phase-D-d3-history-nav
 target: integrate/phase-D
 ---
@@ -10,7 +10,7 @@ target: integrate/phase-D
 
 ## Goal
 
-Lock ADR-0005 behaviour with the four canonical tests. **No new routes, traits, or state types** — stack shipped in d.2.
+Lock ADR-0005 behaviour with the five canonical tests. **No new routes, traits, or state types** — stack shipped in d.2.
 
 ## Hard dependencies
 
@@ -20,10 +20,10 @@ Lock ADR-0005 behaviour with the four canonical tests. **No new routes, traits, 
 
 | File | Change |
 |------|--------|
-| `crates/wyvern-wizard/tests/history_four_cases.rs` | Four named tests (below) |
+| `crates/wyvern-wizard/tests/history_five_cases.rs` | Five named tests (below) |
 | `crates/wyvern-host/tests/wizard_history.rs` | HTTP navigate + `GET /api/wizard/state` asserts |
 
-### Four tests (authoritative)
+### Five tests (authoritative)
 
 | Test | Proves |
 |------|--------|
@@ -35,14 +35,14 @@ Lock ADR-0005 behaviour with the four canonical tests. **No new routes, traits, 
 
 ## Acceptance criteria
 
-1. All four unit tests pass
+1. All five unit tests pass
 2. `wizard_history` host test passes
 3. No new public API on `wyvern-wizard`
 
 ## Required validation
 
 ```bash
-cargo test -p wyvern-wizard history_four_cases
+cargo test -p wyvern-wizard history_five_cases
 cargo test -p wyvern-host wizard_history
 ```
 

@@ -1,7 +1,7 @@
 ---
 id: d.5
 title: Example DAG layout-picker wizard
-status: planning
+status: complete
 branch: feature/phase-D-d5-dag-example
 target: integrate/phase-D
 ---
@@ -113,7 +113,9 @@ cargo test -p wyvern-host wizard_workspace_hint
 # L2: layout-picker end-to-end --viewer none (headless wire-shape)
 wyvern "$(cat examples/wizards/layout-picker/wizard.json)" --viewer none --ui-root examples/wizards/layout-picker
 wyvern "$(cat examples/wizards/workspace-hint/wizard.json)" --viewer none --ui-root examples/wizards/workspace-hint
-npx playwright test tests/l2/wizard-layout-picker.spec.ts
+# Playwright (run from tests/l2 so the config and spec resolve)
+cd tests/l2 && npx playwright test wizard-layout-picker.spec.ts
+# equivalent: cd tests/l2 && npm run test:layout-picker
 ```
 
 ## Non-closure

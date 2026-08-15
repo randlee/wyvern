@@ -56,7 +56,7 @@ Multi-page wizards: navigate, back, restore data, return final `stack` JSON.
 |--------|-------------------------|---------------------|
 | **d.1** | Schema + `GET /api/wizard/state` + static HTML + `WizardSession::new` / `snapshot` | |
 | **d.2** | `POST navigate` / `finish` + `navigate_next` / `navigate_back` / `finish` + `wyvern-api.js` bootstrap | |
-| **d.3** | ADR-0005 edge-case **tests** (four history cases) — same private `history.rs` | ✓ tests only |
+| **d.3** | ADR-0005 edge-case **tests** (five history cases) — same private `history.rs` | ✓ tests only |
 | **d.4** | `window.wyvern` bootstrap **round-trip tests** | ✓ tests only |
 | **d.5** | HTML **examples** exercising the stack | ✓ examples |
 | **d.6** | Viewport sizing ([viewport-sizing.md](viewport-sizing.md)) | orthogonal to stack |

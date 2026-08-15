@@ -1,7 +1,7 @@
 ---
 id: d.6
 title: Wizard viewport sizing
-status: planning
+status: complete
 branch: feature/phase-D-d6-viewport-sizing
 target: integrate/phase-D
 ---
@@ -60,7 +60,8 @@ Golden assert in `viewport_bounds.rs`: payload matches `{ available_width, avail
 cargo build --workspace
 cargo clippy --workspace -- -D warnings
 cargo test -p wyvern-viewer viewport_bounds
-npx playwright test tests/l2/viewport-sizing.spec.ts
+# Playwright (run from tests/l2 so the config and spec resolve)
+cd tests/l2 && npx playwright test viewport-sizing.spec.ts
 sc-lint check native --config .sc-lint.toml
 ```
 

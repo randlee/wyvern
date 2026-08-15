@@ -76,7 +76,7 @@ pub async fn post_picker_file(
     }
 
     let command = session.command().await;
-    let (filter, multiple, start_path) = match &command {
+    let (filter, multiple, start_path) = match command.as_ref() {
         Command::Input {
             mode: InputMode::File,
             filter,
@@ -116,18 +116,23 @@ pub async fn post_picker_file(
         .map_err(|_| picker_unavailable("dialog session closed while waiting for picker slot"))?;
     let mock = session.mock_picker().cloned();
     let start = start_path.as_ref().map(PathBuf::from);
-    // Hold the permit inside spawn_blocking until pick_file returns so an HTTP
-    // timeout cannot release the slot while a native picker is still active.
+    // Keep the permit in the async handler (not inside spawn_blocking) so an HTTP
+    // timeout can drop it and unblock the next picker (RSH-002). The detached
+    // blocking task may still finish after we return 504.
     let join = tokio::task::spawn_blocking(move || {
-        let _permit = permit;
         pick_file(&filter, multiple, start.as_deref(), mock.as_ref())
     });
     let picked = match tokio::time::timeout(PICKER_TIMEOUT, join).await {
-        Ok(Ok(paths)) => paths,
+        Ok(Ok(paths)) => {
+            drop(permit);
+            paths
+        }
         Ok(Err(e)) => {
+            drop(permit);
             return Err(picker_internal(format!("picker task failed: {e}")));
         }
         Err(_) => {
+            drop(permit);
             return Err(picker_timeout(format!(
                 "file picker timed out after {} seconds",
                 PICKER_TIMEOUT.as_secs()
@@ -151,7 +156,7 @@ pub async fn post_picker_folder(
     }
 
     let command = session.command().await;
-    let start_path = match &command {
+    let start_path = match command.as_ref() {
         Command::Input {
             mode: InputMode::Folder,
             start_path,
@@ -182,16 +187,18 @@ pub async fn post_picker_folder(
         .map_err(|_| picker_unavailable("dialog session closed while waiting for picker slot"))?;
     let mock = session.mock_picker().cloned();
     let start = start_path.as_ref().map(PathBuf::from);
-    let join = tokio::task::spawn_blocking(move || {
-        let _permit = permit;
-        pick_folder(start.as_deref(), mock.as_ref())
-    });
+    let join = tokio::task::spawn_blocking(move || pick_folder(start.as_deref(), mock.as_ref()));
     let picked = match tokio::time::timeout(PICKER_TIMEOUT, join).await {
-        Ok(Ok(path)) => path,
+        Ok(Ok(path)) => {
+            drop(permit);
+            path
+        }
         Ok(Err(e)) => {
+            drop(permit);
             return Err(picker_internal(format!("picker task failed: {e}")));
         }
         Err(_) => {
+            drop(permit);
             return Err(picker_timeout(format!(
                 "folder picker timed out after {} seconds",
                 PICKER_TIMEOUT.as_secs()
