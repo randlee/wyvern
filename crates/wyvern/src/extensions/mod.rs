@@ -873,12 +873,14 @@ mod tests {
         )
         .expect("write project");
         let registry = ExtensionRegistry::load(&defaults, Some(&project)).expect("load");
-        assert_eq!(registry.extensions().len(), 1);
+        assert_eq!(registry.extensions().len(), 3);
+        let markdown = registry
+            .extensions()
+            .iter()
+            .find(|ext| ext.id == "markdown-suffix")
+            .expect("markdown-suffix");
         assert_eq!(
-            registry.extensions()[0]
-                .match_spec
-                .positional_suffix
-                .as_deref(),
+            markdown.match_spec.positional_suffix.as_deref(),
             Some(".markdown")
         );
     }

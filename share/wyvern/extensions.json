@@ -7,6 +7,29 @@
       "expand": {
         "command": { "type": "markdown", "file": "{path}" }
       }
+    },
+    {
+      "id": "html-suffix",
+      "match": { "positional_suffix": ".html" },
+      "expand": {
+        "command": {
+          "type": "wizard",
+          "page": {
+            "id": "{stem}",
+            "title": "{basename}",
+            "html": "{relpath_from_ui_root}"
+          }
+        },
+        "host": { "ui_root": "{wizard_root}" }
+      }
+    },
+    {
+      "id": "wizard-json-suffix",
+      "match": { "filename": "wizard.json" },
+      "expand": {
+        "command_from_file": "{path}",
+        "host": { "ui_root": "{wizard_root}" }
+      }
     }
   ]
 }
