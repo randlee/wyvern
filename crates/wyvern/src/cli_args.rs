@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use wyvern_host::{HostOptions, ViewerMode};
 
-use crate::error::LoadError;
+use crate::error::{LoadError, UsageErrorKind};
 
 /// Parsed CLI invocation: host options + remaining positional/stdin args.
 #[derive(Debug, Clone)]
@@ -113,15 +113,10 @@ pub fn apply_host_overrides(host: &mut HostOptions, overrides: &crate::extension
 
 fn parse_bind(value: &str) -> Result<SocketAddr, LoadError> {
     value.parse().map_err(|e| LoadError::Usage {
-        message: format!(
-            "invalid --bind '{value}': {e}\n\
-             Recovery:\n\
-             - Use host:port form (example: 127.0.0.1:0 for an ephemeral loopback port)\n\
-             - For 0.0.0.0 / LAN binds, also pass --allow-non-loopback\n\
-             - Check the address is a valid IPv4/IPv6 socket address\n\
-             {}",
-            usage_message()
-        ),
+        kind: UsageErrorKind::InvalidBind {
+            value: value.to_string(),
+        },
+        message: format!("invalid --bind '{value}': {e}"),
     })
 }
 
@@ -133,47 +128,45 @@ fn require_flag_value<'a>(
     args.get(index + 1)
         .map(String::as_str)
         .ok_or_else(|| LoadError::Usage {
-            message: format!("missing value for {flag}\n{}", usage_message()),
+            kind: UsageErrorKind::MissingFlagValue {
+                flag: flag.to_string(),
+            },
+            message: format!("missing value for {flag}"),
         })
 }
 
 fn parse_viewer(value: &str) -> Result<ViewerMode, LoadError> {
     ViewerMode::parse(value).ok_or_else(|| LoadError::Usage {
+        kind: UsageErrorKind::InvalidViewer {
+            value: value.to_string(),
+        },
         message: format!(
-            "invalid --viewer '{value}' (expected embedded|none|system|chrome|safari|edge|firefox)\n{}",
-            usage_message()
+            "invalid --viewer '{value}' (expected embedded|none|system|chrome|safari|edge|firefox)"
         ),
     })
-}
-
-fn viewer_from_env_with(value: Option<&str>) -> Option<ViewerMode> {
-    value.and_then(ViewerMode::parse)
-}
-
-fn viewer_from_env() -> Option<ViewerMode> {
-    viewer_from_env_with(
-        std::env::var("WYVERN_VIEWER")
-            .ok()
-            .as_deref()
-            .filter(|s| !s.is_empty()),
-    )
 }
 
 fn resolve_default_viewer() -> Result<ViewerMode, LoadError> {
     match std::env::var("WYVERN_VIEWER") {
         Err(std::env::VarError::NotPresent) => Ok(ViewerMode::Embedded),
-        Ok(raw) if raw.is_empty() => Ok(ViewerMode::Embedded),
-        Ok(_) => viewer_from_env().ok_or_else(|| {
-            let raw = std::env::var("WYVERN_VIEWER").unwrap_or_default();
-            LoadError::Usage {
-                message: format!(
-                    "invalid WYVERN_VIEWER={raw:?}; expected embedded, none, system, or a named viewer path"
-                ),
+        Err(std::env::VarError::NotUnicode(err)) => Err(LoadError::Usage {
+            kind: UsageErrorKind::InvalidWyvernViewerUnicode,
+            message: format!("WYVERN_VIEWER is not valid Unicode: {err:?}"),
+        }),
+        Ok(raw) => {
+            if raw.is_empty() {
+                Ok(ViewerMode::Embedded)
+            } else {
+                ViewerMode::parse(&raw).ok_or_else(|| LoadError::Usage {
+                    kind: UsageErrorKind::InvalidWyvernViewerEnv {
+                        value: raw.clone(),
+                    },
+                    message: format!(
+                        "invalid WYVERN_VIEWER={raw:?}; expected embedded, none, system, or a named viewer path"
+                    ),
+                })
             }
-        }),
-        Err(err) => Err(LoadError::Usage {
-            message: format!("WYVERN_VIEWER is not valid Unicode: {err}"),
-        }),
+        }
     }
 }
 
@@ -273,6 +266,10 @@ pub fn usage_message() -> String {
 mod tests {
     use super::*;
 
+    fn viewer_from_env_with(value: Option<&str>) -> Option<ViewerMode> {
+        value.and_then(ViewerMode::parse)
+    }
+
     fn args(items: &[&str]) -> Vec<String> {
         items.iter().map(|s| (*s).to_string()).collect()
     }
@@ -303,8 +300,11 @@ mod tests {
     fn resolve_default_viewer_with(value: Option<&str>) -> Result<ViewerMode, LoadError> {
         match value {
             None => Ok(ViewerMode::Embedded),
-            Some(raw) if raw.is_empty() => Ok(ViewerMode::Embedded),
+            Some("") => Ok(ViewerMode::Embedded),
             Some(raw) => ViewerMode::parse(raw).ok_or_else(|| LoadError::Usage {
+                kind: UsageErrorKind::InvalidWyvernViewerEnv {
+                    value: raw.to_string(),
+                },
                 message: format!(
                     "invalid WYVERN_VIEWER={raw:?}; expected embedded, none, system, or a named viewer path"
                 ),
@@ -335,14 +335,24 @@ mod tests {
     }
 
     #[test]
-    fn parse_bind_rejects_invalid_with_recovery_hint() {
+    fn parse_bind_rejects_invalid_with_structured_recovery() {
+        use crate::error::emit_usage_error;
+
         let err = parse_cli_args(&args(&["--bind", "not-an-addr"])).expect_err("bind");
-        let LoadError::Usage { message } = err else {
+        let LoadError::Usage { kind, message } = err else {
             panic!("expected Usage");
         };
+        assert!(matches!(kind, UsageErrorKind::InvalidBind { .. }));
         assert!(message.contains("invalid --bind"), "{message}");
-        assert!(message.contains("Recovery:"), "{message}");
-        assert!(message.contains("--allow-non-loopback"), "{message}");
+        assert!(!message.contains("Recovery:"), "{message}");
+
+        let out = emit_usage_error(&LoadError::Usage { kind, message }).expect("emit");
+        let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
+        assert!(value["recovery"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|s| s.as_str().unwrap().contains("--allow-non-loopback")));
     }
 
     #[test]

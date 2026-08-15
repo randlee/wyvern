@@ -31,10 +31,12 @@ pub fn load_command_input(args: &[String], stdin: impl Read) -> Result<Value, Lo
     match args {
         [] => load_stdin(stdin),
         [arg] if arg.starts_with('-') => Err(LoadError::Usage {
+            kind: crate::error::UsageErrorKind::Generic,
             message: usage_message(),
         }),
         [arg] => load_positional(arg),
         _ => Err(LoadError::Usage {
+            kind: crate::error::UsageErrorKind::Generic,
             message: usage_message(),
         }),
     }
@@ -67,6 +69,7 @@ fn load_stdin(stdin: impl Read) -> Result<Value, LoadError> {
     let buf = read_capped(stdin, MAX_CLI_INPUT_BYTES, "stdin", "stdin")?;
     if buf.trim().is_empty() {
         return Err(LoadError::Usage {
+            kind: crate::error::UsageErrorKind::Generic,
             message: usage_message(),
         });
     }

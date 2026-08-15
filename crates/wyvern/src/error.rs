@@ -2,6 +2,35 @@
 
 use wyvern_schema::{ErrorCode, FieldName, SerializeError, StderrError, ValidationError};
 
+/// Host-flag / env usage failure kind for structured stderr recovery (RBP-F009).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum UsageErrorKind {
+    /// Generic argv/input usage (empty stdin, too many args, etc.).
+    Generic,
+    /// `--bind` value failed to parse as a socket address.
+    InvalidBind {
+        /// Raw `--bind` token from argv.
+        value: String,
+    },
+    /// A host flag was given without a following value.
+    MissingFlagValue {
+        /// Flag name (e.g. `--bind`).
+        flag: String,
+    },
+    /// `--viewer` value was not a known viewer mode.
+    InvalidViewer {
+        /// Raw `--viewer` token from argv.
+        value: String,
+    },
+    /// `WYVERN_VIEWER` is set but not a valid viewer mode (RSH-010).
+    InvalidWyvernViewerEnv {
+        /// Raw env var value.
+        value: String,
+    },
+    /// `WYVERN_VIEWER` is not valid Unicode.
+    InvalidWyvernViewerUnicode,
+}
+
 /// Failure while loading command input from argv or stdin.
 #[derive(Debug)]
 pub enum LoadError {
@@ -14,8 +43,11 @@ pub enum LoadError {
         /// Original I/O error if available.
         source: Option<Box<dyn std::error::Error + Send + Sync + 'static>>,
     },
-    /// Invalid argv shape; caller prints plain usage text (not JSON).
-    Usage { message: String },
+    /// Invalid argv shape or host-flag value.
+    Usage {
+        kind: UsageErrorKind,
+        message: String,
+    },
 }
 
 impl std::fmt::Display for LoadError {
@@ -23,7 +55,7 @@ impl std::fmt::Display for LoadError {
         match self {
             Self::Parse { message } => write!(f, "parse error: {message}"),
             Self::Io { field, message, .. } => write!(f, "io error ({field}): {message}"),
-            Self::Usage { message } => write!(f, "{message}"),
+            Self::Usage { message, .. } => write!(f, "{message}"),
         }
     }
 }
@@ -210,20 +242,80 @@ pub fn emit_usage_message(message: &str) -> Result<String, EmitError> {
         .map_err(EmitError::Serialize)
 }
 
-/// Serialize [`LoadError::Usage`] as stderr JSON.
+/// Serialize [`LoadError::Usage`] as stderr JSON with flag-specific recovery.
 ///
 /// # Errors
 ///
 /// Returns [`EmitError::Serialize`] when the envelope cannot be serialized, or
 /// when `err` is not [`LoadError::Usage`] (miswire).
 pub fn emit_usage_error(err: &LoadError) -> Result<String, EmitError> {
-    let LoadError::Usage { message } = err else {
+    let LoadError::Usage { kind, message } = err else {
         debug_assert!(matches!(err, LoadError::Usage { .. }));
         return Err(EmitError::Serialize(SerializeError {
             message: "emit_usage_error: expected Usage".into(),
         }));
     };
-    emit_usage_message(message)
+    let (cause, recovery, docs) = match kind {
+        UsageErrorKind::Generic => (
+            "CLI argv was not a valid command or extension invocation".to_string(),
+            vec![
+                "Pass a JSON command, a .json file, or a path handled by an extension".into(),
+                "Run wyvern extensions list to see file-type and prefix extensions".into(),
+                "Run wyvern --help for host flags".into(),
+            ],
+            "docs/wyvern/requirements.md (REQ-0130)",
+        ),
+        UsageErrorKind::InvalidBind { .. } => (
+            "The --bind value is not a valid socket address".to_string(),
+            vec![
+                "Use host:port form (example: 127.0.0.1:0 for an ephemeral loopback port)".into(),
+                "For 0.0.0.0 / LAN binds, also pass --allow-non-loopback".into(),
+                "Check the address is a valid IPv4/IPv6 socket address".into(),
+            ],
+            "docs/plans/phase-F/README.md",
+        ),
+        UsageErrorKind::MissingFlagValue { flag } => (
+            format!("Host flag {flag} requires a value"),
+            vec![
+                format!("Pass {flag} VALUE on the command line"),
+                "Use --bind=ADDR:PORT or --viewer=MODE inline forms when preferred".into(),
+            ],
+            "docs/plans/phase-F/README.md",
+        ),
+        UsageErrorKind::InvalidViewer { .. } => (
+            "The --viewer value is not a supported viewer mode".to_string(),
+            vec![
+                "Use one of: embedded, none, system, chrome, safari, edge, firefox".into(),
+                "Omit --viewer to use embedded (default)".into(),
+                "Set WYVERN_VIEWER=none for headless / CI".into(),
+            ],
+            "docs/plans/phase-C/http-viewer-contract.md",
+        ),
+        UsageErrorKind::InvalidWyvernViewerEnv { .. } => (
+            "WYVERN_VIEWER is set but not a valid viewer mode".to_string(),
+            vec![
+                "Use one of: embedded, none, system, chrome, safari, edge, firefox".into(),
+                "Unset WYVERN_VIEWER to use embedded (default)".into(),
+                "Use WYVERN_VIEWER=none for headless / CI".into(),
+            ],
+            "docs/plans/phase-C/http-viewer-contract.md",
+        ),
+        UsageErrorKind::InvalidWyvernViewerUnicode => (
+            "WYVERN_VIEWER is not valid Unicode".to_string(),
+            vec![
+                "Set WYVERN_VIEWER to ASCII viewer mode names only".into(),
+                "Unset WYVERN_VIEWER to use embedded (default)".into(),
+            ],
+            "docs/plans/phase-C/http-viewer-contract.md",
+        ),
+    };
+    let mut envelope = StderrError::new(ErrorCode::ParseError, message.clone())
+        .cause(cause)
+        .docs(docs);
+    for step in recovery {
+        envelope = envelope.recovery(step);
+    }
+    envelope.to_json_string().map_err(EmitError::Serialize)
 }
 
 /// Serialize a parse load error as stderr JSON.
@@ -707,6 +799,7 @@ mod tests {
         );
         assert_eq!(
             LoadError::Usage {
+                kind: UsageErrorKind::Generic,
                 message: "usage".into()
             }
             .exit_code(),
@@ -737,6 +830,7 @@ mod tests {
     #[test]
     fn emit_usage_error_is_structured_json() {
         let err = LoadError::Usage {
+            kind: UsageErrorKind::Generic,
             message: "unknown subcommand".into(),
         };
         let out = emit_usage_error(&err).expect("emit");
@@ -745,6 +839,40 @@ mod tests {
         assert_eq!(value["code"], "PARSE_ERROR");
         assert!(value["message"].as_str().unwrap().contains("unknown"));
         assert!(!value["recovery"].as_array().unwrap().is_empty());
+    }
+
+    #[test]
+    fn emit_invalid_bind_has_flag_specific_recovery() {
+        let err = LoadError::Usage {
+            kind: UsageErrorKind::InvalidBind {
+                value: "not-an-addr".into(),
+            },
+            message: "invalid --bind 'not-an-addr': invalid socket address".into(),
+        };
+        let out = emit_usage_error(&err).expect("emit");
+        let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
+        let recovery = value["recovery"].as_array().unwrap();
+        assert!(recovery
+            .iter()
+            .any(|s| s.as_str().unwrap().contains("--allow-non-loopback")));
+        assert!(!value["message"].as_str().unwrap().contains("Recovery:"));
+    }
+
+    #[test]
+    fn emit_invalid_wyvern_viewer_env_has_flag_specific_recovery() {
+        let err = LoadError::Usage {
+            kind: UsageErrorKind::InvalidWyvernViewerEnv {
+                value: "not-a-viewer-mode".into(),
+            },
+            message: "invalid WYVERN_VIEWER=\"not-a-viewer-mode\"; expected embedded, none, system, or a named viewer path".into(),
+        };
+        let out = emit_usage_error(&err).expect("emit");
+        let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
+        assert!(value["cause"].as_str().unwrap().contains("WYVERN_VIEWER"));
+        let recovery = value["recovery"].as_array().unwrap();
+        assert!(recovery
+            .iter()
+            .any(|s| s.as_str().unwrap().contains("Unset WYVERN_VIEWER")));
     }
 
     #[test]
