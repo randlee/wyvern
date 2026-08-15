@@ -1,9 +1,12 @@
 //! Argv remainder pipeline: host flags stripped; prefix extensions reach the matcher.
 
+mod test_support;
+
 use std::path::PathBuf;
 
+use test_support::{AbsentProbe, PresentProbe};
 use wyvern::extensions::{
-    binary_on_path, build_match_context, expand_and_validate, expand_command_host, ExtensionMatch,
+    build_match_context, expand_and_validate, expand_command_host, ExtensionMatch,
     ExtensionRegistry, HostOverrides, SHIPPED_EXTENSIONS_JSON,
 };
 use wyvern::{apply_host_overrides, parse_cli_args};
@@ -48,22 +51,20 @@ fn prefix_registry() -> ExtensionRegistry {
 fn compose_render_prefix_does_not_panic() {
     let registry = ExtensionRegistry::from_json_str(SHIPPED_EXTENSIONS_JSON).expect("shipped");
     let argv = args(&["compose", "render", "--root", "R", "--file", "F.j2"]);
-    let matched = registry.match_argv(&argv);
-    if binary_on_path("sc-compose") {
-        assert_eq!(
-            matched
-                .expect("compose-render matches when sc-compose is present")
-                .extension()
-                .id
-                .as_str(),
-            "compose-render"
-        );
-    } else {
-        assert!(
-            matched.is_none(),
-            "compose-render must not match when sc-compose is absent"
-        );
-    }
+    let matched_present = registry.match_argv_with(&argv, &PresentProbe);
+    assert_eq!(
+        matched_present
+            .expect("compose-render matches when sc-compose is present")
+            .extension()
+            .id
+            .as_str(),
+        "compose-render"
+    );
+    let matched_absent = registry.match_argv_with(&argv, &AbsentProbe);
+    assert!(
+        matched_absent.is_none(),
+        "compose-render must not match when sc-compose is absent"
+    );
 }
 
 #[test]

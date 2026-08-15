@@ -488,6 +488,13 @@ impl ExtensionRegistry {
     pub fn load(defaults: &Path, project: Option<&Path>) -> Result<Self, ExtensionError> {
         let default_exts = if defaults.is_file() {
             parse_registry_file(defaults)?
+        } else if std::env::var_os("WYVERN_SHARE").is_some() {
+            return Err(ExtensionError::InvalidRegistry {
+                message: format!(
+                    "WYVERN_SHARE is set but '{}' is missing or not a file",
+                    defaults.display()
+                ),
+            });
         } else {
             parse_registry_str(SHIPPED_EXTENSIONS_JSON, "shipped defaults")?
         };
@@ -623,9 +630,7 @@ impl ExtensionDef {
 }
 
 fn ends_with_suffix(token: &str, suffix: &str) -> bool {
-    token
-        .to_ascii_lowercase()
-        .ends_with(&suffix.to_ascii_lowercase())
+    token.len() >= suffix.len() && token[token.len() - suffix.len()..].eq_ignore_ascii_case(suffix)
 }
 
 fn parse_registry_file(path: &Path) -> Result<Vec<ExtensionDef>, ExtensionError> {

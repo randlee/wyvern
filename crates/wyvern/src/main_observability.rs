@@ -113,6 +113,10 @@ pub fn init() -> Result<(), ObservabilityInitError> {
         .with_target(true)
         .try_init();
 
+    if let Some(cid) = session_correlation_id() {
+        wyvern::set_pipeline_correlation_id(format!("{cid}"));
+    }
+
     Ok(())
 }
 

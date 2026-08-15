@@ -39,6 +39,8 @@ pub use extensions::{ExtensionError, ExtensionMatch, ExtensionRegistry};
 #[doc(inline)]
 pub use input::load_command_input;
 #[doc(inline)]
+pub use observability::set_pipeline_correlation_id;
+#[doc(inline)]
 pub use pipeline::{run_from_loaded, PipelineError};
 #[doc(inline)]
 pub use viewer_spawn::{resolve_viewer_bin, spawn_embedded_viewer, ViewerSpawnError};

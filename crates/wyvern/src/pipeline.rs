@@ -99,6 +99,16 @@ enum PipelineHostError {
     Viewer(ViewerSpawnError),
 }
 
+struct JoinOnDrop(Option<thread::JoinHandle<()>>);
+
+impl Drop for JoinOnDrop {
+    fn drop(&mut self) {
+        if let Some(handle) = self.0.take() {
+            let _ = handle.join();
+        }
+    }
+}
+
 fn run_embedded(
     command: Command,
     host: HostOptions,
@@ -121,7 +131,7 @@ fn run_embedded(
     // needs &mut self; the mutex is the explicit sharing seam (RBP-F005).
     let child = Arc::new(Mutex::new(child));
     let dismiss_tx = handle.take_viewer_exit_signal();
-    let monitor = if let Some(tx) = dismiss_tx {
+    let monitor_handle = if let Some(tx) = dismiss_tx {
         let child_for_wait = Arc::clone(&child);
         thread::spawn(move || {
             loop {
@@ -149,6 +159,7 @@ fn run_embedded(
             thread::sleep(Duration::from_millis(50));
         })
     };
+    let _monitor_join = JoinOnDrop(Some(monitor_handle));
 
     // Give the child a brief moment to fail-fast (missing display, etc.).
     thread::sleep(Duration::from_millis(50));
@@ -175,7 +186,6 @@ fn run_embedded(
     if let Ok(mut c) = child.lock() {
         wait_for_viewer_exit(&mut c);
     }
-    let _ = monitor.join();
 
     Ok(result)
 }
