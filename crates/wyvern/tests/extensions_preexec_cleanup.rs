@@ -3,7 +3,8 @@
 use std::path::PathBuf;
 
 use wyvern::extensions::{
-    build_match_context, expand_and_validate, ExtensionError, ExtensionRegistry, MatchContext,
+    build_match_context, create_tmpdir, expand_and_validate, ExtensionError, ExtensionRegistry,
+    MatchContext,
 };
 
 fn registry_with(json: &str) -> ExtensionRegistry {
@@ -41,6 +42,54 @@ fn failing_preexec() -> (&'static str, Vec<&'static str>) {
     {
         ("false", vec![])
     }
+}
+
+#[test]
+fn tmpdir_present_during_invocation() {
+    let registry = registry_with(&tmpdir_host_extension(None));
+    let argv = vec!["doc.md".to_string()];
+    let matched = registry.match_argv(&argv).expect("match");
+    let ctx = build_match_context(&matched, matched.extension());
+    let expanded = expand_and_validate(matched.extension(), &ctx).expect("expand");
+    let tmp = expanded
+        .temp_guard
+        .as_ref()
+        .expect("temp_guard")
+        .path()
+        .to_path_buf();
+    assert!(tmp.is_dir(), "tmpdir present: {}", tmp.display());
+    drop(expanded);
+    assert!(
+        !tmp.exists(),
+        "tmpdir deleted after drop: {}",
+        tmp.display()
+    );
+}
+
+#[test]
+fn tmpdir_deleted_on_preexec_failure() {
+    let (cmd, args) = failing_preexec();
+    let registry = registry_with(&tmpdir_host_extension(Some((cmd, &args))));
+    let argv = vec!["doc.md".to_string()];
+    let matched = registry.match_argv(&argv).expect("match");
+    let ctx = build_match_context(&matched, matched.extension());
+    let err = expand_and_validate(matched.extension(), &ctx).expect_err("preexec fail");
+    assert!(matches!(err, ExtensionError::Preexec { .. }), "{err}");
+    let tmp = wyvern::extensions::last_created_tmpdir().expect("tmpdir was created");
+    assert!(
+        !tmp.exists(),
+        "tmpdir must be deleted immediately on preexec failure: {}",
+        tmp.display()
+    );
+}
+
+#[test]
+fn tmpdir_path_persists_while_guard_held() {
+    let guard = create_tmpdir().expect("create_tmpdir");
+    let path = guard.path().to_path_buf();
+    assert!(path.is_dir(), "held guard path: {}", path.display());
+    drop(guard);
+    assert!(!path.exists(), "path gone after drop: {}", path.display());
 }
 
 #[test]

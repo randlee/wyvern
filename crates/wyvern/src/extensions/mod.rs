@@ -39,18 +39,20 @@ pub use expand::{
 #[doc(inline)]
 pub use list::{format_extensions_list, run_extensions_command, ExtensionsCmdError};
 #[doc(inline)]
-pub use preexec::{binary_on_path, run_preexec, PathRequiresProbe, RequiresProbe};
+pub use preexec::{binary_on_path, create_tmpdir, run_preexec, PathRequiresProbe, RequiresProbe};
 
 /// Shipped defaults compiled into the binary (dev + `cargo install`).
 pub const SHIPPED_EXTENSIONS_JSON: &str = include_str!("../../../../share/wyvern/extensions.json");
 
+/// Embedded `share/wyvern/**` assets (`extensions.json`, packaged UI extras).
 #[derive(rust_embed::RustEmbed)]
 #[folder = "../../share/wyvern"]
-struct ShareAssets;
+pub struct ShareAssets;
 
+/// Embedded `scripts/ext/**` preexec helpers.
 #[derive(rust_embed::RustEmbed)]
 #[folder = "../../scripts/ext"]
-struct ScriptAssets;
+pub struct ScriptAssets;
 
 /// Merged, `extends`-resolved extension registry.
 #[derive(Debug, Clone)]
@@ -606,12 +608,20 @@ pub fn find_workspace_root(start: &Path) -> Option<PathBuf> {
 
 fn materialize_workspace_share(workspace: &Path) -> Option<PathBuf> {
     let dest = workspace.join("target/wyvern-share");
+    let marker = dest.join("extensions.json");
+    if file_nonempty(&marker) {
+        return Some(dest);
+    }
     copy_dir_contents(&workspace.join("share/wyvern"), &dest)?;
     let scripts_src = workspace.join("scripts/ext");
     if scripts_src.is_dir() {
         copy_dir_contents(&scripts_src, &dest.join("scripts/ext"))?;
     }
-    dest.join("extensions.json").is_file().then_some(dest)
+    file_nonempty(&dest.join("extensions.json")).then_some(dest)
+}
+
+fn file_nonempty(path: &Path) -> bool {
+    path.is_file() && path.metadata().is_ok_and(|m| m.len() > 0)
 }
 
 fn copy_dir_contents(src: &Path, dest: &Path) -> Option<()> {
@@ -625,11 +635,30 @@ fn copy_dir_contents(src: &Path, dest: &Path) -> Option<()> {
         let to = dest.join(entry.file_name());
         if from.is_dir() {
             copy_dir_contents(&from, &to)?;
-        } else if std::fs::copy(&from, &to).is_err() {
-            return None;
+        } else {
+            if file_nonempty(&to) {
+                continue;
+            }
+            copy_file_replace(&from, &to)?;
         }
     }
     Some(())
+}
+
+fn copy_file_replace(from: &Path, to: &Path) -> Option<()> {
+    let tmp = to.with_file_name(format!(
+        ".{}.part-{}",
+        to.file_name()?.to_string_lossy(),
+        std::process::id()
+    ));
+    std::fs::copy(from, &tmp).ok()?;
+    match std::fs::rename(&tmp, to) {
+        Ok(()) => Some(()),
+        Err(_) => {
+            let _ = std::fs::remove_file(&tmp);
+            file_nonempty(to).then_some(())
+        }
+    }
 }
 
 fn extract_embedded_share() -> Option<PathBuf> {

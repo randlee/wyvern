@@ -3,8 +3,51 @@
 use std::path::{Path, PathBuf};
 
 use wyvern::extensions::{
-    find_workspace_root, resolve_wyvern_share, resolve_wyvern_share_with, SHIPPED_EXTENSIONS_JSON,
+    find_workspace_root, resolve_wyvern_share, resolve_wyvern_share_with, ExtensionRegistry,
+    ScriptAssets, ShareAssets, SHIPPED_EXTENSIONS_JSON,
 };
+
+#[test]
+fn shipped_extensions_json_is_valid() {
+    ExtensionRegistry::from_json_str(SHIPPED_EXTENSIONS_JSON).expect("shipped JSON");
+}
+
+#[test]
+fn wyvern_share_resolve_finds_extensions_json() {
+    let registry = ExtensionRegistry::load_default().expect("load_default");
+    assert!(registry
+        .extensions()
+        .iter()
+        .any(|ext| ext.id == "markdown-suffix"));
+    let share = resolve_wyvern_share();
+    assert!(
+        share.join("extensions.json").is_file(),
+        "extensions.json missing under {}",
+        share.display()
+    );
+}
+
+#[test]
+fn shared_assets_embed_contains_extensions_json() {
+    let names: Vec<String> = ShareAssets::iter().map(|p| p.to_string()).collect();
+    assert!(
+        names
+            .iter()
+            .any(|n| n == "extensions.json" || n.ends_with("extensions.json")),
+        "ShareAssets missing extensions.json: {names:?}"
+    );
+}
+
+#[test]
+fn script_assets_embed_contains_placeholder() {
+    let names: Vec<String> = ScriptAssets::iter().map(|p| p.to_string()).collect();
+    assert!(
+        names
+            .iter()
+            .any(|n| n == "placeholder.py" || n.ends_with("placeholder.py")),
+        "ScriptAssets missing placeholder.py: {names:?}"
+    );
+}
 
 #[test]
 fn extensions_embed_paths_unified_share_has_registry_and_scripts() {

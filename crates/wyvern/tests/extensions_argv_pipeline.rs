@@ -3,7 +3,8 @@
 use std::path::PathBuf;
 
 use wyvern::extensions::{
-    build_match_context, expand_command_host, ExtensionMatch, ExtensionRegistry, HostOverrides,
+    build_match_context, expand_and_validate, expand_command_host, ExtensionMatch,
+    ExtensionRegistry, HostOverrides, SHIPPED_EXTENSIONS_JSON,
 };
 use wyvern::{apply_host_overrides, parse_cli_args};
 
@@ -41,6 +42,56 @@ fn prefix_registry() -> ExtensionRegistry {
         }"#,
     )
     .expect("registry")
+}
+
+#[test]
+fn compose_render_prefix_does_not_panic() {
+    let registry = ExtensionRegistry::from_json_str(SHIPPED_EXTENSIONS_JSON).expect("shipped");
+    let argv = args(&["compose", "render", "--root", "R", "--file", "F.j2"]);
+    assert!(registry.match_argv(&argv).is_none());
+}
+
+#[test]
+fn prefix_suffix_match_reaches_matcher() {
+    let registry = prefix_registry();
+    let argv = args(&["table", "report.csv"]);
+    let matched = registry.match_argv(&argv).expect("prefix+suffix");
+    assert!(matches!(matched, ExtensionMatch::PrefixSuffix { .. }));
+}
+
+#[test]
+fn md_suffix_matches_and_expands() {
+    let registry = ExtensionRegistry::from_json_str(SHIPPED_EXTENSIONS_JSON).expect("shipped");
+    let argv = vec!["doc.md".to_string()];
+    let matched = registry.match_argv(&argv).expect("suffix");
+    assert!(matches!(matched, ExtensionMatch::Suffix { .. }));
+    let ctx = build_match_context(&matched, matched.extension());
+    let expanded = expand_and_validate(matched.extension(), &ctx).expect("expand");
+    assert_eq!(expanded.command["type"], "markdown");
+    assert_eq!(expanded.command["file"], "doc.md");
+}
+
+#[test]
+fn input_md_path_loads_markdown_value() {
+    let registry = ExtensionRegistry::from_json_str(SHIPPED_EXTENSIONS_JSON).expect("shipped");
+    let argv = vec!["doc.md".to_string()];
+    let matched = registry.match_argv(&argv).expect("match");
+    let ctx = build_match_context(&matched, matched.extension());
+    let expanded = expand_and_validate(matched.extension(), &ctx).expect("expand");
+    assert_eq!(expanded.command["type"], "markdown");
+    assert_eq!(expanded.command["file"], "doc.md");
+}
+
+#[test]
+fn unknown_suffix_falls_through() {
+    let registry = ExtensionRegistry::from_json_str(SHIPPED_EXTENSIONS_JSON).expect("shipped");
+    assert!(registry.match_argv(&["notes.txt".into()]).is_none());
+}
+
+#[test]
+fn version_flag_is_not_matched() {
+    let registry = ExtensionRegistry::from_json_str(SHIPPED_EXTENSIONS_JSON).expect("shipped");
+    assert!(registry.match_argv(&["-V".into()]).is_none());
 }
 
 #[test]

@@ -35,6 +35,8 @@ pub use error::{
     emit_stdout, emit_validation_error, EmitError, LoadError,
 };
 #[doc(inline)]
+pub use extensions::{ExtensionError, ExtensionMatch, ExtensionRegistry};
+#[doc(inline)]
 pub use input::load_command_input;
 #[doc(inline)]
 pub use pipeline::{run_from_loaded, PipelineError};
