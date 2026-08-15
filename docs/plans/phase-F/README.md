@@ -55,7 +55,7 @@ All exit 0 with embedded viewer; expanded commands pass existing validation.
 
 ## What Phase F does not close
 
-- MCP tool wrappers — **Phase E** (calls `wyvern::extensions` API per ADR-0022)
+- MCP tool wrappers — **Phase E** (pre-expanded Command JSON or `wyvern` CLI subprocess — ADR-0022 Path A)
 - `--interactive` argv expansion — **Phase E**
 - User registry (`~/.config/wyvern/extensions.json`) — post-F
 - User-authored unsigned `preexec` outside trusted project tree (post-F)
