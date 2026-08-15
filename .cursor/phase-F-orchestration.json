@@ -2,8 +2,10 @@
   "phase": "F",
   "integration_branch": "integrate/phase-F",
   "created": "2026-08-15T05:40:00Z",
-  "active_sprint": "f.1",
+  "completed": "2026-08-15T10:56:49Z",
+  "active_sprint": null,
   "dev_model": "cursor-grok-4.6-high-fast",
+  "status": "complete",
   "sprints": {
     "f.1": {
       "id": "f.1",
@@ -11,7 +13,11 @@
       "branch": "feature/phase-F-f1-extension-runtime",
       "sprint_doc": "docs/plans/phase-F/f1-extension-runtime.md",
       "pr_target": "integrate/phase-F",
-      "status": "qa_pending"
+      "status": "merged",
+      "pr_number": 77,
+      "pr_url": "https://github.com/randlee/wyvern/pull/77",
+      "merged_at": "2026-08-15T07:42:37Z",
+      "qa_gate": "0B+0I+0M"
     },
     "f.2": {
       "id": "f.2",
@@ -19,7 +25,11 @@
       "branch": "feature/phase-F-f2-positional-extensions",
       "sprint_doc": "docs/plans/phase-F/f2-positional-extensions.md",
       "pr_target": "integrate/phase-F",
-      "status": "pending"
+      "status": "merged",
+      "pr_number": 78,
+      "pr_url": "https://github.com/randlee/wyvern/pull/78",
+      "merged_at": "2026-08-15T09:08:54Z",
+      "qa_gate": "0B+0I+0M"
     },
     "f.3": {
       "id": "f.3",
@@ -27,7 +37,11 @@
       "branch": "feature/phase-F-f3-compose-extension",
       "sprint_doc": "docs/plans/phase-F/f3-compose-extension.md",
       "pr_target": "integrate/phase-F",
-      "status": "pending"
+      "status": "merged",
+      "pr_number": 79,
+      "pr_url": "https://github.com/randlee/wyvern/pull/79",
+      "merged_at": "2026-08-15T09:58:08Z",
+      "qa_gate": "0B+0I+0M"
     },
     "f.4": {
       "id": "f.4",
@@ -35,7 +49,11 @@
       "branch": "feature/phase-F-f4-csv-table-viewer",
       "sprint_doc": "docs/plans/phase-F/f4-csv-table-viewer.md",
       "pr_target": "integrate/phase-F",
-      "status": "pending"
+      "status": "merged",
+      "pr_number": 80,
+      "pr_url": "https://github.com/randlee/wyvern/pull/80",
+      "merged_at": "2026-08-15T10:56:49Z",
+      "qa_gate": "0B+0I+0M"
     }
   }
 }
