@@ -10,6 +10,7 @@ use serde::Serialize;
 pub struct ApiError {
     status: StatusCode,
     message: String,
+    code: Option<&'static str>,
     cause: Option<String>,
     recovery: Vec<String>,
     docs: Option<String>,
@@ -21,6 +22,7 @@ impl ApiError {
         Self {
             status,
             message: message.into(),
+            code: None,
             cause: None,
             recovery: Vec::new(),
             docs: None,
@@ -52,6 +54,12 @@ impl ApiError {
         Self::new(StatusCode::GATEWAY_TIMEOUT, message)
     }
 
+    /// Attach a stable machine code (RBP-F008 wizard sub-codes).
+    pub fn code(mut self, code: &'static str) -> Self {
+        self.code = Some(code);
+        self
+    }
+
     /// Attach a cause string (RBP error-context contract).
     pub fn cause(mut self, cause: impl Into<String>) -> Self {
         self.cause = Some(cause.into());
@@ -78,6 +86,9 @@ pub struct ApiErrorBody {
     pub ok: bool,
     /// Stable machine-oriented error class derived from the HTTP status.
     pub error: &'static str,
+    /// Optional stable machine code (wizard sub-codes, REQ-0078 pattern).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub code: Option<&'static str>,
     /// Human-readable detail.
     pub message: String,
     /// Why the failure occurred (when known).
@@ -108,6 +119,7 @@ impl IntoResponse for ApiError {
         let body = ApiErrorBody {
             ok: false,
             error: error_class(status),
+            code: self.code,
             message: self.message,
             cause: self.cause,
             recovery: self.recovery,

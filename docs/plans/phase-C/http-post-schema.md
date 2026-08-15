@@ -280,16 +280,31 @@ Wizard uses **navigation + finish** routes — not a single `POST /api/result` p
 
 ### Host → page (`GET /api/wizard/state`)
 
+Initial load (`cursor=0`):
+
 ```json
 {
   "type": "wizard",
   "page": { "id": "start", "title": "...", "html": "pages/start.html" },
   "page_data": {},
+  "stack": []
+}
+```
+
+After navigate to step-2 (`cursor=1`):
+
+```json
+{
+  "type": "wizard",
+  "page": { "id": "step-2", "title": "...", "html": "pages/step-2.html" },
+  "page_data": { "choice": "layout-a" },
   "stack": [
     { "page": { "id": "start", ... }, "data": { "choice": "a" } }
   ]
 }
 ```
+
+`stack` = prior entries only (REQ-0024); current page via `page` + `page_data`.
 
 ### Page → host — navigation (non-terminal)
 
@@ -299,14 +314,15 @@ Wizard uses **navigation + finish** routes — not a single `POST /api/result` p
 {
   "action": "next",
   "page_id": "step-2",
-  "data": { "choice": "layout-a" }
+  "data": { "choice": "layout-a" },
+  "next": { "id": "step-2", "title": "Step 2", "html": "pages/step-2.html" }
 }
 ```
 
 | `action` | Meaning |
 |----------|---------|
-| `next` | Push history; host loads new page URL |
-| `back` | Pop history cursor; host serves prior page |
+| `next` | Advance history cursor; push new page when branching (requires `next` descriptor for DAG) |
+| `back` | Move cursor back **without truncating** forward history (ADR-0005); host serves prior page |
 
 Terminal outcomes (`finish`, `cancel`, `dismissed`) use **`POST /api/wizard/finish` only** — not `navigate`.
 
@@ -321,7 +337,8 @@ Terminal outcomes (`finish`, `cancel`, `dismissed`) use **`POST /api/wizard/fini
   "button": "finish",
   "data": { "final": "values" },
   "stack": [
-    { "page": { "id": "start" }, "data": { "choice": "a" } }
+    { "page": { "id": "start" }, "data": { "choice": "a" } },
+    { "page": { "id": "step-2" }, "data": { "final": "values" } }
   ]
 }
 ```
@@ -332,7 +349,9 @@ Terminal outcomes (`finish`, `cancel`, `dismissed`) use **`POST /api/wizard/fini
 | `data` | object | yes (may be `{}`) |
 | `stack` | array | yes |
 
-**Stdout:** same object. Full wizard HTTP contract is owned by Phase D [d2-wizard-ipc.md](../phase-D/d2-wizard-ipc.md) migration — update that sprint to HTTP when D starts.
+**Stack validation:** when host validates client `stack`, it must equal the session-derived **full visited stack** (`entries[0..=cursor]`, includes current page). Mismatch → HTTP 400 (`StackMismatch`). See d.2 finish algorithm.
+
+**Stdout `data` mapping:** `finish` → request `data`; `cancel` / `dismissed` → `{}`. Full wizard HTTP contract: [http-wizard-contract.md](http-wizard-contract.md) (implemented in d.2).
 
 ---
 

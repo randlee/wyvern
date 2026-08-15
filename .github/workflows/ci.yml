@@ -140,6 +140,29 @@ jobs:
         working-directory: tests/e2e
         run: npx playwright test chrome.spec.ts
 
+      - name: Install l2 npm deps
+        working-directory: tests/l2
+        run: npm install
+
+      - name: Install Playwright Chromium (l2)
+        working-directory: tests/l2
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Phase D L2 specs
+        working-directory: tests/l2
+        run: npx playwright test wizard-layout-picker viewport-sizing wizard-edge-cases
+
+  deny:
+    name: cargo deny
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-deny
+        run: cargo install cargo-deny --locked
+      - name: cargo deny check
+        run: cargo deny check
+
   fmt:
     name: Format check
     runs-on: ubuntu-latest
@@ -157,3 +180,5 @@ jobs:
       - uses: actions/checkout@v4
       - name: Enforce boundaries/*.toml against Cargo.toml
         run: python3 scripts/check-boundaries.py
+      - name: Verify ui/ matches crates/wyvern/ui/
+        run: bash scripts/check-ui-sync.sh

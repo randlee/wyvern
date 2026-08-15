@@ -211,6 +211,7 @@ fn command_type_name(command: &Command) -> &'static str {
         Command::Input { .. } => "input",
         Command::Markdown { .. } => "markdown",
         Command::Question { .. } => "question",
+        Command::Wizard(_) => "wizard",
     }
 }
 
@@ -225,7 +226,8 @@ fn host_error_exit_code(err: &HostError) -> i32 {
         }
         HostError::InvalidResult { .. }
         | HostError::Registry { .. }
-        | HostError::Internal { .. } => wyvern_schema::ErrorCode::HostError.exit_code(),
+        | HostError::Internal { .. }
+        | HostError::Wizard { .. } => wyvern_schema::ErrorCode::HostError.exit_code(),
     }
 }
 
