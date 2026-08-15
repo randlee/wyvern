@@ -70,8 +70,9 @@ No external JS libraries (vanilla DOM).
     "command": {
       "type": "wizard",
       "page": { "id": "{stem}", "title": "{basename}", "html": "pages/view.html", "layout": "workspace" },
-      "width": 960,
-      "height": 640
+      "width": 800,
+      "height": 600
+      // Note: schema max is 800×600; sprint requested 960×640 was clamped.
     },
     "host": { "ui_root": "{tmpdir}" }
   }
@@ -110,7 +111,7 @@ No external JS libraries (vanilla DOM).
 
 1. Preexec produces complete tmpdir layout; every path referenced by `view.html` exists
 2. `python3 -m pytest scripts/ext/test_csv_to_view.py` passes (JSON shape + staged-file layout only)
-3. `cargo test -p wyvern extensions_csv` passes expand + layout gates
+3. `cargo test -p wyvern-cli --test extensions_csv` passes expand + layout gates
 4. `wyvern md fixtures/sample.csv` expand → valid markdown command JSON
 5. `wyvern table fixtures/sample.csv` expand identical to suffix form
 6. Requires-check: injected stub reports python3 absent → csv-suffix does not match
@@ -126,8 +127,8 @@ No external JS libraries (vanilla DOM).
 python3 scripts/ext/csv_to_view.py fixtures/sample.csv --out /tmp/csv-test --format html
 test -f /tmp/csv-test/data/rows.json && test -f /tmp/csv-test/shared/table.js
 python3 -m pytest scripts/ext/test_csv_to_view.py
-cargo test -p wyvern extensions_csv
-cargo test -p wyvern extensions_csv_requires_python3  # uses injected RequiresProbe stub, not PATH=
+cargo test -p wyvern-cli --test extensions_csv
+cargo test -p wyvern-cli --test extensions_csv extensions_csv_requires_python3  # uses injected RequiresProbe stub, not PATH=
 cargo fmt --all --check && cargo clippy --workspace -- -D warnings
 ```
 

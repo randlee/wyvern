@@ -694,7 +694,7 @@ mod tests {
             "compose".into(),
             "render".into(),
             "--root".into(),
-            "/tmp/r".into(),
+            "test-root".into(),
             "--var-file".into(),
             "a.j2".into(),
             "--var-file".into(),
@@ -708,7 +708,7 @@ mod tests {
             args,
             vec![
                 "--root",
-                "/tmp/r",
+                "test-root",
                 "--var-file",
                 "a.j2",
                 "--var-file",
@@ -775,11 +775,11 @@ mod tests {
           }]
         }"#;
         let registry = ExtensionRegistry::from_json_str(json).expect("parse");
-        let argv = vec!["compose".into(), "render".into(), "--root=/tmp/r".into()];
+        let argv = vec!["compose".into(), "render".into(), "--root=test-root".into()];
         let matched = registry.match_argv(&argv).expect("match");
         let ctx = build_match_context(&matched, matched.extension());
         let (cmd, _) = expand_command_host(matched.extension(), &ctx).expect("expand");
-        assert_eq!(cmd["content"], "/tmp/r");
+        assert_eq!(cmd["content"], "test-root");
     }
 
     #[test]
@@ -803,12 +803,12 @@ mod tests {
             "compose".into(),
             "render".into(),
             "--root".into(),
-            "/tmp/r".into(),
+            "test-root".into(),
         ];
         let matched = registry.match_argv(&argv).expect("match");
         let ctx = build_match_context(&matched, matched.extension());
         let (_, args) = expand_preexec_args(matched.extension(), &ctx).expect("preexec");
-        assert_eq!(args, vec!["--root", "/tmp/r"]);
+        assert_eq!(args, vec!["--root", "test-root"]);
     }
 
     #[test]
