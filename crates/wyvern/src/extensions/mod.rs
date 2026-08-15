@@ -74,12 +74,29 @@ impl ExtensionId {
     }
 }
 
+/// Failure from [`ExtensionId::try_from`].
+///
+/// A string newtype because this conversion is used exclusively via
+/// `serde::Deserialize`, where `de::Error::custom` wraps the message.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExtensionIdError(String);
+
+impl std::fmt::Display for ExtensionIdError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl std::error::Error for ExtensionIdError {}
+
 impl TryFrom<String> for ExtensionId {
-    type Error = String;
+    type Error = ExtensionIdError;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         let trimmed = s.trim();
         if trimmed.is_empty() {
-            return Err("extension id must not be empty or whitespace".into());
+            return Err(ExtensionIdError(
+                "extension id must not be empty or whitespace".into(),
+            ));
         }
         Ok(Self(trimmed.to_owned()))
     }
@@ -532,13 +549,15 @@ fn parse_registry_str(text: &str, origin: &str) -> Result<Vec<ExtensionDef>, Ext
                 let t = bin.trim();
                 if t.is_empty() {
                     return Err(ExtensionError::InvalidRegistry {
-                        message: "preexec.requires: binary name must not be empty".into(),
+                        message: format!(
+                            "preexec.requires: binary name must not be empty in {origin}"
+                        ),
                     });
                 }
                 if t.contains('/') || t.contains('\\') {
                     return Err(ExtensionError::InvalidRegistry {
                         message: format!(
-                            "preexec.requires: '{t}' looks like a path; use bare binary name"
+                            "preexec.requires: '{t}' looks like a path; use bare binary name in {origin}"
                         ),
                     });
                 }
@@ -692,6 +711,13 @@ pub fn find_workspace_root(start: &Path) -> Option<PathBuf> {
     None
 }
 
+/// Best-effort copy of workspace share assets into a pid-suffixed `target/` dir.
+///
+/// # Errors
+///
+/// Returns `None` when any I/O step fails. Failures are swallowed on purpose:
+/// this helper is best-effort and logs via `tracing::warn!`. Callers fall back
+/// to other share-resolution paths.
 fn materialize_workspace_share(workspace: &Path) -> Option<PathBuf> {
     // Use pid-suffixed dir to avoid races between concurrent test processes.
     let dest = workspace.join(format!("target/wyvern-share-{}", std::process::id()));
@@ -711,6 +737,12 @@ fn file_nonempty(path: &Path) -> bool {
     path.is_file() && path.metadata().is_ok_and(|m| m.len() > 0)
 }
 
+/// Best-effort recursive copy of `src` into `dest`.
+///
+/// # Errors
+///
+/// Returns `None` when any I/O step fails. Failures are swallowed on purpose:
+/// this helper is best-effort and logs via `tracing::warn!`.
 fn copy_dir_contents(src: &Path, dest: &Path) -> Option<()> {
     if !src.is_dir() {
         return Some(());
@@ -760,6 +792,12 @@ fn copy_dir_contents(src: &Path, dest: &Path) -> Option<()> {
     Some(())
 }
 
+/// Best-effort copy of `from` onto `to` via a pid-suffixed temp file + rename.
+///
+/// # Errors
+///
+/// Returns `None` when copy or rename fails. Failures are swallowed on purpose:
+/// this helper is best-effort (some sibling helpers also log via `tracing::warn!`).
 fn copy_file_replace(from: &Path, to: &Path) -> Option<()> {
     let tmp = to.with_file_name(format!(
         ".{}.part-{}",
@@ -865,9 +903,9 @@ pub fn match_kind_summary(spec: &MatchSpec) -> String {
 mod tests {
     use super::*;
 
-    struct AbsentProbe;
+    struct LocalAbsentProbe;
 
-    impl RequiresProbe for AbsentProbe {
+    impl RequiresProbe for LocalAbsentProbe {
         fn binary_on_path(&self, _name: &str) -> bool {
             false
         }
@@ -917,7 +955,7 @@ mod tests {
         )
         .expect("write project");
         let registry = ExtensionRegistry::load(&defaults, Some(&project)).expect("load");
-        assert_eq!(registry.extensions().len(), 3);
+        assert_eq!(registry.extensions().len(), 4);
         let markdown = registry
             .extensions()
             .iter()
@@ -949,7 +987,7 @@ mod tests {
             "--root".into(),
             "r".into(),
         ];
-        assert!(registry.match_argv_with(&argv, &AbsentProbe).is_none());
+        assert!(registry.match_argv_with(&argv, &LocalAbsentProbe).is_none());
         assert_eq!(registry.extensions()[0].requires(), ["sc-compose"]);
     }
 
@@ -1020,6 +1058,10 @@ mod tests {
             matches!(err, ExtensionError::InvalidRegistry { .. }),
             "{err}"
         );
+        assert!(
+            format!("{err}").contains("in memory"),
+            "empty-requires error must include origin: {err}"
+        );
 
         let pathish = r#"{
           "version": 1,
@@ -1034,6 +1076,10 @@ mod tests {
         assert!(
             matches!(err, ExtensionError::InvalidRegistry { .. }),
             "{err}"
+        );
+        assert!(
+            format!("{err}").contains("in memory"),
+            "path-requires error must include origin: {err}"
         );
     }
 }

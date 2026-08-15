@@ -44,6 +44,13 @@ wyvern compose render --root ./templates --file page.j2 --var-file vars.json
 
 All exit 0 with embedded viewer; expanded commands pass existing validation.
 
+## Compose smoke command
+
+```bash
+wyvern compose render --root fixtures/compose-minimal --file page.j2
+# (requires sc-compose on PATH)
+```
+
 ## Sprint map
 
 | Sprint | Adds | Not new host behavior |
