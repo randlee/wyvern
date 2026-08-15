@@ -250,6 +250,7 @@ fn load_markdown_file(command: Command) -> Result<Command, LoadError> {
             let body = std::fs::read_to_string(&path).map_err(|err| LoadError::Io {
                 field: FieldName::new("file"),
                 message: format!("could not read path '{path}': {err}"),
+                source: Some(Box::new(err)),
             })?;
             if body.len() > wyvern_schema::MARKDOWN_CONTENT_MAX_BYTES {
                 return Err(LoadError::Io {
@@ -259,6 +260,7 @@ fn load_markdown_file(command: Command) -> Result<Command, LoadError> {
                         wyvern_schema::MARKDOWN_CONTENT_MAX_BYTES,
                         body.len()
                     ),
+                    source: None,
                 });
             }
             Ok(Command::Markdown {
@@ -295,7 +297,7 @@ mod tests {
         };
         let err = load_markdown_file(cmd).expect_err("missing");
         match err {
-            LoadError::Io { field, message } => {
+            LoadError::Io { field, message, .. } => {
                 assert_eq!(field, "file");
                 assert!(message.contains("could not read path"));
             }
@@ -372,7 +374,7 @@ mod tests {
         };
         let err = load_markdown_file(cmd).expect_err("oversized");
         match err {
-            LoadError::Io { field, message } => {
+            LoadError::Io { field, message, .. } => {
                 assert_eq!(field, "file");
                 assert!(message.contains("exceeds maximum"));
             }

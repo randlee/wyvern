@@ -49,6 +49,7 @@ fn load_json_file(path: &Path) -> Result<Value, LoadError> {
     let text = std::fs::read_to_string(path).map_err(|err| LoadError::Io {
         field: FieldName::new("file"),
         message: format!("could not read path '{}': {err}", path.display()),
+        source: Some(Box::new(err)),
     })?;
     parse_json(&text)
 }
@@ -60,6 +61,7 @@ fn load_stdin(mut stdin: impl Read) -> Result<Value, LoadError> {
         .map_err(|err| LoadError::Io {
             field: FieldName::new("stdin"),
             message: format!("could not read stdin: {err}"),
+            source: Some(Box::new(err)),
         })?;
     if buf.trim().is_empty() {
         return Err(LoadError::Usage {

@@ -8,7 +8,12 @@ pub enum LoadError {
     /// JSON text could not be parsed.
     Parse { message: String },
     /// A file or stdin read failed.
-    Io { field: FieldName, message: String },
+    Io {
+        field: FieldName,
+        message: String,
+        /// Original I/O error if available.
+        source: Option<Box<dyn std::error::Error + Send + Sync + 'static>>,
+    },
     /// Invalid argv shape; caller prints plain usage text (not JSON).
     Usage { message: String },
 }
@@ -17,13 +22,20 @@ impl std::fmt::Display for LoadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Parse { message } => write!(f, "parse error: {message}"),
-            Self::Io { field, message } => write!(f, "io error ({field}): {message}"),
+            Self::Io { field, message, .. } => write!(f, "io error ({field}): {message}"),
             Self::Usage { message } => write!(f, "{message}"),
         }
     }
 }
 
-impl std::error::Error for LoadError {}
+impl std::error::Error for LoadError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Io { source, .. } => source.as_deref().map(|e| e as _),
+            _ => None,
+        }
+    }
+}
 
 impl LoadError {
     /// Stable exit code for this load failure.
@@ -185,7 +197,7 @@ pub fn emit_parse_error(err: &LoadError) -> Result<String, EmitError> {
 /// Returns [`EmitError::Serialize`] when the envelope cannot be serialized, or
 /// when `err` is not [`LoadError::Io`] (miswire).
 pub fn emit_io_error(err: &LoadError) -> Result<String, EmitError> {
-    let LoadError::Io { field, message } = err else {
+    let LoadError::Io { field, message, .. } = err else {
         debug_assert!(matches!(err, LoadError::Io { .. }));
         return Err(EmitError::Serialize(SerializeError {
             message: "emit_io_error: expected Io".into(),
@@ -518,6 +530,7 @@ mod tests {
         let err = LoadError::Io {
             field: FieldName::new("file"),
             message: r#"could not read path 'say "hi".json'"#.to_string(),
+            source: None,
         };
         let out = emit_io_error(&err).expect("emit");
         let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
@@ -600,6 +613,23 @@ mod tests {
     }
 
     #[test]
+    fn load_error_io_preserves_source_chain() {
+        let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "missing");
+        let err = LoadError::Io {
+            field: FieldName::new("file"),
+            message: "could not read path".into(),
+            source: Some(Box::new(io_err)),
+        };
+        assert_eq!(err.to_string(), "io error (file): could not read path");
+        let source = std::error::Error::source(&err).expect("source chain");
+        assert!(source.to_string().contains("missing"));
+        assert!(std::error::Error::source(&LoadError::Parse {
+            message: "x".into()
+        })
+        .is_none());
+    }
+
+    #[test]
     fn load_error_exit_codes() {
         assert_eq!(
             LoadError::Parse {
@@ -611,7 +641,8 @@ mod tests {
         assert_eq!(
             LoadError::Io {
                 field: FieldName::new("file"),
-                message: "x".into()
+                message: "x".into(),
+                source: None,
             }
             .exit_code(),
             3
