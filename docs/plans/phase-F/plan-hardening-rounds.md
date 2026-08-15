@@ -4,7 +4,8 @@
 |-------|------|----------|-----------------|--------|----------|-----------|-------|---------------|------------|------|
 | STEP2-R3-VERIFY | 2 | plan-scope-reviewer | b9cfca8 | PASS | 0 | 0 | 1 | scope-verify-b9cfca8 | STEP2-R3 | verification after final fix |
 | STEP4-R2 | 4 | critical-plan-reviewer | 64dd9f2 | FAIL | 0 | 8 | 3 | c2-64dd9f2-015-022 | STEP4-R1 | cycle 2 |
-| STEP4-R3 | 4 | critical-plan-reviewer | 8354dc2 | PASS | 0 | 0 | 3 | c3-8354dc23-PASS | STEP4-R2 | ready for QA |
+| STEP5-R1 | 5 | arch-ctm | e96c067 | PASS | 0 | 0 | 0 | step5-consistency |  | ADR-0022 cross-doc |
+| STEP6-R1 | 6 | quality-mgr | e96c067 | PASS | 0 | 0 | 4 | qa-pass-0b0i4m |  | req-qa + arch-qa plan QA |
 
 Cap behavior reminder:
 
