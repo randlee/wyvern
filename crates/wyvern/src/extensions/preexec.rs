@@ -1,8 +1,9 @@
 //! Preexec subprocess spawn, PATH requires-check, and stdout capture.
 
+use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
-use std::time::Duration;
+use std::process::{Child, ChildStdout, Command, ExitStatus, Stdio};
+use std::time::{Duration, Instant};
 
 use super::ExtensionError;
 
@@ -13,6 +14,10 @@ const DEFAULT_PREEXEC_TIMEOUT_SECS: u64 = 30;
 /// Max captured preexec stdout. 1 MiB is enough for markdown capture and
 /// prevents a runaway child from exhausting CLI memory.
 const MAX_PREEXEC_STDOUT_BYTES: usize = 1024 * 1024;
+
+/// Poll interval while waiting for a preexec child. Short enough that typical
+/// helpers appear instantaneous; long enough to avoid a hot loop.
+const PREEXEC_WAIT_POLL: Duration = Duration::from_millis(20);
 
 fn preexec_timeout() -> Duration {
     std::env::var("WYVERN_PREEXEC_TIMEOUT_SECS")
@@ -71,10 +76,9 @@ fn candidate_exists(path: &Path) -> bool {
     path.is_file()
 }
 
-/// Runs the extension preexec command. On timeout the error is returned but
-/// the child process continues running until it naturally exits or the OS
-/// reclaims it. Users who interrupt `wyvern` during a long preexec must
-/// manually terminate the child if needed. See `WYVERN_PREEXEC_TIMEOUT_SECS`.
+/// Runs the extension preexec command. On timeout the child is killed so a
+/// piped stdout reader cannot keep buffering after the CLI has moved on.
+/// See `WYVERN_PREEXEC_TIMEOUT_SECS`.
 ///
 /// # Errors
 ///
@@ -105,7 +109,8 @@ fn run_without_capture(cmd: &str, args: &[String]) -> Result<(), ExtensionError>
         .map_err(|err| ExtensionError::Preexec {
             message: format!("failed to spawn '{cmd}': {err}"),
         })?;
-    let status = wait_child_with_timeout(cmd, move || child.wait())?;
+    let deadline = Instant::now() + preexec_timeout();
+    let status = wait_until(&mut child, cmd, deadline)?;
     if status.success() {
         Ok(())
     } else {
@@ -116,62 +121,105 @@ fn run_without_capture(cmd: &str, args: &[String]) -> Result<(), ExtensionError>
 }
 
 fn run_capture_stdout(cmd: &str, args: &[String]) -> Result<String, ExtensionError> {
-    let child = Command::new(cmd)
+    let mut child = Command::new(cmd)
         .args(args)
         .stdin(Stdio::null())
-        .stdout(Stdio::piped())
         .stderr(Stdio::inherit())
+        .stdout(Stdio::piped())
         .spawn()
         .map_err(|err| ExtensionError::Preexec {
             message: format!("failed to spawn '{cmd}': {err}"),
         })?;
-    let output = wait_child_with_timeout(cmd, move || child.wait_with_output())?;
-    if !output.status.success() {
-        return Err(ExtensionError::Preexec {
-            message: format!("'{cmd}' exited with {}", output.status),
-        });
-    }
-    let raw = output.stdout;
-    if raw.len() > MAX_PREEXEC_STDOUT_BYTES {
-        return Err(ExtensionError::Preexec {
-            message: format!("{cmd} stdout exceeded {MAX_PREEXEC_STDOUT_BYTES} bytes"),
-        });
-    }
-    String::from_utf8(raw).map_err(|err| ExtensionError::Preexec {
-        message: format!("{cmd} stdout is not valid UTF-8: {err}"),
-    })
-}
-
-fn wait_child_with_timeout<T, F>(cmd: &str, child_wait: F) -> Result<T, ExtensionError>
-where
-    F: FnOnce() -> std::io::Result<T> + Send + 'static,
-    T: Send + 'static,
-{
+    let stdout = child.stdout.take().ok_or_else(|| ExtensionError::Preexec {
+        message: format!("failed to capture '{cmd}' stdout"),
+    })?;
     let timeout = preexec_timeout();
-    let (done_tx, done_rx) = std::sync::mpsc::channel();
-    let handle = std::thread::Builder::new()
-        .name("preexec-wait".into())
+    let deadline = Instant::now() + timeout;
+    let cmd_owned = cmd.to_string();
+    let (tx, rx) = std::sync::mpsc::channel();
+    let reader = std::thread::Builder::new()
+        .name("preexec-stdout".into())
         .spawn(move || {
-            let result = child_wait();
-            let _ = done_tx.send(());
-            result
+            let _ = tx.send(read_capped_stdout(&cmd_owned, stdout));
         })
         .map_err(|err| ExtensionError::Preexec {
             message: format!("thread spawn failed: {err}"),
         })?;
-    match done_rx.recv_timeout(timeout) {
-        Ok(()) => handle
-            .join()
-            .map_err(|_| ExtensionError::Preexec {
-                message: "preexec wait thread panicked".into(),
-            })?
-            .map_err(|err| ExtensionError::Preexec {
-                message: format!("{cmd} failed: {err}"),
-            }),
-        Err(_) => Err(ExtensionError::Preexec {
-            message: format!("{cmd} timed out after {}s", timeout.as_secs()),
-        }),
+
+    match rx.recv_timeout(timeout) {
+        Ok(Ok(raw)) => {
+            let status = wait_until(&mut child, cmd, deadline)?;
+            let _ = reader.join();
+            if !status.success() {
+                return Err(ExtensionError::Preexec {
+                    message: format!("'{cmd}' exited with {status}"),
+                });
+            }
+            String::from_utf8(raw).map_err(|err| ExtensionError::Preexec {
+                message: format!("{cmd} stdout is not valid UTF-8: {err}"),
+            })
+        }
+        Ok(Err(err)) => {
+            reap_killed(&mut child, reader);
+            Err(err)
+        }
+        Err(_) => {
+            reap_killed(&mut child, reader);
+            Err(ExtensionError::Preexec {
+                message: format!("{cmd} timed out after {}s", timeout.as_secs()),
+            })
+        }
     }
+}
+
+/// Read stdout with a hard byte cap so a runaway child cannot fill memory.
+fn read_capped_stdout(cmd: &str, stdout: ChildStdout) -> Result<Vec<u8>, ExtensionError> {
+    let mut buf = Vec::new();
+    let mut reader = stdout.take(MAX_PREEXEC_STDOUT_BYTES as u64 + 1);
+    reader
+        .read_to_end(&mut buf)
+        .map_err(|err| ExtensionError::Preexec {
+            message: format!("failed to read stdout: {err}"),
+        })?;
+    if buf.len() > MAX_PREEXEC_STDOUT_BYTES {
+        return Err(ExtensionError::Preexec {
+            message: format!("{cmd} stdout exceeded {MAX_PREEXEC_STDOUT_BYTES} bytes"),
+        });
+    }
+    Ok(buf)
+}
+
+fn wait_until(
+    child: &mut Child,
+    cmd: &str,
+    deadline: Instant,
+) -> Result<ExitStatus, ExtensionError> {
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => return Ok(status),
+            Ok(None) => {
+                if Instant::now() >= deadline {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return Err(ExtensionError::Preexec {
+                        message: format!("{cmd} timed out after {}s", preexec_timeout().as_secs()),
+                    });
+                }
+                std::thread::sleep(PREEXEC_WAIT_POLL);
+            }
+            Err(err) => {
+                return Err(ExtensionError::Preexec {
+                    message: format!("{cmd} wait failed: {err}"),
+                });
+            }
+        }
+    }
+}
+
+fn reap_killed(child: &mut Child, reader: std::thread::JoinHandle<()>) {
+    let _ = child.kill();
+    let _ = child.wait();
+    let _ = reader.join();
 }
 
 /// Lexicographically first `*.html` basename under `{tmpdir}/pages/`.
@@ -248,6 +296,21 @@ mod tests {
     fn preexec_markdown_stdout_capture() {
         let out = run_preexec("printf", &["# hi".into()], Some("markdown")).expect("printf");
         assert_eq!(out.as_deref(), Some("# hi"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn preexec_stdout_cap_rejects_oversize() {
+        let err = run_preexec(
+            "dd",
+            &["if=/dev/zero".into(), "bs=1024".into(), "count=2048".into()],
+            Some("markdown"),
+        )
+        .expect_err("oversize stdout");
+        assert!(
+            matches!(err, ExtensionError::Preexec { ref message } if message.contains("exceeded")),
+            "{err:?}"
+        );
     }
 
     #[test]
