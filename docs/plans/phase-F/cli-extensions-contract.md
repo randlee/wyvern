@@ -69,9 +69,24 @@ Later files override earlier by extension `id`.
 |-----|-------------|
 | `{path}` | Matched file path (positional or after prefix) |
 | `{basename}`, `{stem}`, `{parent_dir}` | Path parts |
+| `{relpath_from_ui_root}` | Path of matched file relative to `{parent_dir}` (ui_root); e.g. `pages/only.html` when ui_root is wizard fixture dir |
 | `{tmpdir}` | Secure temp dir (auto-created, deleted after run) |
 | `{wyvern_share}` | `share/wyvern` beside binary / embedded extract root |
-| `{preexec.stdout}` | Captured stdout from preexec when `stdout` mode set |
+| `{preexec.stdout}` | Captured stdout from preexec when `stdout: "markdown"` (or other mode) set on preexec |
+| `{arg:name}` | Named flag value from argv remainder after prefix match (e.g. `{arg:root}`, `{arg:file}`) |
+| `{rendered_basename}` | Basename of primary rendered HTML file under `{tmpdir}/pages` after preexec |
+
+### Expand fields
+
+| Field | Meaning |
+|-------|---------|
+| `command` | Inline `Command` JSON object after template substitution |
+| `command_from_file` | Load JSON command from `{path}` (wizard.json suffix); host overrides still apply |
+| `host` | `HostOptions` overrides (`ui_root`, etc.) |
+
+### Registry inheritance
+
+Extensions may declare `"extends": "<id>"` to reuse another extension's `preexec` + `expand` block; child `match` replaces parent. Implemented in f.1 loader merge — no duplicate expand blocks required.
 
 ## Subcommand vs suffix
 

@@ -88,7 +88,7 @@ No external JS libraries (vanilla DOM).
 }
 ```
 
-(`extends` or duplicate expand block — implementer choice; document in f.1 if `extends` added.)
+(`csv-table-alias` uses `"extends": "csv-suffix"` per contract inheritance rule.)
 
 ### Fixtures + tests
 

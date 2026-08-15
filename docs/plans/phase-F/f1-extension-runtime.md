@@ -26,7 +26,7 @@ Ship the CLI extension engine: load merged registry, match argv, optional `preex
 |------|--------|
 | `docs/plans/phase-F/cli-extensions-contract.md` | Normative schema (already in plan branch) |
 | `share/wyvern/extensions.json` | Shipped defaults (`.md` only in f.1) |
-| `crates/wyvern/src/extensions/mod.rs` | Loader, merge, match precedence |
+| `crates/wyvern/src/extensions/mod.rs` | Loader, merge, `extends` resolution, match precedence |
 | `crates/wyvern/src/extensions/expand.rs` | Template vars + JSON expand |
 | `crates/wyvern/src/extensions/preexec.rs` | Spawn subprocess; `{tmpdir}` lifecycle |
 
@@ -62,6 +62,9 @@ pub fn expand_and_validate(
     ext: &ExtensionDef,
     ctx: &MatchContext,
 ) -> Result<ExpandedInvocation, ExtensionError>;
+
+/// Resolve `extends` chain; child match overrides parent.
+pub fn resolve_extension<'a>(registry: &'a ExtensionRegistry, id: &str) -> Result<&'a ExtensionDef, ExtensionError>;
 ```
 
 ### Shipped extension (f.1 only)

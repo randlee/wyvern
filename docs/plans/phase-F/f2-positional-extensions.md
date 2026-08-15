@@ -41,7 +41,7 @@ Add suffix handlers for custom HTML and wizard fixture JSON. Infer `--ui-root` f
 }
 ```
 
-`{relpath_from_ui_root}`: path relative to parent of HTML file when HTML lives under `pages/` or at ui root (document rule in contract).
+`{relpath_from_ui_root}`: path relative to `{parent_dir}` (ui_root). Example: for `examples/wizards/single-page/pages/only.html`, ui_root = `single-page/`, html = `pages/only.html`. See contract template table.
 
 **`wizard.json` suffix** → load JSON command file + ui root inference:
 

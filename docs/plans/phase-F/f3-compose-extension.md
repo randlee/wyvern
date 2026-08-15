@@ -71,7 +71,7 @@ Pass-through flags (`--var`, `--var-file`, `--env`) forwarded via preexec arg te
 ## Acceptance criteria
 
 1. With `sc-compose` on PATH: `wyvern compose render --root ./fixtures/compose-minimal --file page.j2` opens wizard preview
-2. Without `sc-compose`: `wyvern compose render ...` → usage error "unknown command" OR explicit "requires sc-compose" (pick one, document)
+2. Without `sc-compose`: `wyvern compose render ...` → structured CLI error `ExtensionError::RequiresBinary { name: "sc-compose" }` with exit code 2 (same as unknown subcommand); extension hidden from default match but explicit invocation surfaces requirement
 3. `wyvern extensions list` shows `compose-render` with `(requires: sc-compose)` status
 4. Preexec failure (non-zero exit) → CLI error with stderr snippet, no host launch
 5. No new Rust dependency on sc-compose crate — external binary only
