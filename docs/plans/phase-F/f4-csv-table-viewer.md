@@ -70,7 +70,8 @@ No external JS libraries (vanilla DOM).
     "command": {
       "type": "wizard",
       "page": { "id": "{stem}", "title": "{basename}", "html": "pages/view.html", "layout": "workspace" },
-      "config": { "estimated_size": { "width": 960, "height": 640 } }
+      "width": 960,
+      "height": 640
     },
     "host": { "ui_root": "{tmpdir}" }
   }
@@ -100,24 +101,24 @@ No external JS libraries (vanilla DOM).
 | Path | Change |
 |------|--------|
 | `fixtures/sample.csv` | Small dataset for tests |
-| `crates/wyvern/tests/extensions_csv.rs` | Expand + preexec layout (all staged files exist) |
-| `scripts/ext/test_csv_to_view.py` | JSON shape + **DOM test** (pytest + html parsing): table rows, sort, filter, truncation banner |
+| `crates/wyvern/tests/extensions_csv.rs` | Expand + preexec layout; `extensions_csv_requires_python3` with `RequiresProbe` stub |
+| `scripts/ext/test_csv_to_view.py` | JSON shape + staged-file existence (not JS runtime DOM) |
 
 ## Acceptance criteria
 
 ### Automated
 
 1. Preexec produces complete tmpdir layout; every path referenced by `view.html` exists
-2. `python3 -m pytest scripts/ext/test_csv_to_view.py` passes (includes DOM sort/filter/banner assertions)
+2. `python3 -m pytest scripts/ext/test_csv_to_view.py` passes (JSON shape + staged-file layout only)
 3. `cargo test -p wyvern extensions_csv` passes expand + layout gates
 4. `wyvern md fixtures/sample.csv` expand → valid markdown command JSON
 5. `wyvern table fixtures/sample.csv` expand identical to suffix form
-6. Requires-check: when `python3` absent, `.csv` suffix does not match (fallthrough)
+6. Requires-check: injected stub reports python3 absent → csv-suffix does not match
 7. No new host dialog type; wizard + markdown only
 
 ### Manual (non-gating)
 
-- Open `fixtures/sample.csv` in embedded viewer; sort/filter/Finish smoke
+- Interactive table: sort column, filter rows, truncation banner, Finish (embedded viewer smoke)
 
 ## Required validation
 
@@ -126,7 +127,7 @@ python3 scripts/ext/csv_to_view.py fixtures/sample.csv --out /tmp/csv-test --for
 test -f /tmp/csv-test/data/rows.json && test -f /tmp/csv-test/shared/table.js
 python3 -m pytest scripts/ext/test_csv_to_view.py
 cargo test -p wyvern extensions_csv
-PATH=/usr/bin:/bin cargo test -p wyvern extensions_csv_requires_python3
+cargo test -p wyvern extensions_csv_requires_python3  # uses injected RequiresProbe stub, not PATH=
 cargo fmt --all --check && cargo clippy --workspace -- -D warnings
 ```
 
@@ -134,7 +135,7 @@ cargo fmt --all --check && cargo clippy --workspace -- -D warnings
 
 - Excel `.xlsx`, Parquet, SQL query UI
 - Server-side pagination for million-row files
-- MCP `show_csv` tool wrapper (Phase E — uses `wyvern::extensions` API)
+- MCP `show_csv` tool wrapper (Phase E — pre-expanded Command JSON or wyvern CLI subprocess)
 - Embedded viewer manual smoke (listed above)
 
 ## Authority

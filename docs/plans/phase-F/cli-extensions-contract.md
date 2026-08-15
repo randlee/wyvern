@@ -12,12 +12,12 @@ Authoritative contract for declarative argv → `Command` JSON expansion. Extens
 ## CLI argv pipeline (normative)
 
 1. Parse argv; route first-token built-ins (`browsers`, `extensions list`) unchanged.
-2. Strip **host-only** flags: `--bind`, `--ui-root`, `--viewer`, `--allow-non-loopback`, `--version`. Leave all other tokens (including unknown `--*`) in the **extension remainder**.
-3. Call `ExtensionRegistry::match_argv(remainder)` before JSON/usage fallback.
-4. `load_command_input` must accept multi-token remainders when an extension matches (prefix extensions: `compose render`, `table`, `md`).
-5. On match: optional preexec → expand → validate → existing pipeline with `ExpandedInvocation.temp_guard` held until host exit.
-
-Required f.1 tests: `wyvern compose render --root X --file Y` survives parse; `wyvern table f.csv` and `wyvern md f.csv` reach matcher.
+2. Strip **host-only** flags: `--bind`, `--ui-root`, `--viewer`, `--allow-non-loopback`. Leave all other tokens in the **extension remainder**.
+3. **Built-ins (step 1, before extension match):** `browsers`, `extensions list`, `--version` / `-V` → early return (unchanged behavior).
+4. Call `ExtensionRegistry::match_argv(remainder)` before JSON/usage fallback. **First match wins:** walk merged `extensions` array in merge order; first matching id wins (project override replaces earlier id at same index).
+5. `load_command_input` must accept multi-token remainders when an extension matches.
+6. On match: optional preexec → expand → validate → existing pipeline with `ExpandedInvocation.temp_guard` held until host exit.
+7. **Host override precedence:** when `ExpandedInvocation.host_overrides.ui_root` is `Some`, it **replaces** CLI `--ui-root`. CLI `--ui-root` applies only when extension does not set `host.ui_root`.
 
 ## Registry locations (merge order — Phase F)
 
@@ -67,7 +67,8 @@ f.1 resolves `{wyvern_share}` via embedded extract beside binary **and** dev-wor
 
 | Field | Meaning |
 |-------|---------|
-| `positional_suffix` | Single positional ends with suffix (`.csv`, `.html`) |
+| `positional_suffix` | Single positional ends with suffix (`.csv`, `.html`, `.md`) |
+| `filename` | Exact basename match (`wizard.json` only — not `ends_with`) |
 | `argv_prefix` | First N argv tokens (`["compose", "render"]`, `["md"]`) |
 | `arg_suffix` | Token after prefix matches suffix (for `wyvern md file.csv`) |
 
@@ -80,7 +81,7 @@ Lives under `preexec.requires`. After `extends` resolution, if any required bina
 **Phase 1 — preexec args** (before subprocess): `{path}`, `{basename}`, `{stem}`, `{parent_dir}`, `{wizard_root}`, `{relpath_from_ui_root}`, `{tmpdir}`, `{wyvern_share}`, `{arg:name}`, `{arg:name:repeat}`.
 
 - `{arg:name:repeat}` splices to **zero or more separate argv tokens** (`--name val` per occurrence). Omit placeholder when flag absent.
-- Missing required `{arg:name}` (non-repeat) → structured `ExtensionError::MissingArg`.
+- `{arg:name}` — parses `--name VAL` token pair from argv remainder (`--name=VAL` also accepted). Missing required arg → `ExtensionError::MissingArg`. Unknown tokens after successful prefix match → `ExtensionError::UnexpectedArg`.
 
 **Phase 2 — command/host expand** (after preexec): `{preexec.stdout}`, `{rendered_basename}` plus phase-1 vars still available.
 
@@ -157,6 +158,10 @@ Preexec writes:
 
 Finish uses `wyvern-api.js` → `{ button: "finish", data: { row_count: N }, stack: [...] }` per Phase D wizard contract.
 
-## Phase E consumption (ADR-0022)
+## Phase E consumption (ADR-0022 — Path A)
 
-Extensions are an **argv preprocessor** producing existing `Command` JSON — no new schema variants. Public API: `wyvern::extensions` module (library surface) that `wyvern` binary and Phase E `--interactive` / MCP argv expansion both call. `wyvern-mcp` may depend on `wyvern` library extensions API (ADR-0011 amendment in f.1). MCP tools accept pre-expanded Command JSON or call the shared expand helper — not duplicate registry logic.
+Extensions are an **argv preprocessor** inside the `wyvern` binary producing existing `Command` JSON. Public API: `wyvern::extensions` module used by `wyvern` CLI and `--interactive` (Phase E).
+
+**MCP (Phase E):** accepts **pre-expanded `Command` JSON** from tool handlers — does **not** call argv expansion. `wyvern-mcp` boundary unchanged (`wyvern-host`, `wyvern-schema` only). Phase E e.3 tools that need CSV/HTML compose the Command JSON in Rust or shell out to `wyvern` CLI for expand-only mode.
+
+f.1 deliverables include `docs/architecture.md` ADR-0022 entry (Path A — no mcp.toml edge change).

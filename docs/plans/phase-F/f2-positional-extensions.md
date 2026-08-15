@@ -48,7 +48,7 @@ For `examples/wizards/single-page/pages/only.html`: `{wizard_root}` = `single-pa
 ```json
 {
   "id": "wizard-json-suffix",
-  "match": { "positional_suffix": "wizard.json" },
+  "match": { "filename": "wizard.json" },
   "expand": {
     "command_from_file": "{path}",
     "host": { "ui_root": "{wizard_root}" }
@@ -79,7 +79,8 @@ Host L1 optional: headless `--viewer none` smoke that expanded wizard URL resolv
 2. `wyvern examples/wizards/turbo-flow/wizard.json` loads turbo-flow with `--ui-root` = turbo-flow dir
 3. Expanded commands validate; missing page file → existing host `UiNotFound` error path
 4. `.md` shorthand still works via f.1 registry
-5. `wyvern extensions list` shows `html-suffix`, `wizard-json-suffix`
+5. `notwizard.json` and `foo-wizard.json` do **not** match wizard-json extension (negative test)
+6. `wyvern extensions list` shows `html-suffix`, `wizard-json-suffix`
 
 ## Required validation
 

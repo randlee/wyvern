@@ -25,6 +25,7 @@ Ship the CLI extension engine: load merged registry, match argv remainder, optio
 | Path | Change |
 |------|--------|
 | `docs/plans/phase-F/cli-extensions-contract.md` | Normative schema (already in plan branch) |
+| `docs/architecture.md` | ADR-0022 entry (extensions preprocessor; MCP Path A) |
 | `share/wyvern/extensions.json` | Shipped defaults (`.md` only in f.1) |
 | `crates/wyvern/Cargo.toml` | `include` / rust-embed map for `share/wyvern/**`, `scripts/ext/**` |
 | `crates/wyvern/src/extensions/mod.rs` | Loader, merge, `extends`, match precedence, `{wyvern_share}` resolve |
@@ -124,7 +125,8 @@ pub fn expand_and_validate(ext: &ExtensionDef, ctx: &MatchContext) -> Result<Exp
 5. Invalid registry JSON → structured CLI error (load time), not panic
 6. `{tmpdir}` temp guard: deleted **after host exit** on success; deleted immediately on preexec failure; present during host run
 7. Prefix extensions (`table`, `md`, `compose render`) reachable via argv remainder pipeline
-8. Workspace builds; clippy clean; no new host routes; `wyvern::extensions` pub mod for Phase E
+8. `--version` / `-V` built-in unchanged; extension `host.ui_root` overrides CLI `--ui-root` when set
+9. Workspace builds; clippy clean; no new host routes; `wyvern::extensions` pub mod for Phase E `--interactive`
 
 ## Required validation
 

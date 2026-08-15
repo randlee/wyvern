@@ -2,7 +2,7 @@
 
 Phase F implementation PRs target **`integrate/phase-F`**. Sprint docs (`f.1`–`f.4`) are the **sole authority** for deliverables, acceptance criteria, and validation. `docs/plans/project-plan.md` carries phase-level goals only.
 
-**Ordering:** Phase F runs **before Phase E**. Phase E reuses `wyvern::extensions` library API for argv expansion in `--interactive` and MCP (ADR-0022 — see contract).
+**Ordering:** Phase F runs **before Phase E**. Phase E `--interactive` reuses `wyvern::extensions` inside the `wyvern` binary. MCP tools use pre-expanded Command JSON (ADR-0022 Path A).
 
 ## Core model
 

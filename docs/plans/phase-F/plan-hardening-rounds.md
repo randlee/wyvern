@@ -2,6 +2,7 @@
 
 | Round | Step | Reviewer | reviewed_commit | status | blocking | important | minor | findings_hash | supersedes | Note |
 |-------|------|----------|-----------------|--------|----------|-----------|-------|---------------|------------|------|
+| STEP2-R3-VERIFY | 2 | plan-scope-reviewer | b9cfca8 | PASS | 0 | 0 | 1 | scope-verify-b9cfca8 | STEP2-R3 | verification after final fix |
 | STEP4-R1 | 4 | critical-plan-reviewer | b9cfca8 | FAIL | 5 | 9 | 3 | c1-b9cfca837-001-014 |  | initial critical review |
 
 Cap behavior reminder:
