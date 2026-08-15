@@ -8,17 +8,6 @@ use wyvern::extensions::{
 };
 use wyvern::{apply_host_overrides, parse_cli_args};
 
-fn workspace_share_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../share/wyvern")
-}
-
-fn isolate_workspace_share() {
-    static INIT: std::sync::Once = std::sync::Once::new();
-    INIT.call_once(|| {
-        std::env::set_var("WYVERN_SHARE", workspace_share_dir());
-    });
-}
-
 fn args(items: &[&str]) -> Vec<String> {
     items.iter().map(|s| (*s).to_string()).collect()
 }
@@ -72,7 +61,6 @@ fn prefix_suffix_match_reaches_matcher() {
 
 #[test]
 fn md_suffix_matches_and_expands() {
-    isolate_workspace_share();
     let registry = ExtensionRegistry::from_json_str(SHIPPED_EXTENSIONS_JSON).expect("shipped");
     let argv = vec!["doc.md".to_string()];
     let matched = registry.match_argv(&argv).expect("suffix");
@@ -85,7 +73,6 @@ fn md_suffix_matches_and_expands() {
 
 #[test]
 fn input_md_path_loads_markdown_value() {
-    isolate_workspace_share();
     let registry = ExtensionRegistry::from_json_str(SHIPPED_EXTENSIONS_JSON).expect("shipped");
     let argv = vec!["doc.md".to_string()];
     let matched = registry.match_argv(&argv).expect("match");
@@ -109,7 +96,6 @@ fn version_flag_is_not_matched() {
 
 #[test]
 fn extensions_argv_pipeline_compose_render_survives_parse() {
-    isolate_workspace_share();
     let parsed = parse_cli_args(&args(&["compose", "render", "--root", "/tmp/ui"])).expect("parse");
     assert_eq!(
         parsed.positionals,
@@ -120,7 +106,7 @@ fn extensions_argv_pipeline_compose_render_survives_parse() {
         .match_argv(&parsed.positionals)
         .expect("compose render must reach matcher");
     assert!(matches!(matched, ExtensionMatch::Prefix { .. }));
-    assert_eq!(matched.extension().id, "compose-render");
+    assert_eq!(matched.extension().id.as_str(), "compose-render");
     let ctx = build_match_context(&matched, matched.extension());
     let (cmd, _) = expand_command_host(matched.extension(), &ctx).expect("expand");
     assert_eq!(cmd["content"], "/tmp/ui");
@@ -140,7 +126,7 @@ fn extensions_argv_pipeline_prefix_suffix_table_and_md() {
     let matched = registry
         .match_argv(&md.positionals)
         .expect("md prefix+suffix");
-    assert_eq!(matched.extension().id, "md-csv");
+    assert_eq!(matched.extension().id.as_str(), "md-csv");
 }
 
 #[test]

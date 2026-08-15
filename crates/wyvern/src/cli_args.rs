@@ -231,7 +231,7 @@ pub fn default_ui_root_with(
 /// Canonical usage text for invalid argv / empty stdin.
 pub fn usage_message() -> String {
     concat!(
-        "Usage: wyvern '<json>' | <file.json> | <file.md> [options]\n",
+        "Usage: wyvern '<json>' | <file.json> | <file.md> | <page.html> | wizard.json [options]\n",
         "       echo '<json>' | wyvern [options]\n",
         "       wyvern browsers list|refresh\n",
         "       wyvern extensions list\n",
@@ -244,7 +244,9 @@ pub fn usage_message() -> String {
         "  --viewer <MODE>            embedded|none|system|chrome|safari|edge|firefox\n",
         "                             (default: embedded; CI: WYVERN_VIEWER=none)\n",
         "\n",
-        "Pass exactly one JSON string, .json file, or .md file; or pipe JSON on stdin.",
+        "Pass a JSON string, .json file, .md file, .html page, or wizard.json; or pipe JSON on stdin.\n",
+        "  See `wyvern extensions list` for available file-type extensions.\n",
+        "  See also: docs/plans/phase-F/README.md\n",
     )
     .to_string()
 }

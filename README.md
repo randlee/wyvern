@@ -42,6 +42,19 @@ Release artifacts (no clone required):
 
 Each archive contains `wyvern`, `wyvern-viewer`, and `share/wyvern/ui/` (message, input, markdown, question, chrome).
 
+## Quick examples
+
+```bash
+# Open a markdown file as a dialog
+wyvern doc.md
+
+# Open a custom HTML wizard page (auto-infers --ui-root)
+wyvern examples/wizards/single-page/pages/only.html
+
+# Load a wizard from wizard.json (auto-infers --ui-root)
+wyvern examples/wizards/turbo-flow/wizard.json
+```
+
 ---
 
 ## What it does

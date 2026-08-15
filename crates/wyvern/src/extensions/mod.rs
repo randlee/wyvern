@@ -60,21 +60,61 @@ pub struct ExtensionRegistry {
     extensions: Vec<ExtensionDef>,
 }
 
+/// Validated, non-empty extension identifier.
+///
+/// Constructed via `serde` `try_from` — guaranteed non-empty after trim.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ExtensionId(String);
+
+impl ExtensionId {
+    /// Returns the id as a string slice.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl TryFrom<String> for ExtensionId {
+    type Error = String;
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        let trimmed = s.trim();
+        if trimmed.is_empty() {
+            return Err("extension id must not be empty or whitespace".into());
+        }
+        Ok(Self(trimmed.to_owned()))
+    }
+}
+
+impl std::fmt::Display for ExtensionId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl AsRef<str> for ExtensionId {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for ExtensionId {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(d)?;
+        Self::try_from(s).map_err(serde::de::Error::custom)
+    }
+}
+
 /// One registry entry after merge and `extends` resolution.
 #[derive(Debug, Clone, Deserialize)]
 pub struct ExtensionDef {
     /// Stable extension id (merge key). Must be non-empty after trim.
-    ///
-    /// Validated at parse time via [`deserialize_extension_id`].
-    #[doc(alias = "ExtensionId")]
-    #[serde(deserialize_with = "deserialize_extension_id")]
-    pub id: String,
+    pub id: ExtensionId,
     /// Argv match rule.
     #[serde(rename = "match")]
     pub match_spec: MatchSpec,
     /// Optional parent id whose preexec/expand are reused.
     #[serde(default)]
-    pub extends: Option<String>,
+    pub extends: Option<ExtensionId>,
     /// Optional subprocess step before command expand.
     #[serde(default)]
     pub preexec: Option<PreexecSpec>,
@@ -100,6 +140,14 @@ pub struct MatchSpec {
     pub arg_suffix: Option<String>,
 }
 
+/// Stdout capture mode for [`PreexecSpec`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum StdoutCapture {
+    /// Capture stdout as markdown text and inject as `{preexec.stdout}`.
+    Markdown,
+}
+
 /// Preexec subprocess declaration.
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct PreexecSpec {
@@ -112,9 +160,9 @@ pub struct PreexecSpec {
     /// Binaries that must be on `PATH` or the extension does not match.
     #[serde(default)]
     pub requires: Vec<String>,
-    /// Stdout capture mode (`"markdown"` only in Phase F).
+    /// Stdout capture mode (`markdown` only in Phase F).
     #[serde(default)]
-    pub stdout: Option<String>,
+    pub stdout: Option<StdoutCapture>,
 }
 
 /// Expand templates for command JSON and host overrides.
@@ -232,8 +280,10 @@ pub enum ExtensionError {
     },
     /// Preexec process failed or could not be spawned.
     Preexec {
-        /// Failure detail.
+        /// Human-readable subprocess failure.
         message: String,
+        /// Original error if available.
+        source: Option<Box<dyn std::error::Error + Send + Sync + 'static>>,
     },
     /// Expanded command failed [`wyvern_schema::validate`].
     InvalidCommand {
@@ -242,8 +292,10 @@ pub enum ExtensionError {
     },
     /// Filesystem failure while loading or expanding.
     Io {
-        /// Failure detail.
+        /// Human-readable I/O error description.
         message: String,
+        /// Original I/O error if available.
+        source: Option<Box<dyn std::error::Error + Send + Sync + 'static>>,
     },
 }
 
@@ -259,11 +311,11 @@ impl std::fmt::Display for ExtensionError {
                 write!(f, "template {{{var}}} requires a matched file path")
             }
             Self::Template { message } => write!(f, "extension template error: {message}"),
-            Self::Preexec { message } => write!(f, "extension preexec failed: {message}"),
+            Self::Preexec { message, .. } => write!(f, "extension preexec failed: {message}"),
             Self::InvalidCommand { source } => {
                 write!(f, "expanded command failed validation: {source}")
             }
-            Self::Io { message } => write!(f, "extension I/O error: {message}"),
+            Self::Io { message, .. } => write!(f, "extension I/O error: {message}"),
         }
     }
 }
@@ -272,6 +324,8 @@ impl std::error::Error for ExtensionError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::InvalidCommand { source } => Some(source),
+            Self::Io { source, .. } => source.as_deref().map(|e| e as _),
+            Self::Preexec { source, .. } => source.as_deref().map(|e| e as _),
             _ => None,
         }
     }
@@ -447,21 +501,11 @@ fn ends_with_suffix(token: &str, suffix: &str) -> bool {
 }
 
 fn parse_registry_file(path: &Path) -> Result<Vec<ExtensionDef>, ExtensionError> {
-    let text = std::fs::read_to_string(path).map_err(|err| ExtensionError::InvalidRegistry {
+    let text = std::fs::read_to_string(path).map_err(|err| ExtensionError::Io {
         message: format!("could not read '{}': {err}", path.display()),
+        source: Some(Box::new(err)),
     })?;
     parse_registry_str(&text, &path.display().to_string())
-}
-
-fn deserialize_extension_id<'de, D: serde::Deserializer<'de>>(d: D) -> Result<String, D::Error> {
-    let s = String::deserialize(d)?;
-    let trimmed = s.trim();
-    if trimmed.is_empty() {
-        return Err(serde::de::Error::custom(
-            "extension id must not be empty or whitespace",
-        ));
-    }
-    Ok(trimmed.to_string())
 }
 
 fn parse_registry_str(text: &str, origin: &str) -> Result<Vec<ExtensionDef>, ExtensionError> {
@@ -533,9 +577,9 @@ fn apply_extends(exts: Vec<ExtensionDef>) -> Result<Vec<ExtensionDef>, Extension
 fn resolve_one(
     ext: &ExtensionDef,
     all: &[ExtensionDef],
-    stack: &mut Vec<String>,
+    stack: &mut Vec<ExtensionId>,
 ) -> Result<ExtensionDef, ExtensionError> {
-    let Some(parent_id) = ext.extends.as_deref() else {
+    let Some(ref parent_id) = ext.extends else {
         return Ok(ext.clone());
     };
     if stack.iter().any(|id| id == &ext.id) {
@@ -546,7 +590,7 @@ fn resolve_one(
     stack.push(ext.id.clone());
     let parent = all
         .iter()
-        .find(|candidate| candidate.id == parent_id)
+        .find(|candidate| candidate.id == *parent_id)
         .ok_or_else(|| ExtensionError::InvalidRegistry {
             message: format!("extension '{}' extends unknown id '{parent_id}'", ext.id),
         })?;
@@ -834,7 +878,7 @@ mod tests {
         let registry = ExtensionRegistry::from_json_str(SHIPPED_EXTENSIONS_JSON).expect("shipped");
         let argv = vec!["docs/readme.md".to_string()];
         let matched = registry.match_argv(&argv).expect("match");
-        assert_eq!(matched.extension().id, "markdown-suffix");
+        assert_eq!(matched.extension().id.as_str(), "markdown-suffix");
         assert_eq!(matched.path(), Some("docs/readme.md"));
     }
 
@@ -873,12 +917,14 @@ mod tests {
         )
         .expect("write project");
         let registry = ExtensionRegistry::load(&defaults, Some(&project)).expect("load");
-        assert_eq!(registry.extensions().len(), 1);
+        assert_eq!(registry.extensions().len(), 3);
+        let markdown = registry
+            .extensions()
+            .iter()
+            .find(|ext| ext.id.as_str() == "markdown-suffix")
+            .expect("markdown-suffix");
         assert_eq!(
-            registry.extensions()[0]
-                .match_spec
-                .positional_suffix
-                .as_deref(),
+            markdown.match_spec.positional_suffix.as_deref(),
             Some(".markdown")
         );
     }
@@ -928,7 +974,7 @@ mod tests {
         let child = registry
             .extensions()
             .iter()
-            .find(|e| e.id == "child")
+            .find(|e| e.id.as_str() == "child")
             .expect("child");
         assert!(child.expand.is_some());
         let argv = vec!["md".into(), "report.csv".into()];
@@ -949,6 +995,13 @@ mod tests {
         }"#;
         let err = ExtensionRegistry::from_json_str(json).expect_err("empty id");
         assert!(matches!(err, ExtensionError::InvalidRegistry { .. }));
+        assert!(ExtensionId::try_from(String::from("   ")).is_err());
+        assert_eq!(
+            ExtensionId::try_from(String::from("markdown-suffix"))
+                .expect("valid")
+                .as_str(),
+            "markdown-suffix"
+        );
     }
 
     #[test]

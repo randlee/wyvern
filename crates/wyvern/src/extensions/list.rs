@@ -49,7 +49,7 @@ fn list() -> Result<String, ExtensionsCmdError> {
 pub fn format_extensions_list(registry: &ExtensionRegistry) -> String {
     let mut out = String::new();
     for ext in registry.extensions() {
-        out.push_str(&ext.id);
+        out.push_str(ext.id.as_str());
         out.push_str("  ");
         out.push_str(&match_kind_summary(&ext.match_spec));
         if !ext.requires().is_empty() {
