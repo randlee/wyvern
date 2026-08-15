@@ -40,7 +40,8 @@ f.1 must implement every contract template variable so f.2–f.4 do not discover
 | `{relpath_from_ui_root}` | expand unit test with nested path |
 | `{tmpdir}`, `{wyvern_share}` | preexec + expand unit test |
 | `{preexec.stdout}` | test-only extension with `stdout: "markdown"` preexec |
-| `{arg:name}` | test-only prefix extension with `--root` capture |
+| `{arg:name}` | expand unit test with `--root` capture |
+| `{arg:name:repeat}` | test-only prefix extension with two `--var-file` occurrences; emits `--var-file a --var-file b` |
 | `{rendered_basename}` | test-only preexec that writes `{tmpdir}/pages/preview.html` |
 
 `MatchContext` carries preexec results (stdout, rendered basename) for expand substitution.
@@ -78,7 +79,20 @@ impl ExtensionRegistry {
 
 pub struct ExpandedInvocation {
     pub command: serde_json::Value,
-    pub host_overrides: HostOverrides, // ui_root, etc.
+    pub host_overrides: HostOverrides,
+}
+
+/// Path + argv context for template substitution after match/preexec.
+pub struct MatchContext<'a> {
+    pub path: &'a str,
+    pub args_after_prefix: &'a [String],
+    pub preexec_stdout: Option<String>,
+    pub rendered_basename: Option<String>,
+}
+
+/// Phase F host override fields from extension expand (no new host routes).
+pub struct HostOverrides {
+    pub ui_root: Option<PathBuf>,
 }
 
 pub fn expand_and_validate(

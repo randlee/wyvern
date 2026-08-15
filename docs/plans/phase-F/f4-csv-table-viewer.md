@@ -65,7 +65,7 @@ No external JS libraries (vanilla DOM).
   "match": { "positional_suffix": ".csv" },
   "preexec": {
     "cmd": "python3",
-    "args": ["{wyvern_share}/scripts/ext/csv_to_view.py", "{path}", "--out", "{tmpdir}"],
+    "args": ["{wyvern_share}/scripts/ext/csv_to_view.py", "{path}", "--out", "{tmpdir}", "--format", "html"],
     "requires": ["python3"]
   },
   "expand": {

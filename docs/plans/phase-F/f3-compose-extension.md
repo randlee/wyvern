@@ -83,10 +83,9 @@ Pass-through flags `--var`, `--var-file`, `--env` captured via `{arg:var:repeat}
 
 1. With `sc-compose` on PATH: `wyvern compose render --root ./fixtures/compose-minimal --file page.j2 --var-file vars.json` opens wizard preview
 2. Without `sc-compose` on PATH: `wyvern compose render ...` does **not** match any extension → standard unknown-subcommand usage error (exit 2); `wyvern extensions list` shows `compose-render (requires: sc-compose)`
-3. `wyvern extensions list` shows `compose-render` with `(requires: sc-compose)` status
-4. Preexec failure (non-zero exit) → CLI error with stderr snippet, no host launch
-5. `--var-file` forwarded to sc-compose preexec args when present
-6. No new Rust dependency on sc-compose crate — external binary only
+3. Preexec failure (non-zero exit) → CLI error with stderr snippet, no host launch
+4. `--var-file` forwarded to sc-compose preexec args when present
+5. No new Rust dependency on sc-compose crate — external binary only
 
 ## Required validation
 
