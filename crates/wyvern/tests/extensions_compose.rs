@@ -5,8 +5,17 @@ use std::path::PathBuf;
 
 use wyvern::extensions::{
     binary_on_path, build_match_context, expand_preexec_args, format_extensions_list,
-    ExtensionRegistry,
+    ExtensionRegistry, RequiresProbe,
 };
+
+/// Probe that always reports required binaries as absent.
+struct AbsentProbe;
+
+impl RequiresProbe for AbsentProbe {
+    fn binary_on_path(&self, _: &str) -> bool {
+        false
+    }
+}
 
 fn workspace_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -25,14 +34,14 @@ fn load_shipped() -> ExtensionRegistry {
 }
 
 /// Without sc-compose on PATH, compose render argv must NOT match.
+///
+/// Uses [`AbsentProbe`] so the test is deterministic and does not re-read PATH
+/// after a presence guard (TOCTOU).
 #[test]
 fn compose_render_no_match_without_sc_compose() {
-    if binary_on_path("sc-compose") {
-        return; // skip if present — this test is for absent-binary behavior
-    }
     let registry = load_shipped();
     let argv = vec!["compose".to_string(), "render".to_string()];
-    let matched = registry.match_argv(&argv);
+    let matched = registry.match_argv_with(&argv, &AbsentProbe);
     assert!(
         matched.is_none(),
         "compose render must not match when sc-compose is absent"
@@ -115,7 +124,7 @@ fn compose_render_var_file_in_expand_args() {
     let matched = registry.match_argv(&argv).expect("should match");
     let mut ctx = build_match_context(&matched, matched.extension());
     // `{tmpdir}` is referenced in preexec args; expand_preexec_args does not create it.
-    ctx.tmpdir = Some(PathBuf::from("/tmp/wyvern-compose-test"));
+    ctx.tmpdir = Some(std::env::temp_dir().join("wyvern-compose-test"));
     let (_cmd, expanded_args) =
         expand_preexec_args(matched.extension(), &ctx).expect("expand args");
     assert!(

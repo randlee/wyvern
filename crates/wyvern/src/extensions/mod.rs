@@ -74,12 +74,29 @@ impl ExtensionId {
     }
 }
 
+/// Failure from [`ExtensionId::try_from`].
+///
+/// A string newtype because this conversion is used exclusively via
+/// `serde::Deserialize`, where `de::Error::custom` wraps the message.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExtensionIdError(String);
+
+impl std::fmt::Display for ExtensionIdError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl std::error::Error for ExtensionIdError {}
+
 impl TryFrom<String> for ExtensionId {
-    type Error = String;
+    type Error = ExtensionIdError;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         let trimmed = s.trim();
         if trimmed.is_empty() {
-            return Err("extension id must not be empty or whitespace".into());
+            return Err(ExtensionIdError(
+                "extension id must not be empty or whitespace".into(),
+            ));
         }
         Ok(Self(trimmed.to_owned()))
     }
@@ -692,6 +709,13 @@ pub fn find_workspace_root(start: &Path) -> Option<PathBuf> {
     None
 }
 
+/// Best-effort copy of workspace share assets into a pid-suffixed `target/` dir.
+///
+/// # Errors
+///
+/// Returns `None` when any I/O step fails. Failures are swallowed on purpose:
+/// this helper is best-effort and logs via `tracing::warn!`. Callers fall back
+/// to other share-resolution paths.
 fn materialize_workspace_share(workspace: &Path) -> Option<PathBuf> {
     // Use pid-suffixed dir to avoid races between concurrent test processes.
     let dest = workspace.join(format!("target/wyvern-share-{}", std::process::id()));
@@ -711,6 +735,12 @@ fn file_nonempty(path: &Path) -> bool {
     path.is_file() && path.metadata().is_ok_and(|m| m.len() > 0)
 }
 
+/// Best-effort recursive copy of `src` into `dest`.
+///
+/// # Errors
+///
+/// Returns `None` when any I/O step fails. Failures are swallowed on purpose:
+/// this helper is best-effort and logs via `tracing::warn!`.
 fn copy_dir_contents(src: &Path, dest: &Path) -> Option<()> {
     if !src.is_dir() {
         return Some(());
@@ -760,6 +790,12 @@ fn copy_dir_contents(src: &Path, dest: &Path) -> Option<()> {
     Some(())
 }
 
+/// Best-effort copy of `from` onto `to` via a pid-suffixed temp file + rename.
+///
+/// # Errors
+///
+/// Returns `None` when copy or rename fails. Failures are swallowed on purpose:
+/// this helper is best-effort (some sibling helpers also log via `tracing::warn!`).
 fn copy_file_replace(from: &Path, to: &Path) -> Option<()> {
     let tmp = to.with_file_name(format!(
         ".{}.part-{}",
