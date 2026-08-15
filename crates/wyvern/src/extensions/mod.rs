@@ -917,7 +917,7 @@ mod tests {
         )
         .expect("write project");
         let registry = ExtensionRegistry::load(&defaults, Some(&project)).expect("load");
-        assert_eq!(registry.extensions().len(), 3);
+        assert_eq!(registry.extensions().len(), 4);
         let markdown = registry
             .extensions()
             .iter()

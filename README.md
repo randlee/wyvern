@@ -55,6 +55,14 @@ wyvern examples/wizards/single-page/pages/only.html
 wyvern examples/wizards/turbo-flow/wizard.json
 ```
 
+## Optional: Compose render
+
+If [`sc-compose`](https://crates.io/crates/sc-compose) is installed, wyvern can render Jinja2 templates to HTML previews:
+
+```bash
+wyvern compose render --root ./my-template-dir --file page.j2
+```
+
 ---
 
 ## What it does

@@ -30,6 +30,30 @@
         "command_from_file": "{path}",
         "host": { "ui_root": "{wizard_root}" }
       }
+    },
+    {
+      "id": "compose-render",
+      "match": { "argv_prefix": ["compose", "render"] },
+      "preexec": {
+        "cmd": "sc-compose",
+        "args": [
+          "render", "--root", "{arg:root}", "--file", "{arg:file}",
+          "--out", "{tmpdir}/pages", "--format", "html",
+          "{arg:var-file:repeat}", "{arg:var:repeat}", "{arg:env:repeat}"
+        ],
+        "requires": ["sc-compose"]
+      },
+      "expand": {
+        "command": {
+          "type": "wizard",
+          "page": {
+            "id": "compose-preview",
+            "title": "Compose preview",
+            "html": "pages/{rendered_basename}"
+          }
+        },
+        "host": { "ui_root": "{tmpdir}" }
+      }
     }
   ]
 }
