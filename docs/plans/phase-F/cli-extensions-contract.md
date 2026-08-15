@@ -143,6 +143,8 @@ wyvern md report.csv        # argv_prefix ["md"] + arg_suffix .csv → markdown
 wyvern compose render --root R --file F.j2   # argv_prefix ["compose","render"]
 ```
 
+Compose preexec invokes `sc-compose render` with `--output {tmpdir}/pages/page.html` (not legacy `--out` / `--format`). Optional pass-through: `--var`, `--var-file`, `--env-prefix` (via `{arg:*:repeat}` templates).
+
 ## CSV HTML table (f.4)
 
 Preexec writes:

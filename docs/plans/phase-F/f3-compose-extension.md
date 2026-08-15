@@ -30,8 +30,8 @@ When `sc-compose` is on `PATH`, `wyvern compose render ...` expands to a wizard 
     "cmd": "sc-compose",
     "args": [
       "render", "--root", "{arg:root}", "--file", "{arg:file}",
-      "--out", "{tmpdir}/pages", "--format", "html",
-      "{arg:var-file:repeat}", "{arg:var:repeat}", "{arg:env:repeat}"
+      "--output", "{tmpdir}/pages/page.html",
+      "{arg:var-file:repeat}", "{arg:var:repeat}", "{arg:env-prefix:repeat}"
     ],
     "requires": ["sc-compose"]
   },
@@ -49,7 +49,7 @@ When `sc-compose` is on `PATH`, `wyvern compose render ...` expands to a wizard 
 }
 ```
 
-Pass-through flags `--var`, `--var-file`, `--env` captured via `{arg:var:repeat}`, `{arg:var-file:repeat}`, `{arg:env:repeat}` (see contract).
+Pass-through flags `--var`, `--var-file`, `--env-prefix` captured via `{arg:var:repeat}`, `{arg:var-file:repeat}`, `{arg:env-prefix:repeat}` (see contract).
 
 ### Fixture (`fixtures/compose-minimal/`)
 

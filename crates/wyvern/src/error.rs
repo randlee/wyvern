@@ -127,7 +127,12 @@ pub fn emit_extension_error(err: &crate::extensions::ExtensionError) -> Result<S
             format!("unexpected argument after extension match: {token}"),
             format!("The extension matched argv but leftover token '{token}' is not declared"),
             vec![format!(
-                "Remove unknown flag `{token}` or declare it with `{{arg:{token}}}` in the registry"
+                "Remove unknown flag `{token}` or declare it with `{{arg:{}}}` in the registry",
+                token
+                    .trim_start_matches('-')
+                    .split('=')
+                    .next()
+                    .unwrap_or(token.as_str())
             )],
         ),
         ExtensionError::PathVarWithoutPath { var } => (

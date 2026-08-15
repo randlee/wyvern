@@ -38,8 +38,8 @@
         "cmd": "sc-compose",
         "args": [
           "render", "--root", "{arg:root}", "--file", "{arg:file}",
-          "--out", "{tmpdir}/pages", "--format", "html",
-          "{arg:var-file:repeat}", "{arg:var:repeat}", "{arg:env:repeat}"
+          "--output", "{tmpdir}/pages/page.html",
+          "{arg:var-file:repeat}", "{arg:var:repeat}", "{arg:env-prefix:repeat}"
         ],
         "requires": ["sc-compose"]
       },

@@ -31,7 +31,7 @@ pub fn parse_cli_args(args: &[String]) -> Result<CliArgs, LoadError> {
     // Packaged shared assets are never overridden by `--ui-root` (d.1 dual mount).
     let shared_ui_root = default_ui_root();
     let mut ui_root = shared_ui_root.clone();
-    let mut viewer = viewer_from_env().unwrap_or(ViewerMode::Embedded);
+    let mut viewer = resolve_default_viewer()?;
     let mut allow_non_loopback = false;
     let mut positionals = Vec::new();
 
@@ -159,6 +159,24 @@ fn viewer_from_env() -> Option<ViewerMode> {
     )
 }
 
+fn resolve_default_viewer() -> Result<ViewerMode, LoadError> {
+    match std::env::var("WYVERN_VIEWER") {
+        Err(std::env::VarError::NotPresent) => Ok(ViewerMode::Embedded),
+        Ok(raw) if raw.is_empty() => Ok(ViewerMode::Embedded),
+        Ok(_) => viewer_from_env().ok_or_else(|| {
+            let raw = std::env::var("WYVERN_VIEWER").unwrap_or_default();
+            LoadError::Usage {
+                message: format!(
+                    "invalid WYVERN_VIEWER={raw:?}; expected embedded, none, system, or a named viewer path"
+                ),
+            }
+        }),
+        Err(err) => Err(LoadError::Usage {
+            message: format!("WYVERN_VIEWER is not valid Unicode: {err}"),
+        }),
+    }
+}
+
 /// Default UI root discovery order:
 ///
 /// 1. `WYVERN_UI_ROOT` environment variable
@@ -274,6 +292,24 @@ mod tests {
             viewer_from_env_with(None).unwrap_or(ViewerMode::Embedded),
             ViewerMode::Embedded
         );
+    }
+
+    #[test]
+    fn invalid_wyvern_viewer_env_is_usage_error() {
+        let err = resolve_default_viewer_with(Some("not-a-viewer-mode")).expect_err("invalid");
+        assert!(matches!(err, LoadError::Usage { .. }));
+    }
+
+    fn resolve_default_viewer_with(value: Option<&str>) -> Result<ViewerMode, LoadError> {
+        match value {
+            None => Ok(ViewerMode::Embedded),
+            Some(raw) if raw.is_empty() => Ok(ViewerMode::Embedded),
+            Some(raw) => ViewerMode::parse(raw).ok_or_else(|| LoadError::Usage {
+                message: format!(
+                    "invalid WYVERN_VIEWER={raw:?}; expected embedded, none, system, or a named viewer path"
+                ),
+            }),
+        }
     }
 
     #[test]

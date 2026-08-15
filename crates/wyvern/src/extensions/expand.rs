@@ -165,6 +165,25 @@ pub fn last_created_tmpdir() -> Option<PathBuf> {
     LAST_CREATED_TMPDIR.with(|cell| cell.borrow().clone())
 }
 
+fn ensure_preexec_output_parents(args: &[String]) -> Result<(), ExtensionError> {
+    for window in args.windows(2) {
+        if window[0] == "--output" {
+            if let Some(parent) = Path::new(&window[1]).parent() {
+                if !parent.as_os_str().is_empty() {
+                    std::fs::create_dir_all(parent).map_err(|err| ExtensionError::Io {
+                        message: format!(
+                            "could not create preexec output parent '{}': {err}",
+                            parent.display()
+                        ),
+                        source: Some(Box::new(err)),
+                    })?;
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Create tmpdir if needed, run preexec, expand, and validate.
 ///
 /// On preexec failure the temp dir is dropped immediately (no host launch).
@@ -197,6 +216,7 @@ pub fn expand_and_validate(
                 return Err(err);
             }
         };
+        ensure_preexec_output_parents(&args)?;
         let stdout_capture = ext.preexec.as_ref().and_then(|p| p.stdout);
         match run_preexec(&cmd, &args, stdout_capture) {
             Ok(stdout) => ctx.preexec_stdout = stdout,

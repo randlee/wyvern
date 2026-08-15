@@ -7,8 +7,8 @@ use std::path::PathBuf;
 
 use test_support::{AbsentProbe, PresentProbe};
 use wyvern::extensions::{
-    build_match_context, expand_command_host, expand_preexec_args, format_extensions_list,
-    ExtensionRegistry,
+    build_match_context, expand_and_validate, expand_command_host, expand_preexec_args,
+    format_extensions_list, ExtensionRegistry,
 };
 
 fn workspace_root() -> PathBuf {
@@ -119,6 +119,18 @@ fn compose_render_var_file_in_expand_args() {
             .any(|a| a == "fixtures/compose-minimal/vars.json"),
         "var-file path must appear in expanded preexec args; got: {expanded_args:?}"
     );
+    assert!(
+        expanded_args
+            .windows(2)
+            .any(|w| w[0] == "--output" && w[1].ends_with("pages/page.html")),
+        "preexec must pass sc-compose --output; got: {expanded_args:?}"
+    );
+    assert!(
+        !expanded_args
+            .iter()
+            .any(|a| a == "--out" || a == "--format"),
+        "legacy sc-compose flags must not appear; got: {expanded_args:?}"
+    );
 }
 
 /// Expand produces the wizard command regardless of sc-compose presence.
@@ -152,6 +164,34 @@ fn compose_render_expand_produces_correct_html_path() {
         host.ui_root.as_deref(),
         Some(ctx.tmpdir.as_deref().expect("tmpdir"))
     );
+}
+
+/// f.3 AC #1: when `sc-compose` is on PATH, preexec must succeed with current CLI flags.
+#[test]
+fn compose_preexec_succeeds_with_sc_compose_on_path() {
+    use wyvern::extensions::binary_on_path;
+    if !binary_on_path("sc-compose") {
+        return;
+    }
+    let registry = load_shipped();
+    let root = workspace_root().join("fixtures/compose-minimal");
+    let argv = vec![
+        "compose".to_string(),
+        "render".to_string(),
+        "--root".to_string(),
+        root.display().to_string(),
+        "--file".to_string(),
+        "page.j2".to_string(),
+        "--var-file".to_string(),
+        root.join("vars.json").display().to_string(),
+    ];
+    let matched = registry
+        .match_argv_with(&argv, &PresentProbe)
+        .expect("compose render must match when sc-compose is present");
+    let ctx = build_match_context(&matched, matched.extension());
+    let expanded = expand_and_validate(matched.extension(), &ctx).expect("preexec+expand");
+    assert_eq!(expanded.command["type"], "wizard");
+    assert_eq!(expanded.command["page"]["html"], "pages/page.html");
 }
 
 /// PLAN-CRIT-003: unmatched `compose render` (no sc-compose) is usage exit 2.

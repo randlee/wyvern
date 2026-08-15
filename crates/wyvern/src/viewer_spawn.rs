@@ -174,8 +174,20 @@ pub fn wait_for_viewer_exit(child: &mut Child) {
         }
         if Instant::now() >= deadline {
             request_viewer_exit(child);
-            let _ = child.wait();
-            return;
+            let kill_deadline = Instant::now() + Duration::from_secs(5);
+            loop {
+                match child.try_wait() {
+                    Ok(Some(_)) => return,
+                    Ok(None) => {}
+                    Err(_) => return,
+                }
+                if Instant::now() >= kill_deadline {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return;
+                }
+                thread::sleep(Duration::from_millis(50));
+            }
         }
         thread::sleep(Duration::from_millis(50));
     }
