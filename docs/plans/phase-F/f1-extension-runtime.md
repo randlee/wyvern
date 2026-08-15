@@ -67,7 +67,8 @@ pub struct ExtensionRegistry { /* merged extensions */ }
 
 pub enum ExtensionMatch<'a> {
     Suffix { ext: &'a ExtensionDef, path: &'a str },
-    Prefix { ext: &'a ExtensionDef, args: &'a [String] },
+    Prefix { ext: &'a ExtensionDef, args_after_prefix: &'a [String] },
+    PrefixSuffix { ext: &'a ExtensionDef, path: &'a str, args_after_prefix: &'a [String] },
 }
 
 impl ExtensionRegistry {
@@ -76,6 +77,13 @@ impl ExtensionRegistry {
     pub fn load(defaults: &Path, project: Option<&Path>) -> Result<Self, ExtensionError>;
     pub fn match_argv(&self, argv: &[String]) -> Option<ExtensionMatch<'_>>;
 }
+
+/// Build MatchContext from match result; extracts `path` from Suffix or PrefixSuffix,
+/// or first args token matching `ext.match.arg_suffix` for Prefix+arg_suffix extensions.
+pub fn build_match_context<'a>(
+    m: &'a ExtensionMatch<'a>,
+    ext: &ExtensionDef,
+) -> MatchContext<'a>;
 
 pub struct ExpandedInvocation {
     pub command: serde_json::Value,
@@ -122,7 +130,7 @@ Removes duplicate logic from `load_positional` `.md` branch.
 
 1. `wyvern doc.md` behaves identically to pre-f.1 (markdown file shorthand via registry)
 2. Unknown suffix falls through to inline JSON / usage error unchanged
-3. `wyvern extensions list` prints shipped ids + match kind + description
+3. `wyvern extensions list` prints each extension id, match-kind summary (e.g. `suffix: .md`), and `(requires: …)` when applicable
 4. Expanded command always passes `wyvern_schema::validate` before host run
 5. Invalid registry JSON → structured CLI error (load time), not panic
 6. `preexec` temp dirs removed on success and failure
