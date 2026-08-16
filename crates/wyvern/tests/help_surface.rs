@@ -4,7 +4,12 @@ use std::process::Command;
 
 fn wyvern() -> Command {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_wyvern"));
+    // Isolate from developer/CI env so help stdout/stderr assertions stay stable.
     cmd.env_remove("WYVERN_LOG");
+    cmd.env_remove("WYVERN_VIEWER_BIN");
+    cmd.env_remove("CARGO_BIN_EXE_wyvern-viewer");
+    cmd.env_remove("WYVERN_SHARE");
+    cmd.env("WYVERN_VIEWER", "none");
     cmd
 }
 

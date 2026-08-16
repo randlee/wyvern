@@ -1,13 +1,15 @@
 //! `wyvern extensions list` subcommand.
 
 use super::{match_kind_summary, ExtensionError, ExtensionRegistry};
-use crate::error::EmitError;
+use crate::error::{EmitError, UsageErrorKind};
 
 /// Failure from the `extensions` built-in.
 #[derive(Debug)]
 pub enum ExtensionsCmdError {
     /// Bad argv.
     Usage {
+        /// Discriminated usage class for structured stderr recovery.
+        kind: UsageErrorKind,
         /// Plain-text usage.
         message: String,
     },
@@ -55,6 +57,10 @@ pub fn run_extensions_command(args: &[String]) -> Result<String, ExtensionsCmdEr
     match sub {
         "list" => list(),
         other => Err(ExtensionsCmdError::Usage {
+            kind: UsageErrorKind::UnknownSubcommand {
+                domain: "extensions".into(),
+                token: other.to_string(),
+            },
             message: format!(
                 "unknown extensions subcommand '{other}'\n{}",
                 extensions_usage_message()
@@ -117,6 +123,25 @@ mod tests {
             !text.contains("show"),
             "g.1 must not advertise show: {text}"
         );
+    }
+
+    #[test]
+    fn unknown_extensions_subcommand_is_discriminated() {
+        let err = run_extensions_command(&["show".into()]).expect_err("usage");
+        match err {
+            ExtensionsCmdError::Usage { kind, message } => {
+                assert!(matches!(
+                    kind,
+                    UsageErrorKind::UnknownSubcommand { ref domain, ref token }
+                        if domain == "extensions" && token == "show"
+                ));
+                assert!(
+                    message.contains("unknown extensions subcommand"),
+                    "{message}"
+                );
+            }
+            other => panic!("expected Usage, got {other:?}"),
+        }
     }
 
     #[test]

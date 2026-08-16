@@ -29,6 +29,13 @@ pub enum UsageErrorKind {
     },
     /// `WYVERN_VIEWER` is not valid Unicode.
     InvalidWyvernViewerUnicode,
+    /// Unknown subcommand on a built-in family (`browsers`, `extensions`).
+    UnknownSubcommand {
+        /// Built-in family name (`browsers` or `extensions`).
+        domain: String,
+        /// Offending subcommand token.
+        token: String,
+    },
 }
 
 /// Failure while loading command input from argv or stdin.
@@ -307,6 +314,24 @@ pub fn emit_usage_error(err: &LoadError) -> Result<String, EmitError> {
                 "Unset WYVERN_VIEWER to use embedded (default)".into(),
             ],
             "docs/plans/phase-C/http-viewer-contract.md",
+        ),
+        UsageErrorKind::UnknownSubcommand { domain, token } => (
+            format!("'{token}' is not a valid {domain} subcommand"),
+            match domain.as_str() {
+                "browsers" => vec![
+                    "Use wyvern browsers list or wyvern browsers refresh".into(),
+                    "Run wyvern browsers --help".into(),
+                ],
+                "extensions" => vec![
+                    "Use wyvern extensions list".into(),
+                    "Run wyvern extensions --help".into(),
+                ],
+                _ => vec![
+                    format!("Run wyvern {domain} --help"),
+                    "Run wyvern --help for host flags".into(),
+                ],
+            },
+            "docs/wyvern/requirements.md (REQ-0134)",
         ),
     };
     let mut envelope = StderrError::new(ErrorCode::ParseError, message.clone())
@@ -873,6 +898,38 @@ mod tests {
         assert!(recovery
             .iter()
             .any(|s| s.as_str().unwrap().contains("Unset WYVERN_VIEWER")));
+    }
+
+    #[test]
+    fn emit_unknown_subcommand_has_domain_specific_recovery() {
+        let browsers = LoadError::Usage {
+            kind: UsageErrorKind::UnknownSubcommand {
+                domain: "browsers".into(),
+                token: "nope".into(),
+            },
+            message: "unknown browsers subcommand 'nope'".into(),
+        };
+        let out = emit_usage_error(&browsers).expect("emit");
+        let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
+        assert!(value["cause"].as_str().unwrap().contains("nope"));
+        let recovery = value["recovery"].as_array().unwrap();
+        assert!(recovery
+            .iter()
+            .any(|s| s.as_str().unwrap().contains("browsers list")));
+
+        let extensions = LoadError::Usage {
+            kind: UsageErrorKind::UnknownSubcommand {
+                domain: "extensions".into(),
+                token: "show".into(),
+            },
+            message: "unknown extensions subcommand 'show'".into(),
+        };
+        let out = emit_usage_error(&extensions).expect("emit");
+        let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
+        let recovery = value["recovery"].as_array().unwrap();
+        assert!(recovery
+            .iter()
+            .any(|s| s.as_str().unwrap().contains("extensions list")));
     }
 
     #[test]

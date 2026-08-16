@@ -151,6 +151,69 @@ impl AsRef<str> for ArgName {
     }
 }
 
+/// Bare PATH binary name (non-empty, no path separators).
+///
+/// Constructed via `serde` `try_from` at registry load.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct BinaryName(String);
+
+impl BinaryName {
+    /// Returns the binary name as a string slice.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::fmt::Display for BinaryName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl AsRef<str> for BinaryName {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::borrow::Borrow<str> for BinaryName {
+    fn borrow(&self) -> &str {
+        &self.0
+    }
+}
+
+impl PartialEq<str> for BinaryName {
+    fn eq(&self, other: &str) -> bool {
+        self.0 == other
+    }
+}
+
+impl TryFrom<String> for BinaryName {
+    type Error = ExtensionIdError;
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        let trimmed = s.trim();
+        if trimmed.is_empty() {
+            return Err(ExtensionIdError(
+                "binary name must not be empty or whitespace".into(),
+            ));
+        }
+        if trimmed.contains('/') || trimmed.contains('\\') {
+            return Err(ExtensionIdError(format!(
+                "'{trimmed}' looks like a path; use bare binary name"
+            )));
+        }
+        Ok(Self(trimmed.to_owned()))
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for BinaryName {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(d)?;
+        Self::try_from(s).map_err(serde::de::Error::custom)
+    }
+}
+
 /// Non-empty match token (suffix, filename, or argv prefix element).
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct MatchToken(String);
@@ -259,7 +322,7 @@ pub struct PreexecSpec {
     pub args: Vec<String>,
     /// Binaries that must be on `PATH` or the extension does not match.
     #[serde(default)]
-    pub requires: Vec<String>,
+    pub requires: Vec<BinaryName>,
     /// Stdout capture mode (`markdown` only in Phase F).
     #[serde(default)]
     pub stdout: Option<StdoutCapture>,
@@ -567,7 +630,7 @@ impl ExtensionRegistry {
 impl ExtensionDef {
     /// Required binaries advertised for `extensions list` and match-time skip.
     #[must_use]
-    pub fn requires(&self) -> &[String] {
+    pub fn requires(&self) -> &[BinaryName] {
         self.preexec
             .as_ref()
             .map(|p| p.requires.as_slice())
@@ -579,7 +642,11 @@ impl ExtensionDef {
         argv: &'a [String],
         probe: &dyn RequiresProbe,
     ) -> Option<ExtensionMatch<'a>> {
-        if !self.requires().iter().all(|bin| probe.binary_on_path(bin)) {
+        if !self
+            .requires()
+            .iter()
+            .all(|bin| probe.binary_on_path(bin.as_str()))
+        {
             return None;
         }
         let spec = &self.match_spec;
@@ -687,25 +754,6 @@ fn parse_registry_str(text: &str, origin: &str) -> Result<Vec<ExtensionDef>, Ext
             return Err(ExtensionError::InvalidRegistry {
                 message: format!("extension '{}' in {origin} has no match fields", ext.id),
             });
-        }
-        if let Some(preexec) = &ext.preexec {
-            for bin in &preexec.requires {
-                let t = bin.trim();
-                if t.is_empty() {
-                    return Err(ExtensionError::InvalidRegistry {
-                        message: format!(
-                            "preexec.requires: binary name must not be empty in {origin}"
-                        ),
-                    });
-                }
-                if t.contains('/') || t.contains('\\') {
-                    return Err(ExtensionError::InvalidRegistry {
-                        message: format!(
-                            "preexec.requires: '{t}' looks like a path; use bare binary name in {origin}"
-                        ),
-                    });
-                }
-            }
         }
     }
     Ok(file.extensions)
@@ -968,7 +1016,14 @@ mod tests {
             "r".into(),
         ];
         assert!(registry.match_argv_with(&argv, &LocalAbsentProbe).is_none());
-        assert_eq!(registry.extensions()[0].requires(), ["sc-compose"]);
+        assert_eq!(
+            registry.extensions()[0]
+                .requires()
+                .iter()
+                .map(BinaryName::as_str)
+                .collect::<Vec<_>>(),
+            ["sc-compose"]
+        );
     }
 
     #[test]
@@ -1019,6 +1074,19 @@ mod tests {
                 .expect("valid")
                 .as_str(),
             "markdown-suffix"
+        );
+    }
+
+    #[test]
+    fn binary_name_rejects_empty_and_path() {
+        assert!(BinaryName::try_from(String::from("   ")).is_err());
+        assert!(BinaryName::try_from(String::from("bin/foo")).is_err());
+        assert!(BinaryName::try_from(String::from("bin\\foo")).is_err());
+        assert_eq!(
+            BinaryName::try_from(String::from("sc-compose"))
+                .expect("valid")
+                .as_str(),
+            "sc-compose"
         );
     }
 
@@ -1095,7 +1163,8 @@ mod tests {
         let pre = child.preexec.as_ref().expect("inherited preexec");
         assert_eq!(pre.cmd, "python3");
         assert_eq!(pre.args, vec!["--parent-flag"]);
-        assert_eq!(pre.requires, ["python3"]);
+        assert_eq!(pre.requires.len(), 1);
+        assert_eq!(pre.requires[0].as_str(), "python3");
     }
 
     #[test]

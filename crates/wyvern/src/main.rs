@@ -42,13 +42,15 @@ fn main() -> ExitCode {
                 print!("{stdout}");
                 ExitCode::SUCCESS
             }
-            Err(BrowsersError::Usage { message }) => match emit_usage_message(&message) {
-                Ok(stderr) => {
-                    eprintln!("{stderr}");
-                    ExitCode::from(2)
+            Err(BrowsersError::Usage { kind, message }) => {
+                match emit_usage_error(&LoadError::Usage { kind, message }) {
+                    Ok(stderr) => {
+                        eprintln!("{stderr}");
+                        ExitCode::from(2)
+                    }
+                    Err(e) => emit_fatal_internal(&e),
                 }
-                Err(e) => emit_fatal_internal(&e),
-            },
+            }
             Err(BrowsersError::Stage { stderr, exit_code }) => {
                 eprintln!("{stderr}");
                 ExitCode::from(u8::try_from(exit_code).unwrap_or(1))
@@ -63,13 +65,15 @@ fn main() -> ExitCode {
                 print!("{stdout}");
                 ExitCode::SUCCESS
             }
-            Err(ExtensionsCmdError::Usage { message }) => match emit_usage_message(&message) {
-                Ok(stderr) => {
-                    eprintln!("{stderr}");
-                    ExitCode::from(2)
+            Err(ExtensionsCmdError::Usage { kind, message }) => {
+                match emit_usage_error(&LoadError::Usage { kind, message }) {
+                    Ok(stderr) => {
+                        eprintln!("{stderr}");
+                        ExitCode::from(2)
+                    }
+                    Err(e) => emit_fatal_internal(&e),
                 }
-                Err(e) => emit_fatal_internal(&e),
-            },
+            }
             Err(ExtensionsCmdError::Stage { stderr, exit_code }) => {
                 eprintln!("{stderr}");
                 ExitCode::from(u8::try_from(exit_code).unwrap_or(1))

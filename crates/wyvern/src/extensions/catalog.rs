@@ -7,13 +7,16 @@ use std::collections::BTreeSet;
 
 use serde_json::Value;
 
-use super::{match_kind_summary, ExtensionDef, MatchToken, PreexecSpec, RequiresProbe};
+use super::{
+    match_kind_summary, ArgName, BinaryName, ExtensionDef, ExtensionId, MatchToken, PreexecSpec,
+    RequiresProbe,
+};
 
 /// One declared `{arg:name}` / `{arg:name:repeat}` flag.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SkillArg {
     /// Flag name without leading dashes.
-    pub name: String,
+    pub name: ArgName,
     /// `true` when the template uses `{arg:name}` (missing is an error).
     pub required: bool,
     /// `true` when the template uses `{arg:name:repeat}`.
@@ -24,7 +27,7 @@ pub struct SkillArg {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SkillRequire {
     /// Bare binary name from the registry.
-    pub binary: String,
+    pub binary: BinaryName,
     /// Result of [`RequiresProbe::binary_on_path`] at build time.
     pub available: bool,
 }
@@ -33,7 +36,7 @@ pub struct SkillRequire {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SkillRecord {
     /// Extension id.
-    pub id: String,
+    pub id: ExtensionId,
     /// Human match DSL (`prefix: compose render`, `prefix+suffix: md .csv`).
     pub match_kind: String,
     /// Copy-paste invocation pattern, including declared flags.
@@ -58,7 +61,7 @@ pub fn build_skill_record(ext: &ExtensionDef, probe: &dyn RequiresProbe) -> Skil
     let invocation = invocation_line(ext, &args);
     let examples = vec![example_line(ext, &invocation, &args)];
     SkillRecord {
-        id: ext.id.as_str().to_string(),
+        id: ext.id.clone(),
         match_kind: match_kind_summary(&ext.match_spec),
         invocation,
         requires: ext
@@ -66,7 +69,7 @@ pub fn build_skill_record(ext: &ExtensionDef, probe: &dyn RequiresProbe) -> Skil
             .iter()
             .map(|binary| SkillRequire {
                 binary: binary.clone(),
-                available: probe.binary_on_path(binary),
+                available: probe.binary_on_path(binary.as_str()),
             })
             .collect(),
         args,
@@ -93,7 +96,7 @@ pub fn format_skill_card(record: &SkillRecord) -> String {
             &record
                 .requires
                 .iter()
-                .map(|req| req.binary.as_str())
+                .map(|req| req.binary.to_string())
                 .collect::<Vec<_>>()
                 .join(", "),
         );
@@ -233,7 +236,7 @@ fn declared_skill_args(ext: &ExtensionDef) -> Vec<SkillArg> {
             Some(name) => (name, true),
             None => (rest, false),
         };
-        if let Some(existing) = ordered.iter_mut().find(|arg| arg.name == name) {
+        if let Some(existing) = ordered.iter_mut().find(|arg| arg.name.as_str() == name) {
             if repeat {
                 existing.repeat = true;
             } else {
@@ -242,7 +245,7 @@ fn declared_skill_args(ext: &ExtensionDef) -> Vec<SkillArg> {
             continue;
         }
         ordered.push(SkillArg {
-            name: name.to_string(),
+            name: ArgName::new(name),
             required: !repeat,
             repeat,
         });
@@ -304,6 +307,8 @@ mod tests {
             .find(|e| e.id.as_str() == "compose-render")
             .expect("compose-render");
         let record = build_skill_record(ext, &Absent);
+        assert_eq!(record.id.to_string(), "compose-render");
+        assert!(record.args.iter().any(|arg| arg.name.as_str() == "root"));
         assert!(!record.requires.iter().any(|r| r.available));
         let card = format_skill_card(&record);
         let root_at = card.find("--root").expect("root");
