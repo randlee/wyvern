@@ -15,6 +15,7 @@ A sprint is a single testable deliverable that fits within one AI context window
 | `integrate/phase-C` | Phase C — Release v0.1.0 | `docs/plans/phase-C/` |
 | `integrate/phase-D` | Phase D — Wizard | `docs/plans/phase-D/` |
 | `integrate/phase-F` | Phase F — CLI Extensions | `docs/plans/phase-F/` |
+| `integrate/phase-G` | Phase G — Extension Agent Usability | `docs/plans/phase-G/` |
 | `integrate/phase-E` | Phase E — Persistent & MCP | `docs/plans/phase-E/` |
 
 Phase A sprint PRs target `integrate/phase-A`. Sprint authority: `docs/plans/phase-A/` (sprints **a.1–a.7**).
@@ -181,13 +182,37 @@ Phase F sprint PRs target `integrate/phase-F`. Sprint authority: `docs/plans/pha
 
 ---
 
+## Phase G — Extension Agent Usability
+
+**Phase goal:** CLI surfaces teach agents how to invoke Phase F extensions without checkout docs — first-class help, error-teaches near-misses, and a parseable skill catalog.
+
+**Prerequisite:** Phase F complete on `develop`.
+
+**Recommended before Phase E** so interactive/MCP agents inherit discoverable argv help.
+
+**Phase acceptance criteria:** `wyvern --help` lists every shipped skill (exit 0); `wyvern compose render --help` prints a skill card; `wyvern extensions list --json` is valid JSON; `wyvern notes.txt` and skipped-requires paths name the next command — not `PARSE_ERROR` “not valid JSON”.
+
+Phase G sprint PRs target `integrate/phase-G`. Sprint authority: `docs/plans/phase-G/` (sprints **g.1–g.3**, sequential).
+
+**Input:** [phase-F-usability-review.md](phase-F/phase-F-usability-review.md)
+
+**Sprints:** three active (**g.1–g.3**). See [docs/plans/phase-G/README.md](phase-G/README.md).
+
+| Sprint | Title | Doc |
+|--------|-------|-----|
+| g.1 | Help surface — global and extension-local | [g1-help-surface.md](phase-G/g1-help-surface.md) |
+| g.2 | Error-teaches — near-miss diagnostics and preexec recovery | [g2-error-teaches.md](phase-G/g2-error-teaches.md) |
+| g.3 | Skill catalog — list, JSON, show | [g3-skill-catalog.md](phase-G/g3-skill-catalog.md) |
+
+---
+
 ## Phase E — Interactive & MCP
 
 **Phase goal:** Wyvern runs as a persistent process, driveable by agents over stdin or as an MCP server.
 
 **Transport:** [http-interactive-mcp-contract.md](phase-C/http-interactive-mcp-contract.md) — persistent `HostSession`.
 
-**Prerequisite:** Phase C **c.16** complete; **Phase F** complete for extension-aware MCP tools and argv expansion in interactive mode.
+**Prerequisite:** Phase C **c.16** complete; **Phase F** complete for extension-aware MCP tools and argv expansion in interactive mode. **Phase G** recommended first for agent-facing help/catalog surfaces.
 
 **Phase acceptance criteria:** A Claude Code agent can open Wyvern in `--interactive` mode from a background shell, issue multiple blocking dialog commands against one persistent process, receive the JSON results, and exit — with no MCP required.
 
@@ -212,6 +237,7 @@ Phase E sprint PRs target `integrate/phase-E`. Sprint authority: `docs/plans/pha
 | Phase B — Core Dialogs | 8 | **MVP — all dialog types usable** |
 | Phase D — Wizard | 8 | Multi-page wizard with branching |
 | Phase F — CLI Extensions | 4 | Suffix/subcommand argv expansion (CSV table, HTML, compose) |
+| Phase G — Extension Agent Usability | 3 | Help, error-teaches, skill catalog (`list --json`, `show`) |
 | Phase E — Interactive & MCP | 4 | Agent-driveable status viewer + MCP |
 
 ## Dependency Map
@@ -222,5 +248,6 @@ Phase A
        └─ Phase C (c.9–c.16 HTTP delivery + wyvern-viewer + v0.1.0)
             └─ Phase D (wizard — HTTP on same host)
                  └─ Phase F (CLI extension registry)
-                      └─ Phase E (persistent host + MCP)
+                      └─ Phase G (extension agent usability — recommended)
+                           └─ Phase E (persistent host + MCP)
 ```
