@@ -167,3 +167,9 @@ Extensions are an **argv preprocessor** inside the `wyvern` binary producing exi
 **MCP (Phase E):** accepts **pre-expanded `Command` JSON** from tool handlers — does **not** call argv expansion. `wyvern-mcp` boundary unchanged (`wyvern-host`, `wyvern-schema` only). Phase E e.3 tools that need CSV/HTML compose the Command JSON in Rust or shell out to `wyvern` CLI for expand-only mode.
 
 f.1 deliverables include `docs/architecture.md` ADR-0022 entry (Path A — no mcp.toml edge change).
+
+## Phase G — agent CLI surfaces
+
+Phase G does not change match/expand semantics above. It adds **in-binary discoverability** requirements (REQ-0134–REQ-0137): global and extension `--help`, skill catalog (`extensions list --json`, `extensions show`), near-miss diagnostics, and registry/help parity tests.
+
+Normative amendment: [agent-usability-contract.md](../phase-G/agent-usability-contract.md). Principal REQ text: [docs/wyvern/requirements.md](../../wyvern/requirements.md). ADR-0022 Phase G consequence: new shipped extensions must update help, catalog, and parity tests in the same change.

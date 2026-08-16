@@ -118,6 +118,20 @@ Boundary rules are encoded in `boundaries/` and enforced in CI.
 
 **Consequences:** Phase F f.1 lands ADR-0022 + contract. Phase E e.3 documents MCP tool pattern for CSV/HTML. Path B (mcp → wyvern lib) deferred unless explicitly re-opened.
 
+**Amendment (Phase G — agent CLI surfaces):**
+
+**Status:** Accepted (Phase G plan — g.1–g.3 implement)
+
+**Context:** Phase F ships the extension engine; agents discover skills only via in-binary output (`--help`, `extensions list`, stderr). A shipped extension is incomplete if registry, help, and catalog diverge.
+
+**Decision:**
+
+1. **In-binary skill pack** is authoritative for agents: global `--help`, extension `--help` skill cards, `extensions list` / `--json`, `extensions show`, and near-miss stderr (see [agent-usability-contract.md](plans/phase-G/agent-usability-contract.md)).
+2. **Registry/help parity:** every shipped `extensions.json` entry must appear in help and catalog output with `description` + `examples` (REQ-0137). CI tests enforce parity.
+3. **README / plan docs** are informative for humans; they are not acceptance gates for agent discoverability.
+
+**Consequences:** New or changed extensions in any phase must update `usage_message()`, registry prose fields, and help/catalog tests in the same PR. Phase G g.1–g.3 land REQ-0134–REQ-0137. Phase E `--interactive` inherits the same argv surfaces.
+
 ---
 
 ### ADR-0021: Minimal serde_json in wyvern-viewer for wizard dismiss
