@@ -18,7 +18,7 @@ Built-in families handle their own `--help` (`extensions`, `browsers`).
 
 ## Skill card formatting (single source of truth)
 
-g.3 owns `SkillRecord` + `build_skill_record()`. Text output for help, list, and show **must** use:
+g.1 stubs `SkillRecord`, `build_skill_record()`, and `format_skill_card()` in `catalog.rs`; g.3 completes fields and adds `build_skill_records()`. Text output for help, list, and show **must** use:
 
 ```rust
 pub fn format_skill_card(record: &SkillRecord) -> String;

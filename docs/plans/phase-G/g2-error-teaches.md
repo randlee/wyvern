@@ -15,7 +15,7 @@ Replace misleading `PARSE_ERROR` / generic usage fallthrough with structured `St
 
 ## Hard dependencies
 
-- **g.1** merged (`match_with_diagnostics` hook points, `format_skill_card`, `match_extension_help`)
+- **g.1** merged (global/extension help pipeline, `format_skill_card`, `match_extension_help`, catalog.rs stub). **g.2** introduces `match_with_diagnostics()` and refactors the `main.rs` match path — not a g.1 deliverable.
 - [agent-usability-contract.md](agent-usability-contract.md) — near-miss table + wire format
 
 ## Deliverables
@@ -23,6 +23,7 @@ Replace misleading `PARSE_ERROR` / generic usage fallthrough with structured `St
 | Path | Change |
 |------|--------|
 | `docs/architecture.md` | ADR-0022 note: CLI uses `match_with_diagnostics`; library `match_argv` unchanged for Phase E |
+| `docs/wyvern/architecture.md` | Amend extension pipeline error table: `NearMissKind` rows, `MissingArgs` rename, `SkippedRequires`/`IncompletePrefix`/`BarePrefix` exit codes (supersedes `LoadError::Usage` match-miss + singular `MissingArg`) |
 | `docs/wyvern/requirements.md` | REQ-0130 near-miss layer wording |
 | `crates/wyvern/src/extensions/mod.rs` | `match_with_diagnostics()` → `MatchOutcome { matched, skipped }`; `match_argv()` wraps `.matched` only |
 | `crates/wyvern/src/extensions/diagnostics.rs` | **New.** `NearMissKind` → `StderrError` envelope per contract table |
@@ -102,8 +103,9 @@ None.
 7. `wyvern compose render` (no flags) → `MissingArgs` lists `--root` and `--file` in one envelope
 8. `UnexpectedArg` recovery never contains `declare them as {arg:name}`
 9. Preexec nonzero: child stderr in `cause`; recovery not “install binaries”
-10. No global `PATH` mutation in parallel tests
-11. `cargo fmt --all --check && cargo clippy --workspace -- -D warnings` clean
+10. `wyvern md /nonexistent/file.csv` → structured preexec/IO envelope with child stderr in `cause`; recovery must not recommend binary install when `python3` ran
+11. Subprocess tests use isolated temp dirs and per-command env overrides — no global `PATH` mutation in parallel tests
+12. `cargo fmt --all --check && cargo clippy --workspace -- -D warnings` clean
 
 ### Manual (non-gating)
 
@@ -118,6 +120,7 @@ cargo fmt --all --check && cargo clippy --workspace -- -D warnings
 ./target/debug/wyvern notes.txt 2>&1 | rg 'unknown input'
 ./target/debug/wyvern notes.txt 2>&1 | rg -v 'not valid JSON'
 ./target/debug/wyvern compose 2>&1 | rg 'compose render'
+./target/debug/wyvern md /nonexistent/file.csv 2>&1 | rg -v 'install.*binary'
 ```
 
 ## Non-closure

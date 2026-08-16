@@ -67,11 +67,12 @@ None.
 5. `csv-table-alias` notes `extends` / alias of `csv-suffix`
 6. `wyvern extensions show csv-md` exit **0**; same facts as JSON record text form
 7. `wyvern extensions show no-such-id` exit non-zero
-8. `wyvern extensions --help` mentions `show` (delivered in g.3)
-9. All seven registry ids have non-empty `description` + `examples`
-10. `compose-render` preexec args in shipped JSON use `--output` (not `--out`) and `--env-prefix` (not `--env`); no `--format html` token — verified by unit test parsing `SHIPPED_EXTENSIONS_JSON`
-11. When `sc-compose` on PATH: `wyvern compose render --root fixtures/compose-minimal --file page.j2` expand + preexec path succeeds (manual non-gating if fixture absent in CI)
-12. `cargo fmt --all --check && cargo clippy --workspace -- -D warnings` clean
+8. `wyvern extensions list --foo` exit non-zero; stderr JSON validation/usage error for unknown flag
+9. `wyvern extensions --help` mentions `show` (delivered in g.3)
+10. All seven registry ids have non-empty `description` + `examples`
+11. `compose-render` preexec args in shipped JSON use `--output` (not `--out`) and `--env-prefix` (not `--env`); no `--format html` token — verified by unit test parsing `SHIPPED_EXTENSIONS_JSON`
+12. When `sc-compose` on PATH: `wyvern compose render --root fixtures/compose-minimal --file page.j2` expand + preexec path succeeds (manual non-gating if fixture absent in CI)
+13. `cargo fmt --all --check && cargo clippy --workspace -- -D warnings` clean
 
 ### Manual (non-gating)
 

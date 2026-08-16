@@ -46,8 +46,10 @@ Extensions (see `wyvern extensions list`):
   wyvern data.csv
   wyvern table data.csv          # same interactive table as data.csv
   wyvern md data.csv             # CSV as a markdown dialog
-  wyvern compose render --root DIR --file FILE.j2 [--var k=v] [--var-file vars.json]
+  wyvern compose render --root DIR --file FILE.j2 [--var k=v] [--var-file vars.json] [--env-prefix PREFIX]
 ```
+
+Optional `{arg:env-prefix:repeat}` flags appear in shipped `compose-render` preexec args; global help and skill cards must document them alongside `--var` / `--var-file`.
 
 ### Rust API (signatures)
 
