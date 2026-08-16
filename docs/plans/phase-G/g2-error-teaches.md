@@ -98,7 +98,7 @@ None.
 3. `wyvern notes.txt` → `USAGE_ERROR` or `VALIDATION_ERROR`, not `PARSE_ERROR` “not valid JSON”
 4. Stub probe csv skipped → names `csv-suffix`, `python3`, example argv
 5. `wyvern md` → csv-md usage with `<file.csv>`
-6. `wyvern compose render` (no flags) → lists `--root` and `--file` in one envelope
+6. `wyvern compose render` (no flags) → `MissingArgs` lists `--root` and `--file` in one envelope
 7. `UnexpectedArg` recovery never contains `declare them as {arg:name}`
 8. Preexec nonzero: child stderr in `cause`; recovery not “install binaries”
 9. No global `PATH` mutation in parallel tests
@@ -113,6 +113,7 @@ None.
 ```bash
 cargo test -p wyvern-cli --test extension_diagnostics preexec_recovery
 cargo fmt --all --check && cargo clippy --workspace -- -D warnings
+./target/debug/wyvern notes.txt 2>&1 | rg 'unknown input'
 ./target/debug/wyvern notes.txt 2>&1 | rg -v 'not valid JSON'
 ```
 
@@ -120,6 +121,7 @@ cargo fmt --all --check && cargo clippy --workspace -- -D warnings
 
 - Rich catalog JSON / `show` → **g.3**
 - Typo inference → P2
+- `PreexecFailureKind::Timeout` → P2 (requires async timeout infra)
 
 ## Authority
 

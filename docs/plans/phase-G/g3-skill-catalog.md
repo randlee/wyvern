@@ -23,11 +23,11 @@ Complete the skill catalog: rich text list, `--json` **array**, `extensions show
 | Path | Change |
 |------|--------|
 | `docs/wyvern/requirements.md` | REQ-0132 amendment (skill index + `--json` array) |
-| `share/wyvern/extensions.json` | `description` + `examples[]` on all seven shipped extensions |
+| `share/wyvern/extensions.json` | Add `description` + `examples[]` on all seven shipped extensions; verify `compose-render.preexec.args` uses `--output` / `--env-prefix` (already correct on `develop` post Phase F — regression guard) |
 | `crates/wyvern/src/extensions/mod.rs` | Parse optional `description`, `examples` on `ExtensionDef` |
 | `crates/wyvern/src/extensions/catalog.rs` | Complete `SkillRecord`, `build_skill_records()`, extend g.1 stub |
 | `crates/wyvern/src/extensions/list.rs` | Rich list; `list --json`; `show <id>`; `show <id> --json`; update `extensions --help` to mention `show` |
-| `docs/plans/phase-G/skills-catalog-contract.md` | Finalize schema (this sprint owns updates) |
+| `docs/plans/phase-G/skills-catalog-contract.md` | Finalize schema (pre-existing scaffold; g.3 implementation must conform) |
 | `crates/wyvern/tests/extensions_catalog.rs` | **New.** Catalog tests |
 
 ### Formatter ownership (normative)
@@ -63,7 +63,9 @@ None.
 7. `wyvern extensions show no-such-id` exit non-zero
 8. `wyvern extensions --help` mentions `show` (delivered in g.3)
 9. All seven registry ids have non-empty `description` + `examples`
-10. `cargo fmt --all --check && cargo clippy --workspace -- -D warnings` clean
+10. `compose-render` preexec args in shipped JSON use `--output` (not `--out`) and `--env-prefix` (not `--env`); no `--format html` token — verified by unit test parsing `SHIPPED_EXTENSIONS_JSON`
+11. When `sc-compose` on PATH: `wyvern compose render --root fixtures/compose-minimal --file page.j2` expand + preexec path succeeds (manual non-gating if fixture absent in CI)
+12. `cargo fmt --all --check && cargo clippy --workspace -- -D warnings` clean
 
 ### Manual (non-gating)
 
