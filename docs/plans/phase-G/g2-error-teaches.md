@@ -22,9 +22,8 @@ Replace misleading `PARSE_ERROR` / generic usage fallthrough with structured `St
 
 | Path | Change |
 |------|--------|
-| `docs/architecture.md` | ADR-0022 note: CLI uses `match_with_diagnostics`; library `match_argv` unchanged for Phase E |
-| `docs/wyvern/architecture.md` | Amend extension pipeline error table: `NearMissKind` rows, `MissingArgs` rename, `SkippedRequires`/`IncompletePrefix`/`BarePrefix` exit codes (supersedes `LoadError::Usage` match-miss + singular `MissingArg`) |
-| `docs/wyvern/requirements.md` | REQ-0130 near-miss layer wording |
+| `docs/architecture.md` | Reference only — ADR-0022 Phase G amendment landed on plan branch |
+| `docs/wyvern/architecture.md` | Reference only — near-miss pipeline rows landed on plan branch |
 | `crates/wyvern/src/extensions/mod.rs` | `match_with_diagnostics()` → `MatchOutcome { matched, skipped }`; `match_argv()` wraps `.matched` only |
 | `crates/wyvern/src/extensions/diagnostics.rs` | **New.** `NearMissKind` → `StderrError` envelope per contract table |
 | `crates/wyvern/src/main.rs` | Near-miss decision table before `load_command_input` (no registry logic in `input.rs`) |
@@ -105,7 +104,8 @@ None.
 9. Preexec nonzero: child stderr in `cause`; recovery not “install binaries”
 10. `wyvern md /nonexistent/file.csv` → structured preexec/IO envelope with child stderr in `cause`; recovery must not recommend binary install when `python3` ran
 11. Subprocess tests use isolated temp dirs and per-command env overrides — no global `PATH` mutation in parallel tests
-12. `cargo fmt --all --check && cargo clippy --workspace -- -D warnings` clean
+13. `cargo fmt --all --check && cargo clippy --workspace -- -D warnings` clean
+14. Implements **REQ-0130** (near-miss layer) and **REQ-0136** per [docs/wyvern/requirements.md](../../wyvern/requirements.md)
 
 ### Manual (non-gating)
 

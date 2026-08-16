@@ -91,11 +91,17 @@ Parsed by `ExtensionDef`; consumed by `SkillRecord` builder.
 
 See [skills-catalog-contract.md](skills-catalog-contract.md).
 
-## REQ amendments (implement in owning sprint)
+## REQ amendments (principal — landed on plan branch)
 
-| REQ | Amendment |
-|-----|-----------|
-| REQ-0130 | After host-flag strip: global help, extension help match, `match_with_diagnostics`, near-miss layer, load fallthrough |
-| REQ-0132 | `extensions list` emits skill-index text or `--json` array per skills-catalog-contract |
+| REQ | Text location |
+|-----|---------------|
+| REQ-0130 | Amended pipeline order — [docs/wyvern/requirements.md](../../wyvern/requirements.md) |
+| REQ-0132 | Skill index + `--json` array — same |
+| REQ-0134 | Global `--help` exit 0, all skills listed — same |
+| REQ-0135 | Extension prefix `--help` skill cards — same |
+| REQ-0136 | Near-miss error-teaches — same |
+| REQ-0137 | Registry/help parity + CI gate — same |
 
-Cross-link ADR-0022 amendment in `docs/architecture.md` (Phase G subsection).
+ADR-0022 Phase G amendment: [docs/architecture.md](../../architecture.md) (registry/help parity consequence).
+
+Sprints **implement** these requirements; g.1/g.2/g.3 deliverables reference REQ ids, not duplicate principal edits unless behavior changes.

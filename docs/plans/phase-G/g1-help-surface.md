@@ -24,9 +24,8 @@ Help output goes to **stdout**; exit code **0**. Failures remain stderr JSON fro
 
 | Path | Change |
 |------|--------|
-| `docs/architecture.md` | ADR-0022 Phase G amendment subsection (help intercept + match-time help) |
+| `docs/architecture.md` | ADR-0022 Phase G amendment (reference only — landed on plan branch) |
 | `docs/plans/phase-F/cli-extensions-contract.md` | Phase G cross-link to agent-usability-contract |
-| `docs/wyvern/requirements.md` | REQ-0130 amendment row (pipeline order) |
 | `crates/wyvern/src/main.rs` | Global help after host-flag strip; extension help via `match_extension_help` before `match_argv` |
 | `crates/wyvern/src/cli_args.rs` | `usage_message()` — Extensions block, wizard-root note, env block |
 | `crates/wyvern/src/extensions/mod.rs` | `match_extension_help(registry, argv) -> Option<&ExtensionDef>`; `is_help_only_tokens` — prefix + help-only remainder, ignores requires/suffix |
@@ -94,6 +93,7 @@ None.
 6. `wyvern extensions --help` exit **0**; mentions `list` (does **not** require `show` — g.3)
 7. `wyvern browsers --help` exit **0**; mentions `list` and `refresh`
 8. `cargo fmt --all --check && cargo clippy --workspace -- -D warnings` clean
+9. Implements **REQ-0134** and **REQ-0135** per [docs/wyvern/requirements.md](../../wyvern/requirements.md)
 
 ### Manual (non-gating)
 

@@ -85,7 +85,8 @@ wyvern md /nonexistent/file.csv
 - No new `Command` enum variants
 - No new `ErrorCode` variants in `wyvern-schema` (near-misses reuse `ParseError` / `ValidationError` with new message text)
 - No `wyvern-host` behavior changes
-- Help text must not require paths absent from release tarball (`docs/plans/…` as secondary recovery only)
+- Principal requirements: [REQ-0134–REQ-0137](../../wyvern/requirements.md) (agent CLI surfaces); amended REQ-0130, REQ-0132
+- ADR-0022 Phase G amendment in [docs/architecture.md](../../architecture.md) — registry/help parity is a merge gate for new extensions
 
 ## Sprint index
 

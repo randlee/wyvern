@@ -22,8 +22,7 @@ Complete the skill catalog: rich text list, `--json` **array**, `extensions show
 
 | Path | Change |
 |------|--------|
-| `docs/wyvern/requirements.md` | REQ-0132 amendment (skill index + `--json` array) |
-| `share/wyvern/extensions.json` | Add `description` + `examples[]` on all seven shipped extensions; verify `compose-render.preexec.args` uses `--output` / `--env-prefix` (already correct on `develop` post Phase F — regression guard) |
+| `share/wyvern/extensions.json` | Add `description` + `examples[]` on all seven shipped extensions; verify `compose-render.preexec.args` uses `--output` / `--env-prefix` (regression guard) |
 | `crates/wyvern/src/extensions/mod.rs` | Parse optional `description`, `examples` on `ExtensionDef` |
 | `crates/wyvern/src/extensions/catalog.rs` | Complete `SkillRecord`, `build_skill_records()`, extend g.1 stub |
 | `crates/wyvern/src/extensions/list.rs` | Rich list; `list --json`; `show <id>`; `show <id> --json`; update `extensions --help` to mention `show` |
@@ -73,6 +72,7 @@ None.
 11. `compose-render` preexec args in shipped JSON use `--output` (not `--out`) and `--env-prefix` (not `--env`); no `--format html` token — verified by unit test parsing `SHIPPED_EXTENSIONS_JSON`
 12. When `sc-compose` on PATH: `wyvern compose render --root fixtures/compose-minimal --file page.j2` expand + preexec path succeeds (manual non-gating if fixture absent in CI)
 13. `cargo fmt --all --check && cargo clippy --workspace -- -D warnings` clean
+14. Implements **REQ-0132** and **REQ-0137** (registry/help parity test) per [docs/wyvern/requirements.md](../../wyvern/requirements.md)
 
 ### Manual (non-gating)
 

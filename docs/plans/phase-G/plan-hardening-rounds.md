@@ -9,5 +9,6 @@
 | — | fix | team-lead | — | be7bdfb | — | — | — | — | — | STEP2-R2,STEP3-R2 | scope+critical R2 fixes applied |
 | — | fix | cursor-quality-mgr | — | 15751aa | — | — | — | — | — | plan QA R1 | cross-doc gaps ATM-QA-001–006 |
 | STEP6-R2 | 6 | req-qa + arch-qa | — | 15751aa | PASS | 0 | 0 | 0 | qa-pass-15751aa | | 15/15 deliverables; PR #82 CI green |
+| — | docs | team-lead | — | pending | — | — | — | — | — | | REQ-0134–0137 + ADR-0022 Phase G principal updates |
 
 Cap: `plan_scope_review_cycle_limit: 2`, `critical_review_cycle_limit: 2` — **plan QA PASS at `15751aa`**

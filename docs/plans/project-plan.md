@@ -190,7 +190,7 @@ Phase F sprint PRs target `integrate/phase-F`. Sprint authority: `docs/plans/pha
 
 **Recommended before Phase E** so interactive/MCP agents inherit discoverable argv help.
 
-**Phase acceptance criteria:** `wyvern --help` lists every shipped skill (exit 0); `wyvern compose render --help` prints a skill card; `wyvern extensions list --json` is valid JSON; `wyvern notes.txt` and skipped-requires paths name the next command — not `PARSE_ERROR` “not valid JSON”.
+**Phase acceptance criteria:** Meets REQ-0134–REQ-0137 — `wyvern --help` lists every shipped skill (exit 0); `wyvern compose render --help` prints a skill card; `wyvern extensions list --json` is valid JSON; near-miss paths name the next command — not misleading parse text.
 
 Phase G sprint PRs target `integrate/phase-G`. Sprint authority: `docs/plans/phase-G/` (sprints **g.1–g.3**, sequential).
 
