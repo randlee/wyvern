@@ -18,7 +18,7 @@ Help output goes to **stdout**; exit code **0**. Failures remain stderr JSON fro
 ## Hard dependencies
 
 - Phase F merged to `develop`
-- [agent-usability-contract.md](agent-usability-contract.md) — pipeline order, help match, `ExpandOutcome`
+- [agent-usability-contract.md](agent-usability-contract.md) — pipeline order, match-time help
 
 ## Deliverables
 
