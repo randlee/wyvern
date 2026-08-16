@@ -1,13 +1,15 @@
 //! `wyvern extensions list` subcommand.
 
 use super::{match_kind_summary, ExtensionError, ExtensionRegistry};
-use crate::error::EmitError;
+use crate::error::{EmitError, UsageErrorKind};
 
 /// Failure from the `extensions` built-in.
 #[derive(Debug)]
 pub enum ExtensionsCmdError {
     /// Bad argv.
     Usage {
+        /// Discriminated usage class for structured stderr recovery.
+        kind: UsageErrorKind,
         /// Plain-text usage.
         message: String,
     },
@@ -22,18 +24,46 @@ pub enum ExtensionsCmdError {
     Emit(EmitError),
 }
 
+/// Usage text for `wyvern extensions --help` / `-h`.
+///
+/// Mentions `list` only; `show` is a g.3 deliverable.
+#[must_use]
+pub fn extensions_usage_message() -> String {
+    concat!(
+        "Usage: wyvern extensions [list]\n",
+        "       wyvern extensions --help\n",
+        "\n",
+        "Commands:\n",
+        "  list    List shipped and project CLI extensions\n",
+        "\n",
+        "See also: wyvern --help\n",
+    )
+    .to_string()
+}
+
 /// Run `wyvern extensions …`; returns stdout text on success.
 ///
 /// # Errors
 ///
 /// Returns usage text or structured stderr for invalid argv / registry load.
 pub fn run_extensions_command(args: &[String]) -> Result<String, ExtensionsCmdError> {
+    if args
+        .first()
+        .is_some_and(|token| token == "--help" || token == "-h")
+    {
+        return Ok(extensions_usage_message());
+    }
     let sub = args.first().map(String::as_str).unwrap_or("list");
     match sub {
         "list" => list(),
         other => Err(ExtensionsCmdError::Usage {
+            kind: UsageErrorKind::UnknownSubcommand {
+                domain: "extensions".into(),
+                token: other.to_string(),
+            },
             message: format!(
-                "unknown extensions subcommand '{other}'\nUsage: wyvern extensions list"
+                "unknown extensions subcommand '{other}'\n{}",
+                extensions_usage_message()
             ),
         }),
     }
@@ -83,6 +113,35 @@ mod tests {
         let text = format_extensions_list(&registry);
         assert!(text.contains("markdown-suffix"), "{text}");
         assert!(text.contains("suffix: .md"), "{text}");
+    }
+
+    #[test]
+    fn extensions_help_mentions_list_only() {
+        let text = extensions_usage_message();
+        assert!(text.contains("list"), "{text}");
+        assert!(
+            !text.contains("show"),
+            "g.1 must not advertise show: {text}"
+        );
+    }
+
+    #[test]
+    fn unknown_extensions_subcommand_is_discriminated() {
+        let err = run_extensions_command(&["show".into()]).expect_err("usage");
+        match err {
+            ExtensionsCmdError::Usage { kind, message } => {
+                assert!(matches!(
+                    kind,
+                    UsageErrorKind::UnknownSubcommand { ref domain, ref token }
+                        if domain == "extensions" && token == "show"
+                ));
+                assert!(
+                    message.contains("unknown extensions subcommand"),
+                    "{message}"
+                );
+            }
+            other => panic!("expected Usage, got {other:?}"),
+        }
     }
 
     #[test]

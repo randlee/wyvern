@@ -1,7 +1,7 @@
 ---
 id: g.1
 title: Help surface — global and extension-local
-status: planning
+status: complete
 branch: feature/phase-G-g1-help-surface
 worktree: ../wyvern-worktrees/feature/phase-G-g1-help-surface
 target: integrate/phase-G

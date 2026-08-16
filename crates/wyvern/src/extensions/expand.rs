@@ -188,6 +188,8 @@ fn ensure_preexec_output_parents(args: &[String]) -> Result<(), ExtensionError> 
 ///
 /// On preexec failure the temp dir is dropped immediately (no host launch).
 /// On success `temp_guard` is held until the caller drops [`ExpandedInvocation`].
+/// CLI `--help` / `-h` never reach this function — [`super::match_extension_help`]
+/// handles skill cards before match and expand.
 ///
 /// # Errors
 ///

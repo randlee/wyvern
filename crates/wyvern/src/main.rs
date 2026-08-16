@@ -16,8 +16,9 @@ use std::io::{self, IsTerminal, Write};
 use std::process::ExitCode;
 
 use wyvern::extensions::{
-    build_match_context, expand_and_validate, run_extensions_command, ExtensionError,
-    ExtensionRegistry, ExtensionsCmdError,
+    build_match_context, build_skill_record, expand_and_validate, format_skill_card,
+    match_extension_help, run_extensions_command, ExtensionError, ExtensionRegistry,
+    ExtensionsCmdError, PathRequiresProbe,
 };
 use wyvern::{
     apply_host_overrides, emit_extension_error, emit_fatal_internal, emit_io_error,
@@ -41,13 +42,15 @@ fn main() -> ExitCode {
                 print!("{stdout}");
                 ExitCode::SUCCESS
             }
-            Err(BrowsersError::Usage { message }) => match emit_usage_message(&message) {
-                Ok(stderr) => {
-                    eprintln!("{stderr}");
-                    ExitCode::from(2)
+            Err(BrowsersError::Usage { kind, message }) => {
+                match emit_usage_error(&LoadError::Usage { kind, message }) {
+                    Ok(stderr) => {
+                        eprintln!("{stderr}");
+                        ExitCode::from(2)
+                    }
+                    Err(e) => emit_fatal_internal(&e),
                 }
-                Err(e) => emit_fatal_internal(&e),
-            },
+            }
             Err(BrowsersError::Stage { stderr, exit_code }) => {
                 eprintln!("{stderr}");
                 ExitCode::from(u8::try_from(exit_code).unwrap_or(1))
@@ -62,13 +65,15 @@ fn main() -> ExitCode {
                 print!("{stdout}");
                 ExitCode::SUCCESS
             }
-            Err(ExtensionsCmdError::Usage { message }) => match emit_usage_message(&message) {
-                Ok(stderr) => {
-                    eprintln!("{stderr}");
-                    ExitCode::from(2)
+            Err(ExtensionsCmdError::Usage { kind, message }) => {
+                match emit_usage_error(&LoadError::Usage { kind, message }) {
+                    Ok(stderr) => {
+                        eprintln!("{stderr}");
+                        ExitCode::from(2)
+                    }
+                    Err(e) => emit_fatal_internal(&e),
                 }
-                Err(e) => emit_fatal_internal(&e),
-            },
+            }
             Err(ExtensionsCmdError::Stage { stderr, exit_code }) => {
                 eprintln!("{stderr}");
                 ExitCode::from(u8::try_from(exit_code).unwrap_or(1))
@@ -100,10 +105,27 @@ fn main() -> ExitCode {
         };
     }
 
+    if cli
+        .positionals
+        .first()
+        .is_some_and(|token| token == "--help" || token == "-h" || token == "help")
+    {
+        print!("{}", usage_message());
+        return ExitCode::SUCCESS;
+    }
+
     let registry = match ExtensionRegistry::load_default() {
         Ok(registry) => registry,
         Err(err) => return emit_extension_stage_failure(&err),
     };
+
+    if let Some(ext) = match_extension_help(&registry, &cli.positionals) {
+        print!(
+            "{}",
+            format_skill_card(&build_skill_record(ext, &PathRequiresProbe))
+        );
+        return ExitCode::SUCCESS;
+    }
 
     if let Some(matched) = registry.match_argv(&cli.positionals) {
         let ctx = build_match_context(&matched, matched.extension());

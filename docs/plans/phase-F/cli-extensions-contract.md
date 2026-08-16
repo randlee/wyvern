@@ -172,4 +172,4 @@ f.1 deliverables include `docs/architecture.md` ADR-0022 entry (Path A — no mc
 
 Phase G does not change match/expand semantics above. It adds **in-binary discoverability** requirements (REQ-0134–REQ-0137): global and extension `--help`, skill catalog (`extensions list --json`, `extensions show`), near-miss diagnostics, and registry/help parity tests.
 
-Normative amendment: [agent-usability-contract.md](../phase-G/agent-usability-contract.md). Principal REQ text: [docs/wyvern/requirements.md](../../wyvern/requirements.md). ADR-0022 Phase G consequence: new shipped extensions must update help, catalog, and parity tests in the same change.
+Normative amendment: [agent-usability-contract.md](../phase-G/agent-usability-contract.md). Help surface (g.1): [g1-help-surface.md](../phase-G/g1-help-surface.md) — global `--help` / `-h` / `help` (exit 0) and match-time extension skill cards via `match_extension_help`. Principal REQ text: [docs/wyvern/requirements.md](../../wyvern/requirements.md). ADR-0022 Phase G consequence: new shipped extensions must update help, catalog, and parity tests in the same change.
