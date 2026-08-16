@@ -44,7 +44,7 @@ Array element shape:
 
 ## Text mode
 
-Plain `list` and `show` use multi-line blocks from `format_skill_record_text()`. Same facts as JSON; not a second source of truth.
+Plain `list` and `show` use `format_skill_card(&SkillRecord)` — same function as extension `--help`. Single source of truth in `catalog.rs`.
 
 ## CLI routing
 

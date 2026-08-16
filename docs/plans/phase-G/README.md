@@ -20,10 +20,15 @@ argv → match extension → optional preexec → template expand → validate �
 
 Phase G adds **surfaces** around that path — no new dialog types, no new host behavior:
 
+```
+host flags stripped → global/extension help → match_with_diagnostics → expand → pipeline
+                      → near-miss diagnostics (g.2) on no match
+```
+
 | Surface | Phase G adds |
 |---------|----------------|
 | `--help` / `-h` | First-class, exit 0; lists every shipped skill with copy-paste examples |
-| Extension prefix `--help` | Skill card for matched extension (args, requires, example) |
+| Extension prefix `--help` | Skill card at **match time** (before requires skip; no suffix path required) |
 | Fallthrough errors | Unknown suffix, incomplete prefix, skipped `requires` name the skill |
 | `extensions list` | Skill index (text + `--json`); optional `show <id>` |
 | Preexec failures | Child stderr in JSON envelope; spawn vs exit vs missing-file recovery |
@@ -46,8 +51,8 @@ wyvern -h
 # Extension-local help — exit 0, not UnexpectedArg
 wyvern compose render --help
 
-# Skill catalog — machine-readable
-wyvern extensions list --json | jq '.extensions | length'   # ≥ 7
+# Skill catalog — machine-readable JSON array
+wyvern extensions list --json | jq 'length >= 7'
 
 # Near-miss teaches next command — not PARSE_ERROR "not valid JSON"
 wyvern notes.txt
@@ -62,7 +67,7 @@ wyvern md /nonexistent/file.csv
 | Sprint | Adds | Touches |
 |--------|------|---------|
 | **g.1** | Help surface — global `--help`, `wyvern help`, enriched usage, extension `--help` skill cards, built-in subcommand `--help` | `main.rs`, `cli_args.rs`, `expand.rs`, `list.rs`, `browsers` cmd |
-| **g.2** | Error-teaches — skipped-requires diagnostics, unknown suffix / incomplete prefix, MissingArg/UnexpectedArg caller recovery, preexec stderr capture | `mod.rs`, `main.rs`, `input.rs`, `error.rs`, `preexec.rs`, `expand.rs` |
+| **g.2** | Error-teaches — skipped-requires diagnostics, unknown suffix / incomplete prefix, MissingArgs/UnexpectedArg caller recovery, preexec stderr capture | `mod.rs`, `main.rs`, `error.rs`, `preexec.rs`, `expand.rs` |
 | **g.3** | Skill catalog — rich list text, `--json`, `extensions show <id>`, registry `description`/`examples` | `list.rs`, `extensions/mod.rs`, `extensions.json` |
 
 ## What Phase G does not close
@@ -78,7 +83,8 @@ wyvern md /nonexistent/file.csv
 
 - All changes stay in **`wyvern` CLI crate** (`crates/wyvern/src/**`) plus `share/wyvern/extensions.json` schema fields
 - No new `Command` enum variants
-- No `wyvern-host` / `wyvern-schema` behavior changes except error message strings consumed by existing emit paths
+- No new `ErrorCode` variants in `wyvern-schema` (reuse existing codes for near-misses; see agent-usability-contract)
+- No `wyvern-host` behavior changes
 - Help text must not require paths absent from release tarball (`docs/plans/…` as secondary recovery only)
 
 ## Sprint index
@@ -92,6 +98,7 @@ wyvern md /nonexistent/file.csv
 ## Contract reference
 
 - Extension match/expand semantics: [cli-extensions-contract.md](../phase-F/cli-extensions-contract.md)
+- Phase G amendment: [agent-usability-contract.md](agent-usability-contract.md)
 - Skills catalog JSON/text: [skills-catalog-contract.md](skills-catalog-contract.md) (g.3)
 - Usability findings and rubric: [phase-F-usability-review.md](../phase-F/phase-F-usability-review.md)
 

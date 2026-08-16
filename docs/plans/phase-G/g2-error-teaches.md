@@ -11,34 +11,34 @@ target: integrate/phase-G
 
 ## Goal
 
-Replace misleading `PARSE_ERROR` / generic usage fallthrough with structured diagnostics that name the skill and the next argv. Preexec failures classify spawn-not-found vs nonzero-exit vs missing input; recovery must not say “install binaries” when the binary ran.
+Replace misleading `PARSE_ERROR` / generic usage fallthrough with structured `StderrError` JSON that names the skill and next argv. Preexec failures classify spawn-not-found vs nonzero-exit; recovery must not say “install binaries” when the binary ran.
 
 ## Hard dependencies
 
-- **g.1** merged to `integrate/phase-G` (`format_skill_card`, help patterns)
-- Phase F extension runtime on `develop`
+- **g.1** merged (`match_with_diagnostics` hook points, `format_skill_card`, `ExpandOutcome`)
+- [agent-usability-contract.md](agent-usability-contract.md) — near-miss table + wire format
 
 ## Deliverables
 
 | Path | Change |
 |------|--------|
-| `crates/wyvern/src/extensions/mod.rs` | `match_with_diagnostics()` → `MatchOutcome { matched, skipped }`; `SkippedExtension` records id + missing binary |
-| `crates/wyvern/src/extensions/diagnostics.rs` | **New.** Near-miss formatters + JSON envelope builders |
-| `crates/wyvern/src/main.rs` | Before JSON parse fallthrough: unknown suffix, incomplete prefix, bare prefix token, skipped-only match |
-| `crates/wyvern/src/input.rs` | Stop treating unknown file paths as inline JSON when extension diagnostics apply |
-| `crates/wyvern/src/extensions/expand.rs` | `MissingArg`: report all missing required args in one error; include full declared list + example |
-| `crates/wyvern/src/extensions/preexec.rs` | Pipe child stderr (tail cap e.g. 4 KiB); attach to `ExtensionError::Preexec` |
-| `crates/wyvern/src/error.rs` | Caller-facing `UnexpectedArg` / `MissingArg` / `Preexec` recovery; in-binary recovery before doc paths |
-| `crates/wyvern/tests/extension_diagnostics.rs` | **New.** Near-miss subprocess tests (scoped env, no global `PATH` mutation) |
-| `crates/wyvern/tests/preexec_recovery.rs` | **New.** Mock cmd / fixture preexec failure classification |
+| `docs/architecture.md` | ADR-0022 note: CLI uses `match_with_diagnostics`; library `match_argv` unchanged for Phase E |
+| `docs/wyvern/requirements.md` | REQ-0130 near-miss layer wording |
+| `crates/wyvern/src/extensions/mod.rs` | `match_with_diagnostics()` → `MatchOutcome { matched, skipped }`; `match_argv()` wraps `.matched` only |
+| `crates/wyvern/src/extensions/diagnostics.rs` | **New.** `NearMissKind` → `StderrError` envelope per contract table |
+| `crates/wyvern/src/main.rs` | Near-miss decision table before `load_command_input` (no registry logic in `input.rs`) |
+| `crates/wyvern/src/extensions/expand.rs` | `ExtensionError::MissingArgs { … }` replaces `MissingArg`; list all missing required flags |
+| `crates/wyvern/src/extensions/preexec.rs` | Pipe stderr (4 KiB tail); `PreexecFailureKind` without `Timeout` |
+| `crates/wyvern/src/error.rs` | Caller-facing `UnexpectedArg` / `MissingArgs` / `Preexec` recovery; in-binary recovery first |
+| `crates/wyvern/tests/extension_diagnostics.rs` | **New.** Near-miss subprocess tests |
+| `crates/wyvern/tests/preexec_recovery.rs` | **New.** Spawn vs nonzero-exit classification |
 
 ### Rust API (signatures)
 
 ```rust
-// mod.rs
 pub struct SkippedExtension {
     pub id: String,
-    pub missing: Vec<String>, // requires binaries absent on PATH
+    pub missing: Vec<String>,
 }
 
 pub struct MatchOutcome<'a> {
@@ -47,14 +47,10 @@ pub struct MatchOutcome<'a> {
 }
 
 impl ExtensionRegistry {
-    pub fn match_with_diagnostics<'a>(
-        &'a self,
-        argv: &'a [String],
-        probe: &dyn RequiresProbe,
-    ) -> MatchOutcome<'a>;
+    pub fn match_with_diagnostics<'a>(...) -> MatchOutcome<'a>;
+    // match_argv unchanged: self.match_with_diagnostics(argv, probe).matched
 }
 
-// diagnostics.rs
 pub enum NearMissKind {
     UnknownInput { token: String },
     IncompletePrefix { tokens: Vec<String>, hint: String },
@@ -62,16 +58,13 @@ pub enum NearMissKind {
     SkippedRequires { path: String, skipped: Vec<SkippedExtension> },
 }
 
-pub fn format_near_miss(kind: &NearMissKind) -> String;
+pub fn emit_near_miss(kind: &NearMissKind) -> Result<String, EmitError>; // StderrError JSON
 
-// preexec.rs
 pub enum PreexecFailureKind {
     SpawnNotFound { cmd: String },
     NonZeroExit { code: i32, stderr_tail: String },
-    Timeout,
 }
 
-// expand.rs — MissingArg carries full context
 pub enum ExtensionError {
     MissingArgs {
         missing: Vec<String>,
@@ -83,16 +76,14 @@ pub enum ExtensionError {
 }
 ```
 
-### Normative stderr snippets (automated tests grep these substrings)
+### Near-miss wire (normative)
 
-| Invocation | Must contain | Must not contain |
-|------------|--------------|------------------|
-| `wyvern notes.txt` | `unknown input`, `.md`, `extensions list` | `Input was not valid JSON` |
-| subprocess with stub probe: csv skipped | `csv-suffix`, `python3`, `wyvern sample.csv` | `PARSE_ERROR` |
-| `wyvern md` | `csv-md`, `<file.csv>` | `not valid JSON` |
-| `wyvern compose` | `compose render`, `--root` | `PARSE_ERROR` |
-| `wyvern compose render` (no flags) | `--root`, `--file` in same envelope | `declare {arg:name}` |
-| preexec missing CSV file | `could not read` or path hint in `cause` | `Install binaries listed in preexec.requires` |
+| Kind | `code` | Exit |
+|------|--------|------|
+| `UnknownInput` | `USAGE_ERROR` | 2 |
+| `SkippedRequires`, `IncompletePrefix`, `BarePrefix` | `VALIDATION_ERROR` | 4 |
+
+Tests grep `recovery` / `message`; must not contain `Input was not valid JSON` for `notes.txt` or skipped csv.
 
 ### Paths to delete
 
@@ -102,39 +93,35 @@ None.
 
 ### Automated
 
-1. `cargo test -p wyvern-cli --test extension_diagnostics` passes all near-miss cases above
-2. `cargo test -p wyvern-cli --test preexec_recovery` passes spawn-not-found vs nonzero-exit vs missing-file branches
-3. `UnexpectedArg` recovery strings never contain `declare them as {arg:name}`
-4. `MissingArg` for `compose render` lists both `--root` and `--file` before retry is required
-5. Preexec nonzero exit: JSON envelope includes child stderr fragment in `cause` or structured `details`
-6. Preexec spawn `ENOENT`: recovery mentions installing the named binary only
-7. Tests use subprocess + injected probe or temp fixtures — **no** `std::env::set_var("PATH", …)` in parallel test threads
-8. `cargo fmt --all --check && cargo clippy --workspace -- -D warnings` clean
+1. `cargo test -p wyvern-cli --test extension_diagnostics` passes near-miss table cases
+2. `cargo test -p wyvern-cli --test preexec_recovery` passes spawn vs nonzero-exit branches
+3. `wyvern notes.txt` → `USAGE_ERROR` or `VALIDATION_ERROR`, not `PARSE_ERROR` “not valid JSON”
+4. Stub probe csv skipped → names `csv-suffix`, `python3`, example argv
+5. `wyvern md` → csv-md usage with `<file.csv>`
+6. `wyvern compose render` (no flags) → lists `--root` and `--file` in one envelope
+7. `UnexpectedArg` recovery never contains `declare them as {arg:name}`
+8. Preexec nonzero: child stderr in `cause`; recovery not “install binaries”
+9. No global `PATH` mutation in parallel tests
+10. `cargo fmt --all --check && cargo clippy --workspace -- -D warnings` clean
 
 ### Manual (non-gating)
 
-- `PATH=/usr/bin wyvern fixtures/sample.csv` when `python3` absent — readable multi-line hint
+- Skipped-requires message readable when `python3` absent
 
 ## Required validation
 
 ```bash
-cargo test -p wyvern-cli --test extension_diagnostics
-cargo test -p wyvern-cli --test preexec_recovery
-cargo fmt --all --check
-cargo clippy --workspace -- -D warnings
+cargo test -p wyvern-cli --test extension_diagnostics preexec_recovery
+cargo fmt --all --check && cargo clippy --workspace -- -D warnings
 ./target/debug/wyvern notes.txt 2>&1 | rg -v 'not valid JSON'
-./target/debug/wyvern compose render 2>&1 | rg '--root'
-./target/debug/wyvern compose render 2>&1 | rg '--file'
 ```
 
 ## Non-closure
 
-- `extensions list --json`, `extensions show`, registry `description`/`examples` → **g.3**
-- Typo inference (`wyvern compsoe`) → out of scope (P2)
-- `wyvern extensions dump` → out of scope (P2)
+- Rich catalog JSON / `show` → **g.3**
+- Typo inference → P2
 
 ## Authority
 
-- [phase-F-usability-review.md](../phase-F/phase-F-usability-review.md) — P0 #2, P0 #5 (recovery half), P1 #6–#8
-- [cli-extensions-contract.md](../phase-F/cli-extensions-contract.md)
-- g.1 `skill_card.rs` — reuse example lines in error recovery
+- [agent-usability-contract.md](agent-usability-contract.md)
+- g.1 `format_skill_card` — reuse example lines in recovery text
