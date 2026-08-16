@@ -1,0 +1,39 @@
+@prefix triage: <urn:atm:triage:> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<urn:atm:triage:finding/FTQ-001>
+  a triage:Finding ;
+  triage:findingId "FTQ-001" ;
+  triage:title "help_surface.rs wyvern() only removes WYVERN_LOG; WYVERN_VIEWER leak breaks --help before dispatch" ;
+  triage:description "The wyvern() test helper in help_surface.rs removes only WYVERN_LOG via env_remove(). Other environment variables like WYVERN_VIEWER are not cleared, causing them to leak across test cases and potentially break --help output before command dispatch in g.1." ;
+  triage:triageMode "initial_pass" ;
+  triage:category "FTQ" ;
+  triage:phaseId "phase-G" ;
+  triage:severity "important" ;
+  triage:repeatable false ;
+  triage:sweepScope "file_only" ;
+  triage:status "open" ;
+  triage:dispatchReady true ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/FTQ-001/g1/1> ;
+  triage:openOn <urn:atm:triage:worktree/g1/f1ed30b90d913bb783fbbac773fae9a055fb2c89> ;
+  triage:promoteTo <urn:atm:triage:worktree/g1/f1ed30b90d913bb783fbbac773fae9a055fb2c89> ;
+  triage:originatingSprintDoc "docs/plans/phase-G/g1-help-surface.md" ;
+  triage:triagedAt "2026-08-16T22:37:00Z"^^xsd:dateTime .
+
+<urn:atm:triage:occurrence/FTQ-001/g1/1>
+  a triage:Occurrence ;
+  triage:file "crates/wyvern/tests/help_surface.rs" ;
+  triage:line 5 ;
+  triage:snippet "fn wyvern() -> Command {\n    let mut cmd = Command::new(env!(\"CARGO_BIN_EXE_wyvern\"));\n    cmd.env_remove(\"WYVERN_LOG\");\n    cmd\n}" ;
+  triage:status "open" ;
+  triage:closed false ;
+  triage:branch "feature/phase-G-g1-help-surface" ;
+  triage:headSha "f1ed30b90d913bb783fbbac773fae9a055fb2c89" ;
+  triage:occursIn <urn:atm:triage:worktree/g1/f1ed30b90d913bb783fbbac773fae9a055fb2c89> .
+
+<urn:atm:triage:worktree/g1/f1ed30b90d913bb783fbbac773fae9a055fb2c89>
+  a triage:WorktreeSnapshot ;
+  triage:branch "feature/phase-G-g1-help-surface" ;
+  triage:path "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-G-g1-help-surface" ;
+  triage:headSha "f1ed30b90d913bb783fbbac773fae9a055fb2c89" ;
+  triage:orderIndex 1 .
