@@ -83,7 +83,7 @@ wyvern md /nonexistent/file.csv
 
 - All changes stay in **`wyvern` CLI crate** (`crates/wyvern/src/**`) plus `share/wyvern/extensions.json` schema fields
 - No new `Command` enum variants
-- No new `ErrorCode` variants in `wyvern-schema` (reuse existing codes for near-misses; see agent-usability-contract)
+- No new `ErrorCode` variants in `wyvern-schema` (near-misses reuse `ParseError` / `ValidationError` with new message text)
 - No `wyvern-host` behavior changes
 - Help text must not require paths absent from release tarball (`docs/plans/…` as secondary recovery only)
 

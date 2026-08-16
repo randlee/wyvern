@@ -27,11 +27,11 @@ Help output goes to **stdout**; exit code **0**. Failures remain stderr JSON fro
 | `docs/architecture.md` | ADR-0022 Phase G amendment subsection (help intercept + match-time help) |
 | `docs/plans/phase-F/cli-extensions-contract.md` | Phase G cross-link to agent-usability-contract |
 | `docs/wyvern/requirements.md` | REQ-0130 amendment row (pipeline order) |
-| `crates/wyvern/src/main.rs` | Global help: first positional `--help`/`-h`/`help` only; extension help match before `match_argv` (see contract) |
+| `crates/wyvern/src/main.rs` | Global help after host-flag strip; extension help via `match_extension_help` before `match_argv` |
 | `crates/wyvern/src/cli_args.rs` | `usage_message()` — Extensions block, wizard-root note, env block |
 | `crates/wyvern/src/extensions/mod.rs` | `match_extension_help(registry, argv) -> Option<&ExtensionDef>`; `is_help_only_tokens` — prefix + help-only remainder, ignores requires/suffix |
 | `crates/wyvern/src/extensions/catalog.rs` | **Stub only in g.1:** `SkillRecord`, `build_skill_record()`, `format_skill_card()` — minimal fields for help (g.3 extends same types) |
-| `crates/wyvern/src/extensions/expand.rs` | `expand_and_validate` → `Result<ExpandOutcome, ExtensionError>` (`Expanded` \| `Help`) for non-help paths |
+| `crates/wyvern/src/extensions/expand.rs` | `expand_and_validate` → `Result<ExpandedInvocation, ExtensionError>` (CLI help never reaches expand) |
 | `crates/wyvern/src/extensions/list.rs` | `extensions_usage_message()`; `--help`/`-h` (mentions `list` only — `show` is g.3) |
 | `crates/wyvern/src/browsers_cmd.rs` | `browsers_usage_message()`; `--help`/`-h` |
 | `crates/wyvern/tests/help_surface.rs` | **New.** Integration tests (see AC) |
@@ -67,17 +67,14 @@ pub fn build_skill_record(ext: &ExtensionDef, probe: &dyn RequiresProbe) -> Skil
 
 pub fn format_skill_card(record: &SkillRecord) -> String;
 
-// expand.rs
-pub enum ExpandOutcome {
-    Expanded(ExpandedInvocation),
-    Help { text: String },
-}
-
+// expand.rs — unchanged return type on CLI path (help handled in mod.rs)
 pub fn expand_and_validate(
     ext: &ExtensionDef,
     ctx: &MatchContext,
-) -> Result<ExpandOutcome, ExtensionError>;
+) -> Result<ExpandedInvocation, ExtensionError>;
 ```
+
+Extension `--help` is handled exclusively by `match_extension_help` + `format_skill_card(build_skill_record(...))` in `main.rs` — not via expand.
 
 ### Paths to delete
 

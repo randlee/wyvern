@@ -62,7 +62,7 @@ None.
 
 1. `cargo test -p wyvern-cli --test extensions_catalog` passes
 2. `wyvern extensions list --json` exit **0**; stdout parses as JSON **array**; `length >= 7`; stdout starts with `[`
-3. Every record has keys: `id`, `match_kind`, `invocation`, `requires`, `args`, `expands_to`, `description`, `examples`, `extends` (`null`/`[]` allowed)
+3. Every record has keys: `id`, `match_kind`, `invocation`, `requires`, `args`, `expands_to`, `description`, `examples`, `extends` (`extends` is `string` or `null` only)
 4. Plain `list` includes `[available]` or `[missing]` per requires-gated skill
 5. `csv-table-alias` notes `extends` / alias of `csv-suffix`
 6. `wyvern extensions show csv-md` exit **0**; same facts as JSON record text form

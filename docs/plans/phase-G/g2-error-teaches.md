@@ -15,7 +15,7 @@ Replace misleading `PARSE_ERROR` / generic usage fallthrough with structured `St
 
 ## Hard dependencies
 
-- **g.1** merged (`match_with_diagnostics` hook points, `format_skill_card`, `ExpandOutcome`)
+- **g.1** merged (`match_with_diagnostics` hook points, `format_skill_card`, `match_extension_help`)
 - [agent-usability-contract.md](agent-usability-contract.md) — near-miss table + wire format
 
 ## Deliverables
@@ -53,8 +53,8 @@ impl ExtensionRegistry {
 
 pub enum NearMissKind {
     UnknownInput { token: String },
-    IncompletePrefix { tokens: Vec<String>, hint: String },
-    BarePrefix { token: String, extension_id: String, usage: String },
+    IncompletePrefix { extension_id: String, hint: String },
+    BarePrefix { extension_id: String, usage: String },
     SkippedRequires { path: String, skipped: Vec<SkippedExtension> },
 }
 
@@ -80,10 +80,10 @@ pub enum ExtensionError {
 
 | Kind | `code` | Exit |
 |------|--------|------|
-| `UnknownInput` | `USAGE_ERROR` | 2 |
+| `UnknownInput` | `PARSE_ERROR` | 2 |
 | `SkippedRequires`, `IncompletePrefix`, `BarePrefix` | `VALIDATION_ERROR` | 4 |
 
-Tests grep `recovery` / `message`; must not contain `Input was not valid JSON` for `notes.txt` or skipped csv.
+`UnknownInput` uses `ErrorCode::ParseError` with agent-facing `message`/`recovery` — must not contain `Input was not valid JSON`.
 
 ### Paths to delete
 
@@ -95,14 +95,15 @@ None.
 
 1. `cargo test -p wyvern-cli --test extension_diagnostics` passes near-miss table cases
 2. `cargo test -p wyvern-cli --test preexec_recovery` passes spawn vs nonzero-exit branches
-3. `wyvern notes.txt` → `USAGE_ERROR` or `VALIDATION_ERROR`, not `PARSE_ERROR` “not valid JSON”
+3. `wyvern notes.txt` → `PARSE_ERROR` with `unknown input` in message; must not contain `Input was not valid JSON`
 4. Stub probe csv skipped → names `csv-suffix`, `python3`, example argv
-5. `wyvern md` → csv-md usage with `<file.csv>`
-6. `wyvern compose render` (no flags) → `MissingArgs` lists `--root` and `--file` in one envelope
-7. `UnexpectedArg` recovery never contains `declare them as {arg:name}`
-8. Preexec nonzero: child stderr in `cause`; recovery not “install binaries”
-9. No global `PATH` mutation in parallel tests
-10. `cargo fmt --all --check && cargo clippy --workspace -- -D warnings` clean
+5. `wyvern md` → csv-md `BarePrefix` usage with `<file.csv>`
+6. `wyvern compose` → `IncompletePrefix` naming `compose-render` and `compose render`
+7. `wyvern compose render` (no flags) → `MissingArgs` lists `--root` and `--file` in one envelope
+8. `UnexpectedArg` recovery never contains `declare them as {arg:name}`
+9. Preexec nonzero: child stderr in `cause`; recovery not “install binaries”
+10. No global `PATH` mutation in parallel tests
+11. `cargo fmt --all --check && cargo clippy --workspace -- -D warnings` clean
 
 ### Manual (non-gating)
 
@@ -116,6 +117,7 @@ cargo test -p wyvern-cli --test preexec_recovery
 cargo fmt --all --check && cargo clippy --workspace -- -D warnings
 ./target/debug/wyvern notes.txt 2>&1 | rg 'unknown input'
 ./target/debug/wyvern notes.txt 2>&1 | rg -v 'not valid JSON'
+./target/debug/wyvern compose 2>&1 | rg 'compose render'
 ```
 
 ## Non-closure
