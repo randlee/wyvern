@@ -7,19 +7,42 @@ use wyvern_host::{
 
 use crate::error::{emit_host_error, EmitError};
 
+/// Usage text for `wyvern browsers --help` / `-h`.
+#[must_use]
+pub fn browsers_usage_message() -> String {
+    concat!(
+        "Usage: wyvern browsers list|refresh\n",
+        "       wyvern browsers --help\n",
+        "\n",
+        "Commands:\n",
+        "  list      List browsers in the local registry\n",
+        "  refresh   Rebuild the local browser registry\n",
+        "\n",
+        "See also: wyvern --help\n",
+    )
+    .to_string()
+}
+
 /// Run a `browsers` subcommand; returns stdout text on success.
 ///
 /// # Errors
 ///
 /// Returns structured stderr + exit code on registry failure.
 pub fn run_browsers_command(args: &[String]) -> Result<String, BrowsersError> {
+    if args
+        .first()
+        .is_some_and(|token| token == "--help" || token == "-h")
+    {
+        return Ok(browsers_usage_message());
+    }
     let sub = args.first().map(String::as_str).unwrap_or("list");
     match sub {
         "list" => list(),
         "refresh" => refresh(),
         other => Err(BrowsersError::Usage {
             message: format!(
-                "unknown browsers subcommand '{other}'\nUsage: wyvern browsers list|refresh"
+                "unknown browsers subcommand '{other}'\n{}",
+                browsers_usage_message()
             ),
         }),
     }
@@ -90,5 +113,17 @@ fn map_host(err: HostError) -> BrowsersError {
             BrowsersError::Stage { stderr, exit_code }
         }
         Err(e) => BrowsersError::Emit(e),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn browsers_help_mentions_list_and_refresh() {
+        let text = browsers_usage_message();
+        assert!(text.contains("list"), "{text}");
+        assert!(text.contains("refresh"), "{text}");
     }
 }

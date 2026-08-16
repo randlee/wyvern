@@ -26,7 +26,7 @@ mod pipeline;
 mod viewer_spawn;
 
 #[doc(inline)]
-pub use browsers_cmd::{run_browsers_command, BrowsersError};
+pub use browsers_cmd::{browsers_usage_message, run_browsers_command, BrowsersError};
 #[doc(inline)]
 pub use cli_args::{apply_host_overrides, parse_cli_args, usage_message, CliArgs};
 #[doc(inline)]

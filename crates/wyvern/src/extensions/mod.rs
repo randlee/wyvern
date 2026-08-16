@@ -21,6 +21,7 @@
 //! # Ok::<(), wyvern::extensions::ExtensionError>(())
 //! ```
 
+mod catalog;
 mod expand;
 mod list;
 mod preexec;
@@ -33,13 +34,17 @@ use serde::Deserialize;
 use serde_json::Value;
 
 #[doc(inline)]
+pub use catalog::{build_skill_record, format_skill_card, SkillArg, SkillRecord, SkillRequire};
+#[doc(inline)]
 pub use expand::{
     build_match_context, expand_and_validate, expand_command_host, expand_preexec_args,
     infer_wizard_root, last_created_tmpdir, relpath_from_ui_root, ExpandedInvocation,
     HostOverrides, MatchContext,
 };
 #[doc(inline)]
-pub use list::{format_extensions_list, run_extensions_command, ExtensionsCmdError};
+pub use list::{
+    extensions_usage_message, format_extensions_list, run_extensions_command, ExtensionsCmdError,
+};
 #[doc(inline)]
 pub use preexec::{binary_on_path, create_tmpdir, run_preexec, PathRequiresProbe, RequiresProbe};
 
@@ -795,6 +800,51 @@ fn inherit_from(child: &ExtensionDef, parent: &ExtensionDef) -> ExtensionDef {
 
 #[doc(inline)]
 pub use share_resolve::{find_workspace_root, resolve_wyvern_share, resolve_wyvern_share_with};
+
+/// Match an extension prefix whose remaining tokens are only `--help` / `-h`.
+///
+/// Ignores `preexec.requires` and does not require an `arg_suffix` path token.
+/// When two prefixes match, the longest prefix wins.
+#[must_use]
+pub fn match_extension_help<'a>(
+    registry: &'a ExtensionRegistry,
+    argv: &'a [String],
+) -> Option<&'a ExtensionDef> {
+    let mut best: Option<(&'a ExtensionDef, usize)> = None;
+    for ext in registry.extensions() {
+        let Some(prefix) = &ext.match_spec.argv_prefix else {
+            continue;
+        };
+        if prefix.is_empty() || argv.len() < prefix.len() {
+            continue;
+        }
+        if !prefix
+            .iter()
+            .zip(argv.iter())
+            .all(|(expected, got)| expected.as_str() == got)
+        {
+            continue;
+        }
+        if !is_help_only_tokens(&argv[prefix.len()..]) {
+            continue;
+        }
+        let len = prefix.len();
+        if best.is_none_or(|(_, best_len)| len > best_len) {
+            best = Some((ext, len));
+        }
+    }
+    best.map(|(ext, _)| ext)
+}
+
+/// Returns whether every token is `--help` or `-h` (and at least one is present).
+#[must_use]
+pub fn is_help_only_tokens(tokens: &[String]) -> bool {
+    !tokens.is_empty()
+        && tokens
+            .iter()
+            .all(|token| token == "--help" || token == "-h")
+}
+
 #[must_use]
 pub fn match_kind_summary(spec: &MatchSpec) -> String {
     if let Some(prefix) = &spec.argv_prefix {
@@ -1070,5 +1120,39 @@ mod tests {
             format!("{err}").contains("viewer") || format!("{err}").contains("unknown"),
             "{err}"
         );
+    }
+
+    #[test]
+    fn help_only_tokens_require_help_flags() {
+        assert!(is_help_only_tokens(&["--help".into()]));
+        assert!(is_help_only_tokens(&["-h".into()]));
+        assert!(is_help_only_tokens(&["--help".into(), "-h".into()]));
+        assert!(!is_help_only_tokens(&[]));
+        assert!(!is_help_only_tokens(&["--help".into(), "data.csv".into()]));
+        assert!(!is_help_only_tokens(&["data.csv".into()]));
+    }
+
+    #[test]
+    fn match_extension_help_ignores_requires_and_suffix() {
+        let registry = ExtensionRegistry::from_json_str(SHIPPED_EXTENSIONS_JSON).expect("shipped");
+        let compose = vec!["compose".into(), "render".into(), "--help".into()];
+        let ext = match_extension_help(&registry, &compose).expect("compose help");
+        assert_eq!(ext.id.as_str(), "compose-render");
+        assert!(registry
+            .match_argv_with(&compose, &LocalAbsentProbe)
+            .is_none());
+
+        let md = vec!["md".into(), "-h".into()];
+        let ext = match_extension_help(&registry, &md).expect("md help");
+        assert_eq!(ext.id.as_str(), "csv-md");
+
+        let table = vec!["table".into(), "--help".into()];
+        let ext = match_extension_help(&registry, &table).expect("table help");
+        assert_eq!(ext.id.as_str(), "csv-table-alias");
+
+        let incomplete = vec!["compose".into(), "--help".into()];
+        assert!(match_extension_help(&registry, &incomplete).is_none());
+        let suffix = vec!["doc.md".into(), "--help".into()];
+        assert!(match_extension_help(&registry, &suffix).is_none());
     }
 }

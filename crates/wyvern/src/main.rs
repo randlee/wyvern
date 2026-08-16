@@ -16,8 +16,9 @@ use std::io::{self, IsTerminal, Write};
 use std::process::ExitCode;
 
 use wyvern::extensions::{
-    build_match_context, expand_and_validate, run_extensions_command, ExtensionError,
-    ExtensionRegistry, ExtensionsCmdError,
+    build_match_context, build_skill_record, expand_and_validate, format_skill_card,
+    match_extension_help, run_extensions_command, ExtensionError, ExtensionRegistry,
+    ExtensionsCmdError, PathRequiresProbe,
 };
 use wyvern::{
     apply_host_overrides, emit_extension_error, emit_fatal_internal, emit_io_error,
@@ -100,10 +101,27 @@ fn main() -> ExitCode {
         };
     }
 
+    if cli
+        .positionals
+        .first()
+        .is_some_and(|token| token == "--help" || token == "-h" || token == "help")
+    {
+        print!("{}", usage_message());
+        return ExitCode::SUCCESS;
+    }
+
     let registry = match ExtensionRegistry::load_default() {
         Ok(registry) => registry,
         Err(err) => return emit_extension_stage_failure(&err),
     };
+
+    if let Some(ext) = match_extension_help(&registry, &cli.positionals) {
+        print!(
+            "{}",
+            format_skill_card(&build_skill_record(ext, &PathRequiresProbe))
+        );
+        return ExitCode::SUCCESS;
+    }
 
     if let Some(matched) = registry.match_argv(&cli.positionals) {
         let ctx = build_match_context(&matched, matched.extension());
