@@ -27,6 +27,8 @@ load → validate → Command → host bind → DialogHandle
 
 `wyvern-host::run` is none/system/named only — embedded one-shot is CLI DialogHandle composition.
 
+**Amendment (Phase F / ADR-0022):** Before `load_command_input`, `main.rs` matches the host-flag-stripped argv remainder against the extension registry. A match expands to validated `Command` JSON plus optional `host.ui_root`, then enters this same pipeline. Unmatched remainder falls through to JSON / `.json` / stdin load. See principal [ADR-0022](../architecture.md) and the [ADR-0013 amendment](#adr-0013-amendment-phase-f--extension-argv-pipeline) below.
+
 Load, validation, host bind, viewer spawn, and result await each map to exit ≠ 0 at the CLI boundary via [`PipelineError`]. Emit-stage serialize failures map to exit `8` (`internal` / `INTERNAL_ERROR`).
 
 **Forbidden:** `--window-demo`, extra CLI flags, or any path that bypasses load → validate → bind → await.
@@ -44,6 +46,17 @@ Load, validation, host bind, viewer spawn, and result await each map to exit ≠
 
 `PipelineError::Stage` carries pre-built stderr JSON + stage exit code.
 `PipelineError::Emit` triggers `emit_fatal_internal` (static JSON, no recursive serialize).
+
+### ADR-0013 amendment (Phase F) — extension argv pipeline
+
+| Stage | Error type | `error` slug | `code` | Exit |
+|-------|------------|--------------|--------|------|
+| Extension registry load | `ExtensionError::InvalidRegistry` | `parse` | `PARSE_ERROR` | 2 |
+| Extension match miss (multi-token) | `LoadError::Usage` | `parse` | `PARSE_ERROR` | 2 |
+| Extension expand / args | `ExtensionError::MissingArg` / `UnexpectedArg` / `Template` | `validation` | `VALIDATION_ERROR` | 4 |
+| Extension preexec / I/O | `ExtensionError::Preexec` / `Io` | `io` | `IO_ERROR` | 3 |
+
+Cross-link: [ADR-0022](../architecture.md) (extensions are an argv preprocessor; they do not add pipeline stages after validate).
 
 ---
 

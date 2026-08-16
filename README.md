@@ -42,6 +42,39 @@ Release artifacts (no clone required):
 
 Each archive contains `wyvern`, `wyvern-viewer`, and `share/wyvern/ui/` (message, input, markdown, question, chrome).
 
+## Quick examples
+
+```bash
+# Open a markdown file as a dialog
+wyvern doc.md
+
+# Open a custom HTML wizard page (auto-infers --ui-root)
+wyvern examples/wizards/single-page/pages/only.html
+
+# Load a wizard from wizard.json (auto-infers --ui-root)
+wyvern examples/wizards/turbo-flow/wizard.json
+
+# Interactive CSV table (sort / filter / Finish → JSON)
+# Requires `python3` on PATH. On Windows, install Python 3 and ensure the
+# `python3` command resolves (the Windows `py` launcher is not used).
+wyvern fixtures/sample.csv
+wyvern table fixtures/sample.csv
+
+# CSV as a markdown pipe table
+wyvern md fixtures/sample.csv
+
+# List shipped file-type and prefix extensions
+wyvern extensions list
+```
+
+## Optional: Compose render
+
+If [`sc-compose`](https://crates.io/crates/sc-compose) is installed, wyvern can render Jinja2 templates to HTML previews:
+
+```bash
+wyvern compose render --root ./my-template-dir --file page.j2
+```
+
 ---
 
 ## What it does

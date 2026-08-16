@@ -1,7 +1,7 @@
 ---
 id: f.1
 title: Extension runtime — registry, match, preexec, expand
-status: planning
+status: complete
 branch: feature/phase-F-f1-extension-runtime
 worktree: ../wyvern-worktrees/feature/phase-F-f1-extension-runtime
 target: integrate/phase-F
@@ -27,7 +27,7 @@ Ship the CLI extension engine: load merged registry, match argv remainder, optio
 | `docs/plans/phase-F/cli-extensions-contract.md` | Normative schema (already in plan branch) |
 | `docs/architecture.md` | ADR-0022 entry (extensions preprocessor; MCP Path A) |
 | `share/wyvern/extensions.json` | Shipped defaults (`.md` only in f.1) |
-| `crates/wyvern/Cargo.toml` | `include` / rust-embed map for `share/wyvern/**`, `scripts/ext/**` |
+| `crates/wyvern/Cargo.toml` | rust-embed maps workspace `share/wyvern/**` and `scripts/ext/**` from crate-relative `../../` paths. Cargo `include` cannot package files outside the crate directory; embed compiles them into the binary. |
 | `crates/wyvern/src/extensions/mod.rs` | Loader, merge, `extends`, match precedence, `{wyvern_share}` resolve |
 | `crates/wyvern/src/extensions/expand.rs` | Phase-1 + phase-2 template substitution (all contract vars) |
 | `crates/wyvern/src/extensions/preexec.rs` | Subprocess spawn, requires-check, `{arg:*}` capture, stdout capture |
@@ -38,7 +38,7 @@ Ship the CLI extension engine: load merged registry, match argv remainder, optio
 |------|--------|
 | `crates/wyvern/src/main.rs` | Extension dispatch: strip host flags → `match_argv(remainder)` before input fallback |
 | `crates/wyvern/src/cli_args.rs` | Host-only flag split; pass extension remainder; apply expanded `host.ui_root` |
-| `crates/wyvern/src/input.rs` | Multi-token remainder when extension matched; else positional JSON path |
+| `crates/wyvern/src/input.rs` | No-match fallback only: single positional JSON / `.json` / stdin. Extension match is owned by `main.rs` before this function. |
 | `crates/wyvern/src/extensions/list.rs` | `wyvern extensions list` subcommand |
 
 ### Template variables (`expand.rs` — f.1 ships all)
@@ -73,6 +73,8 @@ pub struct MatchContext<'a> {
     pub args_after_prefix: &'a [String],
     pub preexec_stdout: Option<String>,
     pub rendered_basename: Option<String>,
+    pub tmpdir: Option<PathBuf>,         // path to the temporary directory if one was created
+    pub wyvern_share: PathBuf,           // resolved path to the wyvern share directory
 }
 
 pub struct HostOverrides {
@@ -128,11 +130,24 @@ pub fn expand_and_validate(ext: &ExtensionDef, ctx: &MatchContext) -> Result<Exp
 8. `--version` / `-V` built-in unchanged; extension `host.ui_root` overrides CLI `--ui-root` when set
 9. Workspace builds; clippy clean; no new host routes; `wyvern::extensions` pub mod for Phase E `--interactive`
 
+## Error Inventory
+
+| Variant | Exit | When | Recovery |
+|---------|------|------|----------|
+| `InvalidRegistry` | 2 (`PARSE_ERROR`) | Registry JSON/schema/version invalid | Fix `share/wyvern/extensions.json` or `.wyvern/extensions.json` |
+| `MissingArg` | 4 (`VALIDATION_ERROR`) | Required `{arg:name}` flag absent | Pass `--name VALUE` after the extension prefix |
+| `UnexpectedArg` | 4 (`VALIDATION_ERROR`) | Leftover token after a successful match | Remove the unknown flag or declare `{arg:name}` |
+| `PathVarWithoutPath` | 4 (`VALIDATION_ERROR`) | `{path}` (or path part) on a prefix-only match | Use suffix or prefix+suffix when expanding path vars |
+| `Template` | 4 (`VALIDATION_ERROR`) | Unclosed brace, unknown var, phase-restricted or unavailable var | Check expand/preexec templates; see `TemplateErrorKind` |
+| `Preexec` | 3 (`IO_ERROR`) | Spawn / timeout / non-zero / stdout cap; message includes capped stderr | Install `preexec.requires`; inspect cmd/args |
+| `InvalidCommand` | schema code | Expanded JSON fails `wyvern_schema::validate` | Fix expand templates so output matches the command schema |
+| `Io` | 3 (`IO_ERROR`) | Filesystem read/write during load or expand | Check paths and permissions |
+
 ## Required validation
 
 ```bash
-cargo test -p wyvern extensions extensions_preexec_cleanup extensions_argv_pipeline extensions_embed_paths
-cargo test -p wyvern input_md_path_loads_markdown_value
+cargo test -p wyvern-cli extensions extensions_preexec_cleanup extensions_argv_pipeline extensions_embed_paths
+cargo test -p wyvern-cli input_md_path_loads_markdown_value
 cargo fmt --all --check
 cargo clippy --workspace -- -D warnings
 ```

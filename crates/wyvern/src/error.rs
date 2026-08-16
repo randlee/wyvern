@@ -2,28 +2,72 @@
 
 use wyvern_schema::{ErrorCode, FieldName, SerializeError, StderrError, ValidationError};
 
+/// Host-flag / env usage failure kind for structured stderr recovery (RBP-F009).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum UsageErrorKind {
+    /// Generic argv/input usage (empty stdin, too many args, etc.).
+    Generic,
+    /// `--bind` value failed to parse as a socket address.
+    InvalidBind {
+        /// Raw `--bind` token from argv.
+        value: String,
+    },
+    /// A host flag was given without a following value.
+    MissingFlagValue {
+        /// Flag name (e.g. `--bind`).
+        flag: String,
+    },
+    /// `--viewer` value was not a known viewer mode.
+    InvalidViewer {
+        /// Raw `--viewer` token from argv.
+        value: String,
+    },
+    /// `WYVERN_VIEWER` is set but not a valid viewer mode (RSH-010).
+    InvalidWyvernViewerEnv {
+        /// Raw env var value.
+        value: String,
+    },
+    /// `WYVERN_VIEWER` is not valid Unicode.
+    InvalidWyvernViewerUnicode,
+}
+
 /// Failure while loading command input from argv or stdin.
 #[derive(Debug)]
 pub enum LoadError {
     /// JSON text could not be parsed.
     Parse { message: String },
     /// A file or stdin read failed.
-    Io { field: FieldName, message: String },
-    /// Invalid argv shape; caller prints plain usage text (not JSON).
-    Usage { message: String },
+    Io {
+        field: FieldName,
+        message: String,
+        /// Original I/O error if available.
+        source: Option<Box<dyn std::error::Error + Send + Sync + 'static>>,
+    },
+    /// Invalid argv shape or host-flag value.
+    Usage {
+        kind: UsageErrorKind,
+        message: String,
+    },
 }
 
 impl std::fmt::Display for LoadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Parse { message } => write!(f, "parse error: {message}"),
-            Self::Io { field, message } => write!(f, "io error ({field}): {message}"),
-            Self::Usage { message } => write!(f, "{message}"),
+            Self::Io { field, message, .. } => write!(f, "io error ({field}): {message}"),
+            Self::Usage { message, .. } => write!(f, "{message}"),
         }
     }
 }
 
-impl std::error::Error for LoadError {}
+impl std::error::Error for LoadError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Io { source, .. } => source.as_deref().map(|e| e as _),
+            _ => None,
+        }
+    }
+}
 
 impl LoadError {
     /// Stable exit code for this load failure.
@@ -31,7 +75,7 @@ impl LoadError {
         match self {
             Self::Parse { .. } => ErrorCode::ParseError.exit_code(),
             Self::Io { .. } => ErrorCode::IoError.exit_code(),
-            Self::Usage { .. } => 1,
+            Self::Usage { .. } => ErrorCode::ParseError.exit_code(),
         }
     }
 }
@@ -84,6 +128,196 @@ impl Drop for ForceEmitStdoutFailGuard {
     }
 }
 
+/// Serialize an extension-engine error as stderr JSON.
+///
+/// # Errors
+///
+/// Returns [`EmitError::Serialize`] when the envelope cannot be serialized.
+pub fn emit_extension_error(err: &crate::extensions::ExtensionError) -> Result<String, EmitError> {
+    use crate::extensions::ExtensionError;
+    let (code, message, cause, recovery) = match err {
+        ExtensionError::InvalidRegistry { message } => (
+            ErrorCode::ParseError,
+            message.clone(),
+            "Extension registry JSON could not be loaded".to_string(),
+            vec![
+                "Fix share/wyvern/extensions.json or .wyvern/extensions.json".into(),
+                "Registry must be version 1 JSON with an extensions array".into(),
+            ],
+        ),
+        ExtensionError::MissingArg { name } => (
+            ErrorCode::ValidationError,
+            format!("missing required extension argument --{name}"),
+            format!("A declared {{arg:{name}}} flag was not present on the command line"),
+            vec![
+                format!("Pass --{name} VALUE after the extension prefix"),
+                "Run wyvern extensions list to see match kinds".into(),
+            ],
+        ),
+        ExtensionError::UnexpectedArg { token } => (
+            ErrorCode::ValidationError,
+            format!("unexpected argument after extension match: {token}"),
+            format!("The extension matched argv but leftover token '{token}' is not declared"),
+            vec![format!(
+                "Remove unknown flag `{token}` or declare it with `{{arg:{}}}` in the registry",
+                token
+                    .trim_start_matches('-')
+                    .split('=')
+                    .next()
+                    .unwrap_or(token.as_str())
+            )],
+        ),
+        ExtensionError::PathVarWithoutPath { var } => (
+            ErrorCode::ValidationError,
+            format!("template {{{var}}} requires a matched file path"),
+            "This extension is prefix-only and has no {{path}}".to_string(),
+            vec!["Use a suffix or prefix+suffix match when expanding path variables".into()],
+        ),
+        ExtensionError::Template { kind, message, .. } => {
+            let (cause, recovery) = match kind {
+                crate::extensions::TemplateErrorKind::UnclosedBrace => (
+                    "Template contains an unclosed `{` brace".to_string(),
+                    vec!["Close every `{variable}` in the registry expand/preexec templates".into()],
+                ),
+                crate::extensions::TemplateErrorKind::UnknownVariable => (
+                    "Template references an unknown `{variable}`".to_string(),
+                    vec!["Use only documented template variables from cli-extensions-contract.md".into()],
+                ),
+                crate::extensions::TemplateErrorKind::PhaseRestricted => (
+                    "Template variable is not allowed in this expansion phase".to_string(),
+                    vec!["Move path-only variables to expand phase-1; use phase-2 for preexec stdout vars".into()],
+                ),
+                crate::extensions::TemplateErrorKind::Unavailable => (
+                    "Template variable is not available in this match context".to_string(),
+                    vec!["Ensure the match provides path/tmpdir/preexec stdout before using this variable".into()],
+                ),
+                crate::extensions::TemplateErrorKind::InvalidSpec => (
+                    "Expand/preexec spec is incomplete or contradictory".to_string(),
+                    vec!["Check command_from_file, preexec cmd/args, and host overrides in the registry".into()],
+                ),
+            };
+            (ErrorCode::ValidationError, message.clone(), cause, recovery)
+        }
+        ExtensionError::Preexec { message, .. } => (
+            ErrorCode::IoError,
+            message.clone(),
+            "Extension preexec subprocess failed".to_string(),
+            vec![
+                "Install binaries listed in preexec.requires".into(),
+                "Inspect preexec.cmd and args after template expansion".into(),
+            ],
+        ),
+        ExtensionError::InvalidCommand { source } => {
+            return emit_validation_error(source);
+        }
+        ExtensionError::Io { message, .. } => (
+            ErrorCode::IoError,
+            message.clone(),
+            "Extension engine filesystem operation failed".to_string(),
+            vec!["Check paths in the registry and working directory permissions".into()],
+        ),
+    };
+    let mut envelope = StderrError::new(code, message)
+        .cause(cause)
+        .docs("docs/plans/phase-F/cli-extensions-contract.md");
+    for step in recovery {
+        envelope = envelope.recovery(step);
+    }
+    envelope.to_json_string().map_err(EmitError::Serialize)
+}
+
+/// Serialize a usage / unknown-subcommand error as stderr JSON (exit 2).
+///
+/// # Errors
+///
+/// Returns [`EmitError::Serialize`] when the envelope cannot be serialized.
+pub fn emit_usage_message(message: &str) -> Result<String, EmitError> {
+    StderrError::new(ErrorCode::ParseError, message.to_string())
+        .cause("CLI argv was not a valid command or extension invocation")
+        .recovery("Pass a JSON command, a .json file, or a path handled by an extension")
+        .recovery("Run wyvern extensions list to see file-type and prefix extensions")
+        .recovery("Run wyvern --help for host flags")
+        .docs("docs/wyvern/requirements.md (REQ-0130)")
+        .to_json_string()
+        .map_err(EmitError::Serialize)
+}
+
+/// Serialize [`LoadError::Usage`] as stderr JSON with flag-specific recovery.
+///
+/// # Errors
+///
+/// Returns [`EmitError::Serialize`] when the envelope cannot be serialized, or
+/// when `err` is not [`LoadError::Usage`] (miswire).
+pub fn emit_usage_error(err: &LoadError) -> Result<String, EmitError> {
+    let LoadError::Usage { kind, message } = err else {
+        debug_assert!(matches!(err, LoadError::Usage { .. }));
+        return Err(EmitError::Serialize(SerializeError {
+            message: "emit_usage_error: expected Usage".into(),
+        }));
+    };
+    let (cause, recovery, docs) = match kind {
+        UsageErrorKind::Generic => (
+            "CLI argv was not a valid command or extension invocation".to_string(),
+            vec![
+                "Pass a JSON command, a .json file, or a path handled by an extension".into(),
+                "Run wyvern extensions list to see file-type and prefix extensions".into(),
+                "Run wyvern --help for host flags".into(),
+            ],
+            "docs/wyvern/requirements.md (REQ-0130)",
+        ),
+        UsageErrorKind::InvalidBind { .. } => (
+            "The --bind value is not a valid socket address".to_string(),
+            vec![
+                "Use host:port form (example: 127.0.0.1:0 for an ephemeral loopback port)".into(),
+                "For 0.0.0.0 / LAN binds, also pass --allow-non-loopback".into(),
+                "Check the address is a valid IPv4/IPv6 socket address".into(),
+            ],
+            "docs/plans/phase-F/README.md",
+        ),
+        UsageErrorKind::MissingFlagValue { flag } => (
+            format!("Host flag {flag} requires a value"),
+            vec![
+                format!("Pass {flag} VALUE on the command line"),
+                "Use --bind=ADDR:PORT or --viewer=MODE inline forms when preferred".into(),
+            ],
+            "docs/plans/phase-F/README.md",
+        ),
+        UsageErrorKind::InvalidViewer { .. } => (
+            "The --viewer value is not a supported viewer mode".to_string(),
+            vec![
+                "Use one of: embedded, none, system, chrome, safari, edge, firefox".into(),
+                "Omit --viewer to use embedded (default)".into(),
+                "Set WYVERN_VIEWER=none for headless / CI".into(),
+            ],
+            "docs/plans/phase-C/http-viewer-contract.md",
+        ),
+        UsageErrorKind::InvalidWyvernViewerEnv { .. } => (
+            "WYVERN_VIEWER is set but not a valid viewer mode".to_string(),
+            vec![
+                "Use one of: embedded, none, system, chrome, safari, edge, firefox".into(),
+                "Unset WYVERN_VIEWER to use embedded (default)".into(),
+                "Use WYVERN_VIEWER=none for headless / CI".into(),
+            ],
+            "docs/plans/phase-C/http-viewer-contract.md",
+        ),
+        UsageErrorKind::InvalidWyvernViewerUnicode => (
+            "WYVERN_VIEWER is not valid Unicode".to_string(),
+            vec![
+                "Set WYVERN_VIEWER to ASCII viewer mode names only".into(),
+                "Unset WYVERN_VIEWER to use embedded (default)".into(),
+            ],
+            "docs/plans/phase-C/http-viewer-contract.md",
+        ),
+    };
+    let mut envelope = StderrError::new(ErrorCode::ParseError, message.clone())
+        .cause(cause)
+        .docs(docs);
+    for step in recovery {
+        envelope = envelope.recovery(step);
+    }
+    envelope.to_json_string().map_err(EmitError::Serialize)
+}
+
 /// Serialize a parse load error as stderr JSON.
 ///
 /// # Errors
@@ -113,7 +347,7 @@ pub fn emit_parse_error(err: &LoadError) -> Result<String, EmitError> {
 /// Returns [`EmitError::Serialize`] when the envelope cannot be serialized, or
 /// when `err` is not [`LoadError::Io`] (miswire).
 pub fn emit_io_error(err: &LoadError) -> Result<String, EmitError> {
-    let LoadError::Io { field, message } = err else {
+    let LoadError::Io { field, message, .. } = err else {
         debug_assert!(matches!(err, LoadError::Io { .. }));
         return Err(EmitError::Serialize(SerializeError {
             message: "emit_io_error: expected Io".into(),
@@ -446,6 +680,7 @@ mod tests {
         let err = LoadError::Io {
             field: FieldName::new("file"),
             message: r#"could not read path 'say "hi".json'"#.to_string(),
+            source: None,
         };
         let out = emit_io_error(&err).expect("emit");
         let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
@@ -528,6 +763,23 @@ mod tests {
     }
 
     #[test]
+    fn load_error_io_preserves_source_chain() {
+        let io_err = std::io::Error::new(std::io::ErrorKind::NotFound, "missing");
+        let err = LoadError::Io {
+            field: FieldName::new("file"),
+            message: "could not read path".into(),
+            source: Some(Box::new(io_err)),
+        };
+        assert_eq!(err.to_string(), "io error (file): could not read path");
+        let source = std::error::Error::source(&err).expect("source chain");
+        assert!(source.to_string().contains("missing"));
+        assert!(std::error::Error::source(&LoadError::Parse {
+            message: "x".into()
+        })
+        .is_none());
+    }
+
+    #[test]
     fn load_error_exit_codes() {
         assert_eq!(
             LoadError::Parse {
@@ -539,17 +791,19 @@ mod tests {
         assert_eq!(
             LoadError::Io {
                 field: FieldName::new("file"),
-                message: "x".into()
+                message: "x".into(),
+                source: None,
             }
             .exit_code(),
             3
         );
         assert_eq!(
             LoadError::Usage {
+                kind: UsageErrorKind::Generic,
                 message: "usage".into()
             }
             .exit_code(),
-            1
+            2
         );
     }
 
@@ -571,5 +825,85 @@ mod tests {
             .exit_code(),
             5
         );
+    }
+
+    #[test]
+    fn emit_usage_error_is_structured_json() {
+        let err = LoadError::Usage {
+            kind: UsageErrorKind::Generic,
+            message: "unknown subcommand".into(),
+        };
+        let out = emit_usage_error(&err).expect("emit");
+        let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
+        assert_eq!(value["error"], "parse");
+        assert_eq!(value["code"], "PARSE_ERROR");
+        assert!(value["message"].as_str().unwrap().contains("unknown"));
+        assert!(!value["recovery"].as_array().unwrap().is_empty());
+    }
+
+    #[test]
+    fn emit_invalid_bind_has_flag_specific_recovery() {
+        let err = LoadError::Usage {
+            kind: UsageErrorKind::InvalidBind {
+                value: "not-an-addr".into(),
+            },
+            message: "invalid --bind 'not-an-addr': invalid socket address".into(),
+        };
+        let out = emit_usage_error(&err).expect("emit");
+        let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
+        let recovery = value["recovery"].as_array().unwrap();
+        assert!(recovery
+            .iter()
+            .any(|s| s.as_str().unwrap().contains("--allow-non-loopback")));
+        assert!(!value["message"].as_str().unwrap().contains("Recovery:"));
+    }
+
+    #[test]
+    fn emit_invalid_wyvern_viewer_env_has_flag_specific_recovery() {
+        let err = LoadError::Usage {
+            kind: UsageErrorKind::InvalidWyvernViewerEnv {
+                value: "not-a-viewer-mode".into(),
+            },
+            message: "invalid WYVERN_VIEWER=\"not-a-viewer-mode\"; expected embedded, none, system, or a named viewer path".into(),
+        };
+        let out = emit_usage_error(&err).expect("emit");
+        let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
+        assert!(value["cause"].as_str().unwrap().contains("WYVERN_VIEWER"));
+        let recovery = value["recovery"].as_array().unwrap();
+        assert!(recovery
+            .iter()
+            .any(|s| s.as_str().unwrap().contains("Unset WYVERN_VIEWER")));
+    }
+
+    #[test]
+    fn emit_missing_arg_interpolates_name() {
+        use crate::extensions::{ArgName, ExtensionError};
+        let err = ExtensionError::MissingArg {
+            name: ArgName::new("root"),
+        };
+        let out = emit_extension_error(&err).expect("emit");
+        let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
+        assert!(value["cause"].as_str().unwrap().contains("{arg:root}"));
+        assert!(value["recovery"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|s| s.as_str().unwrap().contains("--root")));
+    }
+
+    #[test]
+    fn emit_unexpected_arg_interpolates_token() {
+        use crate::extensions::ExtensionError;
+        let err = ExtensionError::UnexpectedArg {
+            token: "--help".into(),
+        };
+        let out = emit_extension_error(&err).expect("emit");
+        let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
+        assert!(value["cause"].as_str().unwrap().contains("--help"));
+        assert!(value["recovery"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|s| s.as_str().unwrap().contains("--help")));
     }
 }

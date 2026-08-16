@@ -7,6 +7,7 @@ use sc_observability::{
     SchemaVersion, ServiceName, SinkRegistration, TargetCategory, Timestamp,
     OBSERVATION_ENVELOPE_VERSION,
 };
+use sc_observability_types::CorrelationId;
 use serde_json::{json, Map, Value};
 use tracing_subscriber::EnvFilter;
 
@@ -19,6 +20,7 @@ const OBSERVABILITY_DOCS: &str = "docs/observability.md";
 
 static LOGGER: OnceLock<Logger> = OnceLock::new();
 static SERVICE_NAME: OnceLock<ServiceName> = OnceLock::new();
+static CORRELATION_ID: OnceLock<Option<CorrelationId>> = OnceLock::new();
 
 /// Structured failure from [`init`] with recovery steps (RBP-F004).
 #[derive(Debug, Clone)]
@@ -111,6 +113,10 @@ pub fn init() -> Result<(), ObservabilityInitError> {
         .with_target(true)
         .try_init();
 
+    if let Some(cid) = session_correlation_id() {
+        wyvern::set_pipeline_correlation_id(format!("{cid}"));
+    }
+
     Ok(())
 }
 
@@ -135,6 +141,12 @@ pub fn emit_init_error(err: &ObservabilityInitError) {
         Ok(json) => eprintln!("{json}"),
         Err(_) => eprintln!("wyvern: {}", err.message),
     }
+}
+
+fn session_correlation_id() -> Option<CorrelationId> {
+    CORRELATION_ID
+        .get_or_init(|| CorrelationId::new(format!("wyvern-{}", std::process::id())).ok())
+        .clone()
 }
 
 fn apply_level(config: &mut LoggerConfig, raw: &str) -> Result<(), ObservabilityInitError> {
@@ -196,7 +208,7 @@ fn build_event(
         identity: ProcessIdentity::default(),
         trace: None,
         request_id: None,
-        correlation_id: None,
+        correlation_id: session_correlation_id(),
         outcome: match outcome {
             Some(label) => Some(OutcomeLabel::new(label).map_err(|e| e.to_string())?),
             None => None,
@@ -244,5 +256,6 @@ mod tests {
         .expect("event");
         assert_eq!(event.action.as_str(), "process_start");
         assert_eq!(event.target.as_str(), TARGET);
+        assert!(event.correlation_id.is_some());
     }
 }

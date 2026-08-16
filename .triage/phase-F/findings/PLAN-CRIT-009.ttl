@@ -1,0 +1,8 @@
+@prefix triage: <https://wyvern.dev/triage#> .
+
+triage:PLAN-CRIT-009 a triage:Finding ;
+    triage:id "PLAN-CRIT-009" ;
+    triage:severity "Important" ;
+    triage:promote_to_branch "integrate/phase-F" ;
+    triage:highest_open_branch "integrate/phase-F" ;
+    triage:required_fix "Capture preexec stderr snippet in ExtensionError + test" .

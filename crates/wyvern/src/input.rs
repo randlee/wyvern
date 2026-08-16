@@ -10,25 +10,33 @@ use wyvern_schema::FieldName;
 use crate::cli_args::usage_message;
 use crate::error::LoadError;
 
+/// 1 MiB cap for stdin and `.json` file loads (RSH-001 / RSH-002).
+const MAX_CLI_INPUT_BYTES: usize = 1024 * 1024;
+
 /// Load a command [`Value`] from positional args or stdin.
 ///
-/// Detection for a single positional arg:
-/// - `.md` → `{ "type": "markdown", "file": <path> }` (path only; file not read)
+/// Called after extension dispatch fails (no argv match). Remaining cases:
 /// - `.json` → read file and parse JSON
 /// - otherwise → parse the argument as inline JSON
+///
+/// `.md` shorthand is handled by the shipped `markdown-suffix` registry in
+/// `main` before this function runs.
 ///
 /// # Errors
 ///
 /// Returns [`LoadError::Usage`] for invalid argv shapes or empty stdin,
-/// [`LoadError::Parse`] for invalid JSON, and [`LoadError::Io`] for read failures.
+/// [`LoadError::Parse`] for invalid JSON, and [`LoadError::Io`] for read
+/// failures.
 pub fn load_command_input(args: &[String], stdin: impl Read) -> Result<Value, LoadError> {
     match args {
         [] => load_stdin(stdin),
         [arg] if arg.starts_with('-') => Err(LoadError::Usage {
+            kind: crate::error::UsageErrorKind::Generic,
             message: usage_message(),
         }),
         [arg] => load_positional(arg),
         _ => Err(LoadError::Usage {
+            kind: crate::error::UsageErrorKind::Generic,
             message: usage_message(),
         }),
     }
@@ -37,37 +45,64 @@ pub fn load_command_input(args: &[String], stdin: impl Read) -> Result<Value, Lo
 fn load_positional(arg: &str) -> Result<Value, LoadError> {
     let path = Path::new(arg);
     match path.extension().and_then(|ext| ext.to_str()) {
-        Some(ext) if ext.eq_ignore_ascii_case("md") => Ok(serde_json::json!({
-            "type": "markdown",
-            "file": arg,
-        })),
         Some(ext) if ext.eq_ignore_ascii_case("json") => load_json_file(path),
         _ => parse_json(arg),
     }
 }
 
 fn load_json_file(path: &Path) -> Result<Value, LoadError> {
-    let text = std::fs::read_to_string(path).map_err(|err| LoadError::Io {
+    let file = std::fs::File::open(path).map_err(|err| LoadError::Io {
         field: FieldName::new("file"),
         message: format!("could not read path '{}': {err}", path.display()),
+        source: Some(Box::new(err)),
     })?;
+    let text = read_capped(
+        file,
+        MAX_CLI_INPUT_BYTES,
+        "file",
+        &path.display().to_string(),
+    )?;
     parse_json(&text)
 }
 
-fn load_stdin(mut stdin: impl Read) -> Result<Value, LoadError> {
-    let mut buf = String::new();
-    stdin
-        .read_to_string(&mut buf)
-        .map_err(|err| LoadError::Io {
-            field: FieldName::new("stdin"),
-            message: format!("could not read stdin: {err}"),
-        })?;
+fn load_stdin(stdin: impl Read) -> Result<Value, LoadError> {
+    let buf = read_capped(stdin, MAX_CLI_INPUT_BYTES, "stdin", "stdin")?;
     if buf.trim().is_empty() {
         return Err(LoadError::Usage {
+            kind: crate::error::UsageErrorKind::Generic,
             message: usage_message(),
         });
     }
     parse_json(&buf)
+}
+
+fn read_capped(
+    reader: impl Read,
+    max: usize,
+    field: &str,
+    origin: &str,
+) -> Result<String, LoadError> {
+    let mut buf = Vec::new();
+    let n = reader
+        .take(max as u64 + 1)
+        .read_to_end(&mut buf)
+        .map_err(|err| LoadError::Io {
+            field: FieldName::new(field),
+            message: format!("could not read {origin}: {err}"),
+            source: Some(Box::new(err)),
+        })?;
+    if n > max {
+        return Err(LoadError::Io {
+            field: FieldName::new(field),
+            message: format!("{origin} exceeds maximum of {max} bytes"),
+            source: None,
+        });
+    }
+    String::from_utf8(buf).map_err(|err| LoadError::Io {
+        field: FieldName::new(field),
+        message: format!("{origin} is not valid UTF-8: {err}"),
+        source: Some(Box::new(err)),
+    })
 }
 
 fn parse_json(text: &str) -> Result<Value, LoadError> {
@@ -99,25 +134,14 @@ mod tests {
 
     #[test]
     fn input_json_file_loads() {
-        let dir = std::env::temp_dir().join(format!("wyvern-a3-json-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join("cmd.json");
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("cmd.json");
         std::fs::write(&path, r#"{"type":"chrome","title":"FromFile"}"#).unwrap();
 
         let value = load_command_input(&args(&[path.to_str().unwrap()]), Cursor::new(""))
             .expect("json file");
         assert_eq!(value["type"], "chrome");
         assert_eq!(value["title"], "FromFile");
-
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn input_md_path_loads_markdown_value() {
-        let value =
-            load_command_input(&args(&["docs/readme.md"]), Cursor::new("")).expect("md path");
-        assert_eq!(value["type"], "markdown");
-        assert_eq!(value["file"], "docs/readme.md");
     }
 
     #[test]
@@ -163,11 +187,10 @@ mod tests {
 
     #[test]
     fn input_missing_json_file_is_io() {
-        let err = load_command_input(
-            &args(&["/definitely/missing/wyvern-a3.json"]),
-            Cursor::new(""),
-        )
-        .expect_err("missing file");
+        let dir = tempfile::tempdir().unwrap();
+        let missing = dir.path().join("definitely-missing-wyvern-a3.json");
+        let err = load_command_input(&args(&[missing.to_str().unwrap()]), Cursor::new(""))
+            .expect_err("missing file");
         match err {
             LoadError::Io { field, .. } => assert_eq!(field, "file"),
             other => panic!("expected Io, got {other:?}"),
@@ -186,10 +209,9 @@ mod tests {
 
     #[test]
     fn input_io_error_with_quotes_in_path_emits_valid_json() {
-        let dir = std::env::temp_dir().join(format!("wyvern-a3-quote-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = tempfile::tempdir().unwrap();
         // Path that does not exist; message will include the path string.
-        let path = dir.join(r#"say "hi".json"#);
+        let path = dir.path().join(r#"say "hi".json"#);
         let err = load_command_input(&args(&[path.to_str().unwrap()]), Cursor::new(""))
             .expect_err("missing quoted path");
         let out = emit_io_error(&err).expect("emit");
@@ -197,6 +219,21 @@ mod tests {
         assert_eq!(value["error"], "io");
         assert_eq!(value["field"], "file");
         assert!(value["message"].as_str().unwrap().contains('"'));
-        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn input_stdin_rejects_oversize() {
+        let huge = format!(
+            r#"{{"type":"chrome","title":"{}"}}"#,
+            "x".repeat(MAX_CLI_INPUT_BYTES)
+        );
+        let err = load_command_input(&[], Cursor::new(huge)).expect_err("oversize stdin");
+        match err {
+            LoadError::Io { field, message, .. } => {
+                assert_eq!(field, "stdin");
+                assert!(message.contains("exceeds maximum"), "{message}");
+            }
+            other => panic!("expected Io, got {other:?}"),
+        }
     }
 }

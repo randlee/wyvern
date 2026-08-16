@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "extensions": [
+    {
+      "id": "markdown-suffix",
+      "match": { "positional_suffix": ".md" },
+      "expand": {
+        "command": { "type": "markdown", "file": "{path}" }
+      }
+    },
+    {
+      "id": "html-suffix",
+      "match": { "positional_suffix": ".html" },
+      "expand": {
+        "command": {
+          "type": "wizard",
+          "page": {
+            "id": "{stem}",
+            "title": "{basename}",
+            "html": "{relpath_from_ui_root}"
+          }
+        },
+        "host": { "ui_root": "{wizard_root}" }
+      }
+    },
+    {
+      "id": "wizard-json-suffix",
+      "match": { "filename": "wizard.json" },
+      "expand": {
+        "command_from_file": "{path}",
+        "host": { "ui_root": "{wizard_root}" }
+      }
+    },
+    {
+      "id": "compose-render",
+      "match": { "argv_prefix": ["compose", "render"] },
+      "preexec": {
+        "cmd": "sc-compose",
+        "args": [
+          "render", "--root", "{arg:root}", "--file", "{arg:file}",
+          "--output", "{tmpdir}/pages/page.html",
+          "{arg:var-file:repeat}", "{arg:var:repeat}", "{arg:env-prefix:repeat}"
+        ],
+        "requires": ["sc-compose"]
+      },
+      "expand": {
+        "command": {
+          "type": "wizard",
+          "page": {
+            "id": "compose-preview",
+            "title": "Compose preview",
+            "html": "pages/{rendered_basename}"
+          }
+        },
+        "host": { "ui_root": "{tmpdir}" }
+      }
+    },
+    {
+      "id": "csv-suffix",
+      "match": { "positional_suffix": ".csv" },
+      "preexec": {
+        "cmd": "python3",
+        "args": ["{wyvern_share}/scripts/ext/csv_to_view.py", "{path}", "--out", "{tmpdir}", "--format", "html"],
+        "requires": ["python3"]
+      },
+      "expand": {
+        "command": {
+          "type": "wizard",
+          "page": { "id": "{stem}", "title": "{basename}", "html": "pages/view.html", "layout": "workspace" },
+          "width": 800,
+          "height": 600
+        },
+        "host": { "ui_root": "{tmpdir}" }
+      }
+    },
+    {
+      "id": "csv-table-alias",
+      "match": { "argv_prefix": ["table"], "arg_suffix": ".csv" },
+      "extends": "csv-suffix"
+    },
+    {
+      "id": "csv-md",
+      "match": { "argv_prefix": ["md"], "arg_suffix": ".csv" },
+      "preexec": {
+        "cmd": "python3",
+        "args": ["{wyvern_share}/scripts/ext/csv_to_view.py", "{path}", "--out", "{tmpdir}", "--format", "markdown"],
+        "requires": ["python3"],
+        "stdout": "markdown"
+      },
+      "expand": {
+        "command": { "type": "markdown", "title": "{basename}", "content": "{preexec.stdout}" }
+      }
+    }
+  ]
+}

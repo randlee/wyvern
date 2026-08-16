@@ -1,7 +1,7 @@
 ---
 id: f.2
 title: Positional extensions — HTML and wizard.json
-status: planning
+status: complete
 branch: feature/phase-F-f2-positional-extensions
 worktree: ../wyvern-worktrees/feature/phase-F-f2-positional-extensions
 target: integrate/phase-F
@@ -85,7 +85,7 @@ Host L1 optional: headless `--viewer none` smoke that expanded wizard URL resolv
 ## Required validation
 
 ```bash
-cargo test -p wyvern extensions_html extensions_wizard_json extensions_html_wizard_root
+cargo test -p wyvern-cli extensions_html extensions_wizard_json extensions_html_wizard_root
 cargo test -p wyvern-host wizard_state  # regression
 scripts/demo-wizard.sh single-page  # pre-existing from phase-D; skip if absent
 ```

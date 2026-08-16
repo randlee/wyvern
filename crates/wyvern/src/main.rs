@@ -15,12 +15,15 @@
 use std::io::{self, IsTerminal, Write};
 use std::process::ExitCode;
 
-use wyvern::{
-    emit_fatal_internal, emit_io_error, emit_parse_error, load_command_input, parse_cli_args,
-    run_browsers_command, run_from_loaded, usage_message, BrowsersError, EmitError, LoadError,
-    PipelineError,
+use wyvern::extensions::{
+    build_match_context, expand_and_validate, run_extensions_command, ExtensionError,
+    ExtensionRegistry, ExtensionsCmdError,
 };
-use wyvern_schema::SerializeError;
+use wyvern::{
+    apply_host_overrides, emit_extension_error, emit_fatal_internal, emit_io_error,
+    emit_parse_error, emit_usage_error, emit_usage_message, load_command_input, parse_cli_args,
+    run_browsers_command, run_from_loaded, usage_message, BrowsersError, LoadError, PipelineError,
+};
 
 mod main_observability;
 
@@ -38,10 +41,13 @@ fn main() -> ExitCode {
                 print!("{stdout}");
                 ExitCode::SUCCESS
             }
-            Err(BrowsersError::Usage { message }) => {
-                eprintln!("{message}");
-                ExitCode::from(1)
-            }
+            Err(BrowsersError::Usage { message }) => match emit_usage_message(&message) {
+                Ok(stderr) => {
+                    eprintln!("{stderr}");
+                    ExitCode::from(2)
+                }
+                Err(e) => emit_fatal_internal(&e),
+            },
             Err(BrowsersError::Stage { stderr, exit_code }) => {
                 eprintln!("{stderr}");
                 ExitCode::from(u8::try_from(exit_code).unwrap_or(1))
@@ -50,12 +56,29 @@ fn main() -> ExitCode {
         };
     }
 
-    let cli = match parse_cli_args(&args) {
+    if args.first().map(String::as_str) == Some("extensions") {
+        return match run_extensions_command(&args[1..]) {
+            Ok(stdout) => {
+                print!("{stdout}");
+                ExitCode::SUCCESS
+            }
+            Err(ExtensionsCmdError::Usage { message }) => match emit_usage_message(&message) {
+                Ok(stderr) => {
+                    eprintln!("{stderr}");
+                    ExitCode::from(2)
+                }
+                Err(e) => emit_fatal_internal(&e),
+            },
+            Err(ExtensionsCmdError::Stage { stderr, exit_code }) => {
+                eprintln!("{stderr}");
+                ExitCode::from(u8::try_from(exit_code).unwrap_or(1))
+            }
+            Err(ExtensionsCmdError::Emit(e)) => emit_fatal_internal(&e),
+        };
+    }
+
+    let mut cli = match parse_cli_args(&args) {
         Ok(cli) => cli,
-        Err(LoadError::Usage { message }) => {
-            eprintln!("{message}");
-            return ExitCode::from(1);
-        }
         Err(err) => return emit_load_stage_failure(&err),
     };
 
@@ -66,22 +89,45 @@ fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     }
 
-    // No positional args on a TTY: print usage instead of blocking on stdin.
+    // No positional args on a TTY: emit structured usage JSON instead of blocking on stdin.
     if cli.positionals.is_empty() && io::stdin().is_terminal() {
-        eprintln!("{}", usage_message());
-        return ExitCode::from(1);
+        return match emit_usage_message(&usage_message()) {
+            Ok(stderr) => {
+                eprintln!("{stderr}");
+                ExitCode::from(2)
+            }
+            Err(e) => emit_fatal_internal(&e),
+        };
+    }
+
+    let registry = match ExtensionRegistry::load_default() {
+        Ok(registry) => registry,
+        Err(err) => return emit_extension_stage_failure(&err),
+    };
+
+    if let Some(matched) = registry.match_argv(&cli.positionals) {
+        let ctx = build_match_context(&matched, matched.extension());
+        let expanded = match expand_and_validate(matched.extension(), &ctx) {
+            Ok(expanded) => expanded,
+            Err(err) => return emit_extension_stage_failure(&err),
+        };
+        apply_host_overrides(&mut cli.host, &expanded.host_overrides);
+        let result = run_from_loaded(expanded.command, cli.host);
+        // `expanded.temp_guard` drops after host exit (success or stage error).
+        drop(expanded.temp_guard);
+        return emit_pipeline_result(result);
     }
 
     let value = match load_command_input(&cli.positionals, io::stdin()) {
         Ok(value) => value,
-        Err(LoadError::Usage { message }) => {
-            eprintln!("{message}");
-            return ExitCode::from(1);
-        }
         Err(err) => return emit_load_stage_failure(&err),
     };
 
-    match run_from_loaded(value, cli.host) {
+    emit_pipeline_result(run_from_loaded(value, cli.host))
+}
+
+fn emit_pipeline_result(result: Result<String, PipelineError>) -> ExitCode {
+    match result {
         Ok(stdout) => {
             let mut out = io::stdout().lock();
             let _ = writeln!(out, "{stdout}");
@@ -95,19 +141,21 @@ fn main() -> ExitCode {
     }
 }
 
+fn emit_extension_stage_failure(err: &ExtensionError) -> ExitCode {
+    match emit_extension_error(err) {
+        Ok(stderr) => {
+            eprintln!("{stderr}");
+            ExitCode::from(u8::try_from(err.exit_code()).unwrap_or(1))
+        }
+        Err(e) => emit_fatal_internal(&e),
+    }
+}
+
 fn emit_load_stage_failure(err: &LoadError) -> ExitCode {
-    debug_assert!(matches!(
-        err,
-        LoadError::Parse { .. } | LoadError::Io { .. }
-    ));
     let emit_result = match err {
         LoadError::Parse { .. } => emit_parse_error(err),
         LoadError::Io { .. } => emit_io_error(err),
-        LoadError::Usage { .. } => {
-            emit_fatal_internal(&EmitError::Serialize(SerializeError {
-                message: "miswired Usage in emit_load_stage_failure".into(),
-            }));
-        }
+        LoadError::Usage { .. } => emit_usage_error(err),
     };
     match emit_result {
         Ok(stderr) => {

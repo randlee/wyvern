@@ -106,7 +106,7 @@ Boundary rules are encoded in `boundaries/` and enforced in CI.
 
 ### ADR-0022: CLI extension registry as argv preprocessor (Phase F)
 
-**Status:** Accepted (planning — Phase F)
+**Status:** Accepted (Phase F f.1)
 
 **Context:** Phase F adds declarative argv → `Command` JSON expansion (suffix/subcommand aliases). Phase E needs `--interactive` argv expansion; MCP tools may need equivalent commands without duplicating registry logic.
 
@@ -227,6 +227,8 @@ load → validate(value) → Command → host bind → DialogHandle
 ```
 
 Parse is owned by `load`; dispatch is internal to host bind + await. Viewer spawn for **`embedded`** is owned by **`wyvern` CLI** — not `HostSession`. System/named open is owned by **`wyvern-host`**. `wyvern-host::run` covers none/system/named only; embedded uses DialogHandle composition in the CLI.
+
+**Amendment (Phase F / ADR-0022):** The CLI inserts an **argv preprocessor** before `load_command_input`. Host-only flags are stripped; `ExtensionRegistry::match_argv` may expand the remainder to validated `Command` JSON and optional `host.ui_root`. That expanded value then enters this same `validate → host → emit` chain — no new `Command` variants and no per-extension host handlers. See [ADR-0022](#adr-0022-cli-extension-registry-as-argv-preprocessor-phase-f) and the local pipeline note in [`docs/wyvern/architecture.md`](wyvern/architecture.md).
 
 **Consequences:**
 - Phase A validates and executes only `chrome`
