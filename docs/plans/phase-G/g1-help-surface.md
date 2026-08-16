@@ -29,7 +29,7 @@ Help output goes to **stdout**; exit code **0**. Failures remain stderr JSON fro
 | `docs/wyvern/requirements.md` | REQ-0130 amendment row (pipeline order) |
 | `crates/wyvern/src/main.rs` | Global help: first positional `--help`/`-h`/`help` only; extension help match before `match_argv` (see contract) |
 | `crates/wyvern/src/cli_args.rs` | `usage_message()` — Extensions block, wizard-root note, env block |
-| `crates/wyvern/src/extensions/mod.rs` | `match_extension_help(registry, argv, probe) -> Option<ExtensionDef>` — prefix match + help-only remainder, ignores requires/suffix |
+| `crates/wyvern/src/extensions/mod.rs` | `match_extension_help(registry, argv) -> Option<&ExtensionDef>`; `is_help_only_tokens` — prefix + help-only remainder, ignores requires/suffix |
 | `crates/wyvern/src/extensions/catalog.rs` | **Stub only in g.1:** `SkillRecord`, `build_skill_record()`, `format_skill_card()` — minimal fields for help (g.3 extends same types) |
 | `crates/wyvern/src/extensions/expand.rs` | `expand_and_validate` → `Result<ExpandOutcome, ExtensionError>` (`Expanded` \| `Help`) for non-help paths |
 | `crates/wyvern/src/extensions/list.rs` | `extensions_usage_message()`; `--help`/`-h` (mentions `list` only — `show` is g.3) |
@@ -94,8 +94,7 @@ None.
 5. `wyvern md --help` and `wyvern table --help` exit **0** with skill card (no `.csv` path required)
 6. `wyvern extensions --help` exit **0**; mentions `list` (does **not** require `show` — g.3)
 7. `wyvern browsers --help` exit **0**; mentions `list` and `refresh`
-8. Bare TTY `wyvern` unchanged (exit 1) — out of g.1 scope
-9. `cargo fmt --all --check && cargo clippy --workspace -- -D warnings` clean
+8. `cargo fmt --all --check && cargo clippy --workspace -- -D warnings` clean
 
 ### Manual (non-gating)
 
@@ -117,6 +116,7 @@ cargo fmt --all --check && cargo clippy --workspace -- -D warnings
 - Near-miss diagnostics → **g.2**
 - `extensions list --json`, `extensions show`, full `SkillRecord` catalog → **g.3**
 - Exit-code dictionary → P2
+- Bare TTY `wyvern` (exit 1) unchanged — g.1 must not regress; no new test required
 
 ## Authority
 

@@ -32,15 +32,21 @@ Complete the skill catalog: rich text list, `--json` **array**, `extensions show
 
 ### Formatter ownership (normative)
 
+g.1 **must** call `format_skill_card(&build_skill_record(ext, probe))` at ship time. g.3 completes `SkillRecord` fields only — no `main.rs` changes in g.3.
+
 ```rust
 // catalog.rs — sole text formatter
 pub fn format_skill_card(record: &SkillRecord) -> String;
 
-// list.rs / main help path — all call:
-let text = format_skill_card(&build_skill_record(ext, probe));
+pub fn build_skill_record(ext: &ExtensionDef, probe: &dyn RequiresProbe) -> SkillRecord;
+
+pub fn build_skill_records(
+    registry: &ExtensionRegistry,
+    probe: &dyn RequiresProbe,
+) -> Vec<SkillRecord>;
 ```
 
-No `format_skill_record_text`. g.1 help path updated to use completed `SkillRecord` if stub was minimal.
+No `format_skill_record_text`.
 
 ### `--json` wire
 

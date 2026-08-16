@@ -111,7 +111,8 @@ None.
 ## Required validation
 
 ```bash
-cargo test -p wyvern-cli --test extension_diagnostics preexec_recovery
+cargo test -p wyvern-cli --test extension_diagnostics
+cargo test -p wyvern-cli --test preexec_recovery
 cargo fmt --all --check && cargo clippy --workspace -- -D warnings
 ./target/debug/wyvern notes.txt 2>&1 | rg 'unknown input'
 ./target/debug/wyvern notes.txt 2>&1 | rg -v 'not valid JSON'
