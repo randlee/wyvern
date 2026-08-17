@@ -9,16 +9,17 @@ use wyvern_schema::{ErrorCode, StderrError};
 use crate::error::EmitError;
 
 use super::{
-    build_skill_record, ends_with_suffix, format_skill_card, ExtensionRegistry, PathRequiresProbe,
+    build_skill_record, ends_with_suffix, format_skill_card, BinaryName, ExtensionId,
+    ExtensionRegistry, PathRequiresProbe,
 };
 
 /// Extension that would have matched argv but was skipped for `requires`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SkippedExtension {
     /// Extension id that was skipped.
-    pub id: String,
+    pub id: ExtensionId,
     /// Required binaries that were not on `PATH`.
-    pub missing: Vec<String>,
+    pub missing: Vec<BinaryName>,
 }
 
 /// Result of walking the registry with skip diagnostics.
@@ -41,14 +42,14 @@ pub enum NearMissKind {
     /// First prefix tokens matched; later prefix tokens are missing.
     IncompletePrefix {
         /// Extension that owns the full prefix.
-        extension_id: String,
+        extension_id: ExtensionId,
         /// Remaining argv to type (for example `compose render`).
         hint: String,
     },
     /// Full prefix matched; required suffix path is absent or wrong.
     BarePrefix {
         /// Extension that owns the prefix.
-        extension_id: String,
+        extension_id: ExtensionId,
         /// Invocation line including the missing suffix placeholder.
         usage: String,
     },
@@ -164,18 +165,17 @@ pub fn emit_near_miss(kind: &NearMissKind) -> Result<String, EmitError> {
             ],
         ),
         NearMissKind::SkippedRequires { path, skipped } => {
-            let first = skipped.first();
-            let id = first.map_or("extension", |s| s.id.as_str());
-            let missing = first
-                .map(|s| s.missing.join(", "))
-                .unwrap_or_else(|| "required binaries".into());
-            let example = first
-                .and_then(|s| skill_example_line(&s.id))
+            let (id_summary, missing) = skipped_requires_summary(skipped);
+            let example = skipped
+                .first()
+                .and_then(|s| skill_example_line(s.id.as_str()))
                 .unwrap_or_else(|| format!("wyvern {path}"));
             (
                 ErrorCode::ValidationError,
-                format!("extension '{id}' skipped; missing {missing}"),
-                format!("'{path}' matched '{id}' but required binaries are not on PATH"),
+                format!("extension(s) '{id_summary}' skipped; missing {missing}"),
+                format!(
+                    "'{path}' matched skipped extension(s) but required binaries are not on PATH"
+                ),
                 vec![
                     format!("Install {missing} and retry"),
                     format!("Example: {example}"),
@@ -232,7 +232,7 @@ fn find_bare_prefix(registry: &ExtensionRegistry, argv: &[String]) -> Option<Nea
     best.map(|(ext, _)| {
         let record = build_skill_record(ext, &PathRequiresProbe);
         NearMissKind::BarePrefix {
-            extension_id: ext.id.to_string(),
+            extension_id: ext.id.clone(),
             usage: record.invocation,
         }
     })
@@ -272,7 +272,7 @@ fn find_incomplete_prefix(registry: &ExtensionRegistry, argv: &[String]) -> Opti
             })
             .unwrap_or_default();
         NearMissKind::IncompletePrefix {
-            extension_id: ext.id.to_string(),
+            extension_id: ext.id.clone(),
             hint,
         }
     })
@@ -296,6 +296,40 @@ fn prefix_from_usage(usage: &str) -> String {
         })
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+/// Bound how many skipped ids appear in the human/JSON summary.
+const MAX_SKIPPED_SUMMARY: usize = 4;
+
+fn skipped_requires_summary(skipped: &[SkippedExtension]) -> (String, String) {
+    let shown = skipped.len().min(MAX_SKIPPED_SUMMARY);
+    let ids = skipped[..shown]
+        .iter()
+        .map(|s| s.id.to_string())
+        .collect::<Vec<_>>()
+        .join(", ");
+    let id_summary = if skipped.len() > MAX_SKIPPED_SUMMARY {
+        format!("{ids} (+{} more)", skipped.len() - MAX_SKIPPED_SUMMARY)
+    } else if ids.is_empty() {
+        "extension".into()
+    } else {
+        ids
+    };
+    let mut missing = Vec::new();
+    for skipped in skipped {
+        for bin in &skipped.missing {
+            let name = bin.as_str();
+            if !missing.iter().any(|seen: &String| seen == name) {
+                missing.push(name.to_string());
+            }
+        }
+    }
+    let missing = if missing.is_empty() {
+        "required binaries".into()
+    } else {
+        missing.join(", ")
+    };
+    (id_summary, missing)
 }
 
 fn skill_example_line(id: &str) -> Option<String> {
@@ -368,7 +402,7 @@ mod tests {
                 extension_id,
                 usage,
             } => {
-                assert_eq!(extension_id, "csv-md");
+                assert_eq!(extension_id.as_str(), "csv-md");
                 assert!(usage.contains("<file.csv>"), "{usage}");
             }
             other => panic!("expected BarePrefix, got {other:?}"),
@@ -386,7 +420,7 @@ mod tests {
         let kind = classify_near_miss(&registry, &argv, &[]).expect("incomplete");
         match &kind {
             NearMissKind::IncompletePrefix { extension_id, hint } => {
-                assert_eq!(extension_id, "compose-render");
+                assert_eq!(extension_id.as_str(), "compose-render");
                 assert_eq!(hint, "compose render");
             }
             other => panic!("expected IncompletePrefix, got {other:?}"),
@@ -423,5 +457,36 @@ mod tests {
                 .expect("csv"),
             &Absent,
         ));
+    }
+
+    #[test]
+    fn skipped_requires_lists_all_skipped_extensions() {
+        let json = r#"{
+          "version": 1,
+          "extensions": [
+            {
+              "id": "one-csv",
+              "match": { "positional_suffix": ".csv" },
+              "preexec": { "cmd": "python3", "requires": ["python3"] },
+              "expand": { "command": { "type": "markdown", "file": "{path}" } }
+            },
+            {
+              "id": "two-csv",
+              "match": { "positional_suffix": ".csv" },
+              "preexec": { "cmd": "ruby", "requires": ["ruby"] },
+              "expand": { "command": { "type": "markdown", "file": "{path}" } }
+            }
+          ]
+        }"#;
+        let registry = ExtensionRegistry::from_json_str(json).expect("parse");
+        let argv = vec!["sample.csv".into()];
+        let outcome = registry.match_with_diagnostics_with(&argv, &Absent);
+        assert_eq!(outcome.skipped.len(), 2, "{:?}", outcome.skipped);
+        let kind = classify_near_miss(&registry, &argv, &outcome.skipped).expect("skipped");
+        let json = emit_near_miss(&kind).expect("emit");
+        assert!(json.contains("one-csv"), "{json}");
+        assert!(json.contains("two-csv"), "{json}");
+        assert!(json.contains("python3"), "{json}");
+        assert!(json.contains("ruby"), "{json}");
     }
 }

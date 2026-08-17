@@ -257,6 +257,16 @@ pub fn emit_extension_error(err: &crate::extensions::ExtensionError) -> Result<S
                         ],
                     )
                 }
+                Some(PreexecFailureKind::Timeout { cmd, timeout_secs }) => (
+                    format!("Preexec helper '{cmd}' timed out after {timeout_secs}s"),
+                    vec![
+                        format!(
+                            "Increase WYVERN_PREEXEC_TIMEOUT_SECS (current {timeout_secs}) if the helper needs more time"
+                        ),
+                        "Or fix a hung helper or blocked input path".into(),
+                        "Run wyvern --help to list skills".into(),
+                    ],
+                ),
                 None => (
                     "Extension preexec subprocess failed".to_string(),
                     vec![
@@ -988,11 +998,11 @@ mod tests {
 
     #[test]
     fn emit_missing_args_lists_flags() {
-        use crate::extensions::ExtensionError;
+        use crate::extensions::{ExtensionError, ExtensionId};
         let err = ExtensionError::MissingArgs {
             missing: vec!["--root".into(), "--file".into()],
             declared: ["root".into(), "file".into()].into_iter().collect(),
-            extension_id: "compose-render".into(),
+            extension_id: ExtensionId::try_from(String::from("compose-render")).expect("id"),
             example: "wyvern compose render --root DIR --file FILE.j2".into(),
         };
         let out = emit_extension_error(&err).expect("emit");
@@ -1010,11 +1020,11 @@ mod tests {
 
     #[test]
     fn emit_unexpected_arg_is_caller_facing() {
-        use crate::extensions::ExtensionError;
+        use crate::extensions::{ExtensionError, ExtensionId};
         let err = ExtensionError::UnexpectedArg {
             token: "--undeclared".into(),
             declared: ["root".into(), "file".into()].into_iter().collect(),
-            extension_id: "compose-render".into(),
+            extension_id: ExtensionId::try_from(String::from("compose-render")).expect("id"),
         };
         let out = emit_extension_error(&err).expect("emit");
         let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
@@ -1028,5 +1038,24 @@ mod tests {
             !out.contains("declare them as {arg:name}") && !out.contains("{arg:"),
             "{out}"
         );
+    }
+
+    #[test]
+    fn emit_preexec_timeout_mentions_env_var() {
+        use crate::extensions::{ExtensionError, PreexecFailureKind};
+        let err = ExtensionError::Preexec {
+            kind: Some(PreexecFailureKind::Timeout {
+                cmd: "slow".into(),
+                timeout_secs: 30,
+            }),
+            message: "slow timed out after 30s".into(),
+            source: None,
+        };
+        let out = emit_extension_error(&err).expect("emit");
+        assert!(
+            out.contains("WYVERN_PREEXEC_TIMEOUT_SECS"),
+            "timeout recovery must name the env var: {out}"
+        );
+        assert!(out.contains("30"), "{out}");
     }
 }

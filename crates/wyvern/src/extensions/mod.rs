@@ -129,6 +129,18 @@ impl AsRef<str> for ExtensionId {
     }
 }
 
+impl PartialEq<str> for ExtensionId {
+    fn eq(&self, other: &str) -> bool {
+        self.0 == other
+    }
+}
+
+impl PartialEq<&str> for ExtensionId {
+    fn eq(&self, other: &&str) -> bool {
+        self.0 == *other
+    }
+}
+
 /// Declared `{arg:name}` flag name (no leading dashes).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ArgName(String);
@@ -194,6 +206,12 @@ impl std::borrow::Borrow<str> for BinaryName {
 impl PartialEq<str> for BinaryName {
     fn eq(&self, other: &str) -> bool {
         self.0 == other
+    }
+}
+
+impl PartialEq<&str> for BinaryName {
+    fn eq(&self, other: &&str) -> bool {
+        self.0 == *other
     }
 }
 
@@ -453,7 +471,7 @@ pub enum ExtensionError {
         /// All declared `{arg:*}` names (no dashes).
         declared: std::collections::BTreeSet<String>,
         /// Extension that required the flags.
-        extension_id: String,
+        extension_id: ExtensionId,
         /// Copy-paste example from the skill card.
         example: String,
     },
@@ -464,7 +482,7 @@ pub enum ExtensionError {
         /// Declared `{arg:*}` names (no dashes).
         declared: std::collections::BTreeSet<String>,
         /// Extension that matched argv.
-        extension_id: String,
+        extension_id: ExtensionId,
     },
     /// Path-derived template used without a matched path.
     PathVarWithoutPath {
@@ -480,7 +498,7 @@ pub enum ExtensionError {
     },
     /// Preexec process failed or could not be spawned.
     Preexec {
-        /// Spawn-not-found vs nonzero-exit classification (`None` for timeout).
+        /// Spawn-not-found, nonzero-exit, or timeout (`None` for other spawn I/O).
         kind: Option<PreexecFailureKind>,
         /// Human-readable subprocess failure.
         message: String,
@@ -662,11 +680,11 @@ impl ExtensionRegistry {
             let Some(candidate) = ext.match_spec_argv(argv) else {
                 continue;
             };
-            let missing: Vec<String> = ext
+            let missing: Vec<BinaryName> = ext
                 .requires()
                 .iter()
                 .filter(|bin| !probe.binary_on_path(bin.as_str()))
-                .map(|bin| bin.as_str().to_string())
+                .cloned()
                 .collect();
             if missing.is_empty() {
                 return MatchOutcome {
@@ -675,7 +693,7 @@ impl ExtensionRegistry {
                 };
             }
             skipped.push(SkippedExtension {
-                id: ext.id.to_string(),
+                id: ext.id.clone(),
                 missing,
             });
         }
@@ -756,7 +774,14 @@ impl ExtensionDef {
 }
 
 pub(crate) fn ends_with_suffix(token: &str, suffix: &str) -> bool {
-    token.len() >= suffix.len() && token[token.len() - suffix.len()..].eq_ignore_ascii_case(suffix)
+    let Some(start) = token.len().checked_sub(suffix.len()) else {
+        return false;
+    };
+    // `str::get` is `None` when `start` is not a UTF-8 char boundary, so a
+    // multi-byte token cannot panic the way a raw byte slice would.
+    token
+        .get(start..)
+        .is_some_and(|tail| tail.eq_ignore_ascii_case(suffix))
 }
 
 fn parse_registry_file(path: &Path) -> Result<Vec<ExtensionDef>, ExtensionError> {
@@ -1165,6 +1190,17 @@ mod tests {
                 .as_str(),
             "sc-compose"
         );
+    }
+
+    #[test]
+    fn ends_with_suffix_does_not_panic_on_multibyte_token() {
+        assert!(ends_with_suffix("café.md", ".md"));
+        assert!(ends_with_suffix("café.MD", ".md"));
+        assert!(ends_with_suffix("ファイル.md", ".md"));
+        // "xé" is 3 bytes; a 2-byte suffix would split `é` under byte slicing.
+        assert!(!ends_with_suffix("xé", "xx"));
+        assert!(!ends_with_suffix("é", ".md"));
+        assert!(!ends_with_suffix("ab", ".md"));
     }
 
     #[test]

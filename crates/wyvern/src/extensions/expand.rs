@@ -338,7 +338,7 @@ fn value_contains(value: &Value, needle: &str) -> bool {
 }
 
 struct ExpandEnv<'a> {
-    extension_id: String,
+    ext: &'a ExtensionDef,
     declared: BTreeSet<String>,
     path: Option<&'a str>,
     tmpdir: Option<&'a Path>,
@@ -351,7 +351,7 @@ struct ExpandEnv<'a> {
 
 impl<'a> ExpandEnv<'a> {
     fn from_context(
-        ext: &ExtensionDef,
+        ext: &'a ExtensionDef,
         ctx: &'a MatchContext<'a>,
         phase: Phase,
     ) -> Result<Self, ExtensionError> {
@@ -361,12 +361,7 @@ impl<'a> ExpandEnv<'a> {
             .map(|arg| arg.name.as_str().to_string())
             .collect();
         let path_token = ctx.path;
-        let args = parse_named_args(
-            ctx.args_after_prefix,
-            &declared,
-            path_token,
-            ext.id.as_str(),
-        )?;
+        let args = parse_named_args(ctx.args_after_prefix, &declared, path_token, ext)?;
         let missing: Vec<String> = skill_args
             .iter()
             .filter(|arg| arg.required && !args.contains_key(arg.name.as_str()))
@@ -376,7 +371,7 @@ impl<'a> ExpandEnv<'a> {
             return Err(missing_args_error(ext, missing, declared));
         }
         Ok(Self {
-            extension_id: ext.id.to_string(),
+            ext,
             declared,
             path: ctx.path,
             tmpdir: ctx.tmpdir.as_deref(),
@@ -458,11 +453,12 @@ impl<'a> ExpandEnv<'a> {
                 .get(arg_name)
                 .and_then(|v| v.first())
                 .cloned()
-                .ok_or_else(|| ExtensionError::MissingArgs {
-                    missing: vec![format!("--{arg_name}")],
-                    declared: self.declared.clone(),
-                    extension_id: self.extension_id.clone(),
-                    example: String::new(),
+                .ok_or_else(|| {
+                    missing_args_error(
+                        self.ext,
+                        vec![format!("--{arg_name}")],
+                        self.declared.clone(),
+                    )
                 });
         }
         match name {
@@ -625,7 +621,7 @@ fn parse_named_args(
     tokens: &[String],
     declared: &BTreeSet<String>,
     path_token: Option<&str>,
-    extension_id: &str,
+    ext: &ExtensionDef,
 ) -> Result<BTreeMap<String, Vec<String>>, ExtensionError> {
     let mut args: BTreeMap<String, Vec<String>> = BTreeMap::new();
     let mut i = 0;
@@ -633,28 +629,22 @@ fn parse_named_args(
         let token = &tokens[i];
         if let Some(name) = token.strip_prefix("--") {
             if name.is_empty() {
-                return Err(unexpected_arg(token, declared, extension_id));
+                return Err(unexpected_arg(token, declared, ext));
             }
             let (name, inline) = match name.split_once('=') {
                 Some((n, v)) => (n.to_string(), Some(v.to_string())),
                 None => (name.to_string(), None),
             };
             if !declared.contains(&name) {
-                return Err(unexpected_arg(token, declared, extension_id));
+                return Err(unexpected_arg(token, declared, ext));
             }
             let value = if let Some(v) = inline {
                 v
             } else {
                 i += 1;
-                tokens
-                    .get(i)
-                    .cloned()
-                    .ok_or_else(|| ExtensionError::MissingArgs {
-                        missing: vec![format!("--{name}")],
-                        declared: declared.clone(),
-                        extension_id: extension_id.to_string(),
-                        example: String::new(),
-                    })?
+                tokens.get(i).cloned().ok_or_else(|| {
+                    missing_args_error(ext, vec![format!("--{name}")], declared.clone())
+                })?
             };
             args.entry(name).or_default().push(value);
             i += 1;
@@ -664,16 +654,16 @@ fn parse_named_args(
             i += 1;
             continue;
         }
-        return Err(unexpected_arg(token, declared, extension_id));
+        return Err(unexpected_arg(token, declared, ext));
     }
     Ok(args)
 }
 
-fn unexpected_arg(token: &str, declared: &BTreeSet<String>, extension_id: &str) -> ExtensionError {
+fn unexpected_arg(token: &str, declared: &BTreeSet<String>, ext: &ExtensionDef) -> ExtensionError {
     ExtensionError::UnexpectedArg {
         token: token.to_string(),
         declared: declared.clone(),
-        extension_id: extension_id.to_string(),
+        extension_id: ext.id.clone(),
     }
 }
 
@@ -691,7 +681,7 @@ fn missing_args_error(
     ExtensionError::MissingArgs {
         missing,
         declared,
-        extension_id: ext.id.to_string(),
+        extension_id: ext.id.clone(),
         example,
     }
 }
@@ -795,9 +785,47 @@ mod tests {
         let ctx = build_match_context(&matched, matched.extension());
         let err = expand_command_host(matched.extension(), &ctx).expect_err("missing");
         assert!(
-            matches!(err, ExtensionError::MissingArgs { ref missing, .. } if missing.iter().any(|m| m == "--root")),
+            matches!(err, ExtensionError::MissingArgs { ref missing, ref example, .. } if missing.iter().any(|m| m == "--root") && !example.is_empty()),
             "{err:?}"
         );
+    }
+
+    #[test]
+    fn missing_flag_value_populates_example() {
+        let json = r#"{
+          "version": 1,
+          "extensions": [
+            {
+              "id": "needs-root",
+              "examples": ["wyvern compose render --root DIR"],
+              "match": { "argv_prefix": ["compose", "render"] },
+              "expand": {
+                "command": { "type": "markdown", "content": "{arg:root}" }
+              }
+            }
+          ]
+        }"#;
+        let registry = ExtensionRegistry::from_json_str(json).expect("parse");
+        let argv = vec!["compose".into(), "render".into(), "--root".into()];
+        let matched = registry.match_argv(&argv).expect("match");
+        let ctx = build_match_context(&matched, matched.extension());
+        let err = expand_command_host(matched.extension(), &ctx).expect_err("missing value");
+        match err {
+            ExtensionError::MissingArgs {
+                missing,
+                example,
+                extension_id,
+                ..
+            } => {
+                assert!(missing.iter().any(|m| m == "--root"), "{missing:?}");
+                assert!(
+                    !example.is_empty() && example.contains("compose render"),
+                    "{example}"
+                );
+                assert_eq!(extension_id.as_str(), "needs-root");
+            }
+            other => panic!("expected MissingArgs, got {other:?}"),
+        }
     }
 
     #[test]

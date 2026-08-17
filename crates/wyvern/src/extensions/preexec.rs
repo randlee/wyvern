@@ -7,10 +7,13 @@ use std::time::{Duration, Instant};
 
 use super::{ExtensionError, StdoutCapture, TemplateErrorKind};
 
-/// Why a preexec subprocess failed (no `Timeout` variant — that is P2).
+/// Why a preexec subprocess failed.
+///
+/// `Timeout` is classified from the existing sync poll — it does not add async
+/// timeout infrastructure (sprint g.2 non-closure).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PreexecFailureKind {
-    /// The helper binary could not be spawned (typically not on `PATH`).
+    /// The helper binary could not be spawned (`ErrorKind::NotFound`).
     SpawnNotFound {
         /// Expanded `preexec.cmd`.
         cmd: String,
@@ -21,6 +24,13 @@ pub enum PreexecFailureKind {
         code: i32,
         /// Last 4 KiB of child stderr.
         stderr_tail: String,
+    },
+    /// The helper exceeded `WYVERN_PREEXEC_TIMEOUT_SECS` (sync poll).
+    Timeout {
+        /// Expanded `preexec.cmd`.
+        cmd: String,
+        /// Timeout that elapsed, in seconds.
+        timeout_secs: u64,
     },
 }
 
@@ -37,10 +47,14 @@ fn preexec_error(
 }
 
 fn spawn_error(cmd: &str, err: std::io::Error) -> ExtensionError {
-    preexec_error(
-        Some(PreexecFailureKind::SpawnNotFound {
+    let kind = match err.kind() {
+        std::io::ErrorKind::NotFound => Some(PreexecFailureKind::SpawnNotFound {
             cmd: cmd.to_string(),
         }),
+        _ => None,
+    };
+    preexec_error(
+        kind,
         format!("failed to spawn '{cmd}': {err}"),
         Some(Box::new(err)),
     )
@@ -253,7 +267,10 @@ fn run_capture_stdout(cmd: &str, args: &[String]) -> Result<String, ExtensionErr
             reap_killed(&mut child, reader);
             let stderr = join_stderr(stderr_reader);
             Err(preexec_error(
-                None,
+                Some(PreexecFailureKind::Timeout {
+                    cmd: cmd.to_string(),
+                    timeout_secs: timeout.as_secs(),
+                }),
                 preexec_fail_message(
                     cmd,
                     &format!("timed out after {}s", timeout.as_secs()),
@@ -360,7 +377,10 @@ fn wait_until(
                     let _ = child.kill();
                     let _ = child.wait();
                     return Err(preexec_error(
-                        None,
+                        Some(PreexecFailureKind::Timeout {
+                            cmd: cmd.to_string(),
+                            timeout_secs: timeout.as_secs(),
+                        }),
                         format!("{cmd} timed out after {}s", timeout.as_secs()),
                         None,
                     ));
@@ -461,6 +481,32 @@ mod tests {
                 ..
             }
         ));
+    }
+
+    #[test]
+    fn spawn_error_maps_not_found_vs_other() {
+        let not_found = spawn_error(
+            "missing-bin",
+            std::io::Error::new(std::io::ErrorKind::NotFound, "nope"),
+        );
+        assert!(
+            matches!(
+                not_found,
+                ExtensionError::Preexec {
+                    kind: Some(PreexecFailureKind::SpawnNotFound { ref cmd }),
+                    ..
+                } if cmd == "missing-bin"
+            ),
+            "{not_found:?}"
+        );
+        let denied = spawn_error(
+            "locked-bin",
+            std::io::Error::new(std::io::ErrorKind::PermissionDenied, "denied"),
+        );
+        assert!(
+            matches!(denied, ExtensionError::Preexec { kind: None, .. }),
+            "{denied:?}"
+        );
     }
 
     #[test]
