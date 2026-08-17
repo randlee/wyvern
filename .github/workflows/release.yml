@@ -28,6 +28,21 @@ jobs:
         with:
           python-version: "3.x"
 
+      # wyvern-viewer (wry) needs GTK/Wayland on Linux for clippy/test (same as CI).
+      - name: Install Linux build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwayland-dev \
+            pkg-config \
+            libwebkit2gtk-4.1-dev \
+            libxkbcommon-x11-0 \
+            libgl1-mesa-dri \
+            mesa-utils \
+            at-spi2-core \
+            dbus-x11 \
+            xvfb
+
       - name: Resolve release version from tag
         id: meta
         shell: bash
@@ -47,7 +62,7 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
 
       - name: cargo test
-        run: cargo test --workspace
+        run: cargo test --workspace -- --test-threads=1
 
       - name: Install cargo-audit
         run: cargo install cargo-audit --locked
