@@ -71,8 +71,10 @@ pub use preexec::{
 pub(crate) use match_logic::ends_with_suffix;
 
 /// Shipped defaults compiled into the binary (dev + `cargo install`).
-pub const SHIPPED_EXTENSIONS_JSON: &str =
-    include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/share/wyvern/extensions.json"));
+pub const SHIPPED_EXTENSIONS_JSON: &str = include_str!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/share/wyvern/extensions.json"
+));
 
 /// Embedded `share/wyvern/**` assets (`extensions.json`, packaged UI extras).
 #[derive(rust_embed::RustEmbed)]
