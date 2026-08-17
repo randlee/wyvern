@@ -1,0 +1,8 @@
+@prefix triage: <https://wyvern.dev/triage#> .
+
+triage:PLAN-CRIT-004 a triage:Finding ;
+    triage:id "PLAN-CRIT-004" ;
+    triage:severity "Important" ;
+    triage:promote_to_branch "integrate/phase-F" ;
+    triage:highest_open_branch "integrate/phase-F" ;
+    triage:required_fix "Amend docs/wyvern/architecture.md ADR-0013 for extension pipeline" .

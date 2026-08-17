@@ -1,0 +1,8 @@
+@prefix triage: <https://wyvern.dev/triage#> .
+
+triage:PLAN-CRIT-006 a triage:Finding ;
+    triage:id "PLAN-CRIT-006" ;
+    triage:severity "Important" ;
+    triage:promote_to_branch "integrate/phase-F" ;
+    triage:highest_open_branch "integrate/phase-F" ;
+    triage:required_fix "deny_unknown_fields on registry HostExpandSpec/MatchSpec/ExpandSpec/PreexecSpec" .

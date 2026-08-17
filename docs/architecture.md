@@ -104,6 +104,36 @@ Boundary rules are encoded in `boundaries/` and enforced in CI.
 
 ---
 
+### ADR-0022: CLI extension registry as argv preprocessor (Phase F)
+
+**Status:** Accepted (Phase F f.1)
+
+**Context:** Phase F adds declarative argv → `Command` JSON expansion (suffix/subcommand aliases). Phase E needs `--interactive` argv expansion; MCP tools may need equivalent commands without duplicating registry logic.
+
+**Decision (Path A):**
+
+1. Extension engine lives in **`wyvern` crate** as public `wyvern::extensions` module; used by `wyvern` binary and Phase E `--interactive` loop.
+2. Extensions produce existing `Command` JSON only — **no new schema variants**.
+3. **`wyvern-mcp` boundary unchanged:** MCP tools accept **pre-expanded `Command` JSON** (compose in tool handler or subprocess `wyvern` for expand-only). No `wyvern-mcp → wyvern-cli` dependency.
+
+**Consequences:** Phase F f.1 lands ADR-0022 + contract. Phase E e.3 documents MCP tool pattern for CSV/HTML. Path B (mcp → wyvern lib) deferred unless explicitly re-opened.
+
+**Amendment (Phase G — agent CLI surfaces):**
+
+**Status:** Accepted (Phase G plan — g.1–g.3 implement)
+
+**Context:** Phase F ships the extension engine; agents discover skills only via in-binary output (`--help`, `extensions list`, stderr). A shipped extension is incomplete if registry, help, and catalog diverge.
+
+**Decision:**
+
+1. **In-binary skill pack** is authoritative for agents: global `--help`, extension `--help` skill cards, `extensions list` / `--json`, `extensions show`, and near-miss stderr (see [agent-usability-contract.md](plans/phase-G/agent-usability-contract.md)).
+2. **Registry/help parity:** every shipped `extensions.json` entry must appear in help and catalog output with `description` + `examples` (REQ-0137). CI tests enforce parity.
+3. **README / plan docs** are informative for humans; they are not acceptance gates for agent discoverability.
+
+**Consequences:** New or changed extensions in any phase must update `usage_message()`, registry prose fields, and help/catalog tests in the same PR. Phase G g.1–g.3 land REQ-0134–REQ-0137. Phase E `--interactive` inherits the same argv surfaces.
+
+---
+
 ### ADR-0021: Minimal serde_json in wyvern-viewer for wizard dismiss
 
 **Status:** Accepted (Phase D d.8)
@@ -211,6 +241,8 @@ load → validate(value) → Command → host bind → DialogHandle
 ```
 
 Parse is owned by `load`; dispatch is internal to host bind + await. Viewer spawn for **`embedded`** is owned by **`wyvern` CLI** — not `HostSession`. System/named open is owned by **`wyvern-host`**. `wyvern-host::run` covers none/system/named only; embedded uses DialogHandle composition in the CLI.
+
+**Amendment (Phase F / ADR-0022):** The CLI inserts an **argv preprocessor** before `load_command_input`. Host-only flags are stripped; `ExtensionRegistry::match_argv` may expand the remainder to validated `Command` JSON and optional `host.ui_root`. That expanded value then enters this same `validate → host → emit` chain — no new `Command` variants and no per-extension host handlers. See [ADR-0022](#adr-0022-cli-extension-registry-as-argv-preprocessor-phase-f) and the local pipeline note in [`docs/wyvern/architecture.md`](wyvern/architecture.md).
 
 **Consequences:**
 - Phase A validates and executes only `chrome`

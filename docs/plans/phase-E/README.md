@@ -20,8 +20,11 @@ A Claude Code agent can open Wyvern in `--interactive` mode from a background sh
 - Persistent **`wyvern-host`** `HostSession`; blocking dialogs via HTTP (same as Phase C)
 - MCP server wrapper → `HostSession::run_dialog` for each tool call
 - MCP stdio integration harness (headless default)
+- Extension registry reuse for `--interactive` argv expansion — implemented in Phase F (ADR-0022). MCP tools compose pre-expanded Command JSON (no argv expand in wyvern-mcp).
 
-**Hard dependency:** Phase C **c.16** complete. Phase D required only for wizard MCP tools.
+**Prerequisite:** [Phase F](../phase-F/README.md) complete.
+
+**Hard dependency:** Phase C **c.16** complete. Phase D required for wizard MCP tools. **Phase F** required before e.1 (extension registry shared by `--interactive` and MCP argv expansion).
 
 ## What Phase E does not close
 

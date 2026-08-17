@@ -30,6 +30,28 @@
 
 **REQ-0118** — `wyvern browsers list` / `wyvern browsers refresh` (c.15).
 
+## CLI Extensions (Phase F + G)
+
+**REQ-0130** — After host-flag strip: (1) if remainder starts with `--help`, `-h`, or `help`, print global usage to stdout and exit 0; (2) if remainder matches an extension prefix with help-only tokens, print a skill card to stdout and exit 0 (before `requires` skip); (3) `ExtensionRegistry::match_with_diagnostics` on the remainder; (4) on no match, emit near-miss diagnostics (REQ-0136) before JSON / `.json` / stdin fallback; (5) otherwise expand matched extension to validated `Command` JSON (ADR-0022, [agent-usability-contract.md](../plans/phase-G/agent-usability-contract.md)).
+
+**REQ-0131** — A matched extension expands to validated `Command` JSON. When the extension sets `host.ui_root`, that value replaces CLI `--ui-root`.
+
+**REQ-0132** — `wyvern extensions list` emits a skill index: rich text blocks with match invocation, requires availability, expand type, and example; `wyvern extensions list --json` prints a JSON **array** of skill records per [skills-catalog-contract.md](../plans/phase-G/skills-catalog-contract.md); `wyvern extensions show <id>` prints one skill (text or `--json` object).
+
+**REQ-0133** — Wizard finish from extension-hosted pages (including the CSV table viewer) calls `wyvernWizardFinish` with the full visited stack: `window.wyvern.stack` plus `{ page, data }` (REQ-0024).
+
+## Agent CLI surfaces (Phase G)
+
+Primary user: AI agents with **no checkout docs**. Authoritative contract: [agent-usability-contract.md](../plans/phase-G/agent-usability-contract.md). README and plan docs are informative, not blocking for agent discovery.
+
+**REQ-0134** — `wyvern --help`, `wyvern -h`, and `wyvern help` exit **0** and print usage to stdout listing **every** shipped extension skill with copy-paste examples (including `.csv`, `table`, `md <file.csv>`, and `compose render` with declared flags).
+
+**REQ-0135** — When argv matches an extension `argv_prefix` and the remainder is only `--help` or `-h`, Wyvern prints that extension's skill card to stdout and exits **0** — including when required binaries are absent from `PATH` and without requiring a suffix path token (e.g. `wyvern md --help`, `wyvern compose render --help`).
+
+**REQ-0136** — Near-miss argv (unknown file suffix, skipped `requires`, incomplete prefix, bare prefix without suffix) emits structured stderr JSON naming the skill and next argv. `UnknownInput` reuses `ErrorCode::ParseError` but `message`/`recovery` must not contain `Input was not valid JSON`. Recovery points at in-binary commands (`wyvern --help`, `wyvern extensions list`) before checkout-only doc paths.
+
+**REQ-0137** — **Registry/help parity:** every `id` in shipped `share/wyvern/extensions.json` appears in global `--help` and in `extensions list --json`; each shipped entry has non-empty `description` and at least one `examples` string. CI tests enforce parity when the registry changes.
+
 ---
 
 ## Interactive Mode (Phase E)

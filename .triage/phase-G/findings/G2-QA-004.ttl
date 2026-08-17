@@ -1,0 +1,37 @@
+@prefix triage: <urn:atm:triage:> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<urn:atm:triage:finding/G2-QA-004>
+  a triage:Finding ;
+  triage:findingId "G2-QA-004" ;
+  triage:title "Doc drift: g2-error-teaches.md defers Timeout to P2 but code implements PreexecFailureKind::Timeout" ;
+  triage:description "Sprint plan g2-error-teaches.md line 130 marks PreexecFailureKind::Timeout as deferred to P2 pending async timeout infra, but the implementation in crates/wyvern/src/extensions/preexec.rs and error.rs has implemented it." ;
+  triage:category "DOC_DRIFT" ;
+  triage:phaseId "phase-G" ;
+  triage:severity "minor" ;
+  triage:triageMode "initial_pass" ;
+  triage:repeatable false ;
+  triage:status "open" ;
+  triage:dispatchReady true ;
+  triage:originatingSprintDoc "docs/plans/phase-G/g2-error-teaches.md" ;
+  triage:triagedAt "2026-08-16T17:29:00Z"^^xsd:dateTime ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/G2-QA-004/1> ;
+  triage:openOn <urn:atm:triage:worktree/phase-G-g2-error-teaches/886fa71> .
+
+<urn:atm:triage:occurrence/G2-QA-004/1>
+  a triage:Occurrence ;
+  triage:file "docs/plans/phase-G/g2-error-teaches.md" ;
+  triage:line 130 ;
+  triage:snippet "PreexecFailureKind::Timeout → P2 (requires async timeout infra)" ;
+  triage:status "open" ;
+  triage:closed false ;
+  triage:branch "feature/phase-G-g2-error-teaches" ;
+  triage:headSha "886fa71a871b5bd81a73f5a652e196d32caead4d" ;
+  triage:occursIn <urn:atm:triage:worktree/phase-G-g2-error-teaches/886fa71> .
+
+<urn:atm:triage:worktree/phase-G-g2-error-teaches/886fa71>
+  a triage:WorktreeSnapshot ;
+  triage:branch "feature/phase-G-g2-error-teaches" ;
+  triage:path "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-G-g2-error-teaches" ;
+  triage:headSha "886fa71a871b5bd81a73f5a652e196d32caead4d" ;
+  triage:orderIndex 1 .

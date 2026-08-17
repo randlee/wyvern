@@ -1,0 +1,126 @@
+{
+  "phase": "F",
+  "integration_branch": "integrate/phase-F",
+  "created": "2026-08-15T05:40:00Z",
+  "completed": "2026-08-15T10:56:49Z",
+  "active_sprint": null,
+  "dev_model": "cursor-grok-4.6-high-fast",
+  "status": "qa_pass",
+  "phase_end_qa_pass_commit": "12a816327e01089e5b6f2064e534ce2a39fc1d0d",
+  "phase_end_qa_pass_url": "https://github.com/randlee/wyvern/pull/81#issuecomment-5303811333",
+  "phase_end_pr": {
+    "number": 81,
+    "url": "https://github.com/randlee/wyvern/pull/81",
+    "base": "develop",
+    "head": "integrate/phase-F"
+  },
+  "qa_rounds": [
+    {
+      "qa_pass": "qa-phase-F-end-1",
+      "commit": "5d6e2ad2fe236e0f1e6b0ba930a4a3826bc1e2e1",
+      "verdict": "FAIL",
+      "pr_comment_url": "https://github.com/randlee/wyvern/pull/81#issuecomment-5303508653",
+      "reviewer_spawn_gate": "pass",
+      "coordinator_task_id": "7cbbfc5b-f90f-4460-a90e-ac01310e3f18",
+      "finding_counts": {"blocking": 2, "important": 18, "minor": 14},
+      "deliverables": "20/24 (83.3%)",
+      "next_action": "triage_and_fix",
+      "reviewer_manifest": [
+        {"agent": "req-qa", "task_id": "f323284d-c2f7-46c3-875b-6643a753b7ab"},
+        {"agent": "arch-qa", "task_id": "2743ad6e-7224-4c02-a15a-7d46d298f732"},
+        {"agent": "rust-qa-agent", "task_id": "f183ccec-4fa5-4bc0-9942-0b971c69c1b4"},
+        {"agent": "rust-best-practices-agent", "task_id": "7c205a79-b23b-4828-bd48-68640f4b9236"},
+        {"agent": "rust-service-hardening-agent", "task_id": "8368c71c-5ab5-451d-99ac-94a009bd5872"},
+        {"agent": "flaky-test-qa", "task_id": "00013e69-19e0-46a9-8480-fac2abaefe8d"},
+        {"agent": "critical-plan-reviewer", "task_id": "80935546-b3f2-41a7-a19f-d73d2b5c132b", "supplemental": true}
+      ]
+    },
+    {
+      "qa_pass": "qa-phase-F-end-6",
+      "commit": "8770d56b26d04464c32f46aa6bdb2a115f42f670",
+      "verdict": "FAIL",
+      "pr_comment_url": "https://github.com/randlee/wyvern/pull/81#issuecomment-5303755967",
+      "reviewer_spawn_gate": "pass",
+      "coordinator_task_id": "058f4fbc-56f3-40ab-9082-3ba519765cfb",
+      "finding_counts": {"blocking": 0, "important": 2, "minor": 0},
+      "deliverables": "23/23 (100%)",
+      "next_action": "triage_and_fix",
+      "open_finding_ids": ["QA-001", "RBP-F009"],
+      "reviewer_manifest": [
+        {"agent": "req-qa", "task_id": "0d6b8fbf-e746-4ac1-80ea-5c11796a55d7"},
+        {"agent": "arch-qa", "task_id": "66742222-2f41-44ff-9c6e-176b707ce4ae"},
+        {"agent": "rust-qa-agent", "task_id": "c1c5662b-d855-4e33-b4fc-1f1f3d02ea74"},
+        {"agent": "rust-best-practices-agent", "task_id": "bb56c214-61b3-49eb-9154-f69d2f7210be"},
+        {"agent": "rust-service-hardening-agent", "task_id": "5e1ccf0f-44bf-4250-a802-d538daaa9d19"},
+        {"agent": "flaky-test-qa", "task_id": "fd6506ac-c8e2-48b3-a882-e061c1c3b8c0"},
+        {"agent": "critical-plan-reviewer", "task_id": "38d2a596-c293-4d7d-b682-92189413cbc6", "supplemental": true}
+      ]
+    },
+    {
+      "qa_pass": "qa-phase-F-end-7",
+      "commit": "12a816327e01089e5b6f2064e534ce2a39fc1d0d",
+      "verdict": "PASS",
+      "pr_comment_url": "https://github.com/randlee/wyvern/pull/81#issuecomment-5303811333",
+      "reviewer_spawn_gate": "pass",
+      "coordinator_task_id": "ba1d2b8b-7228-4958-8370-bf8deb56c96a",
+      "finding_counts": {"blocking": 0, "important": 0, "minor": 0},
+      "deliverables": "25/25 (100%)",
+      "next_action": "none",
+      "reviewer_manifest": [
+        {"agent": "req-qa", "task_id": "16f7932f-92aa-452e-b5fa-8a463d5d6fd5"},
+        {"agent": "arch-qa", "task_id": "2d5d0a13-9818-49d7-a0ed-0917a5357095"},
+        {"agent": "rust-qa-agent", "task_id": "df8e2bb2-8b9b-46e5-ac0e-9fa8920d8810"}
+      ]
+    }
+  ],
+  "sprints": {
+    "f.1": {
+      "id": "f.1",
+      "title": "Extension runtime — registry, match, preexec, expand",
+      "branch": "feature/phase-F-f1-extension-runtime",
+      "sprint_doc": "docs/plans/phase-F/f1-extension-runtime.md",
+      "pr_target": "integrate/phase-F",
+      "status": "merged",
+      "pr_number": 77,
+      "pr_url": "https://github.com/randlee/wyvern/pull/77",
+      "merged_at": "2026-08-15T07:42:37Z",
+      "qa_gate": "0B+0I+0M"
+    },
+    "f.2": {
+      "id": "f.2",
+      "title": "Positional extensions — HTML and wizard.json",
+      "branch": "feature/phase-F-f2-positional-extensions",
+      "sprint_doc": "docs/plans/phase-F/f2-positional-extensions.md",
+      "pr_target": "integrate/phase-F",
+      "status": "merged",
+      "pr_number": 78,
+      "pr_url": "https://github.com/randlee/wyvern/pull/78",
+      "merged_at": "2026-08-15T09:08:54Z",
+      "qa_gate": "0B+0I+0M"
+    },
+    "f.3": {
+      "id": "f.3",
+      "title": "Compose render extension (sc-compose preexec)",
+      "branch": "feature/phase-F-f3-compose-extension",
+      "sprint_doc": "docs/plans/phase-F/f3-compose-extension.md",
+      "pr_target": "integrate/phase-F",
+      "status": "merged",
+      "pr_number": 79,
+      "pr_url": "https://github.com/randlee/wyvern/pull/79",
+      "merged_at": "2026-08-15T09:58:08Z",
+      "qa_gate": "0B+0I+0M"
+    },
+    "f.4": {
+      "id": "f.4",
+      "title": "CSV table viewer — JS DOM, sort/filter, md alias",
+      "branch": "feature/phase-F-f4-csv-table-viewer",
+      "sprint_doc": "docs/plans/phase-F/f4-csv-table-viewer.md",
+      "pr_target": "integrate/phase-F",
+      "status": "merged",
+      "pr_number": 80,
+      "pr_url": "https://github.com/randlee/wyvern/pull/80",
+      "merged_at": "2026-08-15T10:56:49Z",
+      "qa_gate": "0B+0I+0M"
+    }
+  }
+}

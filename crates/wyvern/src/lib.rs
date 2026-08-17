@@ -18,22 +18,32 @@ mod browsers_cmd;
 mod cli_args;
 mod embedded_ui;
 mod error;
+/// CLI extension registry, match, preexec, and expand (ADR-0022).
+pub mod extensions;
 mod input;
 mod observability;
 mod pipeline;
 mod viewer_spawn;
 
 #[doc(inline)]
-pub use browsers_cmd::{run_browsers_command, BrowsersError};
+pub use browsers_cmd::{browsers_usage_message, run_browsers_command, BrowsersError};
 #[doc(inline)]
-pub use cli_args::{parse_cli_args, usage_message, CliArgs};
+pub use cli_args::{apply_host_overrides, parse_cli_args, usage_message, CliArgs};
 #[doc(inline)]
 pub use error::{
-    emit_fatal_internal, emit_host_error, emit_io_error, emit_parse_error, emit_stdout,
-    emit_validation_error, EmitError, LoadError,
+    emit_extension_error, emit_fatal_internal, emit_host_error, emit_io_error, emit_parse_error,
+    emit_stdout, emit_usage_error, emit_usage_message, emit_validation_error, BuiltinDomain,
+    EmitError, LoadError, UsageErrorKind,
+};
+#[doc(inline)]
+pub use extensions::{
+    emit_near_miss, ExtensionError, ExtensionMatch, ExtensionRegistry, NearMissKind,
+    PreexecFailureKind,
 };
 #[doc(inline)]
 pub use input::load_command_input;
+#[doc(inline)]
+pub use observability::set_pipeline_correlation_id;
 #[doc(inline)]
 pub use pipeline::{run_from_loaded, PipelineError};
 #[doc(inline)]

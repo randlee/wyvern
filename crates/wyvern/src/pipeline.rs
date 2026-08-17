@@ -1,5 +1,7 @@
 //! CLI pipeline: validate → load markdown files → host run / embedded spawn → emit.
 
+use std::fs::File;
+use std::io::Read;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -97,6 +99,16 @@ enum PipelineHostError {
     Viewer(ViewerSpawnError),
 }
 
+struct JoinOnDrop(Option<thread::JoinHandle<()>>);
+
+impl Drop for JoinOnDrop {
+    fn drop(&mut self) {
+        if let Some(handle) = self.0.take() {
+            let _ = handle.join();
+        }
+    }
+}
+
 fn run_embedded(
     command: Command,
     host: HostOptions,
@@ -114,9 +126,12 @@ fn run_embedded(
         }
     };
 
+    // Arc<Mutex<Child>> lets the monitor thread call try_wait while the
+    // session thread later calls wait_for_viewer_exit. Child::try_wait
+    // needs &mut self; the mutex is the explicit sharing seam (RBP-F005).
     let child = Arc::new(Mutex::new(child));
     let dismiss_tx = handle.take_viewer_exit_signal();
-    if let Some(tx) = dismiss_tx {
+    let monitor_handle = if let Some(tx) = dismiss_tx {
         let child_for_wait = Arc::clone(&child);
         thread::spawn(move || {
             loop {
@@ -130,7 +145,7 @@ fn run_embedded(
                 thread::sleep(Duration::from_millis(50));
             }
             let _ = tx.send(());
-        });
+        })
     } else {
         let child_for_wait = Arc::clone(&child);
         thread::spawn(move || loop {
@@ -142,8 +157,9 @@ fn run_embedded(
                 break;
             }
             thread::sleep(Duration::from_millis(50));
-        });
-    }
+        })
+    };
+    let _monitor_join = JoinOnDrop(Some(monitor_handle));
 
     // Give the child a brief moment to fail-fast (missing display, etc.).
     thread::sleep(Duration::from_millis(50));
@@ -247,20 +263,35 @@ fn load_markdown_file(command: Command) -> Result<Command, LoadError> {
             width,
             height,
         } => {
-            let body = std::fs::read_to_string(&path).map_err(|err| LoadError::Io {
+            let file = File::open(&path).map_err(|err| LoadError::Io {
                 field: FieldName::new("file"),
                 message: format!("could not read path '{path}': {err}"),
+                source: Some(Box::new(err)),
             })?;
-            if body.len() > wyvern_schema::MARKDOWN_CONTENT_MAX_BYTES {
+            let max = wyvern_schema::MARKDOWN_CONTENT_MAX_BYTES;
+            let mut buf = Vec::new();
+            let n = file
+                .take(max as u64 + 1)
+                .read_to_end(&mut buf)
+                .map_err(|err| LoadError::Io {
+                    field: FieldName::new("file"),
+                    message: format!("could not read path '{path}': {err}"),
+                    source: Some(Box::new(err)),
+                })?;
+            if n > max {
                 return Err(LoadError::Io {
                     field: FieldName::new("file"),
                     message: format!(
-                        "markdown content exceeds maximum of {} bytes (got {} bytes)",
-                        wyvern_schema::MARKDOWN_CONTENT_MAX_BYTES,
-                        body.len()
+                        "markdown content exceeds maximum of {max} bytes (file '{path}')"
                     ),
+                    source: None,
                 });
             }
+            let body = String::from_utf8(buf).map_err(|err| LoadError::Io {
+                field: FieldName::new("file"),
+                message: format!("markdown file '{path}' is not valid UTF-8: {err}"),
+                source: Some(Box::new(err)),
+            })?;
             Ok(Command::Markdown {
                 title,
                 file: Some(path),
@@ -295,7 +326,7 @@ mod tests {
         };
         let err = load_markdown_file(cmd).expect_err("missing");
         match err {
-            LoadError::Io { field, message } => {
+            LoadError::Io { field, message, .. } => {
                 assert_eq!(field, "file");
                 assert!(message.contains("could not read path"));
             }
@@ -372,7 +403,7 @@ mod tests {
         };
         let err = load_markdown_file(cmd).expect_err("oversized");
         match err {
-            LoadError::Io { field, message } => {
+            LoadError::Io { field, message, .. } => {
                 assert_eq!(field, "file");
                 assert!(message.contains("exceeds maximum"));
             }

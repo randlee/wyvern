@@ -1,0 +1,45 @@
+@prefix triage: <urn:atm:triage:> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<urn:atm:triage:finding/RBP%2DF001>
+  a triage:Finding ;
+  triage:findingId "RBP-F001" ;
+  triage:title "MissingArgs empty example expand.rs:652" ;
+  triage:description "ExtensionError::MissingArgs variant in expand.rs does not provide a concrete example string when required flags are missing; spec requires example argv in error envelope" ;
+  triage:phaseId "phase-G" ;
+  triage:triageMode "initial_pass" ;
+  triage:repeatable false ;
+  triage:category "RBP" ;
+  triage:severity "important" ;
+  triage:status "open" ;
+  triage:dispatchReady true ;
+  triage:originatingSprintDoc "docs/plans/phase-G/g2-error-teaches.md" ;
+  triage:triagedAt "2026-08-16T22:14:00Z"^^xsd:dateTime ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/RBP%2DF001/g2/1> ;
+  triage:openOn <urn:atm:triage:worktree/g2/b45352b> ;
+  triage:promoteTo <urn:atm:triage:worktree/g2/b45352b> .
+
+<urn:atm:triage:occurrence/RBP%2DF001/g2/1>
+  a triage:Occurrence ;
+  triage:file "crates/wyvern/src/extensions/expand.rs" ;
+  triage:line 652 ;
+  triage:snippet "ExtensionError::MissingArgs construction missing example" ;
+  triage:status "open" ;
+  triage:closed false ;
+  triage:branch "feature/phase-G-g2-error-teaches" ;
+  triage:headSha "b45352b" ;
+  triage:occursIn <urn:atm:triage:worktree/g2/b45352b> .
+
+<urn:atm:triage:worktree/g2/b45352b>
+  a triage:WorktreeSnapshot ;
+  triage:branch "feature/phase-G-g2-error-teaches" ;
+  triage:path "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-G-g2-error-teaches" ;
+  triage:headSha "b45352b" ;
+  triage:orderIndex 0 .
+
+<urn:atm:triage:worktree/g2/b45352b>
+  a triage:WorktreeSnapshot ;
+  triage:branch "feature/phase-G-g2-error-teaches" ;
+  triage:path "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-G-g2-error-teaches" ;
+  triage:headSha "b45352b" ;
+  triage:orderIndex 0 .

@@ -1,0 +1,8 @@
+@prefix triage: <https://wyvern.dev/triage#> .
+
+triage:RSH-005 a triage:Finding ;
+    triage:id "RSH-005" ;
+    triage:severity "Minor" ;
+    triage:promote_to_branch "integrate/phase-F" ;
+    triage:highest_open_branch "integrate/phase-F" ;
+    triage:required_fix "Session correlation_id in CLI observability" .

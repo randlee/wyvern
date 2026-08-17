@@ -1,63 +1,8 @@
-//! Load/validation/run-stage errors and JSON emission helpers.
+//! JSON emission helpers for load, validation, host, and extension errors.
 
-use wyvern_schema::{ErrorCode, FieldName, SerializeError, StderrError, ValidationError};
+use wyvern_schema::{ErrorCode, SerializeError, StderrError, ValidationError};
 
-/// Failure while loading command input from argv or stdin.
-#[derive(Debug)]
-pub enum LoadError {
-    /// JSON text could not be parsed.
-    Parse { message: String },
-    /// A file or stdin read failed.
-    Io { field: FieldName, message: String },
-    /// Invalid argv shape; caller prints plain usage text (not JSON).
-    Usage { message: String },
-}
-
-impl std::fmt::Display for LoadError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Parse { message } => write!(f, "parse error: {message}"),
-            Self::Io { field, message } => write!(f, "io error ({field}): {message}"),
-            Self::Usage { message } => write!(f, "{message}"),
-        }
-    }
-}
-
-impl std::error::Error for LoadError {}
-
-impl LoadError {
-    /// Stable exit code for this load failure.
-    pub fn exit_code(&self) -> i32 {
-        match self {
-            Self::Parse { .. } => ErrorCode::ParseError.exit_code(),
-            Self::Io { .. } => ErrorCode::IoError.exit_code(),
-            Self::Usage { .. } => 1,
-        }
-    }
-}
-
-/// Failure serializing stdout or structured stderr JSON at the CLI emit boundary.
-#[derive(Debug)]
-pub enum EmitError {
-    /// `serde_json` could not serialize the envelope or result.
-    Serialize(SerializeError),
-}
-
-impl std::fmt::Display for EmitError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Serialize(e) => write!(f, "{e}"),
-        }
-    }
-}
-
-impl std::error::Error for EmitError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Serialize(e) => Some(e),
-        }
-    }
-}
+use super::{EmitError, LoadError, UsageErrorKind};
 
 #[cfg(test)]
 thread_local! {
@@ -67,11 +12,11 @@ thread_local! {
 
 /// RAII guard that forces [`emit_stdout`] to fail on this thread.
 #[cfg(test)]
-struct ForceEmitStdoutFailGuard;
+pub(super) struct ForceEmitStdoutFailGuard;
 
 #[cfg(test)]
 impl ForceEmitStdoutFailGuard {
-    fn arm() -> Self {
+    pub(super) fn arm() -> Self {
         FORCE_EMIT_STDOUT_FAIL.with(|f| f.set(true));
         Self
     }
@@ -82,6 +27,287 @@ impl Drop for ForceEmitStdoutFailGuard {
     fn drop(&mut self) {
         FORCE_EMIT_STDOUT_FAIL.with(|f| f.set(false));
     }
+}
+
+/// Serialize an extension-engine error as stderr JSON.
+///
+/// # Errors
+///
+/// Returns [`EmitError::Serialize`] when the envelope cannot be serialized.
+pub fn emit_extension_error(err: &crate::extensions::ExtensionError) -> Result<String, EmitError> {
+    use crate::extensions::ExtensionError;
+    let (code, message, cause, recovery) = match err {
+        ExtensionError::InvalidRegistry { message } => (
+            ErrorCode::ParseError,
+            message.clone(),
+            "Extension registry JSON could not be loaded".to_string(),
+            vec![
+                "Fix share/wyvern/extensions.json or .wyvern/extensions.json".into(),
+                "Registry must be version 1 JSON with an extensions array".into(),
+            ],
+        ),
+        ExtensionError::MissingArgs {
+            missing,
+            extension_id,
+            example,
+            help_command,
+            ..
+        } => (
+            ErrorCode::ValidationError,
+            format!(
+                "missing required arguments {} for '{extension_id}'",
+                missing.join(", ")
+            ),
+            format!("'{extension_id}' requires {}", missing.join(" and ")),
+            vec![
+                format!("Pass {} after the extension prefix", missing.join(" ")),
+                format!("Example: {example}"),
+                format!("Run {help_command}"),
+                "Run wyvern --help to list skills".into(),
+            ],
+        ),
+        ExtensionError::UnexpectedArg {
+            token,
+            declared,
+            extension_id,
+            help_command,
+        } => {
+            let accepted = if declared.is_empty() {
+                format!("Run {help_command}")
+            } else {
+                format!(
+                    "Accepted flags: {}",
+                    declared
+                        .iter()
+                        .map(|name| format!("--{name}"))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            };
+            (
+                ErrorCode::ValidationError,
+                format!("unexpected argument after extension match: {token}"),
+                format!("'{extension_id}' does not accept leftover token '{token}'"),
+                vec![
+                    format!("Remove unexpected argument `{token}`"),
+                    accepted,
+                    format!("Run {help_command}"),
+                    "Run wyvern --help to list skills".into(),
+                ],
+            )
+        }
+        ExtensionError::PathVarWithoutPath { var } => (
+            ErrorCode::ValidationError,
+            format!("template {{{var}}} requires a matched file path"),
+            "This extension is prefix-only and has no {{path}}".to_string(),
+            vec!["Use a suffix or prefix+suffix match when expanding path variables".into()],
+        ),
+        ExtensionError::Template { kind, message, .. } => {
+            let (cause, recovery) = match kind {
+                crate::extensions::TemplateErrorKind::UnclosedBrace => (
+                    "Template contains an unclosed `{` brace".to_string(),
+                    vec!["Close every `{variable}` in the registry expand/preexec templates".into()],
+                ),
+                crate::extensions::TemplateErrorKind::UnknownVariable => (
+                    "Template references an unknown `{variable}`".to_string(),
+                    vec!["Use only documented template variables from cli-extensions-contract.md".into()],
+                ),
+                crate::extensions::TemplateErrorKind::PhaseRestricted => (
+                    "Template variable is not allowed in this expansion phase".to_string(),
+                    vec!["Move path-only variables to expand phase-1; use phase-2 for preexec stdout vars".into()],
+                ),
+                crate::extensions::TemplateErrorKind::Unavailable => (
+                    "Template variable is not available in this match context".to_string(),
+                    vec!["Ensure the match provides path/tmpdir/preexec stdout before using this variable".into()],
+                ),
+                crate::extensions::TemplateErrorKind::InvalidSpec => (
+                    "Expand/preexec spec is incomplete or contradictory".to_string(),
+                    vec!["Check command_from_file, preexec cmd/args, and host overrides in the registry".into()],
+                ),
+            };
+            (ErrorCode::ValidationError, message.clone(), cause, recovery)
+        }
+        ExtensionError::Preexec { kind, message, .. } => {
+            use crate::extensions::PreexecFailureKind;
+            let (cause, recovery) = match kind {
+                Some(PreexecFailureKind::SpawnNotFound { cmd }) => (
+                    format!("Could not spawn preexec helper '{cmd}'"),
+                    vec![
+                        format!("Install '{cmd}' or add it to PATH"),
+                        "Run wyvern extensions list to see requires".into(),
+                        "Run wyvern --help to list skills".into(),
+                    ],
+                ),
+                Some(PreexecFailureKind::NonZeroExit { stderr_tail, code }) => {
+                    let cause = if stderr_tail.is_empty() {
+                        format!("Preexec helper exited with status {code}")
+                    } else {
+                        stderr_tail.clone()
+                    };
+                    (
+                        cause,
+                        vec![
+                            "Inspect the helper stderr in cause and fix the input path or flags"
+                                .into(),
+                            "Retry after correcting the file or arguments".into(),
+                            "Run wyvern --help to list skills".into(),
+                        ],
+                    )
+                }
+                Some(PreexecFailureKind::Timeout { cmd, timeout_secs }) => (
+                    format!("Preexec helper '{cmd}' timed out after {timeout_secs}s"),
+                    vec![
+                        format!(
+                            "Increase WYVERN_PREEXEC_TIMEOUT_SECS (current {timeout_secs}) if the helper needs more time"
+                        ),
+                        "Or fix a hung helper or blocked input path".into(),
+                        "Run wyvern --help to list skills".into(),
+                    ],
+                ),
+                None => (
+                    "Extension preexec subprocess failed".to_string(),
+                    vec![
+                        "Inspect the helper output in the error message".into(),
+                        "Retry after correcting the input path or flags".into(),
+                        "Run wyvern --help to list skills".into(),
+                    ],
+                ),
+            };
+            (ErrorCode::IoError, message.clone(), cause, recovery)
+        }
+        ExtensionError::InvalidCommand { source } => {
+            return emit_validation_error(source);
+        }
+        ExtensionError::Io { message, .. } => (
+            ErrorCode::IoError,
+            message.clone(),
+            "Extension engine filesystem operation failed".to_string(),
+            vec!["Check paths in the registry and working directory permissions".into()],
+        ),
+    };
+    let mut envelope = StderrError::new(code, message)
+        .cause(cause)
+        .docs("docs/plans/phase-F/cli-extensions-contract.md");
+    for step in recovery {
+        envelope = envelope.recovery(step);
+    }
+    envelope.to_json_string().map_err(EmitError::Serialize)
+}
+
+/// Serialize a usage / unknown-subcommand error as stderr JSON (exit 2).
+///
+/// # Errors
+///
+/// Returns [`EmitError::Serialize`] when the envelope cannot be serialized.
+pub fn emit_usage_message(message: &str) -> Result<String, EmitError> {
+    StderrError::new(ErrorCode::ParseError, message.to_string())
+        .cause("CLI argv was not a valid command or extension invocation")
+        .recovery("Pass a JSON command, a .json file, or a path handled by an extension")
+        .recovery("Run wyvern extensions list to see file-type and prefix extensions")
+        .recovery("Run wyvern --help for host flags")
+        .docs("docs/wyvern/requirements.md (REQ-0130)")
+        .to_json_string()
+        .map_err(EmitError::Serialize)
+}
+
+/// Serialize [`LoadError::Usage`] as stderr JSON with flag-specific recovery.
+///
+/// # Errors
+///
+/// Returns [`EmitError::Serialize`] when the envelope cannot be serialized, or
+/// when `err` is not [`LoadError::Usage`] (miswire).
+pub fn emit_usage_error(err: &LoadError) -> Result<String, EmitError> {
+    let LoadError::Usage { kind, message } = err else {
+        debug_assert!(matches!(err, LoadError::Usage { .. }));
+        return Err(EmitError::Serialize(SerializeError {
+            message: "emit_usage_error: expected Usage".into(),
+        }));
+    };
+    let (cause, recovery, docs) = match kind {
+        UsageErrorKind::Generic => (
+            "CLI argv was not a valid command or extension invocation".to_string(),
+            vec![
+                "Pass a JSON command, a .json file, or a path handled by an extension".into(),
+                "Run wyvern extensions list to see file-type and prefix extensions".into(),
+                "Run wyvern --help for host flags".into(),
+            ],
+            "docs/wyvern/requirements.md (REQ-0130)",
+        ),
+        UsageErrorKind::InvalidBind { .. } => (
+            "The --bind value is not a valid socket address".to_string(),
+            vec![
+                "Use host:port form (example: 127.0.0.1:0 for an ephemeral loopback port)".into(),
+                "For 0.0.0.0 / LAN binds, also pass --allow-non-loopback".into(),
+                "Check the address is a valid IPv4/IPv6 socket address".into(),
+            ],
+            "docs/plans/phase-F/README.md",
+        ),
+        UsageErrorKind::MissingFlagValue { flag } => (
+            format!("Host flag {flag} requires a value"),
+            vec![
+                format!("Pass {flag} VALUE on the command line"),
+                "Use --bind=ADDR:PORT or --viewer=MODE inline forms when preferred".into(),
+            ],
+            "docs/plans/phase-F/README.md",
+        ),
+        UsageErrorKind::InvalidViewer { .. } => (
+            "The --viewer value is not a supported viewer mode".to_string(),
+            vec![
+                "Use one of: embedded, none, system, chrome, safari, edge, firefox".into(),
+                "Omit --viewer to use embedded (default)".into(),
+                "Set WYVERN_VIEWER=none for headless / CI".into(),
+            ],
+            "docs/plans/phase-C/http-viewer-contract.md",
+        ),
+        UsageErrorKind::InvalidWyvernViewerEnv { .. } => (
+            "WYVERN_VIEWER is set but not a valid viewer mode".to_string(),
+            vec![
+                "Use one of: embedded, none, system, chrome, safari, edge, firefox".into(),
+                "Unset WYVERN_VIEWER to use embedded (default)".into(),
+                "Use WYVERN_VIEWER=none for headless / CI".into(),
+            ],
+            "docs/plans/phase-C/http-viewer-contract.md",
+        ),
+        UsageErrorKind::InvalidWyvernViewerUnicode => (
+            "WYVERN_VIEWER is not valid Unicode".to_string(),
+            vec![
+                "Set WYVERN_VIEWER to ASCII viewer mode names only".into(),
+                "Unset WYVERN_VIEWER to use embedded (default)".into(),
+            ],
+            "docs/plans/phase-C/http-viewer-contract.md",
+        ),
+        UsageErrorKind::UnknownSubcommand { domain, token } => (
+            format!("'{token}' is not a valid {domain} subcommand"),
+            match domain {
+                super::BuiltinDomain::Browsers => vec![
+                    "Use wyvern browsers list or wyvern browsers refresh".into(),
+                    "Run wyvern browsers --help".into(),
+                ],
+                super::BuiltinDomain::Extensions => vec![
+                    "Use wyvern extensions list or wyvern extensions show <id>".into(),
+                    "Run wyvern extensions --help".into(),
+                ],
+            },
+            "docs/wyvern/requirements.md (REQ-0134)",
+        ),
+        UsageErrorKind::MissingExtensionId => (
+            "extensions show requires a shipped or project extension id".to_string(),
+            vec![
+                "Pass an id: wyvern extensions show <id>".into(),
+                "Run wyvern extensions list to see available ids".into(),
+                "Run wyvern extensions list --json for machine-readable ids".into(),
+                "Run wyvern extensions --help".into(),
+            ],
+            "docs/wyvern/requirements.md (REQ-0132)",
+        ),
+    };
+    let mut envelope = StderrError::new(ErrorCode::ParseError, message.clone())
+        .cause(cause)
+        .docs(docs);
+    for step in recovery {
+        envelope = envelope.recovery(step);
+    }
+    envelope.to_json_string().map_err(EmitError::Serialize)
 }
 
 /// Serialize a parse load error as stderr JSON.
@@ -113,7 +339,7 @@ pub fn emit_parse_error(err: &LoadError) -> Result<String, EmitError> {
 /// Returns [`EmitError::Serialize`] when the envelope cannot be serialized, or
 /// when `err` is not [`LoadError::Io`] (miswire).
 pub fn emit_io_error(err: &LoadError) -> Result<String, EmitError> {
-    let LoadError::Io { field, message } = err else {
+    let LoadError::Io { field, message, .. } = err else {
         debug_assert!(matches!(err, LoadError::Io { .. }));
         return Err(EmitError::Serialize(SerializeError {
             message: "emit_io_error: expected Io".into(),
@@ -420,156 +646,4 @@ pub fn emit_fatal_internal(err: &EmitError) -> ! {
         r#"{{"error":"internal","code":"INTERNAL_ERROR","message":{msg_json},"cause":"Stdout or stderr JSON serialization failed at the CLI emit boundary","recovery":["Retry the command","Report a bug if the payload is valid JSON but emit still fails"],"docs":"docs/wyvern-schema/requirements.md (REQ-0078)"}}"#
     );
     std::process::exit(ErrorCode::InternalError.exit_code());
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use wyvern_schema::{ButtonLabel, ChromeResult, CommandResult, FieldName, MessageResult};
-
-    #[test]
-    fn emit_parse_error_with_quotes_is_valid_json() {
-        let err = LoadError::Parse {
-            message: r#"expected value at line 1: "bad""#.to_string(),
-        };
-        let out = emit_parse_error(&err).expect("emit");
-        let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
-        assert_eq!(value["error"], "parse");
-        assert_eq!(value["code"], "PARSE_ERROR");
-        assert!(value["message"].as_str().unwrap().contains('"'));
-        assert!(!value["recovery"].as_array().unwrap().is_empty());
-        assert!(value.get("cause").is_some());
-    }
-
-    #[test]
-    fn emit_io_error_with_quotes_is_valid_json() {
-        let err = LoadError::Io {
-            field: FieldName::new("file"),
-            message: r#"could not read path 'say "hi".json'"#.to_string(),
-        };
-        let out = emit_io_error(&err).expect("emit");
-        let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
-        assert_eq!(value["error"], "io");
-        assert_eq!(value["code"], "IO_ERROR");
-        assert_eq!(value["field"], "file");
-        assert!(value["message"].as_str().unwrap().contains('"'));
-        assert!(!value["recovery"].as_array().unwrap().is_empty());
-    }
-
-    #[test]
-    fn emit_validation_error_message_with_quotes_is_valid_json() {
-        let err = ValidationError::Validation {
-            field: FieldName::new("title"),
-            message: r#"field 'title' expected string, got "oops""#.to_string(),
-        };
-        let out = emit_validation_error(&err).expect("emit");
-        let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
-        assert_eq!(value["error"], "validation");
-        assert_eq!(value["code"], "VALIDATION_ERROR");
-        assert_eq!(value["field"], "title");
-        assert!(value["message"].as_str().unwrap().contains('"'));
-        assert!(!value["recovery"].as_array().unwrap().is_empty());
-    }
-
-    #[test]
-    fn emit_validation_error_missing_title_has_actionable_recovery() {
-        let err = ValidationError::Validation {
-            field: FieldName::new("title"),
-            message: "missing required field 'title'".to_string(),
-        };
-        let out = emit_validation_error(&err).expect("emit");
-        let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
-        let recovery = value["recovery"].as_array().unwrap();
-        assert!(recovery
-            .iter()
-            .any(|s| s.as_str().unwrap().contains("title")));
-    }
-
-    #[test]
-    fn emit_validation_error_state() {
-        let err = ValidationError::State {
-            field: FieldName::new("action"),
-            message: "show is only valid in --interactive mode".to_string(),
-        };
-        let out = emit_validation_error(&err).expect("emit");
-        let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
-        assert_eq!(value["error"], "state");
-        assert_eq!(value["code"], "STATE_ERROR");
-        assert_eq!(value["field"], "action");
-        assert!(!value["recovery"].as_array().unwrap().is_empty());
-    }
-
-    #[test]
-    fn emit_stdout_chrome_wire_shape() {
-        let result = CommandResult::Chrome(ChromeResult {
-            button: ButtonLabel::dismissed(),
-        });
-        assert_eq!(
-            emit_stdout(&result).expect("emit"),
-            r#"{"button":"dismissed"}"#
-        );
-    }
-
-    #[test]
-    fn emit_stdout_message_wire_shape() {
-        let result = CommandResult::Message(MessageResult {
-            button: ButtonLabel::new("ok"),
-        });
-        assert_eq!(emit_stdout(&result).expect("emit"), r#"{"button":"ok"}"#);
-    }
-
-    #[test]
-    fn emit_stdout_forced_fail() {
-        let _guard = ForceEmitStdoutFailGuard::arm();
-        let result = CommandResult::Message(MessageResult {
-            button: ButtonLabel::new("ok"),
-        });
-        assert!(emit_stdout(&result).is_err());
-    }
-
-    #[test]
-    fn load_error_exit_codes() {
-        assert_eq!(
-            LoadError::Parse {
-                message: "x".into()
-            }
-            .exit_code(),
-            2
-        );
-        assert_eq!(
-            LoadError::Io {
-                field: FieldName::new("file"),
-                message: "x".into()
-            }
-            .exit_code(),
-            3
-        );
-        assert_eq!(
-            LoadError::Usage {
-                message: "usage".into()
-            }
-            .exit_code(),
-            1
-        );
-    }
-
-    #[test]
-    fn validation_error_exit_codes() {
-        assert_eq!(
-            ValidationError::Validation {
-                field: FieldName::new("title"),
-                message: "bad".into(),
-            }
-            .exit_code(),
-            4
-        );
-        assert_eq!(
-            ValidationError::State {
-                field: FieldName::new("action"),
-                message: "bad".into(),
-            }
-            .exit_code(),
-            5
-        );
-    }
 }
