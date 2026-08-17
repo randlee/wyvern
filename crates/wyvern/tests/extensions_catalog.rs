@@ -86,6 +86,22 @@ fn list_json_is_array_of_skill_records() {
 }
 
 #[test]
+fn bare_extensions_matches_list_and_includes_markdown_suffix() {
+    let (code, stdout, stderr) = run(&["extensions"]);
+    assert_eq!(code, 0, "stderr={stderr}");
+    assert!(
+        stdout.contains("markdown-suffix"),
+        "bare extensions must list markdown-suffix: {stdout}"
+    );
+    let (list_code, list_stdout, list_stderr) = run(&["extensions", "list"]);
+    assert_eq!(list_code, 0, "stderr={list_stderr}");
+    assert_eq!(
+        stdout, list_stdout,
+        "bare extensions must match extensions list"
+    );
+}
+
+#[test]
 fn list_text_marks_requires_availability() {
     let (code, stdout, stderr) = run(&["extensions", "list"]);
     assert_eq!(code, 0, "stderr={stderr}");

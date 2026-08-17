@@ -36,6 +36,8 @@ pub enum UsageErrorKind {
         /// Offending subcommand token.
         token: String,
     },
+    /// `extensions show` was invoked without a usable extension id.
+    MissingExtensionId,
 }
 
 /// Failure while loading command input from argv or stdin.
@@ -396,6 +398,16 @@ pub fn emit_usage_error(err: &LoadError) -> Result<String, EmitError> {
                 ],
             },
             "docs/wyvern/requirements.md (REQ-0134)",
+        ),
+        UsageErrorKind::MissingExtensionId => (
+            "extensions show requires a shipped or project extension id".to_string(),
+            vec![
+                "Pass an id: wyvern extensions show <id>".into(),
+                "Run wyvern extensions list to see available ids".into(),
+                "Run wyvern extensions list --json for machine-readable ids".into(),
+                "Run wyvern extensions --help".into(),
+            ],
+            "docs/wyvern/requirements.md (REQ-0132)",
         ),
     };
     let mut envelope = StderrError::new(ErrorCode::ParseError, message.clone())
@@ -991,6 +1003,24 @@ mod tests {
         let out = emit_usage_error(&extensions).expect("emit");
         let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
         let recovery = value["recovery"].as_array().unwrap();
+        assert!(recovery
+            .iter()
+            .any(|s| s.as_str().unwrap().contains("extensions list")));
+    }
+
+    #[test]
+    fn emit_missing_extension_id_has_show_recovery() {
+        let err = LoadError::Usage {
+            kind: UsageErrorKind::MissingExtensionId,
+            message: "extensions show requires an extension id".into(),
+        };
+        let out = emit_usage_error(&err).expect("emit");
+        let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
+        assert!(value["cause"].as_str().unwrap().contains("extension id"));
+        let recovery = value["recovery"].as_array().unwrap();
+        assert!(recovery
+            .iter()
+            .any(|s| s.as_str().unwrap().contains("extensions show <id>")));
         assert!(recovery
             .iter()
             .any(|s| s.as_str().unwrap().contains("extensions list")));

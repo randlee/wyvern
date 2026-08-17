@@ -298,8 +298,11 @@ pub(crate) fn declared_skill_args(ext: &ExtensionDef) -> Vec<SkillArg> {
             }
             continue;
         }
+        let Some(arg_name) = ArgName::new(name) else {
+            continue;
+        };
         ordered.push(SkillArg {
-            name: ArgName::new(name),
+            name: arg_name,
             required: !repeat,
             repeat,
         });
@@ -429,6 +432,23 @@ mod tests {
         assert!(record.description.is_none());
         assert_eq!(record.extends, None);
         assert_eq!(record.examples.len(), 1);
+    }
+
+    #[test]
+    fn declared_skill_args_skips_empty_template_names() {
+        let json = r#"{
+          "version": 1,
+          "extensions": [{
+            "id": "empty-arg",
+            "match": { "positional_suffix": ".md" },
+            "preexec": { "cmd": "true", "args": ["{arg:}", "{arg:  }", "{arg:root}"] },
+            "expand": { "command": { "type": "markdown", "file": "{path}" } }
+          }]
+        }"#;
+        let registry = ExtensionRegistry::from_json_str(json).expect("parse");
+        let args = declared_skill_args(&registry.extensions()[0]);
+        assert_eq!(args.len(), 1, "{args:?}");
+        assert_eq!(args[0].name.as_str(), "root");
     }
 
     #[test]

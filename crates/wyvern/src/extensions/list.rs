@@ -1,8 +1,8 @@
 //! `wyvern extensions list` / `show` catalog commands (REQ-0132).
 
 use super::{
-    build_skill_record, build_skill_records, format_skill_card, ExtensionError, ExtensionRegistry,
-    PathRequiresProbe, SkillRecord,
+    build_skill_record, build_skill_records, format_skill_card, ExtensionError, ExtensionId,
+    ExtensionRegistry, PathRequiresProbe, SkillRecord,
 };
 use crate::error::{EmitError, UsageErrorKind};
 use wyvern_schema::{ErrorCode, SerializeError, StderrError};
@@ -60,13 +60,13 @@ pub fn run_extensions_command(args: &[String]) -> Result<String, ExtensionsCmdEr
     {
         return Ok(extensions_usage_message());
     }
-    let sub = args.first().map(String::as_str).unwrap_or("list");
-    match sub {
-        "list" => run_list(&args[1..]),
-        "show" => run_show(&args[1..]),
-        "--json" => run_list(args),
-        other if other.starts_with('-') => Err(unknown_flag(other)),
-        other => Err(ExtensionsCmdError::Usage {
+    match args.first().map(String::as_str) {
+        None => run_list(args),
+        Some("list") => run_list(&args[1..]),
+        Some("show") => run_show(&args[1..]),
+        Some("--json") => run_list(args),
+        Some(other) if other.starts_with('-') => Err(unknown_flag(other)),
+        Some(other) => Err(ExtensionsCmdError::Usage {
             kind: UsageErrorKind::UnknownSubcommand {
                 domain: "extensions".into(),
                 token: other.to_string(),
@@ -99,12 +99,8 @@ fn run_show(args: &[String]) -> Result<String, ExtensionsCmdError> {
     }
     let (id, json) = parse_show_args(args)?;
     let registry = ExtensionRegistry::load_default().map_err(map_ext)?;
-    let Some(ext) = registry
-        .extensions()
-        .iter()
-        .find(|ext| ext.id.as_str() == id)
-    else {
-        return Err(unknown_id(&id));
+    let Some(ext) = registry.extensions().iter().find(|ext| ext.id == id) else {
+        return Err(unknown_id(id.as_str()));
     };
     let record = build_skill_record(ext, &PathRequiresProbe);
     if json {
@@ -129,27 +125,33 @@ fn parse_list_flags(args: &[String]) -> Result<bool, ExtensionsCmdError> {
     Ok(json)
 }
 
-fn parse_show_args(args: &[String]) -> Result<(String, bool), ExtensionsCmdError> {
+fn parse_show_args(args: &[String]) -> Result<(ExtensionId, bool), ExtensionsCmdError> {
     let mut json = false;
     let mut id = None;
     for arg in args {
         match arg.as_str() {
             "--json" => json = true,
             other if other.starts_with('-') => return Err(unknown_flag(other)),
-            other if id.is_none() => id = Some(other.to_string()),
+            other if id.is_none() => {
+                id = Some(ExtensionId::try_from(other.to_string()).map_err(|_| missing_id())?);
+            }
             other => return Err(unknown_flag(other)),
         }
     }
     let Some(id) = id else {
-        return Err(ExtensionsCmdError::Usage {
-            kind: UsageErrorKind::Generic,
-            message: format!(
-                "extensions show requires an extension id\n{}",
-                extensions_usage_message()
-            ),
-        });
+        return Err(missing_id());
     };
     Ok((id, json))
+}
+
+fn missing_id() -> ExtensionsCmdError {
+    ExtensionsCmdError::Usage {
+        kind: UsageErrorKind::MissingExtensionId,
+        message: format!(
+            "extensions show requires an extension id\n{}",
+            extensions_usage_message()
+        ),
+    }
 }
 
 /// Format each extension as a [`format_skill_card`] block.
@@ -264,6 +266,27 @@ mod tests {
         let text = extensions_usage_message();
         assert!(text.contains("list"), "{text}");
         assert!(text.contains("show"), "{text}");
+    }
+
+    #[test]
+    fn bare_extensions_defaults_to_list() {
+        let text = run_extensions_command(&[]).expect("list");
+        assert!(text.contains("markdown-suffix"), "{text}");
+    }
+
+    #[test]
+    fn show_without_id_is_missing_extension_id() {
+        let err = run_extensions_command(&["show".into()]).expect_err("usage");
+        match err {
+            ExtensionsCmdError::Usage { kind, message } => {
+                assert_eq!(kind, UsageErrorKind::MissingExtensionId);
+                assert!(
+                    message.contains("extensions show requires an extension id"),
+                    "{message}"
+                );
+            }
+            other => panic!("expected Usage, got {other:?}"),
+        }
     }
 
     #[test]
