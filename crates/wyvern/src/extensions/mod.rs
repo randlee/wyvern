@@ -22,6 +22,7 @@
 //! ```
 
 mod catalog;
+mod diagnostics;
 mod expand;
 mod list;
 mod preexec;
@@ -36,6 +37,10 @@ use serde_json::Value;
 #[doc(inline)]
 pub use catalog::{build_skill_record, format_skill_card, SkillArg, SkillRecord, SkillRequire};
 #[doc(inline)]
+pub use diagnostics::{
+    classify_near_miss, emit_near_miss, MatchOutcome, NearMissKind, SkippedExtension,
+};
+#[doc(inline)]
 pub use expand::{
     build_match_context, expand_and_validate, expand_command_host, expand_preexec_args,
     infer_wizard_root, last_created_tmpdir, relpath_from_ui_root, ExpandedInvocation,
@@ -46,7 +51,10 @@ pub use list::{
     extensions_usage_message, format_extensions_list, run_extensions_command, ExtensionsCmdError,
 };
 #[doc(inline)]
-pub use preexec::{binary_on_path, create_tmpdir, run_preexec, PathRequiresProbe, RequiresProbe};
+pub use preexec::{
+    binary_on_path, create_tmpdir, run_preexec, PathRequiresProbe, PreexecFailureKind,
+    RequiresProbe,
+};
 
 /// Shipped defaults compiled into the binary (dev + `cargo install`).
 pub const SHIPPED_EXTENSIONS_JSON: &str = include_str!("../../../../share/wyvern/extensions.json");
@@ -438,15 +446,25 @@ pub enum ExtensionError {
         /// Human-readable load failure.
         message: String,
     },
-    /// Required `{arg:name}` flag was missing.
-    MissingArg {
-        /// Flag name without leading dashes.
-        name: ArgName,
+    /// One or more required `{arg:name}` flags were missing.
+    MissingArgs {
+        /// Missing flags including leading dashes (`--root`).
+        missing: Vec<String>,
+        /// All declared `{arg:*}` names (no dashes).
+        declared: std::collections::BTreeSet<String>,
+        /// Extension that required the flags.
+        extension_id: String,
+        /// Copy-paste example from the skill card.
+        example: String,
     },
     /// Unexpected token after a successful prefix match.
     UnexpectedArg {
         /// Offending token.
         token: String,
+        /// Declared `{arg:*}` names (no dashes).
+        declared: std::collections::BTreeSet<String>,
+        /// Extension that matched argv.
+        extension_id: String,
     },
     /// Path-derived template used without a matched path.
     PathVarWithoutPath {
@@ -462,6 +480,8 @@ pub enum ExtensionError {
     },
     /// Preexec process failed or could not be spawned.
     Preexec {
+        /// Spawn-not-found vs nonzero-exit classification (`None` for timeout).
+        kind: Option<PreexecFailureKind>,
         /// Human-readable subprocess failure.
         message: String,
         /// Original error if available.
@@ -485,8 +505,14 @@ impl std::fmt::Display for ExtensionError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::InvalidRegistry { message } => write!(f, "invalid extension registry: {message}"),
-            Self::MissingArg { name } => write!(f, "missing required extension argument --{name}"),
-            Self::UnexpectedArg { token } => {
+            Self::MissingArgs { missing, .. } => {
+                write!(
+                    f,
+                    "missing required extension arguments {}",
+                    missing.join(", ")
+                )
+            }
+            Self::UnexpectedArg { token, .. } => {
                 write!(f, "unexpected argument after extension match: {token}")
             }
             Self::PathVarWithoutPath { var } => {
@@ -521,7 +547,7 @@ impl ExtensionError {
             Self::InvalidRegistry { .. } => wyvern_schema::ErrorCode::ParseError.exit_code(),
             Self::Io { .. } | Self::Preexec { .. } => wyvern_schema::ErrorCode::IoError.exit_code(),
             Self::InvalidCommand { source } => source.exit_code(),
-            Self::MissingArg { .. }
+            Self::MissingArgs { .. }
             | Self::UnexpectedArg { .. }
             | Self::PathVarWithoutPath { .. }
             | Self::Template { .. } => wyvern_schema::ErrorCode::ValidationError.exit_code(),
@@ -605,7 +631,7 @@ impl ExtensionRegistry {
     /// are absent on `PATH` does not match (fallthrough).
     #[must_use]
     pub fn match_argv<'a>(&'a self, argv: &'a [String]) -> Option<ExtensionMatch<'a>> {
-        self.match_argv_with(argv, &PathRequiresProbe)
+        self.match_with_diagnostics(argv).matched
     }
 
     /// [`Self::match_argv`] with an injectable [`RequiresProbe`].
@@ -615,9 +641,48 @@ impl ExtensionRegistry {
         argv: &'a [String],
         probe: &dyn RequiresProbe,
     ) -> Option<ExtensionMatch<'a>> {
-        self.extensions
-            .iter()
-            .find_map(|ext| ext.match_argv(argv, probe))
+        self.match_with_diagnostics_with(argv, probe).matched
+    }
+
+    /// Match argv and record extensions skipped for missing `requires`.
+    #[must_use]
+    pub fn match_with_diagnostics<'a>(&'a self, argv: &'a [String]) -> MatchOutcome<'a> {
+        self.match_with_diagnostics_with(argv, &PathRequiresProbe)
+    }
+
+    /// [`Self::match_with_diagnostics`] with an injectable [`RequiresProbe`].
+    #[must_use]
+    pub fn match_with_diagnostics_with<'a>(
+        &'a self,
+        argv: &'a [String],
+        probe: &dyn RequiresProbe,
+    ) -> MatchOutcome<'a> {
+        let mut skipped = Vec::new();
+        for ext in &self.extensions {
+            let Some(candidate) = ext.match_spec_argv(argv) else {
+                continue;
+            };
+            let missing: Vec<String> = ext
+                .requires()
+                .iter()
+                .filter(|bin| !probe.binary_on_path(bin.as_str()))
+                .map(|bin| bin.as_str().to_string())
+                .collect();
+            if missing.is_empty() {
+                return MatchOutcome {
+                    matched: Some(candidate),
+                    skipped,
+                };
+            }
+            skipped.push(SkippedExtension {
+                id: ext.id.to_string(),
+                missing,
+            });
+        }
+        MatchOutcome {
+            matched: None,
+            skipped,
+        }
     }
 
     /// Merged extensions in match order.
@@ -637,18 +702,7 @@ impl ExtensionDef {
             .unwrap_or(&[])
     }
 
-    fn match_argv<'a>(
-        &'a self,
-        argv: &'a [String],
-        probe: &dyn RequiresProbe,
-    ) -> Option<ExtensionMatch<'a>> {
-        if !self
-            .requires()
-            .iter()
-            .all(|bin| probe.binary_on_path(bin.as_str()))
-        {
-            return None;
-        }
+    fn match_spec_argv<'a>(&'a self, argv: &'a [String]) -> Option<ExtensionMatch<'a>> {
         let spec = &self.match_spec;
         if let Some(prefix) = &spec.argv_prefix {
             if argv.len() < prefix.len()
@@ -701,7 +755,7 @@ impl ExtensionDef {
     }
 }
 
-fn ends_with_suffix(token: &str, suffix: &str) -> bool {
+pub(crate) fn ends_with_suffix(token: &str, suffix: &str) -> bool {
     token.len() >= suffix.len() && token[token.len() - suffix.len()..].eq_ignore_ascii_case(suffix)
 }
 
@@ -993,6 +1047,29 @@ mod tests {
                 .map(MatchToken::as_str),
             Some(".markdown")
         );
+    }
+
+    #[test]
+    fn match_with_diagnostics_records_skipped_requires() {
+        let json = r#"{
+          "version": 1,
+          "extensions": [
+            {
+              "id": "needs-tool",
+              "match": { "positional_suffix": ".csv" },
+              "preexec": { "cmd": "python3", "requires": ["python3"] },
+              "expand": { "command": { "type": "markdown", "content": "x" } }
+            }
+          ]
+        }"#;
+        let registry = ExtensionRegistry::from_json_str(json).expect("parse");
+        let argv = vec!["sample.csv".into()];
+        let outcome = registry.match_with_diagnostics_with(&argv, &LocalAbsentProbe);
+        assert!(outcome.matched.is_none());
+        assert_eq!(outcome.skipped.len(), 1);
+        assert_eq!(outcome.skipped[0].id, "needs-tool");
+        assert_eq!(outcome.skipped[0].missing, ["python3"]);
+        assert!(registry.match_argv_with(&argv, &LocalAbsentProbe).is_none());
     }
 
     #[test]

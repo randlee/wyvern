@@ -152,28 +152,53 @@ pub fn emit_extension_error(err: &crate::extensions::ExtensionError) -> Result<S
                 "Registry must be version 1 JSON with an extensions array".into(),
             ],
         ),
-        ExtensionError::MissingArg { name } => (
+        ExtensionError::MissingArgs {
+            missing,
+            extension_id,
+            example,
+            ..
+        } => (
             ErrorCode::ValidationError,
-            format!("missing required extension argument --{name}"),
-            format!("A declared {{arg:{name}}} flag was not present on the command line"),
+            format!(
+                "missing required arguments {} for '{extension_id}'",
+                missing.join(", ")
+            ),
+            format!("'{extension_id}' requires {}", missing.join(" and ")),
             vec![
-                format!("Pass --{name} VALUE after the extension prefix"),
-                "Run wyvern extensions list to see match kinds".into(),
+                format!("Pass {} after the extension prefix", missing.join(" ")),
+                format!("Example: {example}"),
+                format!("Run wyvern {extension_id} --help"),
+                "Run wyvern --help to list skills".into(),
             ],
         ),
-        ExtensionError::UnexpectedArg { token } => (
-            ErrorCode::ValidationError,
-            format!("unexpected argument after extension match: {token}"),
-            format!("The extension matched argv but leftover token '{token}' is not declared"),
-            vec![format!(
-                "Remove unknown flag `{token}` or declare it with `{{arg:{}}}` in the registry",
-                token
-                    .trim_start_matches('-')
-                    .split('=')
-                    .next()
-                    .unwrap_or(token.as_str())
-            )],
-        ),
+        ExtensionError::UnexpectedArg {
+            token,
+            declared,
+            extension_id,
+        } => {
+            let accepted = if declared.is_empty() {
+                format!("Run wyvern {extension_id} --help")
+            } else {
+                format!(
+                    "Accepted flags: {}",
+                    declared
+                        .iter()
+                        .map(|name| format!("--{name}"))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            };
+            (
+                ErrorCode::ValidationError,
+                format!("unexpected argument after extension match: {token}"),
+                format!("'{extension_id}' does not accept leftover token '{token}'"),
+                vec![
+                    format!("Remove unexpected argument `{token}`"),
+                    accepted,
+                    "Run wyvern --help to list skills".into(),
+                ],
+            )
+        }
         ExtensionError::PathVarWithoutPath { var } => (
             ErrorCode::ValidationError,
             format!("template {{{var}}} requires a matched file path"),
@@ -205,15 +230,44 @@ pub fn emit_extension_error(err: &crate::extensions::ExtensionError) -> Result<S
             };
             (ErrorCode::ValidationError, message.clone(), cause, recovery)
         }
-        ExtensionError::Preexec { message, .. } => (
-            ErrorCode::IoError,
-            message.clone(),
-            "Extension preexec subprocess failed".to_string(),
-            vec![
-                "Install binaries listed in preexec.requires".into(),
-                "Inspect preexec.cmd and args after template expansion".into(),
-            ],
-        ),
+        ExtensionError::Preexec { kind, message, .. } => {
+            use crate::extensions::PreexecFailureKind;
+            let (cause, recovery) = match kind {
+                Some(PreexecFailureKind::SpawnNotFound { cmd }) => (
+                    format!("Could not spawn preexec helper '{cmd}'"),
+                    vec![
+                        format!("Install '{cmd}' or add it to PATH"),
+                        "Run wyvern extensions list to see requires".into(),
+                        "Run wyvern --help to list skills".into(),
+                    ],
+                ),
+                Some(PreexecFailureKind::NonZeroExit { stderr_tail, code }) => {
+                    let cause = if stderr_tail.is_empty() {
+                        format!("Preexec helper exited with status {code}")
+                    } else {
+                        stderr_tail.clone()
+                    };
+                    (
+                        cause,
+                        vec![
+                            "Inspect the helper stderr in cause and fix the input path or flags"
+                                .into(),
+                            "Retry after correcting the file or arguments".into(),
+                            "Run wyvern --help to list skills".into(),
+                        ],
+                    )
+                }
+                None => (
+                    "Extension preexec subprocess failed".to_string(),
+                    vec![
+                        "Inspect the helper output in the error message".into(),
+                        "Retry after correcting the input path or flags".into(),
+                        "Run wyvern --help to list skills".into(),
+                    ],
+                ),
+            };
+            (ErrorCode::IoError, message.clone(), cause, recovery)
+        }
         ExtensionError::InvalidCommand { source } => {
             return emit_validation_error(source);
         }
@@ -933,34 +987,46 @@ mod tests {
     }
 
     #[test]
-    fn emit_missing_arg_interpolates_name() {
-        use crate::extensions::{ArgName, ExtensionError};
-        let err = ExtensionError::MissingArg {
-            name: ArgName::new("root"),
+    fn emit_missing_args_lists_flags() {
+        use crate::extensions::ExtensionError;
+        let err = ExtensionError::MissingArgs {
+            missing: vec!["--root".into(), "--file".into()],
+            declared: ["root".into(), "file".into()].into_iter().collect(),
+            extension_id: "compose-render".into(),
+            example: "wyvern compose render --root DIR --file FILE.j2".into(),
         };
         let out = emit_extension_error(&err).expect("emit");
         let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
-        assert!(value["cause"].as_str().unwrap().contains("{arg:root}"));
+        let text = out.to_ascii_lowercase();
+        assert!(value["message"].as_str().unwrap().contains("--root"));
+        assert!(value["message"].as_str().unwrap().contains("--file"));
         assert!(value["recovery"]
             .as_array()
             .unwrap()
             .iter()
             .any(|s| s.as_str().unwrap().contains("--root")));
+        assert!(!text.contains("declare them as {arg:"));
     }
 
     #[test]
-    fn emit_unexpected_arg_interpolates_token() {
+    fn emit_unexpected_arg_is_caller_facing() {
         use crate::extensions::ExtensionError;
         let err = ExtensionError::UnexpectedArg {
-            token: "--help".into(),
+            token: "--undeclared".into(),
+            declared: ["root".into(), "file".into()].into_iter().collect(),
+            extension_id: "compose-render".into(),
         };
         let out = emit_extension_error(&err).expect("emit");
         let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
-        assert!(value["cause"].as_str().unwrap().contains("--help"));
+        assert!(value["cause"].as_str().unwrap().contains("--undeclared"));
         assert!(value["recovery"]
             .as_array()
             .unwrap()
             .iter()
-            .any(|s| s.as_str().unwrap().contains("--help")));
+            .any(|s| s.as_str().unwrap().contains("--root")));
+        assert!(
+            !out.contains("declare them as {arg:name}") && !out.contains("{arg:"),
+            "{out}"
+        );
     }
 }

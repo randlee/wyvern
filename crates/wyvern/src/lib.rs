@@ -36,7 +36,10 @@ pub use error::{
     UsageErrorKind,
 };
 #[doc(inline)]
-pub use extensions::{ExtensionError, ExtensionMatch, ExtensionRegistry};
+pub use extensions::{
+    emit_near_miss, ExtensionError, ExtensionMatch, ExtensionRegistry, NearMissKind,
+    PreexecFailureKind,
+};
 #[doc(inline)]
 pub use input::load_command_input;
 #[doc(inline)]

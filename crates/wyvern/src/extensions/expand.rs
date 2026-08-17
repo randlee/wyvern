@@ -10,7 +10,8 @@ use super::preexec::{create_tmpdir, first_rendered_html, run_preexec, tmpdir_pat
 use std::io::Read;
 
 use super::{
-    ArgName, ExtensionDef, ExtensionError, ExtensionMatch, PreexecSpec, TemplateErrorKind,
+    build_skill_record, catalog, ExtensionDef, ExtensionError, ExtensionMatch, PathRequiresProbe,
+    PreexecSpec, TemplateErrorKind,
 };
 
 /// 1 MiB cap for `command_from_file` JSON (RSH-003).
@@ -337,6 +338,8 @@ fn value_contains(value: &Value, needle: &str) -> bool {
 }
 
 struct ExpandEnv<'a> {
+    extension_id: String,
+    declared: BTreeSet<String>,
     path: Option<&'a str>,
     tmpdir: Option<&'a Path>,
     wyvern_share: &'a Path,
@@ -352,10 +355,29 @@ impl<'a> ExpandEnv<'a> {
         ctx: &'a MatchContext<'a>,
         phase: Phase,
     ) -> Result<Self, ExtensionError> {
-        let declared = declared_args(ext);
+        let skill_args = catalog::declared_skill_args(ext);
+        let declared: BTreeSet<String> = skill_args
+            .iter()
+            .map(|arg| arg.name.as_str().to_string())
+            .collect();
         let path_token = ctx.path;
-        let args = parse_named_args(ctx.args_after_prefix, &declared, path_token)?;
+        let args = parse_named_args(
+            ctx.args_after_prefix,
+            &declared,
+            path_token,
+            ext.id.as_str(),
+        )?;
+        let missing: Vec<String> = skill_args
+            .iter()
+            .filter(|arg| arg.required && !args.contains_key(arg.name.as_str()))
+            .map(|arg| format!("--{}", arg.name))
+            .collect();
+        if !missing.is_empty() {
+            return Err(missing_args_error(ext, missing, declared));
+        }
         Ok(Self {
+            extension_id: ext.id.to_string(),
+            declared,
             path: ctx.path,
             tmpdir: ctx.tmpdir.as_deref(),
             wyvern_share: ctx.wyvern_share.as_path(),
@@ -436,8 +458,11 @@ impl<'a> ExpandEnv<'a> {
                 .get(arg_name)
                 .and_then(|v| v.first())
                 .cloned()
-                .ok_or_else(|| ExtensionError::MissingArg {
-                    name: ArgName::new(arg_name),
+                .ok_or_else(|| ExtensionError::MissingArgs {
+                    missing: vec![format!("--{arg_name}")],
+                    declared: self.declared.clone(),
+                    extension_id: self.extension_id.clone(),
+                    example: String::new(),
                 });
         }
         match name {
@@ -596,74 +621,11 @@ fn parse_template(template: &str) -> Result<Vec<TemplatePart>, ExtensionError> {
     Ok(out)
 }
 
-fn collect_template_vars(template: &str, into: &mut BTreeSet<String>) {
-    // Template parse errors are deferred to expand-time for richer context.
-    match parse_template(template) {
-        Ok(parts) => {
-            for part in parts {
-                if let TemplatePart::Var(name) = part {
-                    into.insert(name);
-                }
-            }
-        }
-        Err(e) => {
-            tracing::debug!(
-                template,
-                error = %e,
-                "collect_template_vars: skipping malformed template in registry ({template}): {e}"
-            );
-        }
-    }
-}
-
-fn collect_value_vars(value: &Value, into: &mut BTreeSet<String>) {
-    match value {
-        Value::String(s) => collect_template_vars(s, into),
-        Value::Array(items) => {
-            for item in items {
-                collect_value_vars(item, into);
-            }
-        }
-        Value::Object(map) => {
-            for v in map.values() {
-                collect_value_vars(v, into);
-            }
-        }
-        _ => {}
-    }
-}
-
-fn declared_args(ext: &ExtensionDef) -> BTreeSet<String> {
-    let mut vars = BTreeSet::new();
-    if let Some(pre) = &ext.preexec {
-        collect_template_vars(&pre.cmd, &mut vars);
-        for arg in &pre.args {
-            collect_template_vars(arg, &mut vars);
-        }
-    }
-    if let Some(exp) = &ext.expand {
-        if let Some(cmd) = &exp.command {
-            collect_value_vars(cmd, &mut vars);
-        }
-        if let Some(path) = &exp.command_from_file {
-            collect_template_vars(path, &mut vars);
-        }
-        if let Some(ui) = exp.host.as_ref().and_then(|h| h.ui_root.as_ref()) {
-            collect_template_vars(ui, &mut vars);
-        }
-    }
-    vars.into_iter()
-        .filter_map(|v| {
-            v.strip_prefix("arg:")
-                .map(|name| name.strip_suffix(":repeat").unwrap_or(name).to_string())
-        })
-        .collect()
-}
-
 fn parse_named_args(
     tokens: &[String],
     declared: &BTreeSet<String>,
     path_token: Option<&str>,
+    extension_id: &str,
 ) -> Result<BTreeMap<String, Vec<String>>, ExtensionError> {
     let mut args: BTreeMap<String, Vec<String>> = BTreeMap::new();
     let mut i = 0;
@@ -671,18 +633,14 @@ fn parse_named_args(
         let token = &tokens[i];
         if let Some(name) = token.strip_prefix("--") {
             if name.is_empty() {
-                return Err(ExtensionError::UnexpectedArg {
-                    token: token.clone(),
-                });
+                return Err(unexpected_arg(token, declared, extension_id));
             }
             let (name, inline) = match name.split_once('=') {
                 Some((n, v)) => (n.to_string(), Some(v.to_string())),
                 None => (name.to_string(), None),
             };
             if !declared.contains(&name) {
-                return Err(ExtensionError::UnexpectedArg {
-                    token: token.clone(),
-                });
+                return Err(unexpected_arg(token, declared, extension_id));
             }
             let value = if let Some(v) = inline {
                 v
@@ -691,8 +649,11 @@ fn parse_named_args(
                 tokens
                     .get(i)
                     .cloned()
-                    .ok_or_else(|| ExtensionError::MissingArg {
-                        name: ArgName::new(name.clone()),
+                    .ok_or_else(|| ExtensionError::MissingArgs {
+                        missing: vec![format!("--{name}")],
+                        declared: declared.clone(),
+                        extension_id: extension_id.to_string(),
+                        example: String::new(),
                     })?
             };
             args.entry(name).or_default().push(value);
@@ -703,11 +664,36 @@ fn parse_named_args(
             i += 1;
             continue;
         }
-        return Err(ExtensionError::UnexpectedArg {
-            token: token.clone(),
-        });
+        return Err(unexpected_arg(token, declared, extension_id));
     }
     Ok(args)
+}
+
+fn unexpected_arg(token: &str, declared: &BTreeSet<String>, extension_id: &str) -> ExtensionError {
+    ExtensionError::UnexpectedArg {
+        token: token.to_string(),
+        declared: declared.clone(),
+        extension_id: extension_id.to_string(),
+    }
+}
+
+fn missing_args_error(
+    ext: &ExtensionDef,
+    missing: Vec<String>,
+    declared: BTreeSet<String>,
+) -> ExtensionError {
+    let record = build_skill_record(ext, &PathRequiresProbe);
+    let example = record
+        .examples
+        .first()
+        .cloned()
+        .unwrap_or(record.invocation);
+    ExtensionError::MissingArgs {
+        missing,
+        declared,
+        extension_id: ext.id.to_string(),
+        example,
+    }
 }
 
 #[cfg(test)]
@@ -808,7 +794,10 @@ mod tests {
         let matched = registry.match_argv(&argv).expect("match");
         let ctx = build_match_context(&matched, matched.extension());
         let err = expand_command_host(matched.extension(), &ctx).expect_err("missing");
-        assert!(matches!(err, ExtensionError::MissingArg { .. }));
+        assert!(
+            matches!(err, ExtensionError::MissingArgs { ref missing, .. } if missing.iter().any(|m| m == "--root")),
+            "{err:?}"
+        );
     }
 
     #[test]

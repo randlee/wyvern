@@ -1,7 +1,7 @@
 ---
 id: g.2
 title: Error-teaches — near-miss diagnostics and preexec recovery
-status: planning
+status: complete
 branch: feature/phase-G-g2-error-teaches
 worktree: ../wyvern-worktrees/feature/phase-G-g2-error-teaches
 target: integrate/phase-G
