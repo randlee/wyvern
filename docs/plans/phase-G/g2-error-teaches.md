@@ -28,7 +28,7 @@ Replace misleading `PARSE_ERROR` / generic usage fallthrough with structured `St
 | `crates/wyvern/src/extensions/diagnostics.rs` | **New.** `NearMissKind` → `StderrError` envelope per contract table |
 | `crates/wyvern/src/main.rs` | Near-miss decision table before `load_command_input` (no registry logic in `input.rs`) |
 | `crates/wyvern/src/extensions/expand.rs` | `ExtensionError::MissingArgs { … }` replaces `MissingArg`; list all missing required flags |
-| `crates/wyvern/src/extensions/preexec.rs` | Pipe stderr (4 KiB tail); `PreexecFailureKind` without `Timeout` |
+| `crates/wyvern/src/extensions/preexec.rs` | Pipe stderr (4 KiB tail); `PreexecFailureKind` including sync-poll `Timeout` (`WYVERN_PREEXEC_TIMEOUT_SECS`) |
 | `crates/wyvern/src/error.rs` | Caller-facing `UnexpectedArg` / `MissingArgs` / `Preexec` recovery; in-binary recovery first |
 | `crates/wyvern/tests/extension_diagnostics.rs` | **New.** Near-miss subprocess tests |
 | `crates/wyvern/tests/preexec_recovery.rs` | **New.** Spawn vs nonzero-exit classification |
@@ -63,6 +63,7 @@ pub fn emit_near_miss(kind: &NearMissKind) -> Result<String, EmitError>; // Stde
 pub enum PreexecFailureKind {
     SpawnNotFound { cmd: String },
     NonZeroExit { code: i32, stderr_tail: String },
+    Timeout { cmd: String, timeout_secs: u64 },
 }
 
 pub enum ExtensionError {
@@ -127,7 +128,7 @@ cargo fmt --all --check && cargo clippy --workspace -- -D warnings
 
 - Rich catalog JSON / `show` → **g.3**
 - Typo inference → P2
-- `PreexecFailureKind::Timeout` → P2 (requires async timeout infra)
+- Async/event-loop preexec timeout infrastructure → P2 (`PreexecFailureKind::Timeout` via sync poll and `WYVERN_PREEXEC_TIMEOUT_SECS` recovery is in-scope for g.2)
 
 ## Authority
 
