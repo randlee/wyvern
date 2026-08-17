@@ -4,7 +4,7 @@ use super::{
     build_skill_record, build_skill_records, format_skill_card, ExtensionError, ExtensionId,
     ExtensionRegistry, PathRequiresProbe, SkillRecord,
 };
-use crate::error::{EmitError, UsageErrorKind};
+use crate::error::{BuiltinDomain, EmitError, UsageErrorKind};
 use wyvern_schema::{ErrorCode, SerializeError, StderrError};
 
 /// Failure from the `extensions` built-in.
@@ -68,7 +68,7 @@ pub fn run_extensions_command(args: &[String]) -> Result<String, ExtensionsCmdEr
         Some(other) if other.starts_with('-') => Err(unknown_flag(other)),
         Some(other) => Err(ExtensionsCmdError::Usage {
             kind: UsageErrorKind::UnknownSubcommand {
-                domain: "extensions".into(),
+                domain: BuiltinDomain::Extensions,
                 token: other.to_string(),
             },
             message: format!(
@@ -296,8 +296,8 @@ mod tests {
             ExtensionsCmdError::Usage { kind, message } => {
                 assert!(matches!(
                     kind,
-                    UsageErrorKind::UnknownSubcommand { ref domain, ref token }
-                        if domain == "extensions" && token == "dump"
+                    UsageErrorKind::UnknownSubcommand { domain, ref token }
+                        if domain == BuiltinDomain::Extensions && token == "dump"
                 ));
                 assert!(
                     message.contains("unknown extensions subcommand"),

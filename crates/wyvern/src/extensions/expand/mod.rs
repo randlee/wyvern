@@ -1,21 +1,20 @@
 //! Two-phase template substitution for preexec args and command/host expand.
 
-use std::collections::{BTreeMap, BTreeSet};
+mod env;
+mod preexec_orchestration;
+mod template;
+
 use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 use tempfile::TempDir;
 
-use super::preexec::{create_tmpdir, first_rendered_html, run_preexec, tmpdir_path};
-use std::io::Read;
+use super::{ExtensionDef, ExtensionError, ExtensionMatch, PreexecSpec, TemplateErrorKind};
+use env::ExpandEnv;
+use template::read_command_from_file;
 
-use super::{
-    build_skill_record, catalog, ExtensionDef, ExtensionError, ExtensionMatch, PathRequiresProbe,
-    PreexecSpec, TemplateErrorKind,
-};
-
-/// 1 MiB cap for `command_from_file` JSON (RSH-003).
-const MAX_COMMAND_FROM_FILE_BYTES: usize = 1024 * 1024;
+#[doc(inline)]
+pub use preexec_orchestration::{expand_and_validate, last_created_tmpdir};
 
 /// Context collected from an [`ExtensionMatch`] plus optional preexec outputs.
 #[derive(Debug, Clone)]
@@ -53,7 +52,7 @@ pub struct ExpandedInvocation {
 }
 
 #[derive(Clone, Copy)]
-enum Phase {
+pub(super) enum Phase {
     Preexec,
     Command,
 }
@@ -145,124 +144,6 @@ pub fn expand_command_host(
     Ok((command, host_overrides))
 }
 
-// Thread-local storage for the last created tmpdir path.
-// Used only in tests via `last_created_tmpdir()` to verify cleanup behaviour
-// without exposing `TempDir` handles across API boundaries.
-// Interior mutability is required because the test hook must write to this
-// slot inside `expand_and_validate` which takes `&ExtensionDef` (non-mut).
-// Production code never reads this slot; it is populated only when preexec
-// creates a tmpdir, and tests call `last_created_tmpdir()` after the fact.
-// Kept `pub` (not `#[cfg(test)]`) so integration-test binaries can call it.
-thread_local! {
-    static LAST_CREATED_TMPDIR: std::cell::RefCell<Option<PathBuf>> = const { std::cell::RefCell::new(None) };
-}
-
-/// Path of the temp dir created by the last [`expand_and_validate`] on this thread.
-///
-/// Integration tests use this hook; it is not part of the supported public API.
-#[doc(hidden)]
-#[must_use]
-pub fn last_created_tmpdir() -> Option<PathBuf> {
-    LAST_CREATED_TMPDIR.with(|cell| cell.borrow().clone())
-}
-
-fn ensure_preexec_output_parents(args: &[String]) -> Result<(), ExtensionError> {
-    for window in args.windows(2) {
-        if window[0] == "--output" {
-            if let Some(parent) = Path::new(&window[1]).parent() {
-                if !parent.as_os_str().is_empty() {
-                    std::fs::create_dir_all(parent).map_err(|err| ExtensionError::Io {
-                        message: format!(
-                            "could not create preexec output parent '{}': {err}",
-                            parent.display()
-                        ),
-                        source: Some(Box::new(err)),
-                    })?;
-                }
-            }
-        }
-    }
-    Ok(())
-}
-
-/// Create tmpdir if needed, run preexec, expand, and validate.
-///
-/// On preexec failure the temp dir is dropped immediately (no host launch).
-/// On success `temp_guard` is held until the caller drops [`ExpandedInvocation`].
-/// CLI `--help` / `-h` never reach this function — [`super::match_extension_help`]
-/// handles skill cards before match and expand.
-///
-/// # Errors
-///
-/// Returns [`ExtensionError`] for preexec, template, I/O, or validation failure.
-pub fn expand_and_validate(
-    ext: &ExtensionDef,
-    ctx: &MatchContext<'_>,
-) -> Result<ExpandedInvocation, ExtensionError> {
-    let mut ctx = ctx.clone();
-    let temp_guard = if references_tmpdir(ext) {
-        let dir = create_tmpdir()?;
-        ctx.tmpdir = Some(tmpdir_path(&dir));
-        LAST_CREATED_TMPDIR.with(|cell| {
-            *cell.borrow_mut() = ctx.tmpdir.clone();
-        });
-        Some(dir)
-    } else {
-        None
-    };
-
-    if let Some(pre) = ext.preexec.as_ref() {
-        let (cmd, args) = match expand_preexec_args(pre, ext, &ctx) {
-            Ok(pair) => pair,
-            Err(err) => {
-                drop(temp_guard);
-                return Err(err);
-            }
-        };
-        ensure_preexec_output_parents(&args)?;
-        let stdout_capture = ext.preexec.as_ref().and_then(|p| p.stdout);
-        match run_preexec(&cmd, &args, stdout_capture) {
-            Ok(stdout) => ctx.preexec_stdout = stdout,
-            Err(err) => {
-                drop(temp_guard);
-                return Err(err);
-            }
-        }
-        if references_rendered_basename(ext) {
-            let tmp = ctx.tmpdir.as_deref().ok_or_else(|| {
-                ExtensionError::template(
-                    TemplateErrorKind::Unavailable,
-                    "{rendered_basename} requires {tmpdir}",
-                )
-            })?;
-            match first_rendered_html(tmp) {
-                Ok(name) => ctx.rendered_basename = Some(name),
-                Err(err) => {
-                    drop(temp_guard);
-                    return Err(err);
-                }
-            }
-        }
-    }
-
-    let (command, host_overrides) = match expand_command_host(ext, &ctx) {
-        Ok(pair) => pair,
-        Err(err) => {
-            drop(temp_guard);
-            return Err(err);
-        }
-    };
-    if let Err(source) = wyvern_schema::validate(&command) {
-        drop(temp_guard);
-        return Err(ExtensionError::InvalidCommand { source });
-    }
-    Ok(ExpandedInvocation {
-        command,
-        host_overrides,
-        temp_guard,
-    })
-}
-
 /// Walk from the file's directory until `wizard.json` or `pages/` is found.
 #[must_use]
 pub fn infer_wizard_root(path: &Path) -> PathBuf {
@@ -289,407 +170,11 @@ pub fn relpath_from_ui_root(path: &Path, wizard_root: &Path) -> String {
         .unwrap_or_else(|_| path.to_string_lossy().replace('\\', "/"))
 }
 
-fn references_tmpdir(ext: &ExtensionDef) -> bool {
-    templates_contain(ext, "{tmpdir}")
-}
-
-fn references_rendered_basename(ext: &ExtensionDef) -> bool {
-    templates_contain(ext, "{rendered_basename}")
-}
-
-fn templates_contain(ext: &ExtensionDef, needle: &str) -> bool {
-    if let Some(pre) = &ext.preexec {
-        if pre.cmd.contains(needle) || pre.args.iter().any(|a| a.contains(needle)) {
-            return true;
-        }
-    }
-    if let Some(exp) = &ext.expand {
-        if exp
-            .command_from_file
-            .as_deref()
-            .is_some_and(|s| s.contains(needle))
-        {
-            return true;
-        }
-        if exp
-            .host
-            .as_ref()
-            .and_then(|h| h.ui_root.as_deref())
-            .is_some_and(|s| s.contains(needle))
-        {
-            return true;
-        }
-        if let Some(cmd) = &exp.command {
-            if value_contains(cmd, needle) {
-                return true;
-            }
-        }
-    }
-    false
-}
-
-fn value_contains(value: &Value, needle: &str) -> bool {
-    match value {
-        Value::String(s) => s.contains(needle),
-        Value::Array(items) => items.iter().any(|v| value_contains(v, needle)),
-        Value::Object(map) => map.values().any(|v| value_contains(v, needle)),
-        _ => false,
-    }
-}
-
-struct ExpandEnv<'a> {
-    ext: &'a ExtensionDef,
-    declared: BTreeSet<String>,
-    path: Option<&'a str>,
-    tmpdir: Option<&'a Path>,
-    wyvern_share: &'a Path,
-    preexec_stdout: Option<&'a str>,
-    rendered_basename: Option<&'a str>,
-    args: BTreeMap<String, Vec<String>>,
-    phase: Phase,
-}
-
-impl<'a> ExpandEnv<'a> {
-    fn from_context(
-        ext: &'a ExtensionDef,
-        ctx: &'a MatchContext<'a>,
-        phase: Phase,
-    ) -> Result<Self, ExtensionError> {
-        let skill_args = catalog::declared_skill_args(ext);
-        let declared: BTreeSet<String> = skill_args
-            .iter()
-            .map(|arg| arg.name.as_str().to_string())
-            .collect();
-        let path_token = ctx.path;
-        let args = parse_named_args(ctx.args_after_prefix, &declared, path_token, ext)?;
-        let missing: Vec<String> = skill_args
-            .iter()
-            .filter(|arg| arg.required && !args.contains_key(arg.name.as_str()))
-            .map(|arg| format!("--{}", arg.name))
-            .collect();
-        if !missing.is_empty() {
-            return Err(missing_args_error(ext, missing, declared));
-        }
-        Ok(Self {
-            ext,
-            declared,
-            path: ctx.path,
-            tmpdir: ctx.tmpdir.as_deref(),
-            wyvern_share: ctx.wyvern_share.as_path(),
-            preexec_stdout: ctx.preexec_stdout.as_deref(),
-            rendered_basename: ctx.rendered_basename.as_deref(),
-            args,
-            phase,
-        })
-    }
-
-    fn expand_string(&self, template: &str) -> Result<String, ExtensionError> {
-        let mut out = String::new();
-        for part in parse_template(template)? {
-            match part {
-                TemplatePart::Lit(lit) => out.push_str(&lit),
-                TemplatePart::Var(name) => out.push_str(&self.lookup_string(&name)?),
-            }
-        }
-        Ok(out)
-    }
-
-    fn expand_argv(&self, templates: &[String]) -> Result<Vec<String>, ExtensionError> {
-        let mut out = Vec::new();
-        for tmpl in templates {
-            if let Some(name) = tmpl
-                .strip_prefix("{arg:")
-                .and_then(|rest| rest.strip_suffix(":repeat}"))
-            {
-                if !name.contains('{') {
-                    if let Some(values) = self.args.get(name) {
-                        for value in values {
-                            out.push(format!("--{name}"));
-                            out.push(value.clone());
-                        }
-                    }
-                    continue;
-                }
-            }
-            out.push(self.expand_string(tmpl)?);
-        }
-        Ok(out)
-    }
-
-    fn expand_value(&self, value: &Value) -> Result<Value, ExtensionError> {
-        match value {
-            Value::String(s) => Ok(Value::String(self.expand_string(s)?)),
-            Value::Array(items) => {
-                let mut out = Vec::with_capacity(items.len());
-                for item in items {
-                    out.push(self.expand_value(item)?);
-                }
-                Ok(Value::Array(out))
-            }
-            Value::Object(map) => {
-                let mut out = serde_json::Map::new();
-                for (k, v) in map {
-                    out.insert(k.clone(), self.expand_value(v)?);
-                }
-                Ok(Value::Object(out))
-            }
-            other => Ok(other.clone()),
-        }
-    }
-
-    fn lookup_string(&self, name: &str) -> Result<String, ExtensionError> {
-        if let Some(arg_name) = name.strip_prefix("arg:") {
-            if let Some(repeat_name) = arg_name.strip_suffix(":repeat") {
-                let values = self.args.get(repeat_name).cloned().unwrap_or_default();
-                let mut tokens = Vec::new();
-                for value in values {
-                    tokens.push(format!("--{repeat_name}"));
-                    tokens.push(value);
-                }
-                return Ok(tokens.join(" "));
-            }
-            return self
-                .args
-                .get(arg_name)
-                .and_then(|v| v.first())
-                .cloned()
-                .ok_or_else(|| {
-                    missing_args_error(
-                        self.ext,
-                        vec![format!("--{arg_name}")],
-                        self.declared.clone(),
-                    )
-                });
-        }
-        match name {
-            "path" => self.require_path("path").map(ToOwned::to_owned),
-            "basename" => {
-                let path = self.require_path("basename")?;
-                file_name(path, "basename")
-            }
-            "stem" => {
-                let path = self.require_path("stem")?;
-                Path::new(path)
-                    .file_stem()
-                    .and_then(|s| s.to_str())
-                    .map(ToOwned::to_owned)
-                    .ok_or_else(|| {
-                        ExtensionError::template(
-                            TemplateErrorKind::Unavailable,
-                            format!("{{stem}} has no file stem for '{path}'"),
-                        )
-                    })
-            }
-            "parent_dir" => {
-                let path = self.require_path("parent_dir")?;
-                Ok(Path::new(path)
-                    .parent()
-                    .map(|p| p.to_string_lossy().into_owned())
-                    .unwrap_or_else(|| ".".into()))
-            }
-            "wizard_root" => {
-                let path = self.require_path("wizard_root")?;
-                Ok(infer_wizard_root(Path::new(path))
-                    .to_string_lossy()
-                    .into_owned())
-            }
-            "relpath_from_ui_root" => {
-                let path = self.require_path("relpath_from_ui_root")?;
-                let root = infer_wizard_root(Path::new(path));
-                Ok(relpath_from_ui_root(Path::new(path), &root))
-            }
-            "tmpdir" => self
-                .tmpdir
-                .map(|p| p.to_string_lossy().into_owned())
-                .ok_or_else(|| {
-                    ExtensionError::template(
-                        TemplateErrorKind::Unavailable,
-                        "{tmpdir} was not created for this expansion",
-                    )
-                }),
-            "wyvern_share" => Ok(self.wyvern_share.to_string_lossy().into_owned()),
-            "preexec.stdout" => match self.phase {
-                Phase::Preexec => Err(ExtensionError::template(
-                    TemplateErrorKind::PhaseRestricted,
-                    "{preexec.stdout} is only available in phase 2",
-                )),
-                Phase::Command => self.preexec_stdout.map(ToOwned::to_owned).ok_or_else(|| {
-                    ExtensionError::template(
-                        TemplateErrorKind::Unavailable,
-                        "{preexec.stdout} is empty (no markdown capture)",
-                    )
-                }),
-            },
-            "rendered_basename" => match self.phase {
-                Phase::Preexec => Err(ExtensionError::template(
-                    TemplateErrorKind::PhaseRestricted,
-                    "{rendered_basename} is only available in phase 2",
-                )),
-                Phase::Command => self
-                    .rendered_basename
-                    .map(ToOwned::to_owned)
-                    .ok_or_else(|| {
-                        ExtensionError::template(
-                            TemplateErrorKind::Unavailable,
-                            "{rendered_basename} is not set",
-                        )
-                    }),
-            },
-            other => Err(ExtensionError::template(
-                TemplateErrorKind::UnknownVariable,
-                format!("unknown template variable {{{other}}}"),
-            )),
-        }
-    }
-
-    fn require_path(&self, var: &str) -> Result<&str, ExtensionError> {
-        self.path.ok_or_else(|| ExtensionError::PathVarWithoutPath {
-            var: var.to_string(),
-        })
-    }
-}
-
-fn read_command_from_file(path: &str) -> Result<String, ExtensionError> {
-    let file = std::fs::File::open(path).map_err(|err| ExtensionError::Io {
-        message: format!("command_from_file '{path}': {err}"),
-        source: Some(Box::new(err)),
-    })?;
-    let mut buf = Vec::new();
-    let n = file
-        .take(MAX_COMMAND_FROM_FILE_BYTES as u64 + 1)
-        .read_to_end(&mut buf)
-        .map_err(|err| ExtensionError::Io {
-            message: format!("command_from_file '{path}': {err}"),
-            source: Some(Box::new(err)),
-        })?;
-    if n > MAX_COMMAND_FROM_FILE_BYTES {
-        return Err(ExtensionError::Io {
-            message: format!(
-                "command_from_file '{path}' exceeds maximum of {MAX_COMMAND_FROM_FILE_BYTES} bytes"
-            ),
-            source: None,
-        });
-    }
-    String::from_utf8(buf).map_err(|err| ExtensionError::Io {
-        message: format!("command_from_file '{path}' is not valid UTF-8: {err}"),
-        source: Some(Box::new(err)),
-    })
-}
-
-fn file_name(path: &str, var: &str) -> Result<String, ExtensionError> {
-    Path::new(path)
-        .file_name()
-        .and_then(|s| s.to_str())
-        .map(ToOwned::to_owned)
-        .ok_or_else(|| {
-            ExtensionError::template(
-                TemplateErrorKind::Unavailable,
-                format!("{{{var}}} has no file name for '{path}'"),
-            )
-        })
-}
-
-enum TemplatePart {
-    Lit(String),
-    Var(String),
-}
-
-fn parse_template(template: &str) -> Result<Vec<TemplatePart>, ExtensionError> {
-    let mut out = Vec::new();
-    let mut rest = template;
-    while let Some(start) = rest.find('{') {
-        if start > 0 {
-            out.push(TemplatePart::Lit(rest[..start].to_string()));
-        }
-        let after = &rest[start + 1..];
-        let Some(end) = after.find('}') else {
-            return Err(ExtensionError::template(
-                TemplateErrorKind::UnclosedBrace,
-                format!("unclosed '{{' in template '{template}'"),
-            ));
-        };
-        out.push(TemplatePart::Var(after[..end].to_string()));
-        rest = &after[end + 1..];
-    }
-    if !rest.is_empty() {
-        out.push(TemplatePart::Lit(rest.to_string()));
-    }
-    Ok(out)
-}
-
-fn parse_named_args(
-    tokens: &[String],
-    declared: &BTreeSet<String>,
-    path_token: Option<&str>,
-    ext: &ExtensionDef,
-) -> Result<BTreeMap<String, Vec<String>>, ExtensionError> {
-    let mut args: BTreeMap<String, Vec<String>> = BTreeMap::new();
-    let mut i = 0;
-    while i < tokens.len() {
-        let token = &tokens[i];
-        if let Some(name) = token.strip_prefix("--") {
-            if name.is_empty() {
-                return Err(unexpected_arg(token, declared, ext));
-            }
-            let (name, inline) = match name.split_once('=') {
-                Some((n, v)) => (n.to_string(), Some(v.to_string())),
-                None => (name.to_string(), None),
-            };
-            if !declared.contains(&name) {
-                return Err(unexpected_arg(token, declared, ext));
-            }
-            let value = if let Some(v) = inline {
-                v
-            } else {
-                i += 1;
-                tokens.get(i).cloned().ok_or_else(|| {
-                    missing_args_error(ext, vec![format!("--{name}")], declared.clone())
-                })?
-            };
-            args.entry(name).or_default().push(value);
-            i += 1;
-            continue;
-        }
-        if path_token == Some(token.as_str()) {
-            i += 1;
-            continue;
-        }
-        return Err(unexpected_arg(token, declared, ext));
-    }
-    Ok(args)
-}
-
-fn unexpected_arg(token: &str, declared: &BTreeSet<String>, ext: &ExtensionDef) -> ExtensionError {
-    ExtensionError::UnexpectedArg {
-        token: token.to_string(),
-        declared: declared.clone(),
-        extension_id: ext.id.clone(),
-    }
-}
-
-fn missing_args_error(
-    ext: &ExtensionDef,
-    missing: Vec<String>,
-    declared: BTreeSet<String>,
-) -> ExtensionError {
-    let record = build_skill_record(ext, &PathRequiresProbe);
-    let example = record
-        .examples
-        .first()
-        .cloned()
-        .unwrap_or(record.invocation);
-    ExtensionError::MissingArgs {
-        missing,
-        declared,
-        extension_id: ext.id.clone(),
-        example,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::extensions::{ExtensionRegistry, SHIPPED_EXTENSIONS_JSON};
+    use template::MAX_COMMAND_FROM_FILE_BYTES;
 
     #[test]
     fn md_suffix_expands_path_parts() {
@@ -785,7 +270,7 @@ mod tests {
         let ctx = build_match_context(&matched, matched.extension());
         let err = expand_command_host(matched.extension(), &ctx).expect_err("missing");
         assert!(
-            matches!(err, ExtensionError::MissingArgs { ref missing, ref example, .. } if missing.iter().any(|m| m == "--root") && !example.is_empty()),
+            matches!(err, crate::extensions::ExtensionError::MissingArgs { ref missing, ref example, .. } if missing.iter().any(|m| m == "--root") && !example.is_empty()),
             "{err:?}"
         );
     }
@@ -811,7 +296,7 @@ mod tests {
         let ctx = build_match_context(&matched, matched.extension());
         let err = expand_command_host(matched.extension(), &ctx).expect_err("missing value");
         match err {
-            ExtensionError::MissingArgs {
+            crate::extensions::ExtensionError::MissingArgs {
                 missing,
                 example,
                 extension_id,
@@ -918,7 +403,10 @@ mod tests {
         let matched = registry.match_argv(&argv).expect("match");
         let ctx = build_match_context(&matched, matched.extension());
         let err = expand_command_host(matched.extension(), &ctx).expect_err("path");
-        assert!(matches!(err, ExtensionError::PathVarWithoutPath { .. }));
+        assert!(matches!(
+            err,
+            crate::extensions::ExtensionError::PathVarWithoutPath { .. }
+        ));
     }
 
     #[test]
@@ -1070,7 +558,7 @@ mod tests {
         let ctx = build_match_context(&matched, matched.extension());
         let err = expand_command_host(matched.extension(), &ctx).expect_err("oversize");
         assert!(
-            matches!(err, ExtensionError::Io { ref message, .. } if message.contains("exceeds")),
+            matches!(err, crate::extensions::ExtensionError::Io { ref message, .. } if message.contains("exceeds")),
             "{err}"
         );
     }

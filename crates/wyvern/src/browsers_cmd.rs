@@ -5,7 +5,7 @@ use wyvern_host::{
     HostError,
 };
 
-use crate::error::{emit_host_error, EmitError, UsageErrorKind};
+use crate::error::{emit_host_error, BuiltinDomain, EmitError, UsageErrorKind};
 
 /// Usage text for `wyvern browsers --help` / `-h`.
 #[must_use]
@@ -41,7 +41,7 @@ pub fn run_browsers_command(args: &[String]) -> Result<String, BrowsersError> {
         "refresh" => refresh(),
         other => Err(BrowsersError::Usage {
             kind: UsageErrorKind::UnknownSubcommand {
-                domain: "browsers".into(),
+                domain: BuiltinDomain::Browsers,
                 token: other.to_string(),
             },
             message: format!(
@@ -140,8 +140,8 @@ mod tests {
             BrowsersError::Usage { kind, message } => {
                 assert!(matches!(
                     kind,
-                    UsageErrorKind::UnknownSubcommand { ref domain, ref token }
-                        if domain == "browsers" && token == "nope"
+                    UsageErrorKind::UnknownSubcommand { domain, ref token }
+                        if domain == BuiltinDomain::Browsers && token == "nope"
                 ));
                 assert!(message.contains("unknown browsers subcommand"), "{message}");
             }

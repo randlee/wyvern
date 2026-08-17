@@ -144,7 +144,7 @@ pub(crate) fn build_router(session: SessionState, roots: StaticRoots) -> Router 
         axum::http::StatusCode::GATEWAY_TIMEOUT,
         REQUEST_TIMEOUT,
     ))
-    .layer(TraceLayer::new_for_http())
+    .layer(TraceLayer::new_for_http().make_span_with(RequestIdMakeSpan))
     .layer(PropagateRequestIdLayer::new(
         axum::http::HeaderName::from_static(REQUEST_ID_HEADER),
     ))
@@ -152,6 +152,26 @@ pub(crate) fn build_router(session: SessionState, roots: StaticRoots) -> Router 
         axum::http::HeaderName::from_static(REQUEST_ID_HEADER),
         MakeRequestUuid,
     ))
+}
+
+/// Include `x-request-id` on every HTTP span (RSH-008).
+#[derive(Clone, Copy)]
+struct RequestIdMakeSpan;
+
+impl<B> tower_http::trace::MakeSpan<B> for RequestIdMakeSpan {
+    fn make_span(&mut self, request: &axum::http::Request<B>) -> tracing::Span {
+        let request_id = request
+            .headers()
+            .get(REQUEST_ID_HEADER)
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("-");
+        tracing::info_span!(
+            "http.request",
+            method = %request.method(),
+            uri = %request.uri(),
+            request_id = %request_id,
+        )
+    }
 }
 
 /// Serve until a result arrives, session timeout, viewer-exit signal, or server failure.
@@ -174,18 +194,19 @@ pub(crate) async fn serve_until_result(
         .into_future());
     let timeout = tokio::time::sleep(session_timeout);
     tokio::pin!(timeout);
+    let mut result_rx = result_rx;
 
     let outcome = tokio::select! {
-        result = result_rx => {
+        result = &mut result_rx => {
             result.map_err(|_| HostError::Internal {
                 message: "result channel closed without a value".into(),
             })
         }
         () = &mut timeout => {
-            Ok(session.dismissed_on_exit_or_timeout().await)
+            dismissed_if_session_open(&session, &mut result_rx).await
         }
         _ = &mut dismiss_rx => {
-            Ok(session.dismissed_on_exit_or_timeout().await)
+            dismissed_if_session_open(&session, &mut result_rx).await
         }
         serve_result = &mut server => {
             serve_result.map_err(|e| HostError::Internal {
@@ -210,6 +231,22 @@ pub(crate) async fn serve_until_result(
     }
 
     outcome
+}
+
+/// Timeout/dismiss path: consume the result token first so in-flight
+/// `POST /api/result` cannot ack after shutdown (RSH-007). If a handler
+/// already took the token, wait for that oneshot instead of inventing dismissed.
+async fn dismissed_if_session_open(
+    session: &SessionState,
+    result_rx: &mut oneshot::Receiver<CommandResult>,
+) -> Result<CommandResult, HostError> {
+    if session.consume_result_token().await {
+        Ok(session.dismissed_on_exit_or_timeout().await)
+    } else {
+        result_rx.await.map_err(|_| HostError::Internal {
+            message: "result channel closed without a value".into(),
+        })
+    }
 }
 
 /// Publish dialog URL for headless harnesses (stderr + optional file).
@@ -250,5 +287,24 @@ mod tests {
     fn bind_policy_allows_loopback() {
         let addr = SocketAddr::from(([127, 0, 0, 1], 0));
         enforce_bind_policy(addr, false).expect("loopback ok");
+    }
+
+    #[test]
+    fn request_id_make_span_reads_header() {
+        use tower_http::trace::MakeSpan;
+        let mut make = RequestIdMakeSpan;
+        let request = axum::http::Request::builder()
+            .uri("/api/result")
+            .header(REQUEST_ID_HEADER, "abc-123")
+            .body(())
+            .expect("request");
+        let span = make.make_span(&request);
+        assert_eq!(span.metadata().map(|m| m.name()), Some("http.request"));
+        let missing = axum::http::Request::builder()
+            .uri("/api/dialog")
+            .body(())
+            .expect("request");
+        let span = make.make_span(&missing);
+        assert_eq!(span.metadata().map(|m| m.name()), Some("http.request"));
     }
 }

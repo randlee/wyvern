@@ -53,8 +53,10 @@ impl BoundOrigin {
 struct ResultSubmitToken(oneshot::Sender<CommandResult>);
 
 impl ResultSubmitToken {
-    fn submit(self, result: CommandResult) {
-        let _ = self.0.send(result);
+    /// Send the result. Returns `false` when the receiver is already gone
+    /// (timeout/dismiss won the serve loop — RSH-007).
+    fn submit(self, result: CommandResult) -> bool {
+        self.0.send(result).is_ok()
     }
 }
 
@@ -188,8 +190,11 @@ impl SessionState {
         };
         match prepared {
             Some((result, token)) => {
-                token.submit(CommandResult::Wizard(result.clone()));
-                Ok(Some(result))
+                if token.submit(CommandResult::Wizard(result.clone())) {
+                    Ok(Some(result))
+                } else {
+                    Ok(None)
+                }
             }
             None => Ok(None),
         }
@@ -258,14 +263,24 @@ impl SessionState {
     }
 
     /// Deliver a validated result by consuming the [`ResultSubmitToken`] (idempotent).
+    ///
+    /// Returns `false` when the token is already gone **or** the oneshot send
+    /// fails because the serve loop dropped the receiver (RSH-007).
     pub(crate) async fn complete(&self, result: wyvern_schema::CommandResult) -> bool {
         let mut guard = self.inner.lock().await;
-        if let Some(token) = guard.result_token.take() {
-            token.submit(result);
-            true
-        } else {
-            false
+        match guard.result_token.take() {
+            Some(token) => token.submit(result),
+            None => false,
         }
+    }
+
+    /// Atomically consume the result-submit token so in-flight `POST /api/result`
+    /// cannot acknowledge after timeout/dismiss (RSH-007).
+    ///
+    /// Returns `true` when this call closed the session (token was still present).
+    pub(crate) async fn consume_result_token(&self) -> bool {
+        let mut guard = self.inner.lock().await;
+        guard.result_token.take().is_some()
     }
 }
 
@@ -375,6 +390,71 @@ mod tests {
             .await
             .expect_err("back should also reject");
         assert_eq!(err, WizardError::ResultAlreadySubmitted);
+    }
+
+    fn chrome_cmd() -> Command {
+        Command::Chrome {
+            title: wyvern_schema::ChromeTitle::new("t"),
+            status: None,
+            width: None,
+            height: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn complete_returns_false_when_receiver_dropped() {
+        let (tx, rx) = oneshot::channel();
+        drop(rx);
+        let session = SessionState::new(chrome_cmd(), tx, None);
+        assert!(
+            !session
+                .complete(CommandResult::Chrome(ChromeResult {
+                    button: ButtonLabel::dismissed(),
+                }))
+                .await
+        );
+    }
+
+    #[tokio::test]
+    async fn consume_result_token_prevents_later_complete() {
+        let (tx, _rx) = oneshot::channel();
+        let session = SessionState::new(chrome_cmd(), tx, None);
+        assert!(session.consume_result_token().await);
+        assert!(
+            !session
+                .complete(CommandResult::Chrome(ChromeResult {
+                    button: ButtonLabel::dismissed(),
+                }))
+                .await
+        );
+        assert!(!session.consume_result_token().await);
+    }
+
+    #[tokio::test]
+    async fn timeout_consume_and_complete_are_mutually_exclusive() {
+        for _ in 0..200 {
+            let (tx, rx) = oneshot::channel();
+            let session = SessionState::new(chrome_cmd(), tx, None);
+            let session_close = session.clone();
+            let session_complete = session.clone();
+            let (closed, completed) = tokio::join!(
+                async move { session_close.consume_result_token().await },
+                async move {
+                    session_complete
+                        .complete(CommandResult::Chrome(ChromeResult {
+                            button: ButtonLabel::dismissed(),
+                        }))
+                        .await
+                }
+            );
+            match (closed, completed) {
+                (true, false) | (false, true) => {}
+                other => panic!("expected exclusive outcomes, got {other:?}"),
+            }
+            if completed {
+                assert!(rx.await.is_ok());
+            }
+        }
     }
 
     #[tokio::test]

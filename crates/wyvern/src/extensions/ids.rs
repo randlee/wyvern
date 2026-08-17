@@ -111,6 +111,24 @@ impl AsRef<str> for ArgName {
     }
 }
 
+impl std::borrow::Borrow<str> for ArgName {
+    fn borrow(&self) -> &str {
+        &self.0
+    }
+}
+
+impl PartialEq<str> for ArgName {
+    fn eq(&self, other: &str) -> bool {
+        self.0 == other
+    }
+}
+
+impl PartialEq<&str> for ArgName {
+    fn eq(&self, other: &&str) -> bool {
+        self.0 == *other
+    }
+}
+
 /// Bare PATH binary name (non-empty, no path separators).
 ///
 /// Constructed via `serde` `try_from` at registry load.
