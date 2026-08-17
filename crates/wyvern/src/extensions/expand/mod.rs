@@ -300,6 +300,7 @@ mod tests {
                 missing,
                 example,
                 extension_id,
+                help_command,
                 ..
             } => {
                 assert!(missing.iter().any(|m| m == "--root"), "{missing:?}");
@@ -308,6 +309,7 @@ mod tests {
                     "{example}"
                 );
                 assert_eq!(extension_id.as_str(), "needs-root");
+                assert_eq!(help_command, "wyvern compose render --help");
             }
             other => panic!("expected MissingArgs, got {other:?}"),
         }
@@ -334,6 +336,44 @@ mod tests {
         let ctx = build_match_context(&matched, matched.extension());
         let (cmd, _) = expand_command_host(matched.extension(), &ctx).expect("expand");
         assert_eq!(cmd["content"], "docs/readme.md|readme.md|readme|docs");
+    }
+
+    #[test]
+    fn unexpected_arg_records_invocation_help_command() {
+        let json = r#"{
+          "version": 1,
+          "extensions": [{
+            "id": "needs-root",
+            "match": { "argv_prefix": ["compose", "render"] },
+            "expand": {
+              "command": { "type": "markdown", "content": "{arg:root}" }
+            }
+          }]
+        }"#;
+        let registry = ExtensionRegistry::from_json_str(json).expect("parse");
+        let argv = vec![
+            "compose".into(),
+            "render".into(),
+            "--root".into(),
+            "dir".into(),
+            "--undeclared".into(),
+        ];
+        let matched = registry.match_argv(&argv).expect("match");
+        let ctx = build_match_context(&matched, matched.extension());
+        let err = expand_command_host(matched.extension(), &ctx).expect_err("unexpected");
+        match err {
+            crate::extensions::ExtensionError::UnexpectedArg {
+                token,
+                help_command,
+                extension_id,
+                ..
+            } => {
+                assert_eq!(token, "--undeclared");
+                assert_eq!(extension_id.as_str(), "needs-root");
+                assert_eq!(help_command, "wyvern compose render --help");
+            }
+            other => panic!("expected UnexpectedArg, got {other:?}"),
+        }
     }
 
     #[test]

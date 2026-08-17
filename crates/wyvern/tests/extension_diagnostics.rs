@@ -164,3 +164,103 @@ fn inline_json_is_not_classified_as_unknown_input() {
     assert_ne!(code, 2, "inline JSON must not be UnknownInput: {stderr}");
     assert!(!stderr.contains("unknown input"), "{stderr}");
 }
+
+/// Project prefix skill without `requires` — platform-neutral MissingArgs path.
+fn write_project_prefix_skill(dir: &Path) {
+    let wyvern_dir = dir.join(".wyvern");
+    fs::create_dir_all(&wyvern_dir).expect("mkdir .wyvern");
+    fs::write(
+        wyvern_dir.join("extensions.json"),
+        r#"{
+          "version": 1,
+          "extensions": [{
+            "id": "needs-root",
+            "description": "Project prefix skill for recovery tests",
+            "examples": ["wyvern demo run --root DIR"],
+            "match": { "argv_prefix": ["demo", "run"] },
+            "expand": { "command": { "type": "markdown", "content": "{arg:root}" } }
+          }]
+        }"#,
+    )
+    .expect("write project registry");
+}
+
+fn run_in_dir(dir: &Path, args: &[&str]) -> (i32, String, String) {
+    let output = wyvern()
+        .current_dir(dir)
+        .args(args)
+        .output()
+        .expect("spawn wyvern");
+    (
+        output.status.code().unwrap_or(-1),
+        String::from_utf8_lossy(&output.stdout).into_owned(),
+        String::from_utf8_lossy(&output.stderr).into_owned(),
+    )
+}
+
+fn recovery_run_command(stderr: &str) -> String {
+    let value = parse_stderr(stderr);
+    value["recovery"]
+        .as_array()
+        .expect("recovery")
+        .iter()
+        .filter_map(|step| step.as_str())
+        .find_map(|step| step.strip_prefix("Run "))
+        .filter(|cmd| cmd.starts_with("wyvern ") && cmd.contains("--help"))
+        .unwrap_or_else(|| panic!("no Run wyvern … --help recovery in {stderr}"))
+        .to_string()
+}
+
+#[test]
+fn missing_args_recovery_uses_invocation_prefix_and_exits_zero() {
+    let tmp = tempfile::tempdir().expect("tmp");
+    write_project_prefix_skill(tmp.path());
+    let (code, _stdout, stderr) = run_in_dir(tmp.path(), &["demo", "run"]);
+    assert_eq!(code, 4, "stderr={stderr}");
+    assert!(
+        !stderr.contains("wyvern needs-root --help")
+            && !stderr.contains("wyvern compose-render --help"),
+        "recovery must not use the extension id as argv: {stderr}"
+    );
+    let recovery = recovery_run_command(&stderr);
+    assert_eq!(recovery, "wyvern demo run --help", "{stderr}");
+    let tokens: Vec<&str> = recovery
+        .strip_prefix("wyvern ")
+        .expect("wyvern prefix")
+        .split_whitespace()
+        .collect();
+    let (help_code, help_stdout, help_stderr) = run_in_dir(tmp.path(), &tokens);
+    assert_eq!(help_code, 0, "recovery argv must exit 0: {help_stderr}");
+    assert!(
+        help_stdout.contains("needs-root") || help_stdout.contains("Usage:"),
+        "{help_stdout}"
+    );
+}
+
+#[test]
+fn unexpected_arg_recovery_uses_invocation_prefix() {
+    let tmp = tempfile::tempdir().expect("tmp");
+    write_project_prefix_skill(tmp.path());
+    let (code, _stdout, stderr) = run_in_dir(
+        tmp.path(),
+        &["demo", "run", "--root", "r", "--undeclared", "x"],
+    );
+    assert_eq!(code, 4, "stderr={stderr}");
+    assert!(
+        !stderr.contains("declare them as {arg:name}") && !stderr.contains("{arg:"),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains("--root") || stderr.contains("Accepted flags"),
+        "{stderr}"
+    );
+    let recovery = recovery_run_command(&stderr);
+    assert_eq!(recovery, "wyvern demo run --help", "{stderr}");
+    let tokens: Vec<&str> = recovery
+        .strip_prefix("wyvern ")
+        .expect("wyvern prefix")
+        .split_whitespace()
+        .collect();
+    let (help_code, _help_stdout, help_stderr) = run_in_dir(tmp.path(), &tokens);
+    assert_eq!(help_code, 0, "recovery argv must exit 0: {help_stderr}");
+}

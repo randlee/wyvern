@@ -268,6 +268,7 @@ fn unexpected_arg(token: &str, declared: &BTreeSet<ArgName>, ext: &ExtensionDef)
         token: token.to_string(),
         declared: declared_strings(declared),
         extension_id: ext.id.clone(),
+        help_command: catalog::skill_help_command(ext),
     }
 }
 
@@ -287,6 +288,7 @@ fn missing_args_error(
         declared: declared_strings(declared),
         extension_id: ext.id.clone(),
         example,
+        help_command: catalog::skill_help_command(ext),
     }
 }
 

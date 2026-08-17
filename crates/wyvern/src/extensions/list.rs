@@ -43,6 +43,7 @@ pub fn extensions_usage_message() -> String {
         "Options:\n",
         "  --json       Print SkillRecord JSON (array for list, object for show)\n",
         "\n",
+        "Warning: `.wyvern/extensions.json` is trusted preexec; review it before running wyvern.\n",
         "See also: wyvern --help\n",
     )
     .to_string()
@@ -266,6 +267,10 @@ mod tests {
         let text = extensions_usage_message();
         assert!(text.contains("list"), "{text}");
         assert!(text.contains("show"), "{text}");
+        assert!(
+            text.contains(".wyvern/extensions.json") && text.contains("trusted preexec"),
+            "{text}"
+        );
     }
 
     #[test]

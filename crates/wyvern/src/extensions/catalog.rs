@@ -11,7 +11,7 @@ use serde_json::Value;
 
 use super::{
     match_kind_summary, ArgName, BinaryName, ExtensionDef, ExtensionId, ExtensionRegistry,
-    MatchToken, PreexecSpec, RequiresProbe,
+    MatchToken, PreexecSpec, RequiresProbe, SkillSource,
 };
 
 /// One declared `{arg:name}` / `{arg:name:repeat}` flag.
@@ -55,6 +55,8 @@ pub struct SkillRecord {
     pub examples: Vec<String>,
     /// Parent extension id when `extends` is set; otherwise `null` on the wire.
     pub extends: Option<ExtensionId>,
+    /// `shipped` defaults or `project` `.wyvern/extensions.json`.
+    pub source: SkillSource,
 }
 
 /// Build a help-oriented [`SkillRecord`] from a resolved extension.
@@ -91,7 +93,22 @@ pub fn build_skill_record(ext: &ExtensionDef, probe: &dyn RequiresProbe) -> Skil
             .filter(|text| !text.is_empty()),
         examples,
         extends: ext.extends.clone(),
+        source: ext.source,
     }
+}
+
+/// Recovery `--help` using the invocation prefix, not the extension id.
+///
+/// Prefix skills: `wyvern compose render --help`. Suffix/filename skills:
+/// `wyvern extensions show <id>` (path `--help` also works at match time).
+#[must_use]
+pub fn skill_help_command(ext: &ExtensionDef) -> String {
+    if let Some(prefix) = &ext.match_spec.argv_prefix {
+        if !prefix.is_empty() {
+            return format!("wyvern {} --help", join_prefix(prefix));
+        }
+    }
+    format!("wyvern extensions show {}", ext.id)
 }
 
 /// Build a [`SkillRecord`] for every merged extension, in registry order.
@@ -345,7 +362,9 @@ fn collect_value_vars(value: &Value, into: &mut Vec<String>, seen: &mut BTreeSet
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::extensions::{ExtensionRegistry, RequiresProbe, SHIPPED_EXTENSIONS_JSON};
+    use crate::extensions::{
+        ExtensionRegistry, RequiresProbe, SkillSource, SHIPPED_EXTENSIONS_JSON,
+    };
 
     struct Absent;
 
@@ -365,6 +384,8 @@ mod tests {
             .expect("compose-render");
         let record = build_skill_record(ext, &Absent);
         assert_eq!(record.id.to_string(), "compose-render");
+        assert_eq!(record.source, SkillSource::Shipped);
+        assert_eq!(skill_help_command(ext), "wyvern compose render --help");
         assert!(record.args.iter().any(|arg| arg.name.as_str() == "root"));
         assert!(!record.requires.iter().any(|r| r.available));
         let card = format_skill_card(&record);
@@ -386,6 +407,7 @@ mod tests {
             .find(|e| e.id.as_str() == "csv-md")
             .expect("csv-md");
         let card = format_skill_card(&build_skill_record(ext, &Absent));
+        assert_eq!(skill_help_command(ext), "wyvern md --help");
         assert!(card.contains("wyvern md"), "{card}");
         assert!(card.contains("Requires:"), "{card}");
         assert!(card.contains("Example:"), "{card}");
@@ -432,6 +454,11 @@ mod tests {
         assert!(record.description.is_none());
         assert_eq!(record.extends, None);
         assert_eq!(record.examples.len(), 1);
+        assert_eq!(record.source, SkillSource::Shipped);
+        assert_eq!(
+            skill_help_command(&registry.extensions()[0]),
+            "wyvern extensions show plain"
+        );
     }
 
     #[test]

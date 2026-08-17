@@ -77,5 +77,6 @@ fn inherit_from(child: &ExtensionDef, parent: &ExtensionDef) -> ExtensionDef {
         },
         preexec,
         expand: child.expand.clone().or_else(|| parent.expand.clone()),
+        source: child.source,
     }
 }

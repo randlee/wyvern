@@ -50,6 +50,7 @@ pub fn emit_extension_error(err: &crate::extensions::ExtensionError) -> Result<S
             missing,
             extension_id,
             example,
+            help_command,
             ..
         } => (
             ErrorCode::ValidationError,
@@ -61,7 +62,7 @@ pub fn emit_extension_error(err: &crate::extensions::ExtensionError) -> Result<S
             vec![
                 format!("Pass {} after the extension prefix", missing.join(" ")),
                 format!("Example: {example}"),
-                format!("Run wyvern {extension_id} --help"),
+                format!("Run {help_command}"),
                 "Run wyvern --help to list skills".into(),
             ],
         ),
@@ -69,9 +70,10 @@ pub fn emit_extension_error(err: &crate::extensions::ExtensionError) -> Result<S
             token,
             declared,
             extension_id,
+            help_command,
         } => {
             let accepted = if declared.is_empty() {
-                format!("Run wyvern {extension_id} --help")
+                format!("Run {help_command}")
             } else {
                 format!(
                     "Accepted flags: {}",
@@ -89,6 +91,7 @@ pub fn emit_extension_error(err: &crate::extensions::ExtensionError) -> Result<S
                 vec![
                     format!("Remove unexpected argument `{token}`"),
                     accepted,
+                    format!("Run {help_command}"),
                     "Run wyvern --help to list skills".into(),
                 ],
             )

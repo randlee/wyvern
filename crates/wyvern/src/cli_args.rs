@@ -287,7 +287,7 @@ pub fn usage_message() -> String {
             .collect::<Vec<_>>()
             .join(", ");
         if !ids.is_empty() {
-            text.push_str("Skills: ");
+            text.push_str("Catalog ids for `wyvern extensions show <id>` (not argv commands): ");
             text.push_str(&ids);
             text.push('\n');
         }

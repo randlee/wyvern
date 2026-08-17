@@ -423,6 +423,7 @@ mod tests {
             declared: ["root".into(), "file".into()].into_iter().collect(),
             extension_id: ExtensionId::try_from(String::from("compose-render")).expect("id"),
             example: "wyvern compose render --root DIR --file FILE.j2".into(),
+            help_command: "wyvern compose render --help".into(),
         };
         let out = emit_extension_error(&err).expect("emit");
         let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
@@ -434,6 +435,15 @@ mod tests {
             .unwrap()
             .iter()
             .any(|s| s.as_str().unwrap().contains("--root")));
+        assert!(value["recovery"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|s| s.as_str() == Some("Run wyvern compose render --help")));
+        assert!(
+            !out.contains("wyvern compose-render --help"),
+            "recovery must use the invocation prefix, not the extension id: {out}"
+        );
         assert!(!text.contains("declare them as {arg:"));
     }
 
@@ -444,6 +454,7 @@ mod tests {
             token: "--undeclared".into(),
             declared: ["root".into(), "file".into()].into_iter().collect(),
             extension_id: ExtensionId::try_from(String::from("compose-render")).expect("id"),
+            help_command: "wyvern compose render --help".into(),
         };
         let out = emit_extension_error(&err).expect("emit");
         let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
@@ -453,6 +464,12 @@ mod tests {
             .unwrap()
             .iter()
             .any(|s| s.as_str().unwrap().contains("--root")));
+        assert!(value["recovery"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|s| s.as_str() == Some("Run wyvern compose render --help")));
+        assert!(!out.contains("wyvern compose-render --help"), "{out}");
         assert!(
             !out.contains("declare them as {arg:name}") && !out.contains("{arg:"),
             "{out}"

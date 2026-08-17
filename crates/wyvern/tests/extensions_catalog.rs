@@ -18,6 +18,7 @@ const REQUIRED_KEYS: &[&str] = &[
     "description",
     "examples",
     "extends",
+    "source",
 ];
 
 fn wyvern() -> Command {
@@ -67,6 +68,11 @@ fn assert_record_keys(value: &serde_json::Value) {
     assert!(
         value["examples"].is_array(),
         "examples must be array: {value}"
+    );
+    let source = value["source"].as_str().expect("source string");
+    assert!(
+        source == "shipped" || source == "project",
+        "source must be shipped|project: {value}"
     );
 }
 

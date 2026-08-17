@@ -132,12 +132,23 @@ pub(crate) fn ends_with_suffix(token: &str, suffix: &str) -> bool {
         .is_some_and(|tail| tail.eq_ignore_ascii_case(suffix))
 }
 
-/// Match an extension prefix whose remaining tokens are only `--help` / `-h`.
+/// Match an extension whose remaining tokens are only `--help` / `-h`.
 ///
-/// Ignores `preexec.requires` and does not require an `arg_suffix` path token.
-/// When two prefixes match, the longest prefix wins.
+/// Prefix skills match at the argv prefix (ignores `requires` and `arg_suffix`).
+/// Suffix / filename skills match `path --help` so agents are not told the
+/// path is unknown input. Longest prefix wins when two prefixes match.
 #[must_use]
 pub fn match_extension_help<'a>(
+    registry: &'a ExtensionRegistry,
+    argv: &'a [String],
+) -> Option<&'a ExtensionDef> {
+    if let Some(ext) = match_prefix_help(registry, argv) {
+        return Some(ext);
+    }
+    match_suffix_help(registry, argv)
+}
+
+fn match_prefix_help<'a>(
     registry: &'a ExtensionRegistry,
     argv: &'a [String],
 ) -> Option<&'a ExtensionDef> {
@@ -165,6 +176,33 @@ pub fn match_extension_help<'a>(
         }
     }
     best.map(|(ext, _)| ext)
+}
+
+fn match_suffix_help<'a>(
+    registry: &'a ExtensionRegistry,
+    argv: &'a [String],
+) -> Option<&'a ExtensionDef> {
+    if argv.len() < 2 || !is_help_only_tokens(&argv[1..]) {
+        return None;
+    }
+    let path = argv[0].as_str();
+    registry
+        .extensions()
+        .iter()
+        .find(|ext| ext.match_spec.argv_prefix.is_none() && matches_suffix_or_filename(ext, path))
+}
+
+fn matches_suffix_or_filename(ext: &ExtensionDef, token: &str) -> bool {
+    let spec = &ext.match_spec;
+    if let Some(filename) = &spec.filename {
+        return Path::new(token)
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|base| base == filename.as_str());
+    }
+    spec.positional_suffix
+        .as_ref()
+        .is_some_and(|suffix| ends_with_suffix(token, suffix.as_str()))
 }
 
 /// Returns whether every token is `--help` or `-h` (and at least one is present).

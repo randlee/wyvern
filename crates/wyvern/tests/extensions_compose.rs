@@ -206,6 +206,9 @@ fn compose_render_unmatched_process_exits_2() {
         .env("PATH", "")
         .env("WYVERN_VIEWER", "none")
         .env_remove("WYVERN_LOG")
+        .env_remove("WYVERN_VIEWER_BIN")
+        .env_remove("CARGO_BIN_EXE_wyvern-viewer")
+        .env_remove("WYVERN_SHARE")
         .output()
         .expect("spawn wyvern");
     assert_eq!(

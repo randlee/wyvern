@@ -39,7 +39,8 @@ use serde_json::Value;
 
 #[doc(inline)]
 pub use catalog::{
-    build_skill_record, build_skill_records, format_skill_card, SkillArg, SkillRecord, SkillRequire,
+    build_skill_record, build_skill_records, format_skill_card, skill_help_command, SkillArg,
+    SkillRecord, SkillRequire,
 };
 #[doc(inline)]
 pub use diagnostics::{
@@ -88,6 +89,34 @@ pub struct ExtensionRegistry {
     extensions: Vec<ExtensionDef>,
 }
 
+/// Whether a catalog entry came from shipped defaults or a project file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SkillSource {
+    /// Built-in `share/wyvern/extensions.json` (or compiled fallback).
+    #[default]
+    Shipped,
+    /// Project `.wyvern/extensions.json` (trusted preexec).
+    Project,
+}
+
+impl SkillSource {
+    /// Stable wire / help label (`shipped` or `project`).
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Shipped => "shipped",
+            Self::Project => "project",
+        }
+    }
+}
+
+impl std::fmt::Display for SkillSource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 /// One registry entry after merge and `extends` resolution.
 #[derive(Debug, Clone, Deserialize)]
 pub struct ExtensionDef {
@@ -111,6 +140,9 @@ pub struct ExtensionDef {
     /// Command + host template expansion.
     #[serde(default)]
     pub expand: Option<ExpandSpec>,
+    /// Load origin; not present in registry JSON (`shipped` by default).
+    #[serde(skip)]
+    pub source: SkillSource,
 }
 
 /// Match fields from the registry schema.
@@ -214,6 +246,8 @@ pub enum ExtensionError {
         extension_id: ExtensionId,
         /// Copy-paste example from the skill card.
         example: String,
+        /// Invocation-prefix help (`wyvern compose render --help`), not the id.
+        help_command: String,
     },
     /// Unexpected token after a successful prefix match.
     UnexpectedArg {
@@ -223,6 +257,8 @@ pub enum ExtensionError {
         declared: std::collections::BTreeSet<String>,
         /// Extension that matched argv.
         extension_id: ExtensionId,
+        /// Invocation-prefix help (`wyvern compose render --help`), not the id.
+        help_command: String,
     },
     /// Path-derived template used without a matched path.
     PathVarWithoutPath {
@@ -351,7 +387,13 @@ impl ExtensionRegistry {
             parse_registry_str(SHIPPED_EXTENSIONS_JSON, "shipped defaults")?
         };
         let project_exts = match project {
-            Some(path) if path.is_file() => parse_registry_file(path)?,
+            Some(path) if path.is_file() => {
+                let mut exts = parse_registry_file(path)?;
+                for ext in &mut exts {
+                    ext.source = SkillSource::Project;
+                }
+                exts
+            }
             _ => Vec::new(),
         };
         let merged = merge_by_id(default_exts, project_exts);
@@ -592,6 +634,12 @@ mod tests {
         )
         .expect("write project");
         let registry = ExtensionRegistry::load(&defaults, Some(&project)).expect("load");
+        let overridden = registry
+            .extensions()
+            .iter()
+            .find(|ext| ext.id.as_str() == "markdown-suffix")
+            .expect("markdown-suffix");
+        assert_eq!(overridden.source, SkillSource::Project);
         let shipped_len = ExtensionRegistry::from_json_str(SHIPPED_EXTENSIONS_JSON)
             .expect("shipped")
             .extensions()
@@ -885,6 +933,10 @@ mod tests {
         let incomplete = vec!["compose".into(), "--help".into()];
         assert!(match_extension_help(&registry, &incomplete).is_none());
         let suffix = vec!["doc.md".into(), "--help".into()];
-        assert!(match_extension_help(&registry, &suffix).is_none());
+        let ext = match_extension_help(&registry, &suffix).expect("suffix help");
+        assert_eq!(ext.id.as_str(), "markdown-suffix");
+        let filename = vec!["path/to/wizard.json".into(), "--help".into()];
+        let ext = match_extension_help(&registry, &filename).expect("filename help");
+        assert_eq!(ext.id.as_str(), "wizard-json-suffix");
     }
 }
