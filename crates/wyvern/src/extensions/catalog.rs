@@ -207,7 +207,7 @@ fn placeholder(name: &str) -> String {
     name.replace('-', "_").to_ascii_uppercase()
 }
 
-fn declared_skill_args(ext: &ExtensionDef) -> Vec<SkillArg> {
+pub(crate) fn declared_skill_args(ext: &ExtensionDef) -> Vec<SkillArg> {
     let mut vars = Vec::new();
     let mut seen = BTreeSet::new();
     if let Some(PreexecSpec { cmd, args, .. }) = &ext.preexec {

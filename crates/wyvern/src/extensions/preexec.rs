@@ -7,6 +7,71 @@ use std::time::{Duration, Instant};
 
 use super::{ExtensionError, StdoutCapture, TemplateErrorKind};
 
+/// Why a preexec subprocess failed.
+///
+/// `Timeout` is classified from the existing sync poll — it does not add async
+/// timeout infrastructure (sprint g.2 non-closure).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PreexecFailureKind {
+    /// The helper binary could not be spawned (`ErrorKind::NotFound`).
+    SpawnNotFound {
+        /// Expanded `preexec.cmd`.
+        cmd: String,
+    },
+    /// The helper ran and exited nonzero.
+    NonZeroExit {
+        /// Process exit code, or `1` when killed by signal.
+        code: i32,
+        /// Last 4 KiB of child stderr.
+        stderr_tail: String,
+    },
+    /// The helper exceeded `WYVERN_PREEXEC_TIMEOUT_SECS` (sync poll).
+    Timeout {
+        /// Expanded `preexec.cmd`.
+        cmd: String,
+        /// Timeout that elapsed, in seconds.
+        timeout_secs: u64,
+    },
+}
+
+fn preexec_error(
+    kind: Option<PreexecFailureKind>,
+    message: impl Into<String>,
+    source: Option<Box<dyn std::error::Error + Send + Sync + 'static>>,
+) -> ExtensionError {
+    ExtensionError::Preexec {
+        kind,
+        message: message.into(),
+        source,
+    }
+}
+
+fn spawn_error(cmd: &str, err: std::io::Error) -> ExtensionError {
+    let kind = match err.kind() {
+        std::io::ErrorKind::NotFound => Some(PreexecFailureKind::SpawnNotFound {
+            cmd: cmd.to_string(),
+        }),
+        _ => None,
+    };
+    preexec_error(
+        kind,
+        format!("failed to spawn '{cmd}': {err}"),
+        Some(Box::new(err)),
+    )
+}
+
+fn nonzero_error(cmd: &str, status: &ExitStatus, stderr: String) -> ExtensionError {
+    let code = status.code().unwrap_or(1);
+    preexec_error(
+        Some(PreexecFailureKind::NonZeroExit {
+            code,
+            stderr_tail: stderr.clone(),
+        }),
+        preexec_fail_message(cmd, &status.to_string(), &stderr),
+        None,
+    )
+}
+
 /// Default preexec timeout in seconds. Override with `WYVERN_PREEXEC_TIMEOUT_SECS`.
 /// 30s covers compose/csv helpers without leaving a hung child unbounded.
 const DEFAULT_PREEXEC_TIMEOUT_SECS: u64 = 30;
@@ -27,15 +92,19 @@ fn parse_preexec_timeout_secs(raw: Option<&str>) -> Result<u64, ExtensionError> 
     match raw {
         None => Ok(DEFAULT_PREEXEC_TIMEOUT_SECS),
         Some(v) => {
-            let secs: u64 = v.parse().map_err(|_| ExtensionError::Preexec {
-                message: format!("WYVERN_PREEXEC_TIMEOUT_SECS={v} is not a positive integer"),
-                source: None,
+            let secs: u64 = v.parse().map_err(|_| {
+                preexec_error(
+                    None,
+                    format!("WYVERN_PREEXEC_TIMEOUT_SECS={v} is not a positive integer"),
+                    None,
+                )
             })?;
             if secs < 1 {
-                return Err(ExtensionError::Preexec {
-                    message: "WYVERN_PREEXEC_TIMEOUT_SECS must be at least 1".into(),
-                    source: None,
-                });
+                return Err(preexec_error(
+                    None,
+                    "WYVERN_PREEXEC_TIMEOUT_SECS must be at least 1",
+                    None,
+                ));
             }
             Ok(secs)
         }
@@ -123,10 +192,7 @@ fn run_without_capture(cmd: &str, args: &[String]) -> Result<(), ExtensionError>
         .stderr(Stdio::piped())
         .stdout(Stdio::null())
         .spawn()
-        .map_err(|err| ExtensionError::Preexec {
-            message: format!("failed to spawn '{cmd}': {err}"),
-            source: Some(Box::new(err)),
-        })?;
+        .map_err(|err| spawn_error(cmd, err))?;
     let stderr_reader = spawn_stderr_reader(&mut child)?;
     let deadline = Instant::now() + timeout;
     let status = match wait_until(&mut child, cmd, deadline, timeout) {
@@ -140,10 +206,7 @@ fn run_without_capture(cmd: &str, args: &[String]) -> Result<(), ExtensionError>
     if status.success() {
         Ok(())
     } else {
-        Err(ExtensionError::Preexec {
-            message: preexec_fail_message(cmd, &status.to_string(), &stderr),
-            source: None,
-        })
+        Err(nonzero_error(cmd, &status, stderr))
     }
 }
 
@@ -155,14 +218,11 @@ fn run_capture_stdout(cmd: &str, args: &[String]) -> Result<String, ExtensionErr
         .stderr(Stdio::piped())
         .stdout(Stdio::piped())
         .spawn()
-        .map_err(|err| ExtensionError::Preexec {
-            message: format!("failed to spawn '{cmd}': {err}"),
-            source: Some(Box::new(err)),
-        })?;
-    let stdout = child.stdout.take().ok_or_else(|| ExtensionError::Preexec {
-        message: format!("failed to capture '{cmd}' stdout"),
-        source: None,
-    })?;
+        .map_err(|err| spawn_error(cmd, err))?;
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| preexec_error(None, format!("failed to capture '{cmd}' stdout"), None))?;
     let stderr_reader = spawn_stderr_reader(&mut child)?;
     let cmd_owned = cmd.to_string();
     let (tx, rx) = std::sync::mpsc::channel();
@@ -171,9 +231,12 @@ fn run_capture_stdout(cmd: &str, args: &[String]) -> Result<String, ExtensionErr
         .spawn(move || {
             let _ = tx.send(read_capped_stdout(&cmd_owned, stdout));
         })
-        .map_err(|err| ExtensionError::Preexec {
-            message: format!("thread spawn failed: {err}"),
-            source: Some(Box::new(err)),
+        .map_err(|err| {
+            preexec_error(
+                None,
+                format!("thread spawn failed: {err}"),
+                Some(Box::new(err)),
+            )
         })?;
 
     match rx.recv_timeout(timeout) {
@@ -185,14 +248,14 @@ fn run_capture_stdout(cmd: &str, args: &[String]) -> Result<String, ExtensionErr
             let _ = reader.join();
             let stderr = join_stderr(stderr_reader);
             if !status.success() {
-                return Err(ExtensionError::Preexec {
-                    message: preexec_fail_message(cmd, &status.to_string(), &stderr),
-                    source: None,
-                });
+                return Err(nonzero_error(cmd, &status, stderr));
             }
-            String::from_utf8(raw).map_err(|err| ExtensionError::Preexec {
-                message: format!("{cmd} stdout is not valid UTF-8: {err}"),
-                source: Some(Box::new(err)),
+            String::from_utf8(raw).map_err(|err| {
+                preexec_error(
+                    None,
+                    format!("{cmd} stdout is not valid UTF-8: {err}"),
+                    Some(Box::new(err)),
+                )
             })
         }
         Ok(Err(err)) => {
@@ -203,14 +266,18 @@ fn run_capture_stdout(cmd: &str, args: &[String]) -> Result<String, ExtensionErr
         Err(_) => {
             reap_killed(&mut child, reader);
             let stderr = join_stderr(stderr_reader);
-            Err(ExtensionError::Preexec {
-                message: preexec_fail_message(
+            Err(preexec_error(
+                Some(PreexecFailureKind::Timeout {
+                    cmd: cmd.to_string(),
+                    timeout_secs: timeout.as_secs(),
+                }),
+                preexec_fail_message(
                     cmd,
                     &format!("timed out after {}s", timeout.as_secs()),
                     &stderr,
                 ),
-                source: None,
-            })
+                None,
+            ))
         }
     }
 }
@@ -219,17 +286,19 @@ fn run_capture_stdout(cmd: &str, args: &[String]) -> Result<String, ExtensionErr
 fn read_capped_stdout(cmd: &str, stdout: ChildStdout) -> Result<Vec<u8>, ExtensionError> {
     let mut buf = Vec::new();
     let mut reader = stdout.take(MAX_PREEXEC_STDOUT_BYTES as u64 + 1);
-    reader
-        .read_to_end(&mut buf)
-        .map_err(|err| ExtensionError::Preexec {
-            message: format!("failed to read stdout: {err}"),
-            source: Some(Box::new(err)),
-        })?;
+    reader.read_to_end(&mut buf).map_err(|err| {
+        preexec_error(
+            None,
+            format!("failed to read stdout: {err}"),
+            Some(Box::new(err)),
+        )
+    })?;
     if buf.len() > MAX_PREEXEC_STDOUT_BYTES {
-        return Err(ExtensionError::Preexec {
-            message: format!("{cmd} stdout exceeded {MAX_PREEXEC_STDOUT_BYTES} bytes"),
-            source: None,
-        });
+        return Err(preexec_error(
+            None,
+            format!("{cmd} stdout exceeded {MAX_PREEXEC_STDOUT_BYTES} bytes"),
+            None,
+        ));
     }
     Ok(buf)
 }
@@ -244,15 +313,42 @@ fn spawn_stderr_reader(
             let Some(stderr) = stderr else {
                 return String::new();
             };
-            let mut buf = Vec::new();
-            let mut reader = stderr.take(MAX_PREEXEC_STDERR_BYTES as u64);
-            let _ = reader.read_to_end(&mut buf);
-            String::from_utf8_lossy(&buf).trim().to_string()
+            read_stderr_tail(stderr)
         })
-        .map_err(|err| ExtensionError::Preexec {
-            message: format!("thread spawn failed: {err}"),
-            source: Some(Box::new(err)),
+        .map_err(|err| {
+            preexec_error(
+                None,
+                format!("thread spawn failed: {err}"),
+                Some(Box::new(err)),
+            )
         })
+}
+
+/// Keep the last [`MAX_PREEXEC_STDERR_BYTES`] of child stderr (a tail, not a head).
+fn read_stderr_tail(mut reader: impl Read) -> String {
+    let mut tail = Vec::with_capacity(MAX_PREEXEC_STDERR_BYTES);
+    let mut chunk = [0_u8; 1024];
+    loop {
+        match reader.read(&mut chunk) {
+            Ok(0) => break,
+            Ok(n) => append_tail(&mut tail, &chunk[..n], MAX_PREEXEC_STDERR_BYTES),
+            Err(_) => break,
+        }
+    }
+    String::from_utf8_lossy(&tail).trim().to_string()
+}
+
+fn append_tail(tail: &mut Vec<u8>, data: &[u8], cap: usize) {
+    if data.len() >= cap {
+        tail.clear();
+        tail.extend_from_slice(&data[data.len() - cap..]);
+        return;
+    }
+    let combined = tail.len() + data.len();
+    if combined > cap {
+        tail.drain(..combined - cap);
+    }
+    tail.extend_from_slice(data);
 }
 
 fn join_stderr(reader: std::thread::JoinHandle<String>) -> String {
@@ -280,18 +376,23 @@ fn wait_until(
                 if Instant::now() >= deadline {
                     let _ = child.kill();
                     let _ = child.wait();
-                    return Err(ExtensionError::Preexec {
-                        message: format!("{cmd} timed out after {}s", timeout.as_secs()),
-                        source: None,
-                    });
+                    return Err(preexec_error(
+                        Some(PreexecFailureKind::Timeout {
+                            cmd: cmd.to_string(),
+                            timeout_secs: timeout.as_secs(),
+                        }),
+                        format!("{cmd} timed out after {}s", timeout.as_secs()),
+                        None,
+                    ));
                 }
                 std::thread::sleep(PREEXEC_WAIT_POLL);
             }
             Err(err) => {
-                return Err(ExtensionError::Preexec {
-                    message: format!("{cmd} wait failed: {err}"),
-                    source: Some(Box::new(err)),
-                });
+                return Err(preexec_error(
+                    None,
+                    format!("{cmd} wait failed: {err}"),
+                    Some(Box::new(err)),
+                ));
             }
         }
     }
@@ -373,7 +474,54 @@ mod tests {
     #[test]
     fn preexec_nonzero_is_error() {
         let err = run_preexec("false", &[], None).expect_err("false");
-        assert!(matches!(err, ExtensionError::Preexec { .. }));
+        assert!(matches!(
+            err,
+            ExtensionError::Preexec {
+                kind: Some(PreexecFailureKind::NonZeroExit { .. }),
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn spawn_error_maps_not_found_vs_other() {
+        let not_found = spawn_error(
+            "missing-bin",
+            std::io::Error::new(std::io::ErrorKind::NotFound, "nope"),
+        );
+        assert!(
+            matches!(
+                not_found,
+                ExtensionError::Preexec {
+                    kind: Some(PreexecFailureKind::SpawnNotFound { ref cmd }),
+                    ..
+                } if cmd == "missing-bin"
+            ),
+            "{not_found:?}"
+        );
+        let denied = spawn_error(
+            "locked-bin",
+            std::io::Error::new(std::io::ErrorKind::PermissionDenied, "denied"),
+        );
+        assert!(
+            matches!(denied, ExtensionError::Preexec { kind: None, .. }),
+            "{denied:?}"
+        );
+    }
+
+    #[test]
+    fn preexec_missing_binary_is_spawn_not_found() {
+        let err = run_preexec("wyvern-g2-missing-bin-xyz", &[], None).expect_err("missing");
+        assert!(
+            matches!(
+                err,
+                ExtensionError::Preexec {
+                    kind: Some(PreexecFailureKind::SpawnNotFound { ref cmd }),
+                    ..
+                } if cmd == "wyvern-g2-missing-bin-xyz"
+            ),
+            "{err:?}"
+        );
     }
 
     #[cfg(unix)]

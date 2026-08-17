@@ -1,30 +1,29 @@
 @prefix triage: <urn:atm:triage:> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
-<urn:atm:triage:finding/RBP%2DF002>
+<urn:atm:triage:finding/QA-002>
   a triage:Finding ;
-  triage:findingId "RBP-F002" ;
-  triage:title "ExtensionId as String in error types" ;
-  triage:description "SkippedExtension struct uses String for extension_id instead of structured ExtensionId type; violates ADR-0020 type safety boundary for extension identifiers" ;
+  triage:findingId "QA-002" ;
+  triage:title "ends_with_suffix Unicode panic mod.rs:759" ;
+  triage:description "String suffix matching function in extensions/mod.rs line 759 panics on certain Unicode sequences; must handle multi-byte UTF-8 boundaries gracefully" ;
   triage:phaseId "phase-G" ;
   triage:triageMode "initial_pass" ;
   triage:repeatable false ;
-  triage:category "RBP" ;
-  triage:severity "minor" ;
+  triage:category "QA" ;
+  triage:severity "important" ;
   triage:status "open" ;
   triage:dispatchReady true ;
   triage:originatingSprintDoc "docs/plans/phase-G/g2-error-teaches.md" ;
-  triage:adrId "ADR-0020" ;
   triage:triagedAt "2026-08-16T22:14:00Z"^^xsd:dateTime ;
-  triage:hasOccurrence <urn:atm:triage:occurrence/RBP%2DF002/g2/1> ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/QA-002/g2/1> ;
   triage:openOn <urn:atm:triage:worktree/g2/b45352b> ;
   triage:promoteTo <urn:atm:triage:worktree/g2/b45352b> .
 
-<urn:atm:triage:occurrence/RBP%2DF002/g2/1>
+<urn:atm:triage:occurrence/QA-002/g2/1>
   a triage:Occurrence ;
   triage:file "crates/wyvern/src/extensions/mod.rs" ;
-  triage:line 1 ;
-  triage:snippet "SkippedExtension struct field type definition" ;
+  triage:line 759 ;
+  triage:snippet "ends_with_suffix string handling" ;
   triage:status "open" ;
   triage:closed false ;
   triage:branch "feature/phase-G-g2-error-teaches" ;

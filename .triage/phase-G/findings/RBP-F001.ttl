@@ -1,40 +1,45 @@
 @prefix triage: <urn:atm:triage:> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
-<urn:atm:triage:finding/RBP-F001>
+<urn:atm:triage:finding/RBP%2DF001>
   a triage:Finding ;
   triage:findingId "RBP-F001" ;
-  triage:title "SkillArg.name should be ArgName not String (catalog.rs:16)" ;
-  triage:description "SkillArg.name is defined as String at line 16 of catalog.rs. Per RBP best practices and ADR-0011 (type safety), this should use the ArgName newtype defined in extensions/mod.rs, providing compile-time validation that flag names are non-empty and consistently typed across the extensions module." ;
-  triage:triageMode "initial_pass" ;
-  triage:category "RBP" ;
+  triage:title "MissingArgs empty example expand.rs:652" ;
+  triage:description "ExtensionError::MissingArgs variant in expand.rs does not provide a concrete example string when required flags are missing; spec requires example argv in error envelope" ;
   triage:phaseId "phase-G" ;
-  triage:severity "important" ;
+  triage:triageMode "initial_pass" ;
   triage:repeatable false ;
-  triage:sweepScope "file_only" ;
+  triage:category "RBP" ;
+  triage:severity "important" ;
   triage:status "open" ;
   triage:dispatchReady true ;
-  triage:hasOccurrence <urn:atm:triage:occurrence/RBP-F001/g1/1> ;
-  triage:openOn <urn:atm:triage:worktree/g1/f1ed30b90d913bb783fbbac773fae9a055fb2c89> ;
-  triage:promoteTo <urn:atm:triage:worktree/g1/f1ed30b90d913bb783fbbac773fae9a055fb2c89> ;
-  triage:originatingSprintDoc "docs/plans/phase-G/g1-help-surface.md" ;
-  triage:adrId "ADR-0011" ;
-  triage:triagedAt "2026-08-16T22:37:00Z"^^xsd:dateTime .
+  triage:originatingSprintDoc "docs/plans/phase-G/g2-error-teaches.md" ;
+  triage:triagedAt "2026-08-16T22:14:00Z"^^xsd:dateTime ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/RBP%2DF001/g2/1> ;
+  triage:openOn <urn:atm:triage:worktree/g2/b45352b> ;
+  triage:promoteTo <urn:atm:triage:worktree/g2/b45352b> .
 
-<urn:atm:triage:occurrence/RBP-F001/g1/1>
+<urn:atm:triage:occurrence/RBP%2DF001/g2/1>
   a triage:Occurrence ;
-  triage:file "crates/wyvern/src/extensions/catalog.rs" ;
-  triage:line 16 ;
-  triage:snippet "pub struct SkillArg {\n    /// Flag name without leading dashes.\n    pub name: String," ;
+  triage:file "crates/wyvern/src/extensions/expand.rs" ;
+  triage:line 652 ;
+  triage:snippet "ExtensionError::MissingArgs construction missing example" ;
   triage:status "open" ;
   triage:closed false ;
-  triage:branch "feature/phase-G-g1-help-surface" ;
-  triage:headSha "f1ed30b90d913bb783fbbac773fae9a055fb2c89" ;
-  triage:occursIn <urn:atm:triage:worktree/g1/f1ed30b90d913bb783fbbac773fae9a055fb2c89> .
+  triage:branch "feature/phase-G-g2-error-teaches" ;
+  triage:headSha "b45352b" ;
+  triage:occursIn <urn:atm:triage:worktree/g2/b45352b> .
 
-<urn:atm:triage:worktree/g1/f1ed30b90d913bb783fbbac773fae9a055fb2c89>
+<urn:atm:triage:worktree/g2/b45352b>
   a triage:WorktreeSnapshot ;
-  triage:branch "feature/phase-G-g1-help-surface" ;
-  triage:path "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-G-g1-help-surface" ;
-  triage:headSha "f1ed30b90d913bb783fbbac773fae9a055fb2c89" ;
-  triage:orderIndex 1 .
+  triage:branch "feature/phase-G-g2-error-teaches" ;
+  triage:path "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-G-g2-error-teaches" ;
+  triage:headSha "b45352b" ;
+  triage:orderIndex 0 .
+
+<urn:atm:triage:worktree/g2/b45352b>
+  a triage:WorktreeSnapshot ;
+  triage:branch "feature/phase-G-g2-error-teaches" ;
+  triage:path "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-G-g2-error-teaches" ;
+  triage:headSha "b45352b" ;
+  triage:orderIndex 0 .
