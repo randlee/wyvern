@@ -5,6 +5,23 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] — 2026-08-16
+
+Phase G — CLI extension agent usability. A cold agent can discover every Phase F skill, recover from near-misses, and inspect one skill using only `wyvern --help`, `wyvern extensions list`, and stderr JSON.
+
+### Added
+
+- First-class `--help` / `-h` and `wyvern help` listing shipped skills with copy-paste examples
+- Extension-prefix `--help` skill cards at match time (`wyvern compose render --help`)
+- Skill catalog: `wyvern extensions list` (text + `--json`) and `wyvern extensions show <id>`
+- Near-miss diagnostics that name the skill and teach the next command (unknown suffix, incomplete prefix, skipped `requires`)
+- Structured preexec failure recovery (child stderr in JSON; spawn vs exit vs missing-file)
+
+### Not in 0.2.0
+
+- `--interactive` argv expansion and MCP tool wrappers — Phase E
+- User registry (`~/.config/wyvern/extensions.json`)
+
 ## [0.1.0] — 2026-07-14
 
 First public release of Wyvern on the **HTTP dialog host** stack (Phase C delivery rewrite).
