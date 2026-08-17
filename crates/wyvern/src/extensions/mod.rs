@@ -24,7 +24,10 @@
 mod catalog;
 mod diagnostics;
 mod expand;
+mod extends;
+mod ids;
 mod list;
+mod match_logic;
 mod preexec;
 mod share_resolve;
 
@@ -35,7 +38,9 @@ use serde::Deserialize;
 use serde_json::Value;
 
 #[doc(inline)]
-pub use catalog::{build_skill_record, format_skill_card, SkillArg, SkillRecord, SkillRequire};
+pub use catalog::{
+    build_skill_record, build_skill_records, format_skill_card, SkillArg, SkillRecord, SkillRequire,
+};
 #[doc(inline)]
 pub use diagnostics::{
     classify_near_miss, emit_near_miss, MatchOutcome, NearMissKind, SkippedExtension,
@@ -47,14 +52,22 @@ pub use expand::{
     HostOverrides, MatchContext,
 };
 #[doc(inline)]
+pub use ids::{ArgName, BinaryName, ExtensionId, ExtensionIdError, MatchToken};
+#[doc(inline)]
 pub use list::{
     extensions_usage_message, format_extensions_list, run_extensions_command, ExtensionsCmdError,
+};
+#[doc(inline)]
+pub use match_logic::{
+    is_help_only_tokens, match_extension_help, match_kind_summary, ExtensionMatch,
 };
 #[doc(inline)]
 pub use preexec::{
     binary_on_path, create_tmpdir, run_preexec, PathRequiresProbe, PreexecFailureKind,
     RequiresProbe,
 };
+
+pub(crate) use match_logic::ends_with_suffix;
 
 /// Shipped defaults compiled into the binary (dev + `cargo install`).
 pub const SHIPPED_EXTENSIONS_JSON: &str = include_str!("../../../../share/wyvern/extensions.json");
@@ -75,222 +88,6 @@ pub struct ExtensionRegistry {
     extensions: Vec<ExtensionDef>,
 }
 
-/// Validated, non-empty extension identifier.
-///
-/// Constructed via `serde` `try_from` — guaranteed non-empty after trim.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ExtensionId(String);
-
-impl ExtensionId {
-    /// Returns the id as a string slice.
-    #[must_use]
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-/// Failure from [`ExtensionId::try_from`].
-///
-/// A string newtype because this conversion is used exclusively via
-/// `serde::Deserialize`, where `de::Error::custom` wraps the message.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ExtensionIdError(String);
-
-impl std::fmt::Display for ExtensionIdError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-impl std::error::Error for ExtensionIdError {}
-
-impl TryFrom<String> for ExtensionId {
-    type Error = ExtensionIdError;
-    fn try_from(s: String) -> Result<Self, Self::Error> {
-        let trimmed = s.trim();
-        if trimmed.is_empty() {
-            return Err(ExtensionIdError(
-                "extension id must not be empty or whitespace".into(),
-            ));
-        }
-        Ok(Self(trimmed.to_owned()))
-    }
-}
-
-impl std::fmt::Display for ExtensionId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-impl AsRef<str> for ExtensionId {
-    fn as_ref(&self) -> &str {
-        &self.0
-    }
-}
-
-impl PartialEq<str> for ExtensionId {
-    fn eq(&self, other: &str) -> bool {
-        self.0 == other
-    }
-}
-
-impl PartialEq<&str> for ExtensionId {
-    fn eq(&self, other: &&str) -> bool {
-        self.0 == *other
-    }
-}
-
-/// Declared `{arg:name}` flag name (no leading dashes).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct ArgName(String);
-
-impl ArgName {
-    /// Wrap a flag name without validating emptiness (empty is a caller bug).
-    #[must_use]
-    pub fn new(name: impl Into<String>) -> Self {
-        Self(name.into())
-    }
-
-    /// Returns the flag name as a string slice.
-    #[must_use]
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-impl std::fmt::Display for ArgName {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-impl AsRef<str> for ArgName {
-    fn as_ref(&self) -> &str {
-        &self.0
-    }
-}
-
-/// Bare PATH binary name (non-empty, no path separators).
-///
-/// Constructed via `serde` `try_from` at registry load.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct BinaryName(String);
-
-impl BinaryName {
-    /// Returns the binary name as a string slice.
-    #[must_use]
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-impl std::fmt::Display for BinaryName {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-impl AsRef<str> for BinaryName {
-    fn as_ref(&self) -> &str {
-        &self.0
-    }
-}
-
-impl std::borrow::Borrow<str> for BinaryName {
-    fn borrow(&self) -> &str {
-        &self.0
-    }
-}
-
-impl PartialEq<str> for BinaryName {
-    fn eq(&self, other: &str) -> bool {
-        self.0 == other
-    }
-}
-
-impl PartialEq<&str> for BinaryName {
-    fn eq(&self, other: &&str) -> bool {
-        self.0 == *other
-    }
-}
-
-impl TryFrom<String> for BinaryName {
-    type Error = ExtensionIdError;
-    fn try_from(s: String) -> Result<Self, Self::Error> {
-        let trimmed = s.trim();
-        if trimmed.is_empty() {
-            return Err(ExtensionIdError(
-                "binary name must not be empty or whitespace".into(),
-            ));
-        }
-        if trimmed.contains('/') || trimmed.contains('\\') {
-            return Err(ExtensionIdError(format!(
-                "'{trimmed}' looks like a path; use bare binary name"
-            )));
-        }
-        Ok(Self(trimmed.to_owned()))
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for BinaryName {
-    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
-        let s = String::deserialize(d)?;
-        Self::try_from(s).map_err(serde::de::Error::custom)
-    }
-}
-
-/// Non-empty match token (suffix, filename, or argv prefix element).
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct MatchToken(String);
-
-impl MatchToken {
-    /// Returns the token as a string slice.
-    #[must_use]
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-impl std::fmt::Display for MatchToken {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-impl AsRef<str> for MatchToken {
-    fn as_ref(&self) -> &str {
-        &self.0
-    }
-}
-
-impl TryFrom<String> for MatchToken {
-    type Error = ExtensionIdError;
-    fn try_from(s: String) -> Result<Self, Self::Error> {
-        let trimmed = s.trim();
-        if trimmed.is_empty() {
-            return Err(ExtensionIdError(
-                "match token must not be empty or whitespace".into(),
-            ));
-        }
-        Ok(Self(trimmed.to_owned()))
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for MatchToken {
-    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
-        let s = String::deserialize(d)?;
-        Self::try_from(s).map_err(serde::de::Error::custom)
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for ExtensionId {
-    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
-        let s = String::deserialize(d)?;
-        Self::try_from(s).map_err(serde::de::Error::custom)
-    }
-}
-
 /// One registry entry after merge and `extends` resolution.
 #[derive(Debug, Clone, Deserialize)]
 pub struct ExtensionDef {
@@ -302,6 +99,12 @@ pub struct ExtensionDef {
     /// Optional parent id whose preexec/expand are reused.
     #[serde(default)]
     pub extends: Option<ExtensionId>,
+    /// One-line agent-facing summary (optional; recommended on shipped skills).
+    #[serde(default)]
+    pub description: Option<String>,
+    /// Copy-paste argv examples (optional; recommended on shipped skills).
+    #[serde(default)]
+    pub examples: Vec<String>,
     /// Optional subprocess step before command expand.
     #[serde(default)]
     pub preexec: Option<PreexecSpec>,
@@ -376,69 +179,6 @@ pub struct HostExpandSpec {
     /// Template for [`HostOverrides::ui_root`].
     #[serde(default)]
     pub ui_root: Option<String>,
-}
-
-/// Successful argv match against one extension.
-#[derive(Debug, Clone)]
-pub enum ExtensionMatch<'a> {
-    /// Single positional suffix or exact filename.
-    Suffix {
-        /// Matched extension.
-        ext: &'a ExtensionDef,
-        /// Matched file path token.
-        path: &'a str,
-    },
-    /// Prefix-only (for example `compose render --root …`).
-    Prefix {
-        /// Matched extension.
-        ext: &'a ExtensionDef,
-        /// Tokens after the prefix.
-        args_after_prefix: &'a [String],
-    },
-    /// Prefix plus a suffix-matching path token.
-    PrefixSuffix {
-        /// Matched extension.
-        ext: &'a ExtensionDef,
-        /// Matched file path token.
-        path: &'a str,
-        /// Tokens after the prefix (includes the path).
-        args_after_prefix: &'a [String],
-    },
-}
-
-impl<'a> ExtensionMatch<'a> {
-    /// Extension that matched.
-    #[must_use]
-    pub fn extension(&self) -> &'a ExtensionDef {
-        match self {
-            Self::Suffix { ext, .. }
-            | Self::Prefix { ext, .. }
-            | Self::PrefixSuffix { ext, .. } => ext,
-        }
-    }
-
-    /// Matched file path, if this match kind has one.
-    #[must_use]
-    pub fn path(&self) -> Option<&'a str> {
-        match self {
-            Self::Suffix { path, .. } | Self::PrefixSuffix { path, .. } => Some(*path),
-            Self::Prefix { .. } => None,
-        }
-    }
-
-    /// Tokens after an argv prefix (empty for suffix-only matches).
-    #[must_use]
-    pub fn args_after_prefix(&self) -> &'a [String] {
-        match self {
-            Self::Prefix {
-                args_after_prefix, ..
-            }
-            | Self::PrefixSuffix {
-                args_after_prefix, ..
-            } => args_after_prefix,
-            Self::Suffix { .. } => &[],
-        }
-    }
 }
 
 /// Why [`ExtensionError::Template`] failed (RBP-F006).
@@ -615,7 +355,7 @@ impl ExtensionRegistry {
             _ => Vec::new(),
         };
         let merged = merge_by_id(default_exts, project_exts);
-        let extensions = apply_extends(merged)?;
+        let extensions = extends::apply_extends(merged)?;
         Ok(Self { extensions })
     }
 
@@ -639,7 +379,7 @@ impl ExtensionRegistry {
     ///
     /// Returns [`ExtensionError::InvalidRegistry`] when `json` is not a v1 registry.
     pub fn from_json_str(json: &str) -> Result<Self, ExtensionError> {
-        let extensions = apply_extends(parse_registry_str(json, "memory")?)?;
+        let extensions = extends::apply_extends(parse_registry_str(json, "memory")?)?;
         Ok(Self { extensions })
     }
 
@@ -719,69 +459,6 @@ impl ExtensionDef {
             .map(|p| p.requires.as_slice())
             .unwrap_or(&[])
     }
-
-    fn match_spec_argv<'a>(&'a self, argv: &'a [String]) -> Option<ExtensionMatch<'a>> {
-        let spec = &self.match_spec;
-        if let Some(prefix) = &spec.argv_prefix {
-            if argv.len() < prefix.len()
-                || !prefix
-                    .iter()
-                    .zip(argv.iter())
-                    .all(|(expected, got)| expected.as_str() == got)
-            {
-                return None;
-            }
-            let rest = &argv[prefix.len()..];
-            if let Some(suffix) = &spec.arg_suffix {
-                let path = rest
-                    .iter()
-                    .find(|token| ends_with_suffix(token, suffix.as_str()))?;
-                return Some(ExtensionMatch::PrefixSuffix {
-                    ext: self,
-                    path: path.as_str(),
-                    args_after_prefix: rest,
-                });
-            }
-            return Some(ExtensionMatch::Prefix {
-                ext: self,
-                args_after_prefix: rest,
-            });
-        }
-        if argv.len() != 1 {
-            return None;
-        }
-        let token = argv[0].as_str();
-        if let Some(filename) = &spec.filename {
-            let base = Path::new(token).file_name()?.to_str()?;
-            if base == filename.as_str() {
-                return Some(ExtensionMatch::Suffix {
-                    ext: self,
-                    path: token,
-                });
-            }
-            return None;
-        }
-        if let Some(suffix) = &spec.positional_suffix {
-            if ends_with_suffix(token, suffix.as_str()) {
-                return Some(ExtensionMatch::Suffix {
-                    ext: self,
-                    path: token,
-                });
-            }
-        }
-        None
-    }
-}
-
-pub(crate) fn ends_with_suffix(token: &str, suffix: &str) -> bool {
-    let Some(start) = token.len().checked_sub(suffix.len()) else {
-        return false;
-    };
-    // `str::get` is `None` when `start` is not a UTF-8 char boundary, so a
-    // multi-byte token cannot panic the way a raw byte slice would.
-    token
-        .get(start..)
-        .is_some_and(|tail| tail.eq_ignore_ascii_case(suffix))
 }
 
 fn parse_registry_file(path: &Path) -> Result<Vec<ExtensionDef>, ExtensionError> {
@@ -856,143 +533,8 @@ fn merge_by_id(mut defaults: Vec<ExtensionDef>, project: Vec<ExtensionDef>) -> V
     defaults
 }
 
-fn apply_extends(exts: Vec<ExtensionDef>) -> Result<Vec<ExtensionDef>, ExtensionError> {
-    let mut resolved = Vec::with_capacity(exts.len());
-    for ext in &exts {
-        resolved.push(resolve_one(ext, &exts, &mut Vec::new())?);
-    }
-    Ok(resolved)
-}
-
-fn resolve_one(
-    ext: &ExtensionDef,
-    all: &[ExtensionDef],
-    stack: &mut Vec<ExtensionId>,
-) -> Result<ExtensionDef, ExtensionError> {
-    let Some(ref parent_id) = ext.extends else {
-        return Ok(ext.clone());
-    };
-    if stack.iter().any(|id| id == &ext.id) {
-        return Err(ExtensionError::InvalidRegistry {
-            message: format!("circular extends involving '{}'", ext.id),
-        });
-    }
-    stack.push(ext.id.clone());
-    let parent = all
-        .iter()
-        .find(|candidate| candidate.id == *parent_id)
-        .ok_or_else(|| ExtensionError::InvalidRegistry {
-            message: format!("extension '{}' extends unknown id '{parent_id}'", ext.id),
-        })?;
-    let parent = resolve_one(parent, all, stack)?;
-    stack.pop();
-    Ok(inherit_from(ext, &parent))
-}
-
-fn inherit_from(child: &ExtensionDef, parent: &ExtensionDef) -> ExtensionDef {
-    let preexec = match (&child.preexec, &parent.preexec) {
-        (None, parent_pre) => parent_pre.clone(),
-        (Some(child_pre), Some(parent_pre)) => {
-            // Partial override: empty/absent child fields keep the parent value
-            // so a requires-only child still inherits cmd/args/stdout.
-            Some(PreexecSpec {
-                cmd: if child_pre.cmd.is_empty() {
-                    parent_pre.cmd.clone()
-                } else {
-                    child_pre.cmd.clone()
-                },
-                args: if child_pre.args.is_empty() {
-                    parent_pre.args.clone()
-                } else {
-                    child_pre.args.clone()
-                },
-                requires: if child_pre.requires.is_empty() {
-                    parent_pre.requires.clone()
-                } else {
-                    child_pre.requires.clone()
-                },
-                stdout: child_pre.stdout.or(parent_pre.stdout),
-            })
-        }
-        (Some(child_pre), None) => Some(child_pre.clone()),
-    };
-    ExtensionDef {
-        id: child.id.clone(),
-        match_spec: child.match_spec.clone(),
-        extends: child.extends.clone(),
-        preexec,
-        expand: child.expand.clone().or_else(|| parent.expand.clone()),
-    }
-}
-
 #[doc(inline)]
 pub use share_resolve::{find_workspace_root, resolve_wyvern_share, resolve_wyvern_share_with};
-
-/// Match an extension prefix whose remaining tokens are only `--help` / `-h`.
-///
-/// Ignores `preexec.requires` and does not require an `arg_suffix` path token.
-/// When two prefixes match, the longest prefix wins.
-#[must_use]
-pub fn match_extension_help<'a>(
-    registry: &'a ExtensionRegistry,
-    argv: &'a [String],
-) -> Option<&'a ExtensionDef> {
-    let mut best: Option<(&'a ExtensionDef, usize)> = None;
-    for ext in registry.extensions() {
-        let Some(prefix) = &ext.match_spec.argv_prefix else {
-            continue;
-        };
-        if prefix.is_empty() || argv.len() < prefix.len() {
-            continue;
-        }
-        if !prefix
-            .iter()
-            .zip(argv.iter())
-            .all(|(expected, got)| expected.as_str() == got)
-        {
-            continue;
-        }
-        if !is_help_only_tokens(&argv[prefix.len()..]) {
-            continue;
-        }
-        let len = prefix.len();
-        if best.is_none_or(|(_, best_len)| len > best_len) {
-            best = Some((ext, len));
-        }
-    }
-    best.map(|(ext, _)| ext)
-}
-
-/// Returns whether every token is `--help` or `-h` (and at least one is present).
-#[must_use]
-pub fn is_help_only_tokens(tokens: &[String]) -> bool {
-    !tokens.is_empty()
-        && tokens
-            .iter()
-            .all(|token| token == "--help" || token == "-h")
-}
-
-#[must_use]
-pub fn match_kind_summary(spec: &MatchSpec) -> String {
-    if let Some(prefix) = &spec.argv_prefix {
-        let prefix_s = prefix
-            .iter()
-            .map(MatchToken::as_str)
-            .collect::<Vec<_>>()
-            .join(" ");
-        if let Some(suffix) = &spec.arg_suffix {
-            return format!("prefix+suffix: {prefix_s} {suffix}");
-        }
-        return format!("prefix: {prefix_s}");
-    }
-    if let Some(filename) = &spec.filename {
-        return format!("filename: {filename}");
-    }
-    if let Some(suffix) = &spec.positional_suffix {
-        return format!("suffix: {suffix}");
-    }
-    "match: (none)".to_string()
-}
 
 #[cfg(test)]
 mod tests {
@@ -1177,6 +719,14 @@ mod tests {
                 .as_str(),
             "markdown-suffix"
         );
+    }
+
+    #[test]
+    fn arg_name_rejects_empty() {
+        assert!(ArgName::new("").is_none());
+        assert!(ArgName::new("   ").is_none());
+        assert!(ArgName::try_from(String::from("   ")).is_err());
+        assert_eq!(ArgName::new("root").expect("valid").as_str(), "root");
     }
 
     #[test]

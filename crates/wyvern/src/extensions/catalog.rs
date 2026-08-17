@@ -1,19 +1,21 @@
-//! Skill-card catalog stub (g.1).
+//! Skill catalog: [`SkillRecord`], list/show JSON, and the sole text formatter.
 //!
-//! Builds a minimal [`SkillRecord`] for match-time `--help` and formats it
-//! with [`format_skill_card`]. g.3 extends the same types for `list` / `show`.
+//! `wyvern --help`, extension prefix `--help`, `extensions list`, and
+//! `extensions show` all call [`format_skill_card`] after
+//! [`build_skill_record`]. There is no second formatter.
 
 use std::collections::BTreeSet;
 
+use serde::Serialize;
 use serde_json::Value;
 
 use super::{
-    match_kind_summary, ArgName, BinaryName, ExtensionDef, ExtensionId, MatchToken, PreexecSpec,
-    RequiresProbe,
+    match_kind_summary, ArgName, BinaryName, ExtensionDef, ExtensionId, ExtensionRegistry,
+    MatchToken, PreexecSpec, RequiresProbe,
 };
 
 /// One declared `{arg:name}` / `{arg:name:repeat}` flag.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SkillArg {
     /// Flag name without leading dashes.
     pub name: ArgName,
@@ -24,7 +26,7 @@ pub struct SkillArg {
 }
 
 /// One `preexec.requires` binary and its current PATH availability.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SkillRequire {
     /// Bare binary name from the registry.
     pub binary: BinaryName,
@@ -32,8 +34,8 @@ pub struct SkillRequire {
     pub available: bool,
 }
 
-/// Minimal skill record for help (g.3 adds catalog JSON fields).
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// One catalog / help record for a resolved extension (REQ-0132).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SkillRecord {
     /// Extension id.
     pub id: ExtensionId,
@@ -47,8 +49,12 @@ pub struct SkillRecord {
     pub args: Vec<SkillArg>,
     /// Expand command `type`, or `"wizard"` when using `command_from_file`.
     pub expands_to: String,
+    /// One-line agent-facing summary from the registry, if present.
+    pub description: Option<String>,
     /// Copy-paste example lines.
     pub examples: Vec<String>,
+    /// Parent extension id when `extends` is set; otherwise `null` on the wire.
+    pub extends: Option<ExtensionId>,
 }
 
 /// Build a help-oriented [`SkillRecord`] from a resolved extension.
@@ -59,7 +65,11 @@ pub struct SkillRecord {
 pub fn build_skill_record(ext: &ExtensionDef, probe: &dyn RequiresProbe) -> SkillRecord {
     let args = declared_skill_args(ext);
     let invocation = invocation_line(ext, &args);
-    let examples = vec![example_line(ext, &invocation, &args)];
+    let examples = if ext.examples.is_empty() {
+        vec![example_line(ext, &invocation, &args)]
+    } else {
+        ext.examples.clone()
+    };
     SkillRecord {
         id: ext.id.clone(),
         match_kind: match_kind_summary(&ext.match_spec),
@@ -74,8 +84,27 @@ pub fn build_skill_record(ext: &ExtensionDef, probe: &dyn RequiresProbe) -> Skil
             .collect(),
         args,
         expands_to: expands_to(ext),
+        description: ext
+            .description
+            .as_ref()
+            .map(|text| text.trim().to_string())
+            .filter(|text| !text.is_empty()),
         examples,
+        extends: ext.extends.clone(),
     }
+}
+
+/// Build a [`SkillRecord`] for every merged extension, in registry order.
+#[must_use]
+pub fn build_skill_records(
+    registry: &ExtensionRegistry,
+    probe: &dyn RequiresProbe,
+) -> Vec<SkillRecord> {
+    registry
+        .extensions()
+        .iter()
+        .map(|ext| build_skill_record(ext, probe))
+        .collect()
 }
 
 /// Format one skill as the single help / list / show text card.
@@ -85,6 +114,14 @@ pub fn build_skill_record(ext: &ExtensionDef, probe: &dyn RequiresProbe) -> Skil
 #[must_use]
 pub fn format_skill_card(record: &SkillRecord) -> String {
     let mut out = String::new();
+    out.push_str(record.id.as_str());
+    out.push('\n');
+    out.push_str(&record.match_kind);
+    out.push('\n');
+    if let Some(description) = &record.description {
+        out.push_str(description);
+        out.push('\n');
+    }
     out.push_str("Usage: ");
     out.push_str(&record.invocation);
     out.push('\n');
@@ -96,7 +133,14 @@ pub fn format_skill_card(record: &SkillRecord) -> String {
             &record
                 .requires
                 .iter()
-                .map(|req| req.binary.to_string())
+                .map(|req| {
+                    let status = if req.available {
+                        "available"
+                    } else {
+                        "missing"
+                    };
+                    format!("{} [{status}]", req.binary)
+                })
                 .collect::<Vec<_>>()
                 .join(", "),
         );
@@ -105,9 +149,19 @@ pub fn format_skill_card(record: &SkillRecord) -> String {
     out.push_str("Expands to: ");
     out.push_str(&record.expands_to);
     out.push('\n');
+    if let Some(parent) = &record.extends {
+        out.push_str("Extends: ");
+        out.push_str(parent.as_str());
+        out.push_str(" (alias)\n");
+    }
     out.push_str("Example: ");
     if let Some(example) = record.examples.first() {
         out.push_str(example);
+        for extra in record.examples.iter().skip(1) {
+            out.push('\n');
+            out.push_str("         ");
+            out.push_str(extra);
+        }
     } else {
         out.push_str(&record.invocation);
     }
@@ -244,8 +298,11 @@ pub(crate) fn declared_skill_args(ext: &ExtensionDef) -> Vec<SkillArg> {
             }
             continue;
         }
+        let Some(arg_name) = ArgName::new(name) else {
+            continue;
+        };
         ordered.push(SkillArg {
-            name: ArgName::new(name),
+            name: arg_name,
             required: !repeat,
             repeat,
         });
@@ -332,5 +389,85 @@ mod tests {
         assert!(card.contains("wyvern md"), "{card}");
         assert!(card.contains("Requires:"), "{card}");
         assert!(card.contains("Example:"), "{card}");
+    }
+
+    #[test]
+    fn compose_render_shipped_preexec_uses_output_and_env_prefix() {
+        let shipped: Value = serde_json::from_str(SHIPPED_EXTENSIONS_JSON).expect("json");
+        let compose = shipped["extensions"]
+            .as_array()
+            .expect("extensions")
+            .iter()
+            .find(|ext| ext["id"] == "compose-render")
+            .expect("compose-render");
+        let args: Vec<&str> = compose["preexec"]["args"]
+            .as_array()
+            .expect("args")
+            .iter()
+            .filter_map(Value::as_str)
+            .collect();
+        assert!(args.contains(&"--output"), "{args:?}");
+        assert!(!args.contains(&"--out"), "{args:?}");
+        assert!(!args.contains(&"--env"), "{args:?}");
+        assert!(
+            args.iter().any(|token| token.contains("env-prefix")),
+            "{args:?}"
+        );
+        assert!(!args.contains(&"--format"), "{args:?}");
+        assert!(!args.contains(&"html"), "{args:?}");
+    }
+
+    #[test]
+    fn registry_accepts_missing_description_and_examples() {
+        let json = r#"{
+          "version": 1,
+          "extensions": [{
+            "id": "plain",
+            "match": { "positional_suffix": ".md" },
+            "expand": { "command": { "type": "markdown", "file": "{path}" } }
+          }]
+        }"#;
+        let registry = ExtensionRegistry::from_json_str(json).expect("parse");
+        let record = build_skill_record(&registry.extensions()[0], &Absent);
+        assert!(record.description.is_none());
+        assert_eq!(record.extends, None);
+        assert_eq!(record.examples.len(), 1);
+    }
+
+    #[test]
+    fn declared_skill_args_skips_empty_template_names() {
+        let json = r#"{
+          "version": 1,
+          "extensions": [{
+            "id": "empty-arg",
+            "match": { "positional_suffix": ".md" },
+            "preexec": { "cmd": "true", "args": ["{arg:}", "{arg:  }", "{arg:root}"] },
+            "expand": { "command": { "type": "markdown", "file": "{path}" } }
+          }]
+        }"#;
+        let registry = ExtensionRegistry::from_json_str(json).expect("parse");
+        let args = declared_skill_args(&registry.extensions()[0]);
+        assert_eq!(args.len(), 1, "{args:?}");
+        assert_eq!(args[0].name.as_str(), "root");
+    }
+
+    #[test]
+    fn skill_record_includes_catalog_fields() {
+        let registry = ExtensionRegistry::from_json_str(SHIPPED_EXTENSIONS_JSON).expect("shipped");
+        let records = build_skill_records(&registry, &Absent);
+        assert!(records.len() >= 7, "{}", records.len());
+        let alias = records
+            .iter()
+            .find(|record| record.id.as_str() == "csv-table-alias")
+            .expect("csv-table-alias");
+        assert_eq!(
+            alias.extends.as_ref().map(ExtensionId::as_str),
+            Some("csv-suffix")
+        );
+        assert!(alias.description.as_ref().is_some_and(|d| !d.is_empty()));
+        assert!(!alias.examples.is_empty());
+        let card = format_skill_card(alias);
+        assert!(card.contains("Extends: csv-suffix (alias)"), "{card}");
+        assert!(card.contains("[missing]"), "{card}");
     }
 }

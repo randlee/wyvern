@@ -46,6 +46,18 @@ Array element shape:
 
 Plain `list` and `show` use `format_skill_card(&SkillRecord)` — same function as extension `--help`. Single source of truth in `catalog.rs`.
 
+Each card includes:
+
+- `id` and `match_kind` on the first lines
+- `description` when present
+- `Usage:` (`invocation`)
+- `Requires:` — `(none)`, or `binary [available]` / `binary [missing]` per requires-gated skill
+- `Expands to:`
+- `Extends: <parent> (alias)` when `extends` is non-null (e.g. `csv-table-alias` notes alias of `csv-suffix`)
+- `Example:` from `examples` (generated fallback when the registry omits them)
+
+`list` prints one card per skill, separated by a blank line. `show <id>` prints one card.
+
 ## CLI routing
 
 | Command | Behavior |

@@ -1,7 +1,7 @@
 ---
 id: g.3
 title: Skill catalog — list, JSON, show
-status: planning
+status: complete
 branch: feature/phase-G-g3-skill-catalog
 worktree: ../wyvern-worktrees/feature/phase-G-g3-skill-catalog
 target: integrate/phase-G

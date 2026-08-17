@@ -61,7 +61,7 @@ fn compose_render_registered() {
     );
 }
 
-/// extensions list output includes (requires: sc-compose).
+/// extensions list output includes compose-render and sc-compose availability.
 #[test]
 fn compose_render_list_shows_requires() {
     let registry = load_shipped();
@@ -69,6 +69,10 @@ fn compose_render_list_shows_requires() {
     assert!(
         list.contains("compose-render") && list.contains("sc-compose"),
         "list output must mention compose-render and sc-compose; got: {list}"
+    );
+    assert!(
+        list.contains("[available]") || list.contains("[missing]"),
+        "requires-gated skills must show availability; got: {list}"
     );
 }
 
