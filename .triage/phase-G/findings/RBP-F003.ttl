@@ -1,40 +1,38 @@
 @prefix triage: <urn:atm:triage:> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
-<urn:atm:triage:finding/RBP-F003>
+<urn:atm:triage:finding/RBP%2DF003>
   a triage:Finding ;
   triage:findingId "RBP-F003" ;
-  triage:title "SkillRecord.id should use ExtensionId not String (catalog.rs:36)" ;
-  triage:description "SkillRecord.id is defined as String at line 36 of catalog.rs. Per RBP best practices and ADR-0011 (type safety), this should use the ExtensionId newtype defined in extensions/mod.rs, providing compile-time validation that extension ids are non-empty and consistently typed throughout the extensions module." ;
-  triage:triageMode "initial_pass" ;
-  triage:category "RBP" ;
+  triage:title "BinaryName flattened in SkippedExtension" ;
+  triage:description "SkippedExtension error envelope loses extension binary name context; spec requires binary names retained in error output for diagnostic chain clarity" ;
   triage:phaseId "phase-G" ;
-  triage:severity "minor" ;
+  triage:triageMode "initial_pass" ;
   triage:repeatable false ;
-  triage:sweepScope "file_only" ;
+  triage:category "RBP" ;
+  triage:severity "minor" ;
   triage:status "open" ;
   triage:dispatchReady true ;
-  triage:hasOccurrence <urn:atm:triage:occurrence/RBP-F003/g1/1> ;
-  triage:openOn <urn:atm:triage:worktree/g1/f1ed30b90d913bb783fbbac773fae9a055fb2c89> ;
-  triage:promoteTo <urn:atm:triage:worktree/g1/f1ed30b90d913bb783fbbac773fae9a055fb2c89> ;
-  triage:originatingSprintDoc "docs/plans/phase-G/g1-help-surface.md" ;
-  triage:adrId "ADR-0011" ;
-  triage:triagedAt "2026-08-16T22:37:00Z"^^xsd:dateTime .
+  triage:originatingSprintDoc "docs/plans/phase-G/g2-error-teaches.md" ;
+  triage:triagedAt "2026-08-16T22:14:00Z"^^xsd:dateTime ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/RBP%2DF003/g2/1> ;
+  triage:openOn <urn:atm:triage:worktree/g2/b45352b> ;
+  triage:promoteTo <urn:atm:triage:worktree/g2/b45352b> .
 
-<urn:atm:triage:occurrence/RBP-F003/g1/1>
+<urn:atm:triage:occurrence/RBP%2DF003/g2/1>
   a triage:Occurrence ;
-  triage:file "crates/wyvern/src/extensions/catalog.rs" ;
-  triage:line 36 ;
-  triage:snippet "pub struct SkillRecord {\n    /// Extension id.\n    pub id: String," ;
+  triage:file "crates/wyvern/src/extensions/mod.rs" ;
+  triage:line 1 ;
+  triage:snippet "SkippedExtension struct missing binary_name field" ;
   triage:status "open" ;
   triage:closed false ;
-  triage:branch "feature/phase-G-g1-help-surface" ;
-  triage:headSha "f1ed30b90d913bb783fbbac773fae9a055fb2c89" ;
-  triage:occursIn <urn:atm:triage:worktree/g1/f1ed30b90d913bb783fbbac773fae9a055fb2c89> .
+  triage:branch "feature/phase-G-g2-error-teaches" ;
+  triage:headSha "b45352b" ;
+  triage:occursIn <urn:atm:triage:worktree/g2/b45352b> .
 
-<urn:atm:triage:worktree/g1/f1ed30b90d913bb783fbbac773fae9a055fb2c89>
+<urn:atm:triage:worktree/g2/b45352b>
   a triage:WorktreeSnapshot ;
-  triage:branch "feature/phase-G-g1-help-surface" ;
-  triage:path "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-G-g1-help-surface" ;
-  triage:headSha "f1ed30b90d913bb783fbbac773fae9a055fb2c89" ;
-  triage:orderIndex 1 .
+  triage:branch "feature/phase-G-g2-error-teaches" ;
+  triage:path "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-G-g2-error-teaches" ;
+  triage:headSha "b45352b" ;
+  triage:orderIndex 0 .

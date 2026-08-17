@@ -1,40 +1,38 @@
 @prefix triage: <urn:atm:triage:> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
-<urn:atm:triage:finding/RBP-F004>
+<urn:atm:triage:finding/RBP%2DF004>
   a triage:Finding ;
   triage:findingId "RBP-F004" ;
-  triage:title "preexec.requires / SkillRequire.binary should be BinaryName newtype (mod.rs:262)" ;
-  triage:description "PreexecSpec.requires and SkillRequire.binary are defined as String (mod.rs line 262 and catalog.rs). Per RBP best practices and ADR-0011 (type safety), these should use a BinaryName newtype that validates binary names are non-empty and provides consistent typing for command-line executable references." ;
-  triage:triageMode "initial_pass" ;
-  triage:category "RBP" ;
+  triage:title "SkippedRequires only first skipped" ;
+  triage:description "NearMissKind::SkippedRequires struct only retains first skipped extension in error message; spec requires all skipped extensions listed in single envelope for clarity" ;
   triage:phaseId "phase-G" ;
-  triage:severity "minor" ;
+  triage:triageMode "initial_pass" ;
   triage:repeatable false ;
-  triage:sweepScope "file_only" ;
+  triage:category "RBP" ;
+  triage:severity "minor" ;
   triage:status "open" ;
   triage:dispatchReady true ;
-  triage:hasOccurrence <urn:atm:triage:occurrence/RBP-F004/g1/1> ;
-  triage:openOn <urn:atm:triage:worktree/g1/f1ed30b90d913bb783fbbac773fae9a055fb2c89> ;
-  triage:promoteTo <urn:atm:triage:worktree/g1/f1ed30b90d913bb783fbbac773fae9a055fb2c89> ;
-  triage:originatingSprintDoc "docs/plans/phase-G/g1-help-surface.md" ;
-  triage:adrId "ADR-0011" ;
-  triage:triagedAt "2026-08-16T22:37:00Z"^^xsd:dateTime .
+  triage:originatingSprintDoc "docs/plans/phase-G/g2-error-teaches.md" ;
+  triage:triagedAt "2026-08-16T22:14:00Z"^^xsd:dateTime ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/RBP%2DF004/g2/1> ;
+  triage:openOn <urn:atm:triage:worktree/g2/b45352b> ;
+  triage:promoteTo <urn:atm:triage:worktree/g2/b45352b> .
 
-<urn:atm:triage:occurrence/RBP-F004/g1/1>
+<urn:atm:triage:occurrence/RBP%2DF004/g2/1>
   a triage:Occurrence ;
-  triage:file "crates/wyvern/src/extensions/mod.rs" ;
-  triage:line 262 ;
-  triage:snippet "pub struct PreexecSpec {\n    /// Executable name or path (phase-1 expanded).\n    #[serde(default)]\n    pub cmd: String,\n    /// Argv tokens (phase-1 expanded; `{arg:name:repeat}` splices).\n    #[serde(default)]\n    pub args: Vec<String>,\n    /// Binaries that must be on `PATH` or the extension does not match.\n    #[serde(default)]\n    pub requires: Vec<String>," ;
+  triage:file "crates/wyvern/src/extensions/diagnostics.rs" ;
+  triage:line 1 ;
+  triage:snippet "emit_near_miss SkippedRequires handling" ;
   triage:status "open" ;
   triage:closed false ;
-  triage:branch "feature/phase-G-g1-help-surface" ;
-  triage:headSha "f1ed30b90d913bb783fbbac773fae9a055fb2c89" ;
-  triage:occursIn <urn:atm:triage:worktree/g1/f1ed30b90d913bb783fbbac773fae9a055fb2c89> .
+  triage:branch "feature/phase-G-g2-error-teaches" ;
+  triage:headSha "b45352b" ;
+  triage:occursIn <urn:atm:triage:worktree/g2/b45352b> .
 
-<urn:atm:triage:worktree/g1/f1ed30b90d913bb783fbbac773fae9a055fb2c89>
+<urn:atm:triage:worktree/g2/b45352b>
   a triage:WorktreeSnapshot ;
-  triage:branch "feature/phase-G-g1-help-surface" ;
-  triage:path "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-G-g1-help-surface" ;
-  triage:headSha "f1ed30b90d913bb783fbbac773fae9a055fb2c89" ;
-  triage:orderIndex 1 .
+  triage:branch "feature/phase-G-g2-error-teaches" ;
+  triage:path "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-G-g2-error-teaches" ;
+  triage:headSha "b45352b" ;
+  triage:orderIndex 0 .
