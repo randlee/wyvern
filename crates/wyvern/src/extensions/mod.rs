@@ -35,7 +35,9 @@ use serde::Deserialize;
 use serde_json::Value;
 
 #[doc(inline)]
-pub use catalog::{build_skill_record, format_skill_card, SkillArg, SkillRecord, SkillRequire};
+pub use catalog::{
+    build_skill_record, build_skill_records, format_skill_card, SkillArg, SkillRecord, SkillRequire,
+};
 #[doc(inline)]
 pub use diagnostics::{
     classify_near_miss, emit_near_miss, MatchOutcome, NearMissKind, SkippedExtension,
@@ -78,7 +80,7 @@ pub struct ExtensionRegistry {
 /// Validated, non-empty extension identifier.
 ///
 /// Constructed via `serde` `try_from` — guaranteed non-empty after trim.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
 pub struct ExtensionId(String);
 
 impl ExtensionId {
@@ -142,7 +144,7 @@ impl PartialEq<&str> for ExtensionId {
 }
 
 /// Declared `{arg:name}` flag name (no leading dashes).
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize)]
 pub struct ArgName(String);
 
 impl ArgName {
@@ -174,7 +176,7 @@ impl AsRef<str> for ArgName {
 /// Bare PATH binary name (non-empty, no path separators).
 ///
 /// Constructed via `serde` `try_from` at registry load.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize)]
 pub struct BinaryName(String);
 
 impl BinaryName {
@@ -302,6 +304,12 @@ pub struct ExtensionDef {
     /// Optional parent id whose preexec/expand are reused.
     #[serde(default)]
     pub extends: Option<ExtensionId>,
+    /// One-line agent-facing summary (optional; recommended on shipped skills).
+    #[serde(default)]
+    pub description: Option<String>,
+    /// Copy-paste argv examples (optional; recommended on shipped skills).
+    #[serde(default)]
+    pub examples: Vec<String>,
     /// Optional subprocess step before command expand.
     #[serde(default)]
     pub preexec: Option<PreexecSpec>,
@@ -920,6 +928,15 @@ fn inherit_from(child: &ExtensionDef, parent: &ExtensionDef) -> ExtensionDef {
         id: child.id.clone(),
         match_spec: child.match_spec.clone(),
         extends: child.extends.clone(),
+        description: child
+            .description
+            .clone()
+            .or_else(|| parent.description.clone()),
+        examples: if child.examples.is_empty() {
+            parent.examples.clone()
+        } else {
+            child.examples.clone()
+        },
         preexec,
         expand: child.expand.clone().or_else(|| parent.expand.clone()),
     }

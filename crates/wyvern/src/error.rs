@@ -387,7 +387,7 @@ pub fn emit_usage_error(err: &LoadError) -> Result<String, EmitError> {
                     "Run wyvern browsers --help".into(),
                 ],
                 "extensions" => vec![
-                    "Use wyvern extensions list".into(),
+                    "Use wyvern extensions list or wyvern extensions show <id>".into(),
                     "Run wyvern extensions --help".into(),
                 ],
                 _ => vec![

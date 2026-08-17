@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use wyvern_host::{HostOptions, ViewerMode};
 
 use crate::error::{LoadError, UsageErrorKind};
+use crate::extensions::{ExtensionRegistry, SHIPPED_EXTENSIONS_JSON};
 
 /// Parsed CLI invocation: host options + remaining positional/stdin args.
 #[derive(Debug, Clone)]
@@ -241,12 +242,12 @@ pub fn default_ui_root_with(
 
 /// Canonical usage text for `--help` / `-h` / `help` and invalid argv.
 pub fn usage_message() -> String {
-    concat!(
+    let mut text = concat!(
         "Usage: wyvern --help | -h | help\n",
         "       wyvern '<json>' | <file.json> | <file.md> | <page.html> | wizard.json [options]\n",
         "       echo '<json>' | wyvern [options]\n",
         "       wyvern browsers list|refresh\n",
-        "       wyvern extensions list\n",
+        "       wyvern extensions list|show\n",
         "       wyvern --version\n",
         "\n",
         "Options:\n",
@@ -277,7 +278,21 @@ pub fn usage_message() -> String {
         "  See `wyvern extensions list` for the skill index.\n",
         "  Prefix skills answer --help (example: wyvern compose render --help).\n",
     )
-    .to_string()
+    .to_string();
+    if let Ok(registry) = ExtensionRegistry::from_json_str(SHIPPED_EXTENSIONS_JSON) {
+        let ids = registry
+            .extensions()
+            .iter()
+            .map(|ext| ext.id.to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
+        if !ids.is_empty() {
+            text.push_str("Skills: ");
+            text.push_str(&ids);
+            text.push('\n');
+        }
+    }
+    text
 }
 
 #[cfg(test)]

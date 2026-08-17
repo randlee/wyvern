@@ -3,6 +3,8 @@
   "extensions": [
     {
       "id": "markdown-suffix",
+      "description": "Open a Markdown file as a markdown dialog.",
+      "examples": ["wyvern README.md"],
       "match": { "positional_suffix": ".md" },
       "expand": {
         "command": { "type": "markdown", "file": "{path}" }
@@ -10,6 +12,8 @@
     },
     {
       "id": "html-suffix",
+      "description": "Open an HTML page as a wizard dialog.",
+      "examples": ["wyvern page.html"],
       "match": { "positional_suffix": ".html" },
       "expand": {
         "command": {
@@ -25,6 +29,8 @@
     },
     {
       "id": "wizard-json-suffix",
+      "description": "Open a wizard.json file as a multi-page wizard.",
+      "examples": ["wyvern path/to/wizard.json"],
       "match": { "filename": "wizard.json" },
       "expand": {
         "command_from_file": "{path}",
@@ -33,6 +39,10 @@
     },
     {
       "id": "compose-render",
+      "description": "Render a sc-compose template and preview the HTML page.",
+      "examples": [
+        "wyvern compose render --root DIR --file FILE.j2 [--var k=v] [--var-file vars.json] [--env-prefix PREFIX]"
+      ],
       "match": { "argv_prefix": ["compose", "render"] },
       "preexec": {
         "cmd": "sc-compose",
@@ -57,6 +67,8 @@
     },
     {
       "id": "csv-suffix",
+      "description": "Open a CSV file as an interactive sortable table.",
+      "examples": ["wyvern data.csv"],
       "match": { "positional_suffix": ".csv" },
       "preexec": {
         "cmd": "python3",
@@ -75,11 +87,15 @@
     },
     {
       "id": "csv-table-alias",
+      "description": "Alias of csv-suffix: open a CSV file as an interactive table.",
+      "examples": ["wyvern table data.csv"],
       "match": { "argv_prefix": ["table"], "arg_suffix": ".csv" },
       "extends": "csv-suffix"
     },
     {
       "id": "csv-md",
+      "description": "Open a CSV file as a markdown dialog.",
+      "examples": ["wyvern md data.csv"],
       "match": { "argv_prefix": ["md"], "arg_suffix": ".csv" },
       "preexec": {
         "cmd": "python3",

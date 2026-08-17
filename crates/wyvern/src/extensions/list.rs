@@ -1,7 +1,11 @@
-//! `wyvern extensions list` subcommand.
+//! `wyvern extensions list` / `show` catalog commands (REQ-0132).
 
-use super::{match_kind_summary, ExtensionError, ExtensionRegistry};
+use super::{
+    build_skill_record, build_skill_records, format_skill_card, ExtensionError, ExtensionRegistry,
+    PathRequiresProbe, SkillRecord,
+};
 use crate::error::{EmitError, UsageErrorKind};
+use wyvern_schema::{ErrorCode, SerializeError, StderrError};
 
 /// Failure from the `extensions` built-in.
 #[derive(Debug)]
@@ -25,16 +29,19 @@ pub enum ExtensionsCmdError {
 }
 
 /// Usage text for `wyvern extensions --help` / `-h`.
-///
-/// Mentions `list` only; `show` is a g.3 deliverable.
 #[must_use]
 pub fn extensions_usage_message() -> String {
     concat!(
-        "Usage: wyvern extensions [list]\n",
+        "Usage: wyvern extensions [list] [--json]\n",
+        "       wyvern extensions show <id> [--json]\n",
         "       wyvern extensions --help\n",
         "\n",
         "Commands:\n",
-        "  list    List shipped and project CLI extensions\n",
+        "  list         List shipped and project CLI extensions\n",
+        "  show <id>    Print one skill (text or --json object)\n",
+        "\n",
+        "Options:\n",
+        "  --json       Print SkillRecord JSON (array for list, object for show)\n",
         "\n",
         "See also: wyvern --help\n",
     )
@@ -55,7 +62,10 @@ pub fn run_extensions_command(args: &[String]) -> Result<String, ExtensionsCmdEr
     }
     let sub = args.first().map(String::as_str).unwrap_or("list");
     match sub {
-        "list" => list(),
+        "list" => run_list(&args[1..]),
+        "show" => run_show(&args[1..]),
+        "--json" => run_list(args),
+        other if other.starts_with('-') => Err(unknown_flag(other)),
         other => Err(ExtensionsCmdError::Usage {
             kind: UsageErrorKind::UnknownSubcommand {
                 domain: "extensions".into(),
@@ -69,27 +79,161 @@ pub fn run_extensions_command(args: &[String]) -> Result<String, ExtensionsCmdEr
     }
 }
 
-fn list() -> Result<String, ExtensionsCmdError> {
+fn run_list(args: &[String]) -> Result<String, ExtensionsCmdError> {
+    if wants_help(args) {
+        return Ok(extensions_usage_message());
+    }
+    let json = parse_list_flags(args)?;
     let registry = ExtensionRegistry::load_default().map_err(map_ext)?;
-    Ok(format_extensions_list(&registry))
+    let records = build_skill_records(&registry, &PathRequiresProbe);
+    if json {
+        serialize_records_json(&records)
+    } else {
+        Ok(format_skill_cards(&records))
+    }
 }
 
-/// Format each extension as `id  match-kind  [(requires: …)]`.
+fn run_show(args: &[String]) -> Result<String, ExtensionsCmdError> {
+    if wants_help(args) {
+        return Ok(extensions_usage_message());
+    }
+    let (id, json) = parse_show_args(args)?;
+    let registry = ExtensionRegistry::load_default().map_err(map_ext)?;
+    let Some(ext) = registry
+        .extensions()
+        .iter()
+        .find(|ext| ext.id.as_str() == id)
+    else {
+        return Err(unknown_id(&id));
+    };
+    let record = build_skill_record(ext, &PathRequiresProbe);
+    if json {
+        serialize_record_json(&record)
+    } else {
+        Ok(format_skill_card(&record))
+    }
+}
+
+fn wants_help(args: &[String]) -> bool {
+    args.iter().any(|arg| arg == "--help" || arg == "-h")
+}
+
+fn parse_list_flags(args: &[String]) -> Result<bool, ExtensionsCmdError> {
+    let mut json = false;
+    for arg in args {
+        match arg.as_str() {
+            "--json" => json = true,
+            other => return Err(unknown_flag(other)),
+        }
+    }
+    Ok(json)
+}
+
+fn parse_show_args(args: &[String]) -> Result<(String, bool), ExtensionsCmdError> {
+    let mut json = false;
+    let mut id = None;
+    for arg in args {
+        match arg.as_str() {
+            "--json" => json = true,
+            other if other.starts_with('-') => return Err(unknown_flag(other)),
+            other if id.is_none() => id = Some(other.to_string()),
+            other => return Err(unknown_flag(other)),
+        }
+    }
+    let Some(id) = id else {
+        return Err(ExtensionsCmdError::Usage {
+            kind: UsageErrorKind::Generic,
+            message: format!(
+                "extensions show requires an extension id\n{}",
+                extensions_usage_message()
+            ),
+        });
+    };
+    Ok((id, json))
+}
+
+/// Format each extension as a [`format_skill_card`] block.
 #[must_use]
 pub fn format_extensions_list(registry: &ExtensionRegistry) -> String {
-    let mut out = String::new();
-    for ext in registry.extensions() {
-        out.push_str(ext.id.as_str());
-        out.push_str("  ");
-        out.push_str(&match_kind_summary(&ext.match_spec));
-        if !ext.requires().is_empty() {
-            out.push_str("  (requires: ");
-            out.push_str(&ext.requires().join(", "));
-            out.push(')');
+    format_skill_cards(&build_skill_records(registry, &PathRequiresProbe))
+}
+
+fn format_skill_cards(records: &[SkillRecord]) -> String {
+    records
+        .iter()
+        .map(format_skill_card)
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn serialize_records_json(records: &[SkillRecord]) -> Result<String, ExtensionsCmdError> {
+    match serde_json::to_string_pretty(records) {
+        Ok(mut text) => {
+            if !text.ends_with('\n') {
+                text.push('\n');
+            }
+            Ok(text)
         }
-        out.push('\n');
+        Err(err) => Err(ExtensionsCmdError::Emit(EmitError::Serialize(
+            SerializeError {
+                message: err.to_string(),
+            },
+        ))),
     }
-    out
+}
+
+fn serialize_record_json(record: &SkillRecord) -> Result<String, ExtensionsCmdError> {
+    match serde_json::to_string_pretty(record) {
+        Ok(mut text) => {
+            if !text.ends_with('\n') {
+                text.push('\n');
+            }
+            Ok(text)
+        }
+        Err(err) => Err(ExtensionsCmdError::Emit(EmitError::Serialize(
+            SerializeError {
+                message: err.to_string(),
+            },
+        ))),
+    }
+}
+
+fn unknown_flag(flag: &str) -> ExtensionsCmdError {
+    match StderrError::new(ErrorCode::ValidationError, format!("unknown flag '{flag}'"))
+        .cause("extensions list/show accept only --json")
+        .recovery("Run wyvern extensions list")
+        .recovery("Run wyvern extensions list --json")
+        .recovery("Run wyvern extensions show <id>")
+        .recovery("Run wyvern extensions --help")
+        .docs("docs/wyvern/requirements.md (REQ-0132)")
+        .to_json_string()
+    {
+        Ok(stderr) => ExtensionsCmdError::Stage {
+            stderr,
+            exit_code: ErrorCode::ValidationError.exit_code(),
+        },
+        Err(err) => ExtensionsCmdError::Emit(EmitError::Serialize(err)),
+    }
+}
+
+fn unknown_id(id: &str) -> ExtensionsCmdError {
+    match StderrError::new(
+        ErrorCode::ValidationError,
+        format!("unknown extension id '{id}'"),
+    )
+    .cause("No shipped or project extension has that id")
+    .recovery("Run wyvern extensions list")
+    .recovery("Run wyvern extensions list --json")
+    .recovery("Run wyvern extensions --help")
+    .docs("docs/wyvern/requirements.md (REQ-0132)")
+    .to_json_string()
+    {
+        Ok(stderr) => ExtensionsCmdError::Stage {
+            stderr,
+            exit_code: ErrorCode::ValidationError.exit_code(),
+        },
+        Err(err) => ExtensionsCmdError::Emit(EmitError::Serialize(err)),
+    }
 }
 
 fn map_ext(err: ExtensionError) -> ExtensionsCmdError {
@@ -116,24 +260,21 @@ mod tests {
     }
 
     #[test]
-    fn extensions_help_mentions_list_only() {
+    fn extensions_help_mentions_list_and_show() {
         let text = extensions_usage_message();
         assert!(text.contains("list"), "{text}");
-        assert!(
-            !text.contains("show"),
-            "g.1 must not advertise show: {text}"
-        );
+        assert!(text.contains("show"), "{text}");
     }
 
     #[test]
     fn unknown_extensions_subcommand_is_discriminated() {
-        let err = run_extensions_command(&["show".into()]).expect_err("usage");
+        let err = run_extensions_command(&["dump".into()]).expect_err("usage");
         match err {
             ExtensionsCmdError::Usage { kind, message } => {
                 assert!(matches!(
                     kind,
                     UsageErrorKind::UnknownSubcommand { ref domain, ref token }
-                        if domain == "extensions" && token == "show"
+                        if domain == "extensions" && token == "dump"
                 ));
                 assert!(
                     message.contains("unknown extensions subcommand"),
@@ -145,7 +286,7 @@ mod tests {
     }
 
     #[test]
-    fn list_prints_requires() {
+    fn list_prints_requires_availability() {
         let json = r#"{
           "version": 1,
           "extensions": [
@@ -161,6 +302,27 @@ mod tests {
         let text = format_extensions_list(&registry);
         assert!(text.contains("compose-render"), "{text}");
         assert!(text.contains("prefix: compose render"), "{text}");
-        assert!(text.contains("(requires: sc-compose)"), "{text}");
+        assert!(text.contains("sc-compose"), "{text}");
+        assert!(
+            text.contains("[available]") || text.contains("[missing]"),
+            "{text}"
+        );
+    }
+
+    #[test]
+    fn list_unknown_flag_is_validation_error() {
+        let err = run_extensions_command(&["list".into(), "--foo".into()]).expect_err("flag");
+        match err {
+            ExtensionsCmdError::Stage { stderr, exit_code } => {
+                assert_eq!(exit_code, 4);
+                let value: serde_json::Value = serde_json::from_str(&stderr).expect("json");
+                assert_eq!(value["code"], "VALIDATION_ERROR");
+                assert!(
+                    value["message"].as_str().unwrap_or("").contains("--foo"),
+                    "{stderr}"
+                );
+            }
+            other => panic!("expected Stage, got {other:?}"),
+        }
     }
 }

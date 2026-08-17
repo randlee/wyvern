@@ -119,10 +119,7 @@ fn extensions_help_mentions_list() {
     let (code, stdout, stderr) = run_help(&["extensions", "--help"]);
     assert_eq!(code, 0, "stderr={stderr}");
     assert!(stdout.contains("list"), "{stdout}");
-    assert!(
-        !stdout.contains("show"),
-        "g.1 must not require show: {stdout}"
-    );
+    assert!(stdout.contains("show"), "{stdout}");
 }
 
 #[test]
