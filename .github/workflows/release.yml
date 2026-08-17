@@ -82,6 +82,9 @@ jobs:
       - name: Verify ui sync
         run: bash scripts/check-ui-sync.sh
 
+      - name: Verify share sync
+        run: bash scripts/check-share-sync.sh
+
       - name: Validate release artifacts
         run: |
           python3 scripts/validate_release.py all \
