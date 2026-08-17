@@ -29,7 +29,8 @@ Array element shape:
   "expands_to": "markdown | wizard | …",
   "description": "string | null",
   "examples": ["string"],
-  "extends": "string | null"
+  "extends": "string | null",
+  "source": "shipped | project"
 }
 ```
 
@@ -41,6 +42,7 @@ Array element shape:
 - `args` — derived from `{arg:name}` and `{arg:name:repeat}` in preexec/expand templates via `declared_args()`
 - `expands_to` — `expand.command.type` or inferred type when using `command_from_file`
 - `extends` — parent `id` when `extends` key present in registry; else `null`
+- `source` — `"shipped"` or `"project"` (lowercase wire values from `SkillSource` with `serde(rename_all = "lowercase")`). Assigned at registry load, **not** a registry JSON field (`ExtensionDef.source` is `serde(skip)`). `shipped` is the default (built-in `share/wyvern/extensions.json` or compiled fallback). `project` is set when the entry is loaded from `.wyvern/extensions.json` (trusted preexec). Catalog tests (`extensions_catalog.rs`) require the key and accept only these two values.
 
 ## Text mode
 

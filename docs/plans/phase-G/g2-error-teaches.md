@@ -27,9 +27,10 @@ Replace misleading `PARSE_ERROR` / generic usage fallthrough with structured `St
 | `crates/wyvern/src/extensions/mod.rs` | `match_with_diagnostics()` → `MatchOutcome { matched, skipped }`; `match_argv()` wraps `.matched` only |
 | `crates/wyvern/src/extensions/diagnostics.rs` | **New.** `NearMissKind` → `StderrError` envelope per contract table |
 | `crates/wyvern/src/main.rs` | Near-miss decision table before `load_command_input` (no registry logic in `input.rs`) |
-| `crates/wyvern/src/extensions/expand.rs` | `ExtensionError::MissingArgs { … }` replaces `MissingArg`; list all missing required flags |
+| `crates/wyvern/src/extensions/expand/mod.rs` | `ExtensionError::MissingArgs { … }` replaces `MissingArg`; list all missing required flags; submodules `env.rs`, `template.rs`, `preexec_orchestration.rs` |
 | `crates/wyvern/src/extensions/preexec.rs` | Pipe stderr (4 KiB tail); `PreexecFailureKind` including sync-poll `Timeout` (`WYVERN_PREEXEC_TIMEOUT_SECS`) |
-| `crates/wyvern/src/error.rs` | Caller-facing `UnexpectedArg` / `MissingArgs` / `Preexec` recovery; in-binary recovery first |
+| `crates/wyvern/src/error/mod.rs` | `CliError` / `LoadError` types; `ExtensionError` recovery fields including `help_command` |
+| `crates/wyvern/src/error/emit.rs` | Caller-facing `UnexpectedArg` / `MissingArgs` / `Preexec` recovery; in-binary recovery first |
 | `crates/wyvern/tests/extension_diagnostics.rs` | **New.** Near-miss subprocess tests |
 | `crates/wyvern/tests/preexec_recovery.rs` | **New.** Spawn vs nonzero-exit classification |
 
@@ -72,6 +73,7 @@ pub enum ExtensionError {
         declared: BTreeSet<String>,
         extension_id: String,
         example: String,
+        help_command: String, // invocation-prefix help, e.g. `wyvern compose render --help`
     },
     // …
 }
@@ -129,6 +131,10 @@ cargo fmt --all --check && cargo clippy --workspace -- -D warnings
 - Rich catalog JSON / `show` → **g.3**
 - Typo inference → P2
 - Async/event-loop preexec timeout infrastructure → P2 (`PreexecFailureKind::Timeout` via sync poll and `WYVERN_PREEXEC_TIMEOUT_SECS` recovery is in-scope for g.2)
+
+## Phase-end host exception (RSH-007)
+
+g.2 itself does not change `wyvern-host`. Phase-end integration may include minimal host hardening for the session-timeout / result-token race (**RSH-007**) so preexec recovery tests complete reliably instead of racing `POST /api/result` against shutdown. Landed in `dc4eaae`. See [phase-G README Boundaries](README.md#boundaries).
 
 ## Authority
 
