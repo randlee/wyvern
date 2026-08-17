@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use wyvern_host::{HostOptions, ViewerMode};
 
 use crate::error::{LoadError, UsageErrorKind};
+use crate::extensions::{ExtensionRegistry, SHIPPED_EXTENSIONS_JSON};
 
 /// Parsed CLI invocation: host options + remaining positional/stdin args.
 #[derive(Debug, Clone)]
@@ -239,27 +240,59 @@ pub fn default_ui_root_with(
     PathBuf::from("ui")
 }
 
-/// Canonical usage text for invalid argv / empty stdin.
+/// Canonical usage text for `--help` / `-h` / `help` and invalid argv.
 pub fn usage_message() -> String {
-    concat!(
-        "Usage: wyvern '<json>' | <file.json> | <file.md> | <page.html> | wizard.json [options]\n",
+    let mut text = concat!(
+        "Usage: wyvern --help | -h | help\n",
+        "       wyvern '<json>' | <file.json> | <file.md> | <page.html> | wizard.json [options]\n",
         "       echo '<json>' | wyvern [options]\n",
         "       wyvern browsers list|refresh\n",
-        "       wyvern extensions list\n",
+        "       wyvern extensions list|show\n",
         "       wyvern --version\n",
         "\n",
         "Options:\n",
         "  --bind <ADDR:PORT>         HTTP bind (default 127.0.0.1:0)\n",
         "  --allow-non-loopback       Permit non-loopback --bind (0.0.0.0 / LAN)\n",
-        "  --ui-root <PATH>           Packaged UI root (default: share/wyvern/ui beside binary)\n",
+        "  --ui-root <PATH>           Packaged UI root (default: share/wyvern/ui beside binary).\n",
+        "                             For .html / wizard.json, ui-root is inferred from the\n",
+        "                             directory that contains wizard.json or pages/. An\n",
+        "                             extension host.ui_root replaces this flag.\n",
         "  --viewer <MODE>            embedded|none|system|chrome|safari|edge|firefox\n",
         "                             (default: embedded; CI: WYVERN_VIEWER=none)\n",
         "\n",
-        "Pass a JSON string, .json file, .md file, .html page, or wizard.json; or pipe JSON on stdin.\n",
-        "  See `wyvern extensions list` for available file-type extensions.\n",
-        "  See also: docs/plans/phase-F/README.md\n",
+        "Extensions (see `wyvern extensions list`):\n",
+        "  wyvern doc.md\n",
+        "  wyvern page.html\n",
+        "  wyvern path/to/wizard.json\n",
+        "  wyvern data.csv\n",
+        "  wyvern table data.csv          # same interactive table as data.csv\n",
+        "  wyvern md data.csv             # CSV as a markdown dialog\n",
+        "  wyvern compose render --root DIR --file FILE.j2 [--var k=v] [--var-file vars.json] [--env-prefix PREFIX]\n",
+        "\n",
+        "Environment:\n",
+        "  WYVERN_VIEWER              Override --viewer default\n",
+        "  WYVERN_UI_ROOT             Override default UI root discovery\n",
+        "  WYVERN_SHARE               Override share/wyvern root (extensions + scripts)\n",
+        "\n",
+        "Pass a JSON string, .json file, or a path handled by an extension; or pipe JSON on stdin.\n",
+        "  See `wyvern extensions list` for the skill index.\n",
+        "  Prefix skills answer --help (example: wyvern compose render --help).\n",
     )
-    .to_string()
+    .to_string();
+    if let Ok(registry) = ExtensionRegistry::from_json_str(SHIPPED_EXTENSIONS_JSON) {
+        let ids = registry
+            .extensions()
+            .iter()
+            .map(|ext| ext.id.to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
+        if !ids.is_empty() {
+            text.push_str("Catalog ids for `wyvern extensions show <id>` (not argv commands): ");
+            text.push_str(&ids);
+            text.push('\n');
+        }
+    }
+    text
 }
 
 #[cfg(test)]
@@ -400,5 +433,17 @@ mod tests {
         let tmp = tempfile::tempdir().expect("tempdir");
         let root = default_ui_root_with(None, Some(tmp.path()), None, false);
         assert_eq!(root, PathBuf::from("ui"));
+    }
+
+    #[test]
+    fn usage_message_lists_every_shipped_skill() {
+        let text = usage_message();
+        assert!(text.contains(".csv"), "{text}");
+        assert!(text.contains("table"), "{text}");
+        assert!(text.contains("md data.csv"), "{text}");
+        assert!(text.contains("compose render"), "{text}");
+        assert!(text.contains("--env-prefix"), "{text}");
+        assert!(text.contains("WYVERN_VIEWER"), "{text}");
+        assert!(text.contains("wizard.json or pages/"), "{text}");
     }
 }

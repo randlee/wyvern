@@ -16,11 +16,12 @@ use std::io::{self, IsTerminal, Write};
 use std::process::ExitCode;
 
 use wyvern::extensions::{
-    build_match_context, expand_and_validate, run_extensions_command, ExtensionError,
-    ExtensionRegistry, ExtensionsCmdError,
+    build_match_context, build_skill_record, classify_near_miss, expand_and_validate,
+    format_skill_card, match_extension_help, run_extensions_command, ExtensionError,
+    ExtensionRegistry, ExtensionsCmdError, NearMissKind, PathRequiresProbe,
 };
 use wyvern::{
-    apply_host_overrides, emit_extension_error, emit_fatal_internal, emit_io_error,
+    apply_host_overrides, emit_extension_error, emit_fatal_internal, emit_io_error, emit_near_miss,
     emit_parse_error, emit_usage_error, emit_usage_message, load_command_input, parse_cli_args,
     run_browsers_command, run_from_loaded, usage_message, BrowsersError, LoadError, PipelineError,
 };
@@ -41,13 +42,15 @@ fn main() -> ExitCode {
                 print!("{stdout}");
                 ExitCode::SUCCESS
             }
-            Err(BrowsersError::Usage { message }) => match emit_usage_message(&message) {
-                Ok(stderr) => {
-                    eprintln!("{stderr}");
-                    ExitCode::from(2)
+            Err(BrowsersError::Usage { kind, message }) => {
+                match emit_usage_error(&LoadError::Usage { kind, message }) {
+                    Ok(stderr) => {
+                        eprintln!("{stderr}");
+                        ExitCode::from(2)
+                    }
+                    Err(e) => emit_fatal_internal(&e),
                 }
-                Err(e) => emit_fatal_internal(&e),
-            },
+            }
             Err(BrowsersError::Stage { stderr, exit_code }) => {
                 eprintln!("{stderr}");
                 ExitCode::from(u8::try_from(exit_code).unwrap_or(1))
@@ -62,13 +65,15 @@ fn main() -> ExitCode {
                 print!("{stdout}");
                 ExitCode::SUCCESS
             }
-            Err(ExtensionsCmdError::Usage { message }) => match emit_usage_message(&message) {
-                Ok(stderr) => {
-                    eprintln!("{stderr}");
-                    ExitCode::from(2)
+            Err(ExtensionsCmdError::Usage { kind, message }) => {
+                match emit_usage_error(&LoadError::Usage { kind, message }) {
+                    Ok(stderr) => {
+                        eprintln!("{stderr}");
+                        ExitCode::from(2)
+                    }
+                    Err(e) => emit_fatal_internal(&e),
                 }
-                Err(e) => emit_fatal_internal(&e),
-            },
+            }
             Err(ExtensionsCmdError::Stage { stderr, exit_code }) => {
                 eprintln!("{stderr}");
                 ExitCode::from(u8::try_from(exit_code).unwrap_or(1))
@@ -100,12 +105,30 @@ fn main() -> ExitCode {
         };
     }
 
+    if cli
+        .positionals
+        .first()
+        .is_some_and(|token| token == "--help" || token == "-h" || token == "help")
+    {
+        print!("{}", usage_message());
+        return ExitCode::SUCCESS;
+    }
+
     let registry = match ExtensionRegistry::load_default() {
         Ok(registry) => registry,
         Err(err) => return emit_extension_stage_failure(&err),
     };
 
-    if let Some(matched) = registry.match_argv(&cli.positionals) {
+    if let Some(ext) = match_extension_help(&registry, &cli.positionals) {
+        print!(
+            "{}",
+            format_skill_card(&build_skill_record(ext, &PathRequiresProbe))
+        );
+        return ExitCode::SUCCESS;
+    }
+
+    let outcome = registry.match_with_diagnostics(&cli.positionals);
+    if let Some(matched) = outcome.matched {
         let ctx = build_match_context(&matched, matched.extension());
         let expanded = match expand_and_validate(matched.extension(), &ctx) {
             Ok(expanded) => expanded,
@@ -116,6 +139,10 @@ fn main() -> ExitCode {
         // `expanded.temp_guard` drops after host exit (success or stage error).
         drop(expanded.temp_guard);
         return emit_pipeline_result(result);
+    }
+
+    if let Some(kind) = classify_near_miss(&registry, &cli.positionals, &outcome.skipped) {
+        return emit_near_miss_failure(&kind);
     }
 
     let value = match load_command_input(&cli.positionals, io::stdin()) {
@@ -138,6 +165,16 @@ fn emit_pipeline_result(result: Result<String, PipelineError>) -> ExitCode {
             ExitCode::from(u8::try_from(exit_code).unwrap_or(1))
         }
         Err(PipelineError::Emit(e)) => emit_fatal_internal(&e),
+    }
+}
+
+fn emit_near_miss_failure(kind: &NearMissKind) -> ExitCode {
+    match emit_near_miss(kind) {
+        Ok(stderr) => {
+            eprintln!("{stderr}");
+            ExitCode::from(u8::try_from(kind.exit_code()).unwrap_or(1))
+        }
+        Err(e) => emit_fatal_internal(&e),
     }
 }
 

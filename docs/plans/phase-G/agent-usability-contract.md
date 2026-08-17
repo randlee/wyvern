@@ -69,10 +69,13 @@ MissingArgs {
     declared: BTreeSet<String>,
     extension_id: String,
     example: String,
+    help_command: String, // invocation-prefix help (`wyvern compose render --help`), not the id
 }
 ```
 
 `UnexpectedArg` recovery is caller-facing (lists accepted flags); never registry-author text.
+
+`help_command` comes from `skill_help_command()`: prefix skills use `wyvern <prefix> --help` (e.g. `wyvern compose render --help`); suffix/filename skills use `wyvern extensions show <id>`. Recovery emit (`error/emit.rs`) tells the agent to run that command.
 
 ## Registry optional fields
 

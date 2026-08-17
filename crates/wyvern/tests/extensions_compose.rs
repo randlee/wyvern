@@ -61,7 +61,7 @@ fn compose_render_registered() {
     );
 }
 
-/// extensions list output includes (requires: sc-compose).
+/// extensions list output includes compose-render and sc-compose availability.
 #[test]
 fn compose_render_list_shows_requires() {
     let registry = load_shipped();
@@ -69,6 +69,10 @@ fn compose_render_list_shows_requires() {
     assert!(
         list.contains("compose-render") && list.contains("sc-compose"),
         "list output must mention compose-render and sc-compose; got: {list}"
+    );
+    assert!(
+        list.contains("[available]") || list.contains("[missing]"),
+        "requires-gated skills must show availability; got: {list}"
     );
 }
 
@@ -194,7 +198,7 @@ fn compose_preexec_succeeds_with_sc_compose_on_path() {
     assert_eq!(expanded.command["page"]["html"], "pages/page.html");
 }
 
-/// PLAN-CRIT-003: unmatched `compose render` (no sc-compose) is usage exit 2.
+/// g.2: unmatched `compose render` (no sc-compose) is SkippedRequires, exit 4.
 #[test]
 fn compose_render_unmatched_process_exits_2() {
     let output = std::process::Command::new(env!("CARGO_BIN_EXE_wyvern"))
@@ -202,12 +206,15 @@ fn compose_render_unmatched_process_exits_2() {
         .env("PATH", "")
         .env("WYVERN_VIEWER", "none")
         .env_remove("WYVERN_LOG")
+        .env_remove("WYVERN_VIEWER_BIN")
+        .env_remove("CARGO_BIN_EXE_wyvern-viewer")
+        .env_remove("WYVERN_SHARE")
         .output()
         .expect("spawn wyvern");
     assert_eq!(
         output.status.code(),
-        Some(2),
-        "unmatched compose render must exit 2; stderr={}",
+        Some(4),
+        "unmatched compose render must exit 4 (SkippedRequires); stderr={}",
         String::from_utf8_lossy(&output.stderr)
     );
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -218,5 +225,9 @@ fn compose_render_unmatched_process_exits_2() {
         .unwrap_or(stderr.trim());
     let value: serde_json::Value =
         serde_json::from_str(json_line.trim()).expect("structured usage JSON");
-    assert_eq!(value["code"], "PARSE_ERROR");
+    assert_eq!(value["code"], "VALIDATION_ERROR");
+    assert!(
+        stderr.contains("compose-render") || stderr.contains("sc-compose"),
+        "SkippedRequires must name the extension or missing binary: {stderr}"
+    );
 }

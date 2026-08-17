@@ -5,6 +5,7 @@ use std::time::Duration;
 use axum::extract::State;
 use axum::Json;
 use serde_json::{json, Value};
+use tracing::{event, Level};
 use wyvern_schema::{ButtonsPreset, Command, QuestionCard, MARKDOWN_CONTENT_MAX_BYTES};
 
 use crate::routes::api_error::ApiError;
@@ -27,7 +28,27 @@ pub(crate) const MARKDOWN_RENDER_TIMEOUT: Duration = Duration::from_secs(5);
 /// Serialize active command fields for the packaged UI.
 pub async fn get_dialog(State(session): State<SessionState>) -> Result<Json<Value>, ApiError> {
     let command = session.command().await;
-    Ok(Json(dialog_payload(&command).await?))
+    match dialog_payload(&command).await {
+        Ok(payload) => {
+            event!(
+                name: "dialog.get.ok",
+                Level::DEBUG,
+                route = "/api/dialog",
+                "dialog payload returned"
+            );
+            Ok(Json(payload))
+        }
+        Err(err) => {
+            event!(
+                name: "dialog.get.error",
+                Level::WARN,
+                route = "/api/dialog",
+                error_class = "request_failed",
+                "GET /api/dialog failed"
+            );
+            Err(err)
+        }
+    }
 }
 
 /// Attach optional `width` / `height` hints to a `/api/dialog` payload.

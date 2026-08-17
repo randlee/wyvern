@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use axum::extract::State;
 use axum::Json;
 use serde::{Deserialize, Serialize};
+use tracing::{event, Level};
 use wyvern_schema::{Command, InputMode};
 
 use crate::picker::{pick_file, pick_folder};
@@ -129,10 +130,25 @@ pub async fn post_picker_file(
         }
         Ok(Err(e)) => {
             drop(permit);
+            event!(
+                name: "picker.file.error",
+                Level::WARN,
+                route = "/api/picker/file",
+                error_class = "internal",
+                error = %e,
+                "file picker task failed"
+            );
             return Err(picker_internal(format!("picker task failed: {e}")));
         }
         Err(_) => {
             drop(permit);
+            event!(
+                name: "picker.file.timeout",
+                Level::WARN,
+                route = "/api/picker/file",
+                error_class = "timeout",
+                "file picker timed out"
+            );
             return Err(picker_timeout(format!(
                 "file picker timed out after {} seconds",
                 PICKER_TIMEOUT.as_secs()
@@ -140,6 +156,13 @@ pub async fn post_picker_file(
         }
     };
 
+    event!(
+        name: "picker.file.ok",
+        Level::DEBUG,
+        route = "/api/picker/file",
+        cancelled = picked.is_none(),
+        "file picker completed"
+    );
     Ok(Json(match picked {
         Some(paths) => PickerResponse::selected(paths_to_strings(paths)),
         None => PickerResponse::cancelled(),
@@ -195,10 +218,25 @@ pub async fn post_picker_folder(
         }
         Ok(Err(e)) => {
             drop(permit);
+            event!(
+                name: "picker.folder.error",
+                Level::WARN,
+                route = "/api/picker/folder",
+                error_class = "internal",
+                error = %e,
+                "folder picker task failed"
+            );
             return Err(picker_internal(format!("picker task failed: {e}")));
         }
         Err(_) => {
             drop(permit);
+            event!(
+                name: "picker.folder.timeout",
+                Level::WARN,
+                route = "/api/picker/folder",
+                error_class = "timeout",
+                "folder picker timed out"
+            );
             return Err(picker_timeout(format!(
                 "folder picker timed out after {} seconds",
                 PICKER_TIMEOUT.as_secs()
@@ -206,6 +244,13 @@ pub async fn post_picker_folder(
         }
     };
 
+    event!(
+        name: "picker.folder.ok",
+        Level::DEBUG,
+        route = "/api/picker/folder",
+        cancelled = picked.is_none(),
+        "folder picker completed"
+    );
     Ok(Json(match picked {
         Some(path) => PickerResponse::selected(vec![path_to_string(path)]),
         None => PickerResponse::cancelled(),
@@ -257,6 +302,14 @@ fn picker_bad_request(
     cause: impl Into<String>,
     recovery: &str,
 ) -> ApiError {
+    let message = message.into();
+    event!(
+        name: "picker.route.bad_request",
+        Level::WARN,
+        error_class = "bad_request",
+        error = %message,
+        "picker route rejected request"
+    );
     ApiError::bad_request(message)
         .cause(cause)
         .recovery(recovery)

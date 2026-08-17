@@ -1,7 +1,7 @@
 ---
 id: g.1
 title: Help surface — global and extension-local
-status: planning
+status: complete
 branch: feature/phase-G-g1-help-surface
 worktree: ../wyvern-worktrees/feature/phase-G-g1-help-surface
 target: integrate/phase-G
@@ -30,7 +30,7 @@ Help output goes to **stdout**; exit code **0**. Failures remain stderr JSON fro
 | `crates/wyvern/src/cli_args.rs` | `usage_message()` — Extensions block, wizard-root note, env block |
 | `crates/wyvern/src/extensions/mod.rs` | `match_extension_help(registry, argv) -> Option<&ExtensionDef>`; `is_help_only_tokens` — prefix + help-only remainder, ignores requires/suffix |
 | `crates/wyvern/src/extensions/catalog.rs` | **Stub only in g.1:** `SkillRecord`, `build_skill_record()`, `format_skill_card()` — minimal fields for help (g.3 extends same types) |
-| `crates/wyvern/src/extensions/expand.rs` | `expand_and_validate` → `Result<ExpandedInvocation, ExtensionError>` (CLI help never reaches expand) |
+| `crates/wyvern/src/extensions/expand/mod.rs` | `expand_and_validate` → `Result<ExpandedInvocation, ExtensionError>` (CLI help never reaches expand); submodules `env.rs`, `template.rs`, `preexec_orchestration.rs` |
 | `crates/wyvern/src/extensions/list.rs` | `extensions_usage_message()`; `--help`/`-h` (mentions `list` only — `show` is g.3) |
 | `crates/wyvern/src/browsers_cmd.rs` | `browsers_usage_message()`; `--help`/`-h` |
 | `crates/wyvern/tests/help_surface.rs` | **New.** Integration tests (see AC) |
@@ -68,7 +68,7 @@ pub fn build_skill_record(ext: &ExtensionDef, probe: &dyn RequiresProbe) -> Skil
 
 pub fn format_skill_card(record: &SkillRecord) -> String;
 
-// expand.rs — unchanged return type on CLI path (help handled in mod.rs)
+// expand/mod.rs — unchanged return type on CLI path (help handled in extensions/mod.rs)
 pub fn expand_and_validate(
     ext: &ExtensionDef,
     ctx: &MatchContext,

@@ -1,0 +1,38 @@
+@prefix triage: <urn:atm:triage:> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<urn:atm:triage:finding/RBP%2DF004>
+  a triage:Finding ;
+  triage:findingId "RBP-F004" ;
+  triage:title "SkippedRequires only first skipped" ;
+  triage:description "NearMissKind::SkippedRequires struct only retains first skipped extension in error message; spec requires all skipped extensions listed in single envelope for clarity" ;
+  triage:phaseId "phase-G" ;
+  triage:triageMode "initial_pass" ;
+  triage:repeatable false ;
+  triage:category "RBP" ;
+  triage:severity "minor" ;
+  triage:status "open" ;
+  triage:dispatchReady true ;
+  triage:originatingSprintDoc "docs/plans/phase-G/g2-error-teaches.md" ;
+  triage:triagedAt "2026-08-16T22:14:00Z"^^xsd:dateTime ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/RBP%2DF004/g2/1> ;
+  triage:openOn <urn:atm:triage:worktree/g2/b45352b> ;
+  triage:promoteTo <urn:atm:triage:worktree/g2/b45352b> .
+
+<urn:atm:triage:occurrence/RBP%2DF004/g2/1>
+  a triage:Occurrence ;
+  triage:file "crates/wyvern/src/extensions/diagnostics.rs" ;
+  triage:line 1 ;
+  triage:snippet "emit_near_miss SkippedRequires handling" ;
+  triage:status "open" ;
+  triage:closed false ;
+  triage:branch "feature/phase-G-g2-error-teaches" ;
+  triage:headSha "b45352b" ;
+  triage:occursIn <urn:atm:triage:worktree/g2/b45352b> .
+
+<urn:atm:triage:worktree/g2/b45352b>
+  a triage:WorktreeSnapshot ;
+  triage:branch "feature/phase-G-g2-error-teaches" ;
+  triage:path "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-G-g2-error-teaches" ;
+  triage:headSha "b45352b" ;
+  triage:orderIndex 0 .

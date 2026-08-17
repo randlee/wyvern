@@ -18,7 +18,7 @@ Phase F shipped the extension **engine**; Phase G makes the CLI **speak skill** 
 argv → match extension → optional preexec → template expand → validate → pipeline → host
 ```
 
-Phase G adds **surfaces** around that path — no new dialog types, no new host behavior:
+Phase G adds **surfaces** around that path — no new dialog types, no new host *features* (see Boundaries for the RSH-007 hardening exception):
 
 ```
 host flags stripped → global/extension help → match_with_diagnostics → expand → pipeline
@@ -66,8 +66,8 @@ wyvern md /nonexistent/file.csv
 
 | Sprint | Adds | Touches |
 |--------|------|---------|
-| **g.1** | Help surface — global `--help`, `wyvern help`, enriched usage, extension `--help` skill cards, built-in subcommand `--help` | `main.rs`, `cli_args.rs`, `expand.rs`, `list.rs`, `browsers` cmd |
-| **g.2** | Error-teaches — skipped-requires diagnostics, unknown suffix / incomplete prefix, MissingArgs/UnexpectedArg caller recovery, preexec stderr capture | `mod.rs`, `main.rs`, `error.rs`, `preexec.rs`, `expand.rs` |
+| **g.1** | Help surface — global `--help`, `wyvern help`, enriched usage, extension `--help` skill cards, built-in subcommand `--help` | `main.rs`, `cli_args.rs`, `expand/mod.rs`, `list.rs`, `browsers` cmd |
+| **g.2** | Error-teaches — skipped-requires diagnostics, unknown suffix / incomplete prefix, MissingArgs/UnexpectedArg caller recovery, preexec stderr capture | `mod.rs`, `main.rs`, `error/mod.rs`, `error/emit.rs`, `preexec.rs`, `expand/mod.rs` |
 | **g.3** | Skill catalog — rich list text, `--json`, `extensions show <id>`, registry `description`/`examples` | `list.rs`, `extensions/mod.rs`, `extensions.json` |
 
 ## What Phase G does not close
@@ -84,7 +84,7 @@ wyvern md /nonexistent/file.csv
 - All changes stay in **`wyvern` CLI crate** (`crates/wyvern/src/**`) plus `share/wyvern/extensions.json` schema fields
 - No new `Command` enum variants
 - No new `ErrorCode` variants in `wyvern-schema` (near-misses reuse `ParseError` / `ValidationError` with new message text)
-- No `wyvern-host` behavior changes
+- No `wyvern-host` behavior changes, **except** phase-end integration may include minimal `wyvern-host` hardening for the session-timeout / result-token race (**RSH-007**) required for reliable preexec recovery testing. Landed in [`dc4eaae`](https://github.com/randlee/wyvern/commit/dc4eaae) (`crates/wyvern-host/src/server.rs`, `session.rs`, result/picker routes). This exception does not authorize new host features or dialog types.
 - Principal requirements: [REQ-0134–REQ-0137](../../wyvern/requirements.md) (agent CLI surfaces); amended REQ-0130, REQ-0132
 - ADR-0022 Phase G amendment in [docs/architecture.md](../../architecture.md) — registry/help parity is a merge gate for new extensions
 

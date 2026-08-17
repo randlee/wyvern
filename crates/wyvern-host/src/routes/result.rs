@@ -6,6 +6,7 @@ use axum::extract::State;
 use axum::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use tracing::{event, Level};
 use wyvern_schema::{
     ButtonLabel, ChromeResult, Command, CommandResult, InputResult, InputValue, MarkdownResult,
     MessageResult, QuestionCard, QuestionResult,
@@ -32,6 +33,14 @@ pub async fn post_result(
 ) -> Result<Json<ResultAck>, ApiError> {
     let command = session.command().await;
     let result = parse_result_for_command(&command, &body).map_err(|err| {
+        event!(
+            name: "result.post.bad_request",
+            Level::WARN,
+            route = "/api/result",
+            error_class = "bad_request",
+            error = %err,
+            "POST /api/result body failed validation"
+        );
         // Surface the structured HostError::InvalidResult path (stable message
         // for clients; CLI emit_host_error maps the same variant) with RBP
         // cause/recovery/docs (c.11 picker contract parity).
@@ -41,11 +50,24 @@ pub async fn post_result(
         )
     })?;
     if !session.complete(result).await {
+        event!(
+            name: "result.post.conflict",
+            Level::WARN,
+            route = "/api/result",
+            error_class = "conflict",
+            "result rejected; session already closed or submitted"
+        );
         return Err(ApiError::conflict("result already submitted")
             .cause("a result was already accepted for this one-shot dialog session")
             .recovery("Do not POST /api/result more than once per dialog")
             .docs(RESULT_DOCS));
     }
+    event!(
+        name: "result.post.ok",
+        Level::DEBUG,
+        route = "/api/result",
+        "result accepted"
+    );
     Ok(Json(ResultAck { ok: true }))
 }
 

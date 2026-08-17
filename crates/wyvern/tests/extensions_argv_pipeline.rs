@@ -189,6 +189,10 @@ fn extensions_argv_pipeline_version_unchanged() {
 fn wyvern_bin() -> std::process::Command {
     let mut cmd = std::process::Command::new(env!("CARGO_BIN_EXE_wyvern"));
     cmd.env_remove("WYVERN_LOG");
+    cmd.env_remove("WYVERN_VIEWER_BIN");
+    cmd.env_remove("CARGO_BIN_EXE_wyvern-viewer");
+    cmd.env_remove("WYVERN_SHARE");
+    cmd.env("WYVERN_VIEWER", "none");
     cmd
 }
 
