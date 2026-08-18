@@ -5,6 +5,14 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] — 2026-08-18
+
+Patch release — completes crates.io publish for `wyvern-cli` (extension assets vendored under `crates/wyvern/` in PR #90). Same feature set as 0.3.0.
+
+### Fixed
+
+- `wyvern-cli` crates.io publish verify (embed paths + `check-share-sync` gate)
+
 ## [0.3.0] — 2026-08-17
 
 Phase F — declarative CLI extensions. Phase G — agent-facing help, skill catalog, and error-teaches recovery on top of the extension runtime.
