@@ -127,18 +127,90 @@ fn finish_hook_config(global: bool, repo: bool) -> Value {
     })
 }
 
-fn assert_command_quotes_script(command: &str, script_path: &Path) {
-    let script_str = std::fs::canonicalize(script_path)
-        .unwrap_or_else(|_| script_path.to_path_buf())
-        .to_string_lossy()
-        .into_owned();
-    if !script_str.contains(' ') {
-        return;
+/// Strip the Windows extended-length prefix that `canonicalize()` adds (`\\?\`).
+///
+/// Python's `os.path.realpath` + `subprocess.list2cmdline` bake the ordinary
+/// drive path, so tests must not require a verbatim canonical string match.
+fn strip_windows_extended_prefix(path: &str) -> &str {
+    path.strip_prefix(r"\\?\")
+        .or_else(|| path.strip_prefix("//?/"))
+        .unwrap_or(path)
+}
+
+fn normalize_path_for_compare(path: &str) -> String {
+    let unified = strip_windows_extended_prefix(path).replace('\\', "/");
+    if cfg!(windows) {
+        unified.to_ascii_lowercase()
+    } else {
+        unified
     }
-    let posix = format!("'{script_str}'");
-    let windows = format!("\"{script_str}\"");
+}
+
+fn utf8_file_name(path: &Path) -> Option<&str> {
+    path.file_name().and_then(|name| name.to_str())
+}
+
+fn quoted_tokens(command: &str) -> Vec<&str> {
+    let mut tokens = Vec::new();
+    let mut chars = command.char_indices();
+    while let Some((idx, ch)) = chars.next() {
+        if ch != '\'' && ch != '"' {
+            continue;
+        }
+        let start = idx + ch.len_utf8();
+        let mut end = None;
+        for (inner_idx, inner) in chars.by_ref() {
+            if inner == ch {
+                end = Some(inner_idx);
+                break;
+            }
+        }
+        if let Some(end) = end {
+            tokens.push(&command[start..end]);
+        }
+    }
+    tokens
+}
+
+/// True when a space-containing script path appears as one quoted token.
+///
+/// Matches POSIX `shlex.quote` (`'…'`) and Windows `list2cmdline` (`"…"`).
+/// Comparison uses basename + parent leaf so a Windows `\\?\` canonical
+/// prefix or drive-letter case difference cannot fail a correctly quoted
+/// command.
+fn command_quotes_script(command: &str, script_path: &Path) -> bool {
+    let file_name = match utf8_file_name(script_path) {
+        Some(name) if !name.is_empty() => name,
+        _ => return false,
+    };
+    let parent_leaf = script_path
+        .parent()
+        .and_then(utf8_file_name)
+        .filter(|leaf| !leaf.is_empty());
+    let raw = script_path.to_string_lossy();
+    if !raw.contains(' ') {
+        return true;
+    }
+
+    let name_norm = normalize_path_for_compare(file_name);
+    let parent_norm = parent_leaf.map(normalize_path_for_compare);
+    quoted_tokens(command).into_iter().any(|token| {
+        if !token.contains(' ') {
+            return false;
+        }
+        let token_norm = normalize_path_for_compare(token);
+        if !token_norm.contains(&name_norm) {
+            return false;
+        }
+        parent_norm
+            .as_ref()
+            .is_none_or(|parent| token_norm.contains(parent))
+    })
+}
+
+fn assert_command_quotes_script(command: &str, script_path: &Path) {
     assert!(
-        command.contains(&posix) || command.contains(&windows),
+        command_quotes_script(command, script_path),
         "space-containing script path must be quoted in hook command: {command}"
     );
 }
@@ -253,6 +325,30 @@ fn hook_command_quotes_space_containing_script_path() {
         command.contains("path with spaces"),
         "baked command should mention the spaced directory: {command}"
     );
+}
+
+#[test]
+fn command_quote_check_accepts_list2cmdline_without_verbatim_prefix() {
+    let script = Path::new(
+        r"C:\Users\runner\AppData\Local\Temp\.tmpX\path with spaces\apply-askuserquestion-hook.py",
+    );
+    let command = r#""C:\Python\python.exe" "C:\Users\runner\AppData\Local\Temp\.tmpX\path with spaces\apply-askuserquestion-hook.py" --invoke"#;
+    assert!(command_quotes_script(command, script));
+
+    let verbatim = Path::new(
+        r"\\?\C:\Users\runner\AppData\Local\Temp\.tmpX\path with spaces\apply-askuserquestion-hook.py",
+    );
+    assert!(
+        command_quotes_script(command, verbatim),
+        "Windows canonicalize() prefix must not be required in the baked command"
+    );
+}
+
+#[test]
+fn command_quote_check_rejects_unquoted_spaced_path() {
+    let script = Path::new("/tmp/path with spaces/apply-askuserquestion-hook.py");
+    let command = "/usr/bin/python3 /tmp/path with spaces/apply-askuserquestion-hook.py --invoke";
+    assert!(!command_quotes_script(command, script));
 }
 
 #[test]
