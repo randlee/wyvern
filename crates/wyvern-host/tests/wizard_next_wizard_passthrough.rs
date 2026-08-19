@@ -79,7 +79,7 @@ fn finish_copies_next_wizard_after_stack_validation() {
     let state = wait_for_wizard_state(&client, &base);
 
     let next = NextWizard {
-        path: "{wyvern_share}/testdata/workflow/b/wizard.json".into(),
+        path: wyvern_schema::WorkflowPath::new("{wyvern_share}/testdata/workflow/b/wizard.json"),
         input: serde_json::json!({"from": "a"}),
         ui_root: None,
     };

@@ -59,5 +59,5 @@ pub use wizard::{
     NextWizard, WizardCommand, WizardFinishRequest, WizardNavAction, WizardNavigateRequest,
     WizardNavigateResponse, WizardPageDescriptor, WizardPageFieldError, WizardPageHtml,
     WizardPageId, WizardPageLayout, WizardPageTitle, WizardResult, WizardStackEntry,
-    WizardStateResponse, WizardTerminalButton, WorkflowSpec,
+    WizardStateResponse, WizardTerminalButton, WorkflowPath, WorkflowPathError, WorkflowSpec,
 };

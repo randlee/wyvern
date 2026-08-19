@@ -163,11 +163,7 @@ pub fn run_wizard_workflow_loop(
         match resolve_next_wizard(&finish_value, &allowlist).map_err(workflow_stage)? {
             None => return emit_wizard_stdout(result),
             Some(next) => {
-                input = finish_value
-                    .get("next_wizard")
-                    .and_then(|n| n.get("input"))
-                    .cloned()
-                    .unwrap_or_else(|| serde_json::json!({}));
+                input = next.input;
                 command_json = next.command;
                 host.ui_root = next.ui_root;
                 allowlist.wizard_dir = next.wizard_dir;

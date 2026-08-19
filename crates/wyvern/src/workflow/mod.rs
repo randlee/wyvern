@@ -197,6 +197,7 @@ impl WorkflowRunner {
             stdin,
             capture_stdout,
             timeout: self.timeout,
+            process_group: true,
         };
         let output = run_script(&request).map_err(map_script_error)?;
         if !output.status.success() {
@@ -233,7 +234,10 @@ pub enum WorkflowError {
         path: PathBuf,
     },
     /// Script exceeded 30s.
-    Timeout,
+    Timeout {
+        /// Last 4 KiB of child stderr collected before kill.
+        stderr_tail: String,
+    },
     /// Script exit status was not zero.
     NonZero {
         /// Process exit code (or `1` when killed by signal).
@@ -273,7 +277,13 @@ impl std::fmt::Display for WorkflowError {
             Self::PathDenied { path } => {
                 write!(f, "workflow path denied: {}", path.display())
             }
-            Self::Timeout => f.write_str("workflow script timed out after 30s"),
+            Self::Timeout { stderr_tail } => {
+                if stderr_tail.is_empty() {
+                    f.write_str("workflow script timed out after 30s")
+                } else {
+                    write!(f, "workflow script timed out after 30s: {stderr_tail}")
+                }
+            }
             Self::NonZero {
                 status,
                 stderr_tail,
@@ -310,7 +320,7 @@ impl WorkflowError {
             Self::PathDenied { .. } => vec![
                 "Use a path under {wyvern_share}, the process cwd, or the current wizard.json directory".into(),
             ],
-            Self::Timeout => vec![
+            Self::Timeout { .. } => vec![
                 "Shorten the workflow script or raise the timeout only via a later ADR".into(),
             ],
             Self::NonZero { .. } => vec![
@@ -333,7 +343,13 @@ impl WorkflowError {
             Self::PathDenied { path } => {
                 format!("path escaped the workflow allowlist: {}", path.display())
             }
-            Self::Timeout => "script exceeded 30s".into(),
+            Self::Timeout { stderr_tail } => {
+                if stderr_tail.is_empty() {
+                    "script exceeded 30s".into()
+                } else {
+                    format!("script exceeded 30s: {stderr_tail}")
+                }
+            }
             Self::NonZero { stderr_tail, .. } => {
                 if stderr_tail.is_empty() {
                     "script exit was not 0".into()
@@ -346,6 +362,21 @@ impl WorkflowError {
             Self::Resolve { cause, .. } => cause.clone(),
             Self::MissingPython3 => "python3 not found on PATH".into(),
             Self::Merge { cause } => cause.clone(),
+        }
+    }
+
+    /// Stable sub-discriminator for machine branching under `WORKFLOW_ERROR`.
+    #[must_use]
+    pub fn subcode(&self) -> &'static str {
+        match self {
+            Self::PathDenied { .. } => "path_denied",
+            Self::Timeout { .. } => "timeout",
+            Self::NonZero { .. } => "nonzero",
+            Self::InvalidStdout { .. } => "invalid_stdout",
+            Self::ChainDepth { .. } => "chain_depth",
+            Self::Resolve { .. } => "resolve",
+            Self::MissingPython3 => "missing_python3",
+            Self::Merge { .. } => "merge",
         }
     }
 }
@@ -440,7 +471,7 @@ fn parse_config_patch(stdout: &str) -> Result<Value, WorkflowError> {
 
 fn map_script_error(err: ScriptError) -> WorkflowError {
     match err {
-        ScriptError::Timeout { .. } => WorkflowError::Timeout,
+        ScriptError::Timeout { stderr_tail, .. } => WorkflowError::Timeout { stderr_tail },
         ScriptError::SpawnNotFound { cmd, .. } if cmd == "python3" => WorkflowError::MissingPython3,
         ScriptError::SpawnNotFound { cmd, source } | ScriptError::Spawn { cmd, source } => {
             WorkflowError::Resolve {
@@ -508,5 +539,15 @@ mod tests {
         assert!(matches!(err, WorkflowError::InvalidStdout { .. }));
         let patch = parse_config_patch(r#"{"config_patch":{"k":1}}"#).expect("ok");
         assert_eq!(patch, json!({"k": 1}));
+    }
+
+    #[test]
+    fn timeout_cause_includes_stderr_tail() {
+        let err = WorkflowError::Timeout {
+            stderr_tail: "still running child".into(),
+        };
+        assert_eq!(err.subcode(), "timeout");
+        assert!(err.cause().contains("still running child"));
+        assert!(err.to_string().contains("still running child"));
     }
 }

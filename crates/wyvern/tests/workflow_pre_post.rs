@@ -125,7 +125,9 @@ fn pre_merges_config_patch() {
     );
     let runner = runner_for(tmp.path(), tmp.path().to_path_buf());
     let spec = wyvern_schema::WorkflowSpec {
-        pre: Some(script.to_string_lossy().into_owned()),
+        pre: Some(wyvern_schema::WorkflowPath::new(
+            script.to_string_lossy().into_owned(),
+        )),
         post: None,
     };
     let mut config = json!({"seed": true});
@@ -149,7 +151,9 @@ fn post_receives_finish_stdin() {
     let runner = runner_for(tmp.path(), tmp.path().to_path_buf());
     let spec = wyvern_schema::WorkflowSpec {
         pre: None,
-        post: Some(script.to_string_lossy().into_owned()),
+        post: Some(wyvern_schema::WorkflowPath::new(
+            script.to_string_lossy().into_owned(),
+        )),
     };
     let finish = json!({"button":"finish","data":{"k":1},"stack":[]});
     runner.run_post(&spec, &finish, false).expect("post");
@@ -173,7 +177,9 @@ fn dry_run_appends_flag_to_pre_argv() {
     );
     let runner = runner_for(tmp.path(), tmp.path().to_path_buf());
     let spec = wyvern_schema::WorkflowSpec {
-        pre: Some(script.to_string_lossy().into_owned()),
+        pre: Some(wyvern_schema::WorkflowPath::new(
+            script.to_string_lossy().into_owned(),
+        )),
         post: None,
     };
     let mut config = json!({});

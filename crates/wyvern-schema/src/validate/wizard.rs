@@ -7,7 +7,7 @@ use crate::error::ValidationError;
 use crate::field_name::FieldName;
 use crate::wizard::{
     WizardCommand, WizardPageDescriptor, WizardPageHtml, WizardPageId, WizardPageLayout,
-    WizardPageTitle, WorkflowSpec,
+    WizardPageTitle, WorkflowPath, WorkflowSpec,
 };
 
 use super::helpers::{
@@ -112,15 +112,13 @@ fn optional_workflow(obj: &Map<String, Value>) -> Result<Option<WorkflowSpec>, V
 fn optional_workflow_script(
     workflow: &Map<String, Value>,
     field: &str,
-) -> Result<Option<String>, ValidationError> {
+) -> Result<Option<WorkflowPath>, ValidationError> {
     let path = format!("workflow.{field}");
     match workflow.get(field) {
         None => Ok(None),
-        Some(Value::String(s)) if !s.is_empty() => Ok(Some(s.clone())),
-        Some(Value::String(_)) => Err(ValidationError::validation(
-            path.clone(),
-            format!("{path} must be a non-empty string"),
-        )),
+        Some(Value::String(s)) => WorkflowPath::try_new(s.clone()).map(Some).map_err(|_| {
+            ValidationError::validation(path.clone(), format!("{path} must be a non-empty string"))
+        }),
         Some(other) => Err(ValidationError::validation(
             path.clone(),
             format!("{path} expected string, got {}", json_type_name(other)),

@@ -183,6 +183,9 @@ pub struct ScriptRequest {
     pub capture_stdout: bool,
     /// Kill the child after this duration.
     pub timeout: Duration,
+    /// When true on Unix, spawn in a new process group and kill the group
+    /// on timeout so descendants are reaped (workflow scripts).
+    pub process_group: bool,
 }
 
 /// Successful wait outcome for [`run_script`].
@@ -301,6 +304,11 @@ pub fn run_script(request: &ScriptRequest) -> Result<ScriptOutput, ScriptError> 
     } else {
         child_cmd.stdin(Stdio::null());
     }
+    #[cfg(unix)]
+    if request.process_group {
+        use std::os::unix::process::CommandExt;
+        child_cmd.process_group(0);
+    }
 
     let mut child = child_cmd.spawn().map_err(|err| {
         if err.kind() == std::io::ErrorKind::NotFound {
@@ -319,8 +327,7 @@ pub fn run_script(request: &ScriptRequest) -> Result<ScriptOutput, ScriptError> 
     if let Some(data) = &request.stdin {
         if let Some(mut stdin) = child.stdin.take() {
             if let Err(err) = stdin.write_all(data) {
-                let _ = child.kill();
-                let _ = child.wait();
+                terminate_child(&mut child, request.process_group);
                 return Err(ScriptError::Spawn { cmd, source: err });
             }
         }
@@ -350,7 +357,13 @@ pub fn run_script(request: &ScriptRequest) -> Result<ScriptOutput, ScriptError> 
         match rx.recv_timeout(request.timeout) {
             Ok(Ok(raw)) => {
                 let grace_deadline = Instant::now() + Duration::from_millis(500);
-                let status = match wait_until(&mut child, &cmd, grace_deadline, request.timeout) {
+                let status = match wait_until(
+                    &mut child,
+                    &cmd,
+                    grace_deadline,
+                    request.timeout,
+                    request.process_group,
+                ) {
                     Ok(status) => status,
                     Err(err) => {
                         let _ = reader.join();
@@ -371,7 +384,7 @@ pub fn run_script(request: &ScriptRequest) -> Result<ScriptOutput, ScriptError> 
                 })
             }
             Ok(Err(err)) => {
-                reap_killed(&mut child, reader);
+                reap_killed(&mut child, reader, request.process_group);
                 let _ = join_stderr(stderr_reader);
                 Err(ScriptError::Stdout {
                     cmd,
@@ -379,7 +392,7 @@ pub fn run_script(request: &ScriptRequest) -> Result<ScriptOutput, ScriptError> 
                 })
             }
             Err(_) => {
-                reap_killed(&mut child, reader);
+                reap_killed(&mut child, reader, request.process_group);
                 let stderr_tail = join_stderr(stderr_reader);
                 Err(ScriptError::Timeout {
                     cmd,
@@ -389,7 +402,13 @@ pub fn run_script(request: &ScriptRequest) -> Result<ScriptOutput, ScriptError> 
             }
         }
     } else {
-        let status = match wait_until(&mut child, &cmd, deadline, request.timeout) {
+        let status = match wait_until(
+            &mut child,
+            &cmd,
+            deadline,
+            request.timeout,
+            request.process_group,
+        ) {
             Ok(status) => status,
             Err(err) => {
                 let stderr = join_stderr(stderr_reader);
@@ -469,7 +488,7 @@ fn run_without_capture(cmd: &str, args: &[String]) -> Result<(), ExtensionError>
         .map_err(|err| spawn_error(cmd, err))?;
     let stderr_reader = spawn_stderr_reader(&mut child)?;
     let deadline = Instant::now() + timeout;
-    let status = match wait_until(&mut child, cmd, deadline, timeout) {
+    let status = match wait_until(&mut child, cmd, deadline, timeout, false) {
         Ok(status) => status,
         Err(err) => {
             let _ = join_stderr(stderr_reader);
@@ -518,7 +537,7 @@ fn run_capture_stdout(cmd: &str, args: &[String]) -> Result<String, ExtensionErr
             // Child closed stdout and should exit promptly; do not reuse the
             // pre-spawn deadline, which may already be nearly exhausted.
             let grace_deadline = Instant::now() + Duration::from_millis(500);
-            let status = wait_until(&mut child, cmd, grace_deadline, timeout)?;
+            let status = wait_until(&mut child, cmd, grace_deadline, timeout, false)?;
             let _ = reader.join();
             let stderr = join_stderr(stderr_reader);
             if !status.success() {
@@ -533,12 +552,12 @@ fn run_capture_stdout(cmd: &str, args: &[String]) -> Result<String, ExtensionErr
             })
         }
         Ok(Err(err)) => {
-            reap_killed(&mut child, reader);
+            reap_killed(&mut child, reader, false);
             let _ = join_stderr(stderr_reader);
             Err(err)
         }
         Err(_) => {
-            reap_killed(&mut child, reader);
+            reap_killed(&mut child, reader, false);
             let stderr = join_stderr(stderr_reader);
             Err(preexec_error(
                 Some(PreexecFailureKind::Timeout {
@@ -642,14 +661,14 @@ fn wait_until(
     cmd: &str,
     deadline: Instant,
     timeout: Duration,
+    process_group: bool,
 ) -> Result<ExitStatus, ExtensionError> {
     loop {
         match child.try_wait() {
             Ok(Some(status)) => return Ok(status),
             Ok(None) => {
                 if Instant::now() >= deadline {
-                    let _ = child.kill();
-                    let _ = child.wait();
+                    terminate_child(child, process_group);
                     return Err(preexec_error(
                         Some(PreexecFailureKind::Timeout {
                             cmd: cmd.to_string(),
@@ -672,10 +691,40 @@ fn wait_until(
     }
 }
 
-fn reap_killed(child: &mut Child, reader: std::thread::JoinHandle<()>) {
+fn reap_killed(child: &mut Child, reader: std::thread::JoinHandle<()>, process_group: bool) {
+    terminate_child(child, process_group);
+    let _ = reader.join();
+}
+
+fn terminate_child(child: &mut Child, process_group: bool) {
+    #[cfg(unix)]
+    {
+        if process_group {
+            kill_process_group(child);
+            let _ = child.wait();
+            return;
+        }
+    }
+    #[cfg(not(unix))]
+    let _ = process_group;
     let _ = child.kill();
     let _ = child.wait();
-    let _ = reader.join();
+}
+
+/// Send `SIGKILL` to the child's process group so descendants are reaped.
+///
+/// `child` must have been spawned with [`std::os::unix::process::CommandExt::process_group`]`(0)`,
+/// so its process-group id equals its pid. `kill(-pid, SIGKILL)` then targets
+/// that group only.
+#[cfg(unix)]
+fn kill_process_group(child: &Child) {
+    let pid = child.id() as i32;
+    if pid <= 1 {
+        return;
+    }
+    // SAFETY: child is the process-group leader created at spawn. Negative
+    // pid to `kill(2)` targets that group only.
+    let _ = unsafe { libc::kill(-pid, libc::SIGKILL) };
 }
 
 /// Lexicographically first `*.html` basename under `{tmpdir}/pages/`.

@@ -644,6 +644,7 @@ pub fn emit_host_error(err: &wyvern_host::HostError) -> Result<String, EmitError
 pub fn emit_workflow_error(err: &crate::workflow::WorkflowError) -> Result<String, EmitError> {
     let mut envelope = StderrError::new(ErrorCode::WorkflowError, err.to_string())
         .cause(err.cause())
+        .subcode(err.subcode())
         .docs("docs/plans/phase-G/wizard-workflow-architecture.md");
     for step in err.recovery() {
         envelope = envelope.recovery(step);

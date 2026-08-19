@@ -202,4 +202,5 @@ fn seventeenth_hop_emits_workflow_error() {
     let value: serde_json::Value = serde_json::from_str(&stage).unwrap();
     assert_eq!(value["code"], "WORKFLOW_ERROR");
     assert_eq!(value["error"], "workflow");
+    assert_eq!(value["subcode"], "chain_depth");
 }

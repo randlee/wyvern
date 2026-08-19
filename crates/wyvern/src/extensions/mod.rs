@@ -71,16 +71,23 @@ pub use preexec::{
 pub(crate) use match_logic::ends_with_suffix;
 
 /// Shipped defaults compiled into the binary (dev + `cargo install`).
-pub const SHIPPED_EXTENSIONS_JSON: &str = include_str!("../../../../share/wyvern/extensions.json");
+pub const SHIPPED_EXTENSIONS_JSON: &str =
+    include_str!("../../embedded/share/wyvern/extensions.json");
 
 /// Embedded `share/wyvern/**` assets (`extensions.json`, packaged UI extras).
+///
+/// Paths are crate-local so crates.io / `cargo publish --dry-run` can compile
+/// the packaged tarball (QA-001). Keep this folder in sync with workspace
+/// `share/wyvern`.
 #[derive(rust_embed::RustEmbed)]
-#[folder = "../../share/wyvern"]
+#[folder = "embedded/share/wyvern"]
 pub struct ShareAssets;
 
 /// Embedded `scripts/ext/**` preexec helpers.
+///
+/// Crate-local copy of workspace `scripts/ext` for publish verification.
 #[derive(rust_embed::RustEmbed)]
-#[folder = "../../scripts/ext"]
+#[folder = "embedded/scripts/ext"]
 pub struct ScriptAssets;
 
 /// Merged, `extends`-resolved extension registry.
@@ -938,5 +945,22 @@ mod tests {
         let filename = vec!["path/to/wizard.json".into(), "--help".into()];
         let ext = match_extension_help(&registry, &filename).expect("filename help");
         assert_eq!(ext.id.as_str(), "wizard-json-suffix");
+    }
+
+    #[test]
+    fn embedded_share_tracks_workspace_extensions_json() {
+        let workspace =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../share/wyvern/extensions.json");
+        if !workspace.is_file() {
+            return;
+        }
+        let embedded =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("embedded/share/wyvern/extensions.json");
+        let workspace_bytes = std::fs::read(&workspace).expect("workspace extensions.json");
+        let embedded_bytes = std::fs::read(&embedded).expect("embedded extensions.json");
+        assert_eq!(
+            workspace_bytes, embedded_bytes,
+            "crates/wyvern/embedded/share must track workspace share/wyvern"
+        );
     }
 }

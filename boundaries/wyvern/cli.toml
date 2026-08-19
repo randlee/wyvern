@@ -17,6 +17,7 @@ allowed_dependencies = [
   "dirs",
   "rust-embed",
   "tempfile",
+  "libc",
 ]
 forbidden_dependencies = ["wyvern-wizard", "wyvern-mcp", "wry", "winit", "rfd"]
 forbidden_edges = ["wyvern-cli -> wyvern-mcp"]

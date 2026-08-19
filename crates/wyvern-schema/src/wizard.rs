@@ -167,6 +167,98 @@ pub struct WizardStackEntry {
     pub data: serde_json::Value,
 }
 
+/// Error when a workflow / `next_wizard` path is empty.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct WorkflowPathError;
+
+impl fmt::Display for WorkflowPathError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("workflow path must be a non-empty string")
+    }
+}
+
+impl std::error::Error for WorkflowPathError {}
+
+/// Validated workflow script or `next_wizard` path (non-empty).
+///
+/// Construct via [`Self::try_new`] at trust boundaries. Allowlist expansion
+/// (`{wyvern_share}`, cwd, wizard directory) stays in the CLI.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
+#[serde(transparent)]
+pub struct WorkflowPath(String);
+
+impl WorkflowPath {
+    /// Wrap a validated non-empty path.
+    ///
+    /// Prefer [`Self::try_new`] at trust boundaries; this constructor is for
+    /// already-validated values (e.g. after [`crate::validate`]).
+    pub fn new(value: impl Into<String>) -> Self {
+        Self(value.into())
+    }
+
+    /// Construct from a non-empty path string.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`WorkflowPathError`] when `value` is empty.
+    pub fn try_new(value: impl Into<String>) -> Result<Self, WorkflowPathError> {
+        let value = value.into();
+        if value.is_empty() {
+            return Err(WorkflowPathError);
+        }
+        Ok(Self(value))
+    }
+
+    /// Borrow as a string slice.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    /// Consume and return the inner string.
+    pub fn into_inner(self) -> String {
+        self.0
+    }
+}
+
+impl Deref for WorkflowPath {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl AsRef<str> for WorkflowPath {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl fmt::Display for WorkflowPath {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl<'de> Deserialize<'de> for WorkflowPath {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let value = String::deserialize(deserializer)?;
+        Self::try_new(value).map_err(serde::de::Error::custom)
+    }
+}
+
+impl PartialEq<str> for WorkflowPath {
+    fn eq(&self, other: &str) -> bool {
+        self.0 == other
+    }
+}
+
+impl PartialEq<&str> for WorkflowPath {
+    fn eq(&self, other: &&str) -> bool {
+        self.0 == *other
+    }
+}
+
 /// CLI workflow hooks on a wizard command (REQ-0124 / REQ-0125, ADR-0023).
 ///
 /// Host ignores this field. The CLI runs `pre` after validate and `post` after
@@ -175,10 +267,10 @@ pub struct WizardStackEntry {
 pub struct WorkflowSpec {
     /// Script path run after validate and before host bind.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub pre: Option<String>,
+    pub pre: Option<WorkflowPath>,
     /// Script path run after `button: "finish"`, with finish JSON on stdin.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub post: Option<String>,
+    pub post: Option<WorkflowPath>,
 }
 
 /// Default `next_wizard.input` is an empty JSON object.
@@ -192,23 +284,13 @@ fn default_next_wizard_input() -> serde_json::Value {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NextWizard {
     /// Wizard JSON path; `{wyvern_share}` and relative paths are resolved by the CLI.
-    pub path: String,
+    pub path: WorkflowPath,
     /// Deep-merged into the next wizard `config` before `workflow.pre`.
     #[serde(default = "default_next_wizard_input")]
     pub input: serde_json::Value,
     /// Optional UI root; when omitted the CLI infers the wizard directory.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub ui_root: Option<String>,
-}
-
-impl Default for NextWizard {
-    fn default() -> Self {
-        Self {
-            path: String::new(),
-            input: default_next_wizard_input(),
-            ui_root: None,
-        }
-    }
+    pub ui_root: Option<WorkflowPath>,
 }
 
 /// Validated wizard ingress after schema validation.
@@ -450,8 +532,22 @@ mod tests {
             "path": "{wyvern_share}/welcome/wizard.json"
         }))
         .expect("deserialize");
+        assert_eq!(parsed.path.as_str(), "{wyvern_share}/welcome/wizard.json");
         assert_eq!(parsed.input, serde_json::json!({}));
         assert!(parsed.ui_root.is_none());
+    }
+
+    #[test]
+    fn workflow_path_try_new_rejects_empty() {
+        assert_eq!(WorkflowPath::try_new(""), Err(WorkflowPathError));
+        assert_eq!(
+            WorkflowPath::try_new("{wyvern_share}/welcome/wizard.json")
+                .unwrap()
+                .as_str(),
+            "{wyvern_share}/welcome/wizard.json"
+        );
+        let err = serde_json::from_value::<WorkflowPath>(serde_json::json!(""));
+        assert!(err.is_err(), "empty path must fail deserialize");
     }
 
     #[test]

@@ -6,6 +6,7 @@ use serde_json::{Map, Value};
 
 use super::{Allowlist, WorkflowError};
 use crate::extensions::infer_wizard_root;
+use wyvern_schema::NextWizard;
 
 /// Next hop loaded from `next_wizard.path` (CLI resolves; host does not).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -16,9 +17,14 @@ pub struct NextInvocation {
     pub ui_root: PathBuf,
     /// Directory of the next `wizard.json`.
     pub wizard_dir: PathBuf,
+    /// `next_wizard.input` deep-merged into the next wizard `config`.
+    pub input: Value,
 }
 
 /// Resolve an optional `next_wizard` object on finish JSON.
+///
+/// Deserializes the hop to [`NextWizard`] so path / input / `ui_root` are typed
+/// once; the pipeline must not walk the finish JSON again for `input`.
 ///
 /// # Errors
 ///
@@ -34,17 +40,12 @@ pub fn resolve_next_wizard(
     if next.is_null() {
         return Ok(None);
     }
-    let obj = next.as_object().ok_or_else(|| WorkflowError::Resolve {
-        path: String::new(),
-        cause: "next_wizard must be an object".into(),
-    })?;
-    let path = obj
-        .get("path")
-        .and_then(Value::as_str)
-        .ok_or_else(|| WorkflowError::Resolve {
+    let next: NextWizard =
+        serde_json::from_value(next.clone()).map_err(|err| WorkflowError::Resolve {
             path: String::new(),
-            cause: "next_wizard.path is required".into(),
+            cause: format!("next_wizard is invalid: {err}"),
         })?;
+    let path = next.path.as_str();
     let wizard_path = allowlist.resolve_allowed(path)?;
     let text = std::fs::read_to_string(&wizard_path).map_err(|err| WorkflowError::Resolve {
         path: path.to_string(),
@@ -55,14 +56,15 @@ pub fn resolve_next_wizard(
         cause: format!("wizard.json is not JSON: {err}"),
     })?;
     let wizard_dir = infer_wizard_root(&wizard_path);
-    let ui_root = match obj.get("ui_root").and_then(Value::as_str) {
-        Some(raw) => allowlist.resolve_allowed(raw)?,
+    let ui_root = match next.ui_root.as_ref() {
+        Some(raw) => allowlist.resolve_allowed(raw.as_str())?,
         None => wizard_dir.clone(),
     };
     Ok(Some(NextInvocation {
         command,
         ui_root,
         wizard_dir,
+        input: next.input,
     }))
 }
 
@@ -151,5 +153,33 @@ mod tests {
         assert!(resolve_next_wizard(&json!({"button": "finish"}), &allow)
             .expect("ok")
             .is_none());
+    }
+
+    #[test]
+    fn resolve_next_wizard_carries_typed_input() {
+        let tmp = tempfile::tempdir().expect("tmp");
+        let wizard = tmp.path().join("wizard.json");
+        std::fs::write(
+            &wizard,
+            r#"{"type":"wizard","page":{"id":"a","title":"T","html":"a.html"}}"#,
+        )
+        .unwrap();
+        let allow = Allowlist {
+            share_root: tmp.path().to_path_buf(),
+            cwd: tmp.path().to_path_buf(),
+            wizard_dir: tmp.path().to_path_buf(),
+        };
+        let finish = json!({
+            "button": "finish",
+            "next_wizard": {
+                "path": wizard.to_string_lossy(),
+                "input": {"from": "a"}
+            }
+        });
+        let next = resolve_next_wizard(&finish, &allow)
+            .expect("ok")
+            .expect("some");
+        assert_eq!(next.input, json!({"from": "a"}));
+        assert_eq!(next.command["type"], "wizard");
     }
 }
