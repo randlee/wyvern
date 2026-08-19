@@ -1,0 +1,20 @@
+{
+  "type": "wizard",
+  "page": {
+    "id": "layout",
+    "title": "Agent DAG",
+    "html": "pages/layout.html"
+  },
+  "config": {
+    "layouts": [
+      { "id": "solo", "label": "Solo", "agents": 1 },
+      { "id": "pair", "label": "Pair", "agents": 2 },
+      { "id": "trio", "label": "Trio", "agents": 3 }
+    ]
+  },
+  "workflow": {
+    "post": "{wyvern_share}/scripts/ext/export-agent-dag.py"
+  },
+  "width": 720,
+  "height": 560
+}
