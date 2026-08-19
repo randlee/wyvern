@@ -8,7 +8,36 @@
 </head>
 <body data-wizard-terminal="true">
   <h1 data-testid="guide-agent-dag">Agent DAG</h1>
-  <p>Stub topic page. Full copy and <code>next_wizard</code> chaining ship in g.7.</p>
+  <p class="lead">
+    The Agent DAG demo walks layout → configure agents → review, then exports
+    <code>data.dag</code> through <code>workflow.post</code>.
+    <strong>Execution is deferred</strong> — there is no Run DAG control, and
+    Wyvern does not spawn agents or interpret the graph.
+  </p>
+  <p>
+    Finish this page to open the demo. A later project can consume
+    <code>wyvern-dag-export.json</code>.
+  </p>
+  <nav class="wizard-chrome" data-wizard-nav aria-label="Wizard navigation">
+    <button type="button" class="secondary" data-wizard-back data-testid="wizard-back">
+      Back
+    </button>
+    <button type="button" class="primary" data-wizard-next data-testid="wizard-next">
+      Finish
+    </button>
+  </nav>
+  <p class="error" data-testid="wizard-error" hidden></p>
+  <script>
+    window.collectCurrentPageData = function () {
+      return {};
+    };
+    // Required g.7 next hop (REQ-0126).
+    window.wizardNextWizard = {
+      path: "{wyvern_share}/examples/agent-dag/wizard.json",
+      input: { from: "welcome" },
+      ui_root: "{wyvern_share}/examples/agent-dag"
+    };
+  </script>
   <script src="/shared/wizard-nav.js" data-wizard-chrome></script>
 </body>
 </html>

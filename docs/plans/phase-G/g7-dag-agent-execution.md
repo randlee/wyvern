@@ -1,7 +1,7 @@
 ---
 id: g.7
 title: Agent DAG demo + export (execution deferred)
-status: planning
+status: complete
 branch: feature/phase-G-g7-dag-agent-execution
 target: integrate/phase-G
 ---
