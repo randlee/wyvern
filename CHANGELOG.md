@@ -5,11 +5,19 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.0] — 2026-08-16
+## [0.3.0] — 2026-08-17
 
-Phase G — CLI extension agent usability. A cold agent can discover every Phase F skill, recover from near-misses, and inspect one skill using only `wyvern --help`, `wyvern extensions list`, and stderr JSON.
+Phase F — declarative CLI extensions. Phase G — agent-facing help, skill catalog, and error-teaches recovery on top of the extension runtime.
 
-### Added
+### Phase F — CLI extensions
+
+- Extension runtime: bundled registry, argv match (suffix + subcommand), optional Python preexec, template expand → validated `Command` JSON
+- Positional suffix defaults — open `.html` wizard pages and `wizard.json` roots without hand-authored JSON
+- `compose render` — sc-compose preexec for slide/markdown composition workflows
+- CSV — interactive HTML table viewer (`.csv` suffix) and `wyvern md` markdown variant
+- `wyvern extensions list` groundwork (expanded in Phase G)
+
+### Phase G — Agent usability
 
 - First-class `--help` / `-h` and `wyvern help` listing shipped skills with copy-paste examples
 - Extension-prefix `--help` skill cards at match time (`wyvern compose render --help`)
@@ -17,10 +25,57 @@ Phase G — CLI extension agent usability. A cold agent can discover every Phase
 - Near-miss diagnostics that name the skill and teach the next command (unknown suffix, incomplete prefix, skipped `requires`)
 - Structured preexec failure recovery (child stderr in JSON; spawn vs exit vs missing-file)
 
-### Not in 0.2.0
+### Distribution
+
+- **crates.io** — publish order unchanged; all published crates bump to 0.3.0
+- **GitHub Releases** — tag `v0.3.0` triggers matrix build (macOS/Windows/Linux)
+
+### Not in 0.3.0
 
 - `--interactive` argv expansion and MCP tool wrappers — Phase E
 - User registry (`~/.config/wyvern/extensions.json`)
+
+## [0.2.1] — 2026-08-15
+
+Patch release — fixes failed v0.2.0 publish (release workflow only; same Phase D feature set as 0.2.0).
+
+### Fixed
+
+- Release workflow `release-gates` job installs Linux GTK/Wayland deps before `cargo clippy` and `cargo test` (matches main CI)
+
+## [0.2.0] — 2026-08-15
+
+Phase D — multi-page **wizard** flows on the HTTP host stack.
+
+### Wizard runtime
+
+- New `type: "wizard"` command with browser-style stack navigation (ADR-0005/0007)
+- `wyvern-wizard` crate: `WizardSession` with `navigate_next`, `navigate_back`, `finish`, `snapshot`
+- Host HTTP API: `GET /api/wizard/state`, `POST /api/wizard/navigate`, `POST /api/wizard/finish`
+- Dual-mount static assets: `/wizard/**` + `/shared/**`
+- Viewer dismiss returns full visited stack JSON on OS window close (ADR-0021)
+- Shared wizard chrome (`wizard-nav.js`, `chrome.html`) and viewport sizing helpers
+
+### Examples
+
+- `layout-picker` — DAG branching with back-navigation and data restore
+- `turbo-flow` — Svelte Flow workspace graph (dark/light themes)
+- `two-page`, `single-page`, `workspace-hint` fixtures
+
+### Quality / CI
+
+- UI sync check (`ui/` ↔ packaged UI) and boundary grep enforcement in CI
+- Phase D L2 Playwright specs (layout-picker, viewport-sizing, edge cases, turbo-flow)
+- Release workflow quality gates (fmt, clippy, test, audit, deny, boundaries)
+
+### Distribution
+
+- **crates.io** — same publish order as 0.1.0; all published crates bump to 0.2.0
+- **GitHub Releases** — tag `v0.2.0` triggers matrix build (macOS/Windows/Linux)
+
+### Not in 0.2.0
+
+- `--interactive` lifecycle / MCP server — Phase E
 
 ## [0.1.0] — 2026-07-14
 

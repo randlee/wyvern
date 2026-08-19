@@ -1,0 +1,12 @@
+{
+  "agent": "arch-qa",
+  "verdict": "FAIL",
+  "blocking": 1,
+  "important": 2,
+  "findings": [
+    { "id": "ARCH-001", "severity": "BLOCKING", "file": "docs/plans/phase-C/http-post-schema.md", "fix_applied": true },
+    { "id": "ARCH-002", "severity": "IMPORTANT", "file": "docs/plans/phase-C/http-wizard-contract.md", "fix_applied": true },
+    { "id": "ARCH-003", "severity": "IMPORTANT", "file": "docs/wyvern-host/requirements.md", "fix_applied": "REQ-H023 REQ-H024" }
+  ],
+  "merge_ready": false
+}

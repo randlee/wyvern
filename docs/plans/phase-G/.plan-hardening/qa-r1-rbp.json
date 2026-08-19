@@ -1,0 +1,9 @@
+{
+  "success": true,
+  "data": {
+    "status": "findings",
+    "review_mode": "doc_review",
+    "summary": { "total_findings": 5, "by_severity": { "critical": 0, "important": 3, "minor": 2 } },
+    "notes": ["Planning signatures only. Error inventory added to g.4 after this review."]
+  }
+}

@@ -4,7 +4,9 @@
 
 ![Wyvern](docs/images/wyvern-banner.png)
 
-> A lightweight CLI tool that opens native webview windows for user interaction and returns structured JSON results — with zero browser dependency and an MCP-ready JSON schema (MCP server ships in Phase E).
+> A lightweight CLI tool that opens native webview windows for user interaction and returns structured JSON results — with zero browser dependency, declarative CLI extensions, and an MCP-ready JSON schema (MCP server ships in Phase E).
+
+**Current release:** [v0.3.0](CHANGELOG.md#030--2026-08-17) — Phase F extensions + Phase G agent help and skill catalog (wizard flows since v0.2.0).
 
 ---
 
@@ -45,6 +47,18 @@ Each archive contains `wyvern`, `wyvern-viewer`, and `share/wyvern/ui/` (message
 ## Quick examples
 
 ```bash
+# Discover shipped skills (copy-paste examples)
+wyvern help
+wyvern --help
+
+# Skill catalog (text, JSON, or detail view)
+wyvern extensions list
+wyvern extensions list --json
+wyvern extensions show csv-suffix
+
+# Extension-specific help at match time
+wyvern compose render --help
+
 # Open a markdown file as a dialog
 wyvern doc.md
 
@@ -62,9 +76,6 @@ wyvern table fixtures/sample.csv
 
 # CSV as a markdown pipe table
 wyvern md fixtures/sample.csv
-
-# List shipped file-type and prefix extensions
-wyvern extensions list
 ```
 
 ## Optional: Compose render
@@ -79,12 +90,13 @@ wyvern compose render --root ./my-template-dir --file page.j2
 
 ## What it does
 
-Wyvern bridges the gap between CLI tools and rich user interaction. Pass it a JSON command, get back a JSON result. No Electron. No Chrome. Just the OS's built-in webview rendering your HTML.
+Wyvern bridges the gap between CLI tools and rich user interaction. Pass it a JSON command, get back a JSON result — or use argv shorthands for common file types and prefix skills. No Electron. No Chrome. Just the OS's built-in webview rendering your HTML.
 
-The v0.1.0 API stays intentionally small:
+**v0.3.0** adds declarative CLI extensions and agent-facing discoverability on top of the core dialog API:
+
 - Blocking dialog commands: `message`, `input`, `markdown`, `question`, `chrome`
-
-If something feels complicated, it is usually a documentation or scope problem, not a signal to grow the API. Reviews and hardening should attack accidental complexity directly.
+- Multi-page **`wizard`** flows with browser-history navigation (since v0.2.0)
+- **Extensions** — suffix and prefix argv skills (`.html`, `.csv`, `compose render`, `md`, and more via bundled registry)
 
 ```bash
 # Show a dialog
@@ -108,19 +120,21 @@ wyvern my-doc.md
 | Bundle size | ~5MB | ~150MB | 0 |
 | HTML/CSS/JS UI | ✅ | ✅ | ❌ |
 | No browser required | ✅ | ❌ | ✅ |
-| Custom wizards | Phase D | ✅ | ❌ |
+| Custom wizards | ✅ | ✅ | ❌ |
+| Declarative CLI extensions | ✅ | ❌ | ❌ |
 | MCP-compatible | Phase E | ❌ | ❌ |
 | JSON I/O | ✅ | custom | ❌ |
 
 ---
 
-## Dialog types (v0.1.0)
+## Dialog types
 
 - **`message`** — blocking modal with title, body, icon, and standard button combos (`ok`, `yes_no`, `ok_cancel`, `yes_no_cancel`, `retry_cancel`, or custom)
 - **`input`** — text entry, multiline, or file/folder chooser
 - **`markdown`** — styled markdown viewer (`file`, inline `content`, or `wyvern file.md` shorthand)
 - **`question`** — blocking native renderer based on Claude's public `AskUserQuestion` API
 - **`chrome`** — foundation chrome frame and platform safe zones (used by other dialog types)
+- **`wizard`** — multi-page flows with stack navigation (`POST /api/wizard/navigate`, `finish`, visited-stack JSON on dismiss)
 
 ---
 
@@ -137,24 +151,14 @@ wyvern my-doc.md
 ## Docs
 
 - [PRD](docs/prd/wyvern-prd.md) — full product requirements and JSON schema reference
+- [CHANGELOG](CHANGELOG.md) — release history
 
-## Phase acceptance criteria (smoke — delivery rewrite c.16)
+## Deferred (post–v0.3.0)
 
-Phase C delivery rewrite (`c.9`–`c.16`) is complete when:
-
-1. Release tarball includes `wyvern` + `wyvern-viewer` + full `share/wyvern/ui/` (all five dialog types).
-2. Tag `v0.1.0` triggers the GitHub Actions release matrix (macOS aarch64/x86_64, Windows, Linux).
-3. `integrate/phase-c-web-server` CI is green (build, clippy, sc-lint, Playwright with `--viewer none`).
-4. Manual macOS smoke: extract release artifact and run a dialog with the default embedded viewer.
-
-v0.1.0 is authoritative only after this sprint; historical [c5-release](docs/plans/phase-C/c5-release.md) tooling is reused here.
-
-## Deferred (not in v0.1.0)
-
-- **`wizard`** — multi-page flows with browser-history navigation (Phase D)
 - **`--interactive`** — persistent stdin loop with `show`, `hide`, and `exit` lifecycle actions (Phase E)
 - **`wyvern --mcp`** — MCP server; JSON schema is MCP-ready today, binary ships Phase E
-- **`notification`** — future fire-and-forget path for ephemeral updates; `message` stays blocking in v0.1.0
+- **User extension registry** — `~/.config/wyvern/extensions.json` (post–Phase F)
+- **`notification`** — future fire-and-forget path for ephemeral updates; `message` stays blocking
 
 ---
 

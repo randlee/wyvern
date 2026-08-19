@@ -66,6 +66,8 @@
 
 **REQ-0066** — `wizard` → `{ "button": "finish|cancel|dismissed", "data": {}, "stack": [] }`.
 
+**Amendment (Phase G Wave 2):** optional `workflow` on the wizard **command** and optional `next_wizard` on wizard **finish / result** are **known** fields (REQ-0124–REQ-0126, ADR-0023, ADR-0024). They are not REQ-0053 unknown-field errors. Host passthroughs `next_wizard` without executing it. Final CLI stdout **omits** `next_wizard` (REQ-0126).
+
 **REQ-0067** — `question` on normal completion → Claude AskUserQuestion response schema: `{ "questions": [], "answers": {}, "response": "" }`. `response` is optional.
 
 **REQ-0068** — Force close behavior:

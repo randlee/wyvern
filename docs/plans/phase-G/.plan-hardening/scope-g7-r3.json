@@ -1,0 +1,71 @@
+{
+  "status": "FAIL",
+  "mode": "plan-scope-review",
+  "reviewer": "plan-scope-reviewer",
+  "round_id": "STEP1-R3",
+  "round_index": 3,
+  "reviewed_commit": "e172aaa461a2cee1406febfbe91f27385798cc91",
+  "previous_reviewed_commit": "e172aaa461a2cee1406febfbe91f27385798cc91",
+  "findings_hash": "scope-g7-r3-e172aaa",
+  "scope": {
+    "phase": "G",
+    "sprint": "g.7"
+  },
+  "sprint_scores": [
+    {
+      "sprint": "g.7",
+      "status": "FAIL",
+      "blocking_count": 0,
+      "important_count": 1,
+      "minor_count": 1
+    }
+  ],
+  "docs_read": [
+    ".claude/skills/plan-hardening/sprint-planning-guidelines.md",
+    "docs/plans/phase-G/g7-dag-agent-execution.md",
+    "docs/plans/phase-G/agent-dag-execution-deferral.md",
+    "docs/plans/phase-D/d5-dag-example.md",
+    "docs/plans/phase-G/g4-welcome-guide-wizard.md"
+  ],
+  "findings": [
+    {
+      "id": "PLAN-SCOPE-009",
+      "severity": "Important",
+      "category": "QA-UNFRIENDLY",
+      "classification": "structural",
+      "affects_ac": true,
+      "target_refs": [
+        "docs/plans/phase-G/g7-dag-agent-execution.md:31",
+        "docs/plans/phase-G/g7-dag-agent-execution.md:118",
+        "docs/plans/phase-G/g7-dag-agent-execution.md:128"
+      ],
+      "issue": "AC 2 requires the review page to render nodes and edges matching finish data.dag, but required validation only gates wizard_agent_dag.rs for data.dag wire-shape; the deliverable row narrows AC 2 to wire-shape while AC 2 prose still claims DOM render, so QA cannot verify AC 2 directly from the sprint doc validation block.",
+      "required_correction": "Align AC 2, the wizard_agent_dag.rs deliverable purpose, and required validation: either narrow AC 2 to wire-shape contract (matching the deliverable row) or add a named render gate (host HTML fixture assertion or required validation entry)."
+    }
+  ],
+  "minor_wording": [
+    {
+      "id": "PLAN-SCOPE-M1",
+      "category": "REDUNDANT",
+      "affects_ac": false,
+      "target_refs": [
+        "docs/plans/phase-G/g7-dag-agent-execution.md:31",
+        "docs/plans/phase-G/g7-dag-agent-execution.md:32"
+      ],
+      "issue": "wizard_agent_dag.rs deliverable purpose cites AC 1 recorded scenario while wizard_agent_dag_nav.rs is the authoritative AC 1 gate, creating overlapping ownership.",
+      "suggested_cleanup": "Limit wizard_agent_dag.rs purpose to AC 2 data.dag wire-shape only; keep AC 1 solely on wizard_agent_dag_nav.rs."
+    }
+  ],
+  "resolved_findings": [
+    {
+      "id": "PLAN-SCOPE-007",
+      "resolution": "wizard_agent_dag_nav.rs is listed in deliverables (line 32), AC 1 names the test and full pair→back→solo scenario (line 117), and required validation includes cargo test -p wyvern-host --test wizard_agent_dag_nav (line 129)."
+    },
+    {
+      "id": "PLAN-SCOPE-008",
+      "resolution": "Page JS contract is authoritative in g.7 Contracts (lines 57–79) with wyvernWizardNext/wyvernWizardBack/wyvernWizardFinish samples; goal line 13 states branching is specified in this sprint; no d.5 normative reference for agent-dag app.js."
+    }
+  ],
+  "ready_for_next_step": false,
+  "errors": []
+}

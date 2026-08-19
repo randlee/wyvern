@@ -134,6 +134,45 @@ Boundary rules are encoded in `boundaries/` and enforced in CI.
 
 ---
 
+### ADR-0023: Wizard workflow pre/post scripts (CLI layer)
+
+**Status:** Accepted (planning — Phase G Wave 2, g.4)
+
+**Context:** Wave 2 examples must query and apply on-disk state (Claude Code hooks, template copy, DAG export). Page JS in the webview must not read or write those files. Extension `preexec` already spawns trusted scripts; a second ad-hoc subprocess stack would drift. Host-side I/O would violate ADR-0006 and ADR-0011.
+
+**Decision:**
+
+1. Optional `workflow: { "pre": "<path>", "post": "<path>" }` is a **known** field on wizard command JSON (REQ-0124, REQ-0125). `wyvern-schema` validates shape and non-empty path strings; it is not a REQ-0053 unknown field. **`wyvern-host` ignores `workflow` and never spawns scripts.**
+2. The **`wyvern` CLI** owns execution in `crates/wyvern/src/workflow/`: `pre` after validate and **before** host bind; `post` after host finish when `button` is `finish`, **before** any `next_wizard` hop. `cancel` / `dismissed` skip post. Failure → `workflow` / `WORKFLOW_ERROR`, exit `9`; pre failure does not start the host.
+3. Reuse Phase F `extensions/preexec.rs` spawn and stderr-tail helpers. Do not add a second subprocess stack. Timeout is **`WORKFLOW_SCRIPT_TIMEOUT` = 30s** (g.4).
+4. **Allowlist:** resolved paths must canonicalize under `{wyvern_share}`, process cwd, or the current `wizard.json` directory. Reject `..` and symlink escape. `.py` scripts invoke `python3 <path>`; other paths execute as argv[0].
+5. Pre stdout is one JSON object `{ "config_patch": { ... } }`; CLI deep-merges object keys into wizard `config` (patch wins; arrays/scalars replace). Post receives the full finish JSON on stdin.
+6. `--workflow-dry-run` is a CLI flag (parsed with other host-adjacent flags). When set, CLI appends `--dry-run` to pre and post argv. Scripts must not apply side effects in that mode.
+7. Spawned scripts receive `WYVERN_SHARE` (canonical share root), `WYVERN_REPO_ROOT` (existing value, else process cwd), and `WYVERN_BIN` (canonical wyvern executable from `current_exe`).
+
+**Consequences:** g.4 lands the runner; g.5–g.7 only add scripts + `workflow` blocks. No new dialog types. MCP / `--interactive` auto-chain stays Phase E. Full text: [wizard-workflow-architecture.md](plans/phase-G/wizard-workflow-architecture.md).
+
+---
+
+### ADR-0024: `next_wizard` chaining (CLI orchestration)
+
+**Status:** Accepted (planning — Phase G Wave 2, g.4)
+
+**Context:** Welcome → example wizards need a full new `wizard.json` (new `ui_root`, new `workflow`), not another page inside one session. A host graph engine would violate ADR-0006 and ADR-0012.
+
+**Decision:**
+
+1. Optional `next_wizard: { "path": "<wizard.json>", "input": {}, "ui_root": "<optional>" }` is a **known** sibling of `button` / `data` / `stack` on finish request and result (REQ-0126; extends REQ-0066). `path` is required when the object is present; `input` defaults to `{}`; `ui_root` is optional. **Host copies the field through and does not resolve, load, or execute it.**
+2. The **`wyvern` CLI** owns the loop in `crates/wyvern/src/workflow/chain.rs` + `pipeline.rs`: finish → post → resolve next → load → merge `input` into next `config` → pre (**pre `config_patch` wins** over `input`) → host → repeat.
+3. Honor `next_wizard` only when `button` is `finish`. Maximum **16** wizard sessions per CLI invocation; a 17th hop is `WORKFLOW_ERROR` (exit `9`).
+4. `path` and optional `ui_root` use the ADR-0023 allowlist. Relative `path` resolves `{wyvern_share}` first, then cwd, then the current wizard.json directory. Missing `ui_root` uses existing wizard-root inference.
+5. Final stdout is the last finish JSON with `next_wizard` **omitted**. `--emit-all` is **out of scope** for Wave 2 (non-closure).
+6. No `wyvern chain` subcommand. `wyvern guide` is an argv-prefix **extension** (`id: "guide"`, REQ-0127), not a built-in early return.
+
+**Consequences:** Chaining is data-driven. Host remains a single-session server but **must passthrough** `next_wizard` on finish (g.4 `wyvern-host` deliverable) or the CLI loop never sees page-supplied hops. DAG *execution* stays out of Wyvern (g.7 export only). Full text: [wizard-workflow-architecture.md](plans/phase-G/wizard-workflow-architecture.md), [workflow-chain-contract.md](plans/phase-G/workflow-chain-contract.md).
+
+---
+
 ### ADR-0021: Minimal serde_json in wyvern-viewer for wizard dismiss
 
 **Status:** Accepted (Phase D d.8)

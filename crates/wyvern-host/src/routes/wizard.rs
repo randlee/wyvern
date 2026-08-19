@@ -150,12 +150,13 @@ pub async fn post_wizard_finish(
         )
     })?;
 
+    let next_wizard = request.next_wizard;
     let result = session
-        .wizard_finish(request.button, request.data, request.stack)
+        .wizard_finish(request.button, request.data, request.stack, next_wizard)
         .await
         .map_err(map_wizard_finish_error)?;
 
-    let Some(result) = result else {
+    let Some(validated) = result else {
         event!(
             name: "wizard.finish.conflict",
             Level::WARN,
@@ -169,6 +170,9 @@ pub async fn post_wizard_finish(
             .docs(WIZARD_FINISH_DOCS));
     };
 
+    // next_wizard was copied onto the submitted result after stack validation.
+    let result = validated;
+
     event!(
         name: "wizard.finish.ok",
         Level::DEBUG,
@@ -177,6 +181,19 @@ pub async fn post_wizard_finish(
     );
 
     Ok(Json(result))
+}
+
+/// Copy `next_wizard` from the HTTP request onto the validated session result.
+///
+/// The host does not resolve or execute the hop (ADR-0023 / ADR-0024).
+pub(crate) fn finish_to_result(
+    next_wizard: Option<wyvern_schema::NextWizard>,
+    validated: wyvern_schema::WizardResult,
+) -> wyvern_schema::WizardResult {
+    wyvern_schema::WizardResult {
+        next_wizard,
+        ..validated
+    }
 }
 
 async fn require_wizard_session(

@@ -634,6 +634,24 @@ pub fn emit_host_error(err: &wyvern_host::HostError) -> Result<String, EmitError
     envelope.to_json_string().map_err(EmitError::Serialize)
 }
 
+/// Serialize a workflow / chain failure as stderr JSON (`WORKFLOW_ERROR`, exit 9).
+///
+/// Always uses [`ErrorCode::WorkflowError`] — no hand-built slug.
+///
+/// # Errors
+///
+/// Returns [`EmitError::Serialize`] when the envelope cannot be serialized.
+pub fn emit_workflow_error(err: &crate::workflow::WorkflowError) -> Result<String, EmitError> {
+    let mut envelope = StderrError::new(ErrorCode::WorkflowError, err.to_string())
+        .cause(err.cause())
+        .subcode(err.subcode())
+        .docs("docs/plans/phase-G/wizard-workflow-architecture.md");
+    for step in err.recovery() {
+        envelope = envelope.recovery(step);
+    }
+    envelope.to_json_string().map_err(EmitError::Serialize)
+}
+
 /// Emit static internal stderr JSON and exit with code 8 (REQ-0078).
 ///
 /// Uses a hand-built JSON string so a serialize failure cannot recurse.

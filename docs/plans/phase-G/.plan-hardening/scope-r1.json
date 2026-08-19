@@ -1,0 +1,34 @@
+{
+  "status": "FAIL",
+  "mode": "plan-scope-review",
+  "reviewer": "plan-scope-reviewer",
+  "round_id": "STEP1-R1",
+  "round_index": 1,
+  "reviewed_commit": "e172aaa",
+  "previous_reviewed_commit": "",
+  "findings_hash": "scope-g4-g7-r1-001to006-e172aaa",
+  "scope": { "phase": "G", "sprint": null },
+  "sprint_scores": [
+    { "sprint": "g.4", "status": "FAIL", "blocking_count": 0, "important_count": 1, "minor_count": 2 },
+    { "sprint": "g.5", "status": "FAIL", "blocking_count": 0, "important_count": 2, "minor_count": 0 },
+    { "sprint": "g.6", "status": "FAIL", "blocking_count": 0, "important_count": 1, "minor_count": 1 },
+    { "sprint": "g.7", "status": "FAIL", "blocking_count": 0, "important_count": 2, "minor_count": 1 }
+  ],
+  "docs_read": [
+    "docs/plans/phase-G/g4-welcome-guide-wizard.md",
+    "docs/plans/phase-G/g5-askuserquestion-claude-code.md",
+    "docs/plans/phase-G/g6-template-wizard.md",
+    "docs/plans/phase-G/g7-dag-agent-execution.md"
+  ],
+  "findings": [
+    { "id": "PLAN-SCOPE-001", "severity": "Important", "category": "QA-UNFRIENDLY", "classification": "structural", "affects_ac": true, "issue": "cargo test multi-filter", "required_correction": "three --test commands" },
+    { "id": "PLAN-SCOPE-002", "severity": "Important", "category": "NON-PROD", "classification": "structural", "affects_ac": true, "issue": "untested --invoke", "required_correction": "AC + test + absolute path" },
+    { "id": "PLAN-SCOPE-003", "severity": "Important", "category": "MULTI-SOURCE", "classification": "structural", "affects_ac": true, "issue": "question-mapping normative", "required_correction": "demote" },
+    { "id": "PLAN-SCOPE-004", "severity": "Important", "category": "MISSING-CODE-SAMPLE", "classification": "structural", "affects_ac": true, "issue": "g.6 no config.templates", "required_correction": "add catalog" },
+    { "id": "PLAN-SCOPE-005", "severity": "Important", "category": "QA-UNFRIENDLY", "classification": "structural", "affects_ac": true, "issue": "g.7 d.5 parity", "required_correction": "in-doc scenario" },
+    { "id": "PLAN-SCOPE-006", "severity": "Important", "category": "MISSING-CODE-SAMPLE", "classification": "structural", "affects_ac": true, "issue": "g.7 no config.layouts", "required_correction": "add layouts" }
+  ],
+  "minor_wording": [],
+  "ready_for_next_step": false,
+  "errors": []
+}

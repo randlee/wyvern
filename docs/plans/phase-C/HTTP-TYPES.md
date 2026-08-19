@@ -364,6 +364,25 @@ pub struct WizardStackEntry {
     pub data: serde_json::Value,
 }
 
+/// Phase G g.4 — CLI workflow hooks (REQ-0124 / REQ-0125, ADR-0023). Host ignores.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct WorkflowSpec {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pre: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub post: Option<String>,
+}
+
+/// Phase G g.4 — CLI chain hop (REQ-0126, ADR-0024). Host copies through.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NextWizard {
+    pub path: String,
+    #[serde(default)]
+    pub input: serde_json::Value,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ui_root: Option<String>,
+}
+
 /// Wizard command ingress — validated in d.1.
 /// Static HTML paths resolve from `page.html` relative to `--ui-root` (no separate `page_html` field).
 pub struct WizardCommand {
@@ -376,6 +395,9 @@ pub struct WizardCommand {
     pub width: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub height: Option<u32>,
+    /// Phase G g.4 (REQ-0124/0125, ADR-0023). Host ignores; CLI executes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workflow: Option<WorkflowSpec>,
 }
 
 /// GET /api/wizard/state shape — `stack` = prior entries only (REQ-0024).
@@ -404,6 +426,9 @@ pub struct WizardResult {
     pub button: ButtonLabel, // finish | cancel | dismissed
     pub data: serde_json::Value,
     pub stack: Vec<WizardStackEntry>,
+    /// Phase G g.4 (REQ-0126, ADR-0024). Host copies; CLI chain loop consumes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub next_wizard: Option<NextWizard>,
 }
 
 #[derive(Serialize)]
@@ -442,6 +467,9 @@ pub struct WizardFinishRequest {
     pub button: ButtonLabel,
     pub data: serde_json::Value,
     pub stack: Vec<WizardStackEntry>,
+    /// Phase G g.4 — same shape as `WizardResult.next_wizard`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub next_wizard: Option<NextWizard>,
 }
 ```
 
@@ -461,3 +489,4 @@ pub struct WizardFinishRequest {
 | `HostSession` | Phase E (e.1) |
 | `WizardCommand`, `WizardResult`, validators | d.1 |
 | Wizard state/navigate/finish routes | d.1–d.2 |
+| `WorkflowSpec`, `NextWizard` on wizard command/finish | g.4 |

@@ -43,6 +43,7 @@ fn wizard_command() -> Command {
         config: serde_json::json!({}),
         width: None,
         height: None,
+        workflow: None,
     })
 }
 

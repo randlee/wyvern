@@ -24,6 +24,7 @@ fn cmd(first_html: &str) -> WizardCommand {
         config: serde_json::json!({"theme": "dark"}),
         width: Some(640),
         height: Some(480),
+        workflow: None,
     }
 }
 

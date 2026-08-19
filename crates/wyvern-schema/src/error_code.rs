@@ -40,6 +40,8 @@ pub enum ErrorCode {
     UiNotFound,
     /// Dialog type not yet on the host matrix (`host_error` / exit 6).
     UnsupportedType,
+    /// Workflow pre/post or `next_wizard` chain failure (`workflow` / exit 9).
+    WorkflowError,
 }
 
 impl ErrorCode {
@@ -57,6 +59,7 @@ impl ErrorCode {
             | Self::UnsupportedType => 6,
             Self::EventLoopError | Self::HostBindError => 7,
             Self::InternalError => 8,
+            Self::WorkflowError => 9,
         }
     }
 
@@ -73,6 +76,7 @@ impl ErrorCode {
             Self::HostError | Self::UiNotFound | Self::UnsupportedType => "host_error",
             Self::HostBindError => "host_bind",
             Self::HostViewerError => "host_viewer",
+            Self::WorkflowError => "workflow",
         }
     }
 }
@@ -96,6 +100,7 @@ mod tests {
             (ErrorCode::HostViewerError, "HOST_VIEWER_ERROR"),
             (ErrorCode::UiNotFound, "UI_NOT_FOUND"),
             (ErrorCode::UnsupportedType, "UNSUPPORTED_TYPE"),
+            (ErrorCode::WorkflowError, "WORKFLOW_ERROR"),
         ];
         for (code, expected) in cases {
             let json = serde_json::to_string(&code).expect("serialize");

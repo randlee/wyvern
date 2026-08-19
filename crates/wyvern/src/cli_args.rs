@@ -15,6 +15,10 @@ pub struct CliArgs {
     pub host: HostOptions,
     /// Non-flag argv entries (JSON / file path).
     pub positionals: Vec<String>,
+    /// `--workflow-dry-run` — append `--dry-run` to workflow pre/post argv.
+    ///
+    /// Never a [`HostOptions`] field (ADR-0023).
+    pub workflow_dry_run: bool,
 }
 
 /// Split argv into host flags and positionals.
@@ -34,6 +38,7 @@ pub fn parse_cli_args(args: &[String]) -> Result<CliArgs, LoadError> {
     let mut ui_root = shared_ui_root.clone();
     let mut viewer = resolve_default_viewer()?;
     let mut allow_non_loopback = false;
+    let mut workflow_dry_run = false;
     let mut positionals = Vec::new();
 
     let mut i = 0;
@@ -52,6 +57,11 @@ pub fn parse_cli_args(args: &[String]) -> Result<CliArgs, LoadError> {
         }
         if arg == "--allow-non-loopback" {
             allow_non_loopback = true;
+            i += 1;
+            continue;
+        }
+        if arg == "--workflow-dry-run" {
+            workflow_dry_run = true;
             i += 1;
             continue;
         }
@@ -102,6 +112,7 @@ pub fn parse_cli_args(args: &[String]) -> Result<CliArgs, LoadError> {
             mock_picker: None,
         },
         positionals,
+        workflow_dry_run,
     })
 }
 
@@ -259,8 +270,10 @@ pub fn usage_message() -> String {
         "                             extension host.ui_root replaces this flag.\n",
         "  --viewer <MODE>            embedded|none|system|chrome|safari|edge|firefox\n",
         "                             (default: embedded; CI: WYVERN_VIEWER=none)\n",
+        "  --workflow-dry-run         Append --dry-run to wizard workflow pre/post scripts\n",
         "\n",
         "Extensions (see `wyvern extensions list`):\n",
+        "  wyvern guide                   # visual feature guide (welcome wizard)\n",
         "  wyvern doc.md\n",
         "  wyvern page.html\n",
         "  wyvern path/to/wizard.json\n",
@@ -445,5 +458,20 @@ mod tests {
         assert!(text.contains("--env-prefix"), "{text}");
         assert!(text.contains("WYVERN_VIEWER"), "{text}");
         assert!(text.contains("wizard.json or pages/"), "{text}");
+        assert!(text.contains("wyvern guide"), "{text}");
+        assert!(text.contains("--workflow-dry-run"), "{text}");
+    }
+
+    #[test]
+    fn parse_workflow_dry_run_is_on_cli_args_not_host() {
+        let parsed = parse_cli_args(&args(&[
+            "--workflow-dry-run",
+            "--viewer",
+            "none",
+            r#"{"type":"wizard"}"#,
+        ]))
+        .expect("parse");
+        assert!(parsed.workflow_dry_run);
+        assert_eq!(parsed.positionals, args(&[r#"{"type":"wizard"}"#]));
     }
 }

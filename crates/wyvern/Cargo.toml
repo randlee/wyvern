@@ -11,12 +11,12 @@ keywords     = ["wyvern", "dialog", "webview", "cli", "json"]
 categories   = ["command-line-utilities", "gui"]
 readme       = "../../README.md"
 # ui/ is included here for cargo-install users (no separate share/wyvern/ui needed).
-# rust-embed maps workspace share/wyvern/** and scripts/ext/** from crate-relative
-# ../../ paths (see extensions/mod.rs) so {wyvern_share} resolves in both dev and
-# cargo-install layouts. Cargo `include` can only package files under this crate
-# directory, so those workspace assets are compiled into the binary rather than
-# listed here.
-include      = ["src/**", "ui/**", "Cargo.toml"]
+# rust-embed must compile from files inside this crate so `cargo publish --dry-run`
+# can verify the tarball (QA-001). Keep the vendored share/wyvern glob wide so
+# welcome/ and testdata/workflow/ ride along — do not narrow it. Workspace
+# share/wyvern and scripts/ext remain the live development trees; copy them
+# into embedded/ when those assets change.
+include      = ["src/**", "ui/**", "embedded/**", "Cargo.toml"]
 
 [lib]
 name = "wyvern"
@@ -38,6 +38,9 @@ sc-observability-types = "1.2"
 rust-embed         = { version = "8", features = ["compression"] }
 dirs               = { workspace = true }
 tempfile           = "3"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
 
 [dev-dependencies]
 reqwest    = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "blocking"] }

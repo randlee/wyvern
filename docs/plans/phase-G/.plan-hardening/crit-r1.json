@@ -1,0 +1,39 @@
+{
+  "status": "FAIL",
+  "mode": "critical-plan-review",
+  "reviewer": "critical-plan-reviewer",
+  "round_id": "STEP3-R1",
+  "round_index": 1,
+  "reviewed_commit": "e172aaa",
+  "previous_reviewed_commit": "",
+  "findings_hash": "STEP3-R1-e172aaa-001:002:003:004:005:006:007:008:009:010:011",
+  "scope": { "phase": "G Wave 2", "sprint": "g.4–g.7" },
+  "sprint_scores": [
+    { "sprint": "g.4", "status": "FAIL", "blocking_count": 0, "important_count": 7, "minor_count": 0 },
+    { "sprint": "g.5", "status": "FAIL", "blocking_count": 0, "important_count": 4, "minor_count": 0 },
+    { "sprint": "g.6", "status": "FAIL", "blocking_count": 0, "important_count": 3, "minor_count": 0 },
+    { "sprint": "g.7", "status": "FAIL", "blocking_count": 0, "important_count": 1, "minor_count": 0 }
+  ],
+  "docs_read": [
+    "docs/plans/phase-G/g4-welcome-guide-wizard.md",
+    "docs/plans/phase-G/g5-askuserquestion-claude-code.md",
+    "docs/plans/phase-G/g6-template-wizard.md",
+    "docs/plans/phase-G/g7-dag-agent-execution.md"
+  ],
+  "findings": [
+    { "id": "PLAN-CRIT-001", "severity": "Important", "category": "ARCH-RISK", "classification": "structural", "affects_ac": true, "issue": "preexec reuse", "required_correction": "must call preexec helpers" },
+    { "id": "PLAN-CRIT-002", "severity": "Important", "category": "UNDEF", "classification": "structural", "affects_ac": true, "issue": "run_from_loaded missing", "required_correction": "Wizard enters loop" },
+    { "id": "PLAN-CRIT-003", "severity": "Important", "category": "BOUNDARY-RISK", "classification": "structural", "affects_ac": true, "issue": "host passthrough underspecified", "required_correction": "routes/wizard.rs copy after validation" },
+    { "id": "PLAN-CRIT-004", "severity": "Important", "category": "BOUNDARY-RISK", "classification": "structural", "affects_ac": true, "issue": "boundary TOMLs", "required_correction": "cli.toml / host.toml" },
+    { "id": "PLAN-CRIT-005", "severity": "Important", "category": "BOUNDARY-RISK", "classification": "structural", "affects_ac": true, "issue": "spawn env", "required_correction": "WYVERN_SHARE / REPO_ROOT / HOME" },
+    { "id": "PLAN-CRIT-006", "severity": "Important", "category": "CONTRA", "classification": "structural", "affects_ac": true, "issue": "embed glob narrow", "required_correction": "incremental on f.1" },
+    { "id": "PLAN-CRIT-007", "severity": "Important", "category": "CONTRA", "classification": "structural", "affects_ac": true, "issue": "cp -R path", "required_correction": "delete companion path" },
+    { "id": "PLAN-CRIT-008", "severity": "Important", "category": "CONTRA", "classification": "structural", "affects_ac": true, "issue": "both-disabled vs --remove", "required_correction": "both-disabled is valid disable" },
+    { "id": "PLAN-CRIT-009", "severity": "Important", "category": "FALSE-CLOSURE", "classification": "structural", "affects_ac": true, "issue": "no welcome chain test", "required_correction": "per-sprint chain tests" },
+    { "id": "PLAN-CRIT-010", "severity": "Important", "category": "UNDEF", "classification": "structural", "affects_ac": true, "issue": "hook paths", "required_correction": "path table (already in g.5)" },
+    { "id": "PLAN-CRIT-011", "severity": "Important", "category": "UNDEF", "classification": "structural", "affects_ac": true, "issue": "apply-template contract", "required_correction": "stdin/argv/matrix (already in g.6)" }
+  ],
+  "minor_wording": [],
+  "ready_for_next_step": false,
+  "errors": []
+}

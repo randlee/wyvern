@@ -11,10 +11,16 @@ use wyvern_host::{begin, run as host_run, HostError, HostOptions, ViewerMode};
 use wyvern_schema::{Command, FieldName};
 
 use crate::error::{
-    emit_host_error, emit_io_error, emit_stdout, emit_validation_error, EmitError, LoadError,
+    emit_host_error, emit_io_error, emit_stdout, emit_validation_error, emit_workflow_error,
+    EmitError, LoadError,
 };
+use crate::extensions::resolve_wyvern_share;
 use crate::observability;
 use crate::viewer_spawn::{spawn_embedded_viewer, wait_for_viewer_exit, ViewerSpawnError};
+use crate::workflow::{
+    check_chain_depth, merge_wizard_config, resolve_next_wizard, Allowlist, WorkflowError,
+    WorkflowRunner, NEXT_WIZARD_MAX_DEPTH, WORKFLOW_SCRIPT_TIMEOUT,
+};
 
 /// Pipeline failure after load: stage stderr + exit, or emit-boundary serialize failure.
 #[derive(Debug)]
@@ -32,7 +38,11 @@ pub enum PipelineError {
 /// Returns [`PipelineError::Stage`] with stderr JSON and a non-zero exit code on
 /// validation, markdown I/O, or host failure. Returns [`PipelineError::Emit`] when
 /// structured JSON serialization fails (REQ-0078).
-pub fn run_from_loaded(value: Value, host: HostOptions) -> Result<String, PipelineError> {
+pub fn run_from_loaded(
+    value: Value,
+    host: HostOptions,
+    dry_run: bool,
+) -> Result<String, PipelineError> {
     observability::log_command_received(&value);
     let command = match wyvern_schema::validate(&value) {
         Ok(cmd) => {
@@ -50,6 +60,19 @@ pub fn run_from_loaded(value: Value, host: HostOptions) -> Result<String, Pipeli
         }
     };
 
+    if matches!(command, Command::Wizard(_)) {
+        let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+        let runner = WorkflowRunner {
+            allowlist: Allowlist {
+                share_root: resolve_wyvern_share(),
+                cwd,
+                wizard_dir: host.ui_root.clone(),
+            },
+            timeout: WORKFLOW_SCRIPT_TIMEOUT,
+        };
+        return run_wizard_workflow_loop(value, host, &runner, dry_run);
+    }
+
     let command = match load_markdown_file(command) {
         Ok(cmd) => cmd,
         Err(e) => {
@@ -63,17 +86,133 @@ pub fn run_from_loaded(value: Value, host: HostOptions) -> Result<String, Pipeli
     };
 
     observability::log_host_start(command_type_name(&command));
-    let result = match host.viewer {
+    finish_host_result(run_validated_host(command, host))
+}
+
+/// Every `Command::Wizard` one-shot enters this loop (REQ-0124–0126).
+///
+/// Other dialog types stay on the existing host path in [`run_from_loaded`].
+///
+/// # Errors
+///
+/// Returns [`PipelineError`] on validation, workflow, host, or emit failure.
+pub fn run_wizard_workflow_loop(
+    first: Value,
+    mut host: HostOptions,
+    runner: &WorkflowRunner,
+    dry_run: bool,
+) -> Result<String, PipelineError> {
+    let mut command_json = first;
+    let mut input = serde_json::json!({});
+    let mut allowlist = runner.allowlist.clone();
+    let mut last_result: Option<wyvern_schema::WizardResult> = None;
+
+    for hop in 1..=NEXT_WIZARD_MAX_DEPTH + 1 {
+        check_chain_depth(hop).map_err(workflow_stage)?;
+
+        let command = match wyvern_schema::validate(&command_json) {
+            Ok(cmd) => cmd,
+            Err(e) => {
+                observability::log_validation_result(false);
+                let stderr = emit_validation_error(&e).map_err(PipelineError::Emit)?;
+                return Err(PipelineError::Stage {
+                    stderr,
+                    exit_code: e.exit_code(),
+                });
+            }
+        };
+        let Command::Wizard(mut wizard) = command else {
+            return Err(workflow_stage(WorkflowError::Resolve {
+                path: String::new(),
+                cause: "next_wizard path did not expand to a wizard command".into(),
+            }));
+        };
+
+        wizard.config =
+            merge_wizard_config(wizard.config, input.clone(), None).map_err(workflow_stage)?;
+        let spec = wizard.workflow.clone().unwrap_or_default();
+        let hop_runner = WorkflowRunner {
+            allowlist: allowlist.clone(),
+            timeout: runner.timeout,
+        };
+        hop_runner
+            .run_pre(&spec, &mut wizard.config, dry_run)
+            .map_err(workflow_stage)?;
+
+        observability::log_host_start("wizard");
+        let result =
+            match finish_host_command(run_validated_host(Command::Wizard(wizard), host.clone()))? {
+                wyvern_schema::CommandResult::Wizard(wizard_result) => wizard_result,
+                other => return emit_stdout(&other).map_err(PipelineError::Emit),
+            };
+
+        let finish_value = serde_json::to_value(&result).map_err(|err| {
+            PipelineError::Emit(EmitError::Serialize(wyvern_schema::SerializeError {
+                message: err.to_string(),
+            }))
+        })?;
+
+        if result.button.as_str() != "finish" {
+            return emit_wizard_stdout(result);
+        }
+
+        hop_runner
+            .run_post(&spec, &finish_value, dry_run)
+            .map_err(workflow_stage)?;
+
+        match resolve_next_wizard(&finish_value, &allowlist).map_err(workflow_stage)? {
+            None => return emit_wizard_stdout(result),
+            Some(next) => {
+                input = next.input;
+                command_json = next.command;
+                host.ui_root = next.ui_root;
+                allowlist.wizard_dir = next.wizard_dir;
+                last_result = Some(result);
+            }
+        }
+    }
+
+    let _ = last_result;
+    Err(workflow_stage(WorkflowError::ChainDepth {
+        max: NEXT_WIZARD_MAX_DEPTH,
+    }))
+}
+
+fn workflow_stage(err: WorkflowError) -> PipelineError {
+    observability::log_error("workflow", &format!("{err:?}"));
+    match emit_workflow_error(&err) {
+        Ok(stderr) => PipelineError::Stage {
+            stderr,
+            exit_code: wyvern_schema::ErrorCode::WorkflowError.exit_code(),
+        },
+        Err(emit) => PipelineError::Emit(emit),
+    }
+}
+
+fn emit_wizard_stdout(mut result: wyvern_schema::WizardResult) -> Result<String, PipelineError> {
+    result.next_wizard = None;
+    emit_stdout(&wyvern_schema::CommandResult::Wizard(result)).map_err(PipelineError::Emit)
+}
+
+fn run_validated_host(
+    command: Command,
+    host: HostOptions,
+) -> Result<wyvern_schema::CommandResult, PipelineHostError> {
+    match host.viewer {
         ViewerMode::Embedded => run_embedded(command, host),
         ViewerMode::None | ViewerMode::System | ViewerMode::Named(_) => {
             host_run(command, host).map_err(PipelineHostError::Host)
         }
-    };
+    }
+}
 
+fn finish_host_command(
+    result: Result<wyvern_schema::CommandResult, PipelineHostError>,
+) -> Result<wyvern_schema::CommandResult, PipelineError> {
     match result {
         Ok(result) => {
             observability::log_host_result(true);
-            emit_stdout(&result).map_err(PipelineError::Emit)
+            Ok(result)
         }
         Err(PipelineHostError::Host(err)) => {
             observability::log_error("host", &format!("{err:?}"));
@@ -92,6 +231,12 @@ pub fn run_from_loaded(value: Value, host: HostOptions) -> Result<String, Pipeli
             })
         }
     }
+}
+
+fn finish_host_result(
+    result: Result<wyvern_schema::CommandResult, PipelineHostError>,
+) -> Result<String, PipelineError> {
+    emit_stdout(&finish_host_command(result)?).map_err(PipelineError::Emit)
 }
 
 enum PipelineHostError {

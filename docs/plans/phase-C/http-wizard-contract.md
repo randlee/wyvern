@@ -158,6 +158,7 @@ Host updates history cursor; viewer navigates to `url` (or full page reload).
 3. **`finish`:** stdout `stack` = session-derived; stdout `data` = request `data`; client `stack` if present must match or **400** (`StackMismatch`).
 4. **`cancel`:** `stack: []`, `data: {}` always (client `stack` ignored).
 5. **`dismissed`:** stdout `stack` = session-derived full visited stack (same as `finish`); stdout `data` = `{}`.
+6. **`next_wizard` (Phase G g.4 — REQ-0126, ADR-0024):** after stack validation, copy request `next_wizard` onto `WizardResult`. Do not pass it into `WizardSession`. Do not resolve, load, or execute the next wizard (CLI owns the chain). Omitted or null → no copy. Types: [HTTP-TYPES.md](HTTP-TYPES.md) `NextWizard`.
 
 **Finish:**
 
@@ -167,7 +168,11 @@ Host updates history cursor; viewer navigates to `url` (or full page reload).
   "data": { "final": "values" },
   "stack": [
     { "page": { "id": "start" }, "data": { "choice": "a" } }
-  ]
+  ],
+  "next_wizard": {
+    "path": "{wyvern_share}/examples/template-picker/wizard.json",
+    "input": { "from": "welcome" }
+  }
 }
 ```
 
