@@ -8,7 +8,39 @@
 </head>
 <body data-wizard-terminal="true">
   <h1 data-testid="guide-templates">Template wizard</h1>
-  <p>Stub topic page. Full copy and <code>next_wizard</code> chaining ship in g.6.</p>
+  <p class="lead">
+    Wyvern ships a bundled template catalog: pytest, GitHub Actions, NUnit,
+    xUnit, BenchmarkDotNet, and two wizard authoring skeletons. Finish this
+    page to open the picker. Applying a template is automatic
+    <code>workflow.post</code> — there is no shipped <code>cp -R</code>
+    install path.
+  </p>
+  <p>
+    The picker grid is driven by <code>config.templates</code>. Page JavaScript
+    never scans <code>share/wyvern/templates</code>. Finish data includes
+    <code>template_id</code>, <code>variables</code>, and
+    <code>output_path</code>.
+  </p>
+  <nav class="wizard-chrome" data-wizard-nav aria-label="Wizard navigation">
+    <button type="button" class="secondary" data-wizard-back data-testid="wizard-back">
+      Back
+    </button>
+    <button type="button" class="primary" data-wizard-next data-testid="wizard-next">
+      Finish
+    </button>
+  </nav>
+  <p class="error" data-testid="wizard-error" hidden></p>
+  <script>
+    window.collectCurrentPageData = function () {
+      return {};
+    };
+    // Required g.6 next hop (REQ-0126).
+    window.wizardNextWizard = {
+      path: "{wyvern_share}/examples/template-picker/wizard.json",
+      input: { from: "welcome" },
+      ui_root: "{wyvern_share}/examples/template-picker"
+    };
+  </script>
   <script src="/shared/wizard-nav.js" data-wizard-chrome></script>
 </body>
 </html>
