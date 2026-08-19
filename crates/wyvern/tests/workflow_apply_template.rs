@@ -171,22 +171,47 @@ fn dry_run_prints_plan_and_writes_nothing() {
     std::fs::create_dir_all(&repo).unwrap();
     let runner = runner_for(tmp.path(), &repo);
     let dest = repo.join("tests/test_example.py");
+    let finish = finish_template(
+        "pytest",
+        "tests/test_example.py",
+        json!({"module_name": "widgets"}),
+    );
 
     runner
-        .run_post(
-            &post_spec(),
-            &finish_template(
-                "pytest",
-                "tests/test_example.py",
-                json!({"module_name": "widgets"}),
-            ),
-            true,
-        )
+        .run_post(&post_spec(), &finish, true)
         .expect("dry-run post");
     assert!(!dest.exists(), "dry-run must not write {}", dest.display());
     assert!(
         !sidecar_for(&dest).exists(),
         "dry-run must not write sidecar"
+    );
+
+    let output = run_script(&repo, &["--dry-run"], &finish);
+    assert!(
+        output.status.success(),
+        "apply-template --dry-run failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("copy ")
+            && stdout.contains(" -> ")
+            && stdout.contains("test_example.py")
+            && stdout.contains("(create)"),
+        "dry-run stdout must include copy-plan lines: {stdout}"
+    );
+    assert!(
+        stdout.contains("sidecar ") && stdout.contains("test_example.py.wyvern.json"),
+        "dry-run stdout must include sidecar plan: {stdout}"
+    );
+    assert!(
+        !dest.exists(),
+        "script --dry-run must not write {}",
+        dest.display()
+    );
+    assert!(
+        !sidecar_for(&dest).exists(),
+        "script --dry-run must not write sidecar"
     );
 }
 
