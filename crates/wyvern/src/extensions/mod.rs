@@ -64,8 +64,8 @@ pub use match_logic::{
 };
 #[doc(inline)]
 pub use preexec::{
-    binary_on_path, create_tmpdir, run_preexec, PathRequiresProbe, PreexecFailureKind,
-    RequiresProbe,
+    binary_on_path, create_tmpdir, run_preexec, run_script, PathRequiresProbe, PreexecFailureKind,
+    RequiresProbe, ScriptError, ScriptOutput, ScriptRequest,
 };
 
 pub(crate) use match_logic::ends_with_suffix;

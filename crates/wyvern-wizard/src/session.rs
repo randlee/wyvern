@@ -254,6 +254,7 @@ impl WizardSession {
                 button: button.to_button_label(),
                 data: serde_json::json!({}),
                 stack: Vec::new(),
+                next_wizard: None,
             }),
             WizardTerminalButton::Finish | WizardTerminalButton::Dismissed => {
                 let derived = self.history.visited_stack_with_current(data.clone());
@@ -269,6 +270,7 @@ impl WizardSession {
                     button: button.to_button_label(),
                     data: stdout_data,
                     stack: derived,
+                    next_wizard: None,
                 })
             }
         }
@@ -304,6 +306,7 @@ mod tests {
             config: serde_json::json!({"theme": "dark"}),
             width: Some(640),
             height: Some(480),
+            workflow: None,
         }
     }
 

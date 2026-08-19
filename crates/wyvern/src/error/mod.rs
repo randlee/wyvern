@@ -7,7 +7,7 @@ use wyvern_schema::{ErrorCode, FieldName, SerializeError};
 #[doc(inline)]
 pub use emit::{
     emit_extension_error, emit_fatal_internal, emit_host_error, emit_io_error, emit_parse_error,
-    emit_stdout, emit_usage_error, emit_usage_message, emit_validation_error,
+    emit_stdout, emit_usage_error, emit_usage_message, emit_validation_error, emit_workflow_error,
 };
 
 /// Built-in CLI family that owns subcommands (`browsers`, `extensions`).

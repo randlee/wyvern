@@ -135,7 +135,7 @@ fn main() -> ExitCode {
             Err(err) => return emit_extension_stage_failure(&err),
         };
         apply_host_overrides(&mut cli.host, &expanded.host_overrides);
-        let result = run_from_loaded(expanded.command, cli.host);
+        let result = run_from_loaded(expanded.command, cli.host, cli.workflow_dry_run);
         // `expanded.temp_guard` drops after host exit (success or stage error).
         drop(expanded.temp_guard);
         return emit_pipeline_result(result);
@@ -150,7 +150,7 @@ fn main() -> ExitCode {
         Err(err) => return emit_load_stage_failure(&err),
     };
 
-    emit_pipeline_result(run_from_loaded(value, cli.host))
+    emit_pipeline_result(run_from_loaded(value, cli.host, cli.workflow_dry_run))
 }
 
 fn emit_pipeline_result(result: Result<String, PipelineError>) -> ExitCode {

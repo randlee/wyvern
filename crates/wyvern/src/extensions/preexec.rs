@@ -1,6 +1,7 @@
 //! Preexec subprocess spawn, PATH requires-check, and stdout capture.
 
-use std::io::Read;
+use std::ffi::OsString;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdout, Command, ExitStatus, Stdio};
 use std::time::{Duration, Instant};
@@ -163,6 +164,279 @@ pub fn binary_on_path(name: &str) -> bool {
 
 fn candidate_exists(path: &Path) -> bool {
     path.is_file()
+}
+
+/// Subprocess request shared by extension preexec and workflow hooks.
+#[derive(Debug)]
+pub struct ScriptRequest {
+    /// Program name or absolute path.
+    pub program: OsString,
+    /// Arguments after the program.
+    pub args: Vec<OsString>,
+    /// Optional working directory.
+    pub cwd: Option<PathBuf>,
+    /// Extra environment variables (inherited env plus these keys).
+    pub extra_env: Vec<(OsString, OsString)>,
+    /// Optional stdin bytes. `None` uses `/dev/null`.
+    pub stdin: Option<Vec<u8>>,
+    /// When true, capture stdout (capped) instead of discarding it.
+    pub capture_stdout: bool,
+    /// Kill the child after this duration.
+    pub timeout: Duration,
+}
+
+/// Successful wait outcome for [`run_script`].
+#[derive(Debug)]
+pub struct ScriptOutput {
+    /// Captured stdout when requested.
+    pub stdout: Option<String>,
+    /// Last 4 KiB of child stderr.
+    pub stderr_tail: String,
+    /// Child exit status.
+    pub status: ExitStatus,
+}
+
+/// Failure from [`run_script`] (spawn, timeout, wait, or stdout capture).
+#[derive(Debug)]
+pub enum ScriptError {
+    /// Program was not found on PATH or as an absolute file.
+    SpawnNotFound {
+        /// Program token.
+        cmd: String,
+        /// Underlying I/O error.
+        source: std::io::Error,
+    },
+    /// Spawn failed for a reason other than not-found.
+    Spawn {
+        /// Program token.
+        cmd: String,
+        /// Underlying I/O error.
+        source: std::io::Error,
+    },
+    /// Child exceeded `timeout`.
+    Timeout {
+        /// Program token.
+        cmd: String,
+        /// Timeout in seconds.
+        timeout_secs: u64,
+        /// Stderr collected before kill.
+        stderr_tail: String,
+    },
+    /// `wait` failed after spawn.
+    Wait {
+        /// Program token.
+        cmd: String,
+        /// Underlying I/O error.
+        source: std::io::Error,
+    },
+    /// Stdout could not be read or was not UTF-8 / exceeded the cap.
+    Stdout {
+        /// Program token.
+        cmd: String,
+        /// Human-readable cause.
+        cause: String,
+    },
+    /// Helper thread could not be started.
+    Thread {
+        /// Human-readable cause.
+        message: String,
+    },
+}
+
+impl std::fmt::Display for ScriptError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::SpawnNotFound { cmd, source } => {
+                write!(f, "failed to spawn '{cmd}': {source}")
+            }
+            Self::Spawn { cmd, source } => write!(f, "failed to spawn '{cmd}': {source}"),
+            Self::Timeout {
+                cmd, timeout_secs, ..
+            } => write!(f, "{cmd} timed out after {timeout_secs}s"),
+            Self::Wait { cmd, source } => write!(f, "{cmd} wait failed: {source}"),
+            Self::Stdout { cmd, cause } => write!(f, "{cmd} stdout: {cause}"),
+            Self::Thread { message } => write!(f, "{message}"),
+        }
+    }
+}
+
+impl std::error::Error for ScriptError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::SpawnNotFound { source, .. }
+            | Self::Spawn { source, .. }
+            | Self::Wait { source, .. } => Some(source),
+            _ => None,
+        }
+    }
+}
+
+/// Spawn a subprocess with timeout, optional stdin, and stderr tail.
+///
+/// Workflow hooks and extension preexec share this helper so `workflow/` does
+/// not grow a second `Command::new` stack (ADR-0023).
+///
+/// # Errors
+///
+/// Returns [`ScriptError`] when the process cannot be spawned, times out,
+/// exceeds the stdout cap, or wait/IO fails.
+pub fn run_script(request: &ScriptRequest) -> Result<ScriptOutput, ScriptError> {
+    let cmd = request.program.to_string_lossy().into_owned();
+    let mut child_cmd = Command::new(&request.program);
+    child_cmd.args(&request.args);
+    if let Some(cwd) = &request.cwd {
+        child_cmd.current_dir(cwd);
+    }
+    for (key, value) in &request.extra_env {
+        child_cmd.env(key, value);
+    }
+    child_cmd.stderr(Stdio::piped());
+    if request.capture_stdout {
+        child_cmd.stdout(Stdio::piped());
+    } else {
+        child_cmd.stdout(Stdio::null());
+    }
+    if request.stdin.is_some() {
+        child_cmd.stdin(Stdio::piped());
+    } else {
+        child_cmd.stdin(Stdio::null());
+    }
+
+    let mut child = child_cmd.spawn().map_err(|err| {
+        if err.kind() == std::io::ErrorKind::NotFound {
+            ScriptError::SpawnNotFound {
+                cmd: cmd.clone(),
+                source: err,
+            }
+        } else {
+            ScriptError::Spawn {
+                cmd: cmd.clone(),
+                source: err,
+            }
+        }
+    })?;
+
+    if let Some(data) = &request.stdin {
+        if let Some(mut stdin) = child.stdin.take() {
+            if let Err(err) = stdin.write_all(data) {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(ScriptError::Spawn { cmd, source: err });
+            }
+        }
+    }
+
+    let stderr_reader = spawn_stderr_reader(&mut child).map_err(|err| ScriptError::Thread {
+        message: err.to_string(),
+    })?;
+    let deadline = Instant::now() + request.timeout;
+
+    if request.capture_stdout {
+        let stdout = child.stdout.take().ok_or_else(|| ScriptError::Stdout {
+            cmd: cmd.clone(),
+            cause: "failed to capture stdout".into(),
+        })?;
+        let cmd_owned = cmd.clone();
+        let (tx, rx) = std::sync::mpsc::channel();
+        let reader = std::thread::Builder::new()
+            .name("script-stdout".into())
+            .spawn(move || {
+                let _ = tx.send(read_capped_stdout(&cmd_owned, stdout));
+            })
+            .map_err(|err| ScriptError::Thread {
+                message: format!("thread spawn failed: {err}"),
+            })?;
+
+        match rx.recv_timeout(request.timeout) {
+            Ok(Ok(raw)) => {
+                let grace_deadline = Instant::now() + Duration::from_millis(500);
+                let status = match wait_until(&mut child, &cmd, grace_deadline, request.timeout) {
+                    Ok(status) => status,
+                    Err(err) => {
+                        let _ = reader.join();
+                        let stderr = join_stderr(stderr_reader);
+                        return Err(map_wait_error(err, stderr));
+                    }
+                };
+                let _ = reader.join();
+                let stderr_tail = join_stderr(stderr_reader);
+                let stdout = String::from_utf8(raw).map_err(|err| ScriptError::Stdout {
+                    cmd: cmd.clone(),
+                    cause: format!("not valid UTF-8: {err}"),
+                })?;
+                Ok(ScriptOutput {
+                    stdout: Some(stdout),
+                    stderr_tail,
+                    status,
+                })
+            }
+            Ok(Err(err)) => {
+                reap_killed(&mut child, reader);
+                let _ = join_stderr(stderr_reader);
+                Err(ScriptError::Stdout {
+                    cmd,
+                    cause: err.to_string(),
+                })
+            }
+            Err(_) => {
+                reap_killed(&mut child, reader);
+                let stderr_tail = join_stderr(stderr_reader);
+                Err(ScriptError::Timeout {
+                    cmd,
+                    timeout_secs: request.timeout.as_secs(),
+                    stderr_tail,
+                })
+            }
+        }
+    } else {
+        let status = match wait_until(&mut child, &cmd, deadline, request.timeout) {
+            Ok(status) => status,
+            Err(err) => {
+                let stderr = join_stderr(stderr_reader);
+                return Err(map_wait_error(err, stderr));
+            }
+        };
+        let stderr_tail = join_stderr(stderr_reader);
+        Ok(ScriptOutput {
+            stdout: None,
+            stderr_tail,
+            status,
+        })
+    }
+}
+
+fn map_wait_error(err: ExtensionError, stderr_tail: String) -> ScriptError {
+    match err {
+        ExtensionError::Preexec {
+            kind: Some(PreexecFailureKind::Timeout { cmd, timeout_secs }),
+            ..
+        } => ScriptError::Timeout {
+            cmd,
+            timeout_secs,
+            stderr_tail,
+        },
+        ExtensionError::Preexec {
+            message, source, ..
+        } => {
+            if let Some(source) =
+                source.and_then(|s| s.downcast::<std::io::Error>().ok().map(|b| *b))
+            {
+                ScriptError::Wait {
+                    cmd: message,
+                    source,
+                }
+            } else {
+                ScriptError::Wait {
+                    cmd: message,
+                    source: std::io::Error::other("wait failed"),
+                }
+            }
+        }
+        other => ScriptError::Wait {
+            cmd: other.to_string(),
+            source: std::io::Error::other(other.to_string()),
+        },
+    }
 }
 
 /// Runs the extension preexec command. On timeout the child is killed so a

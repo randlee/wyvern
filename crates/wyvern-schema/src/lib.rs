@@ -56,8 +56,8 @@ pub use stderr::{SerializeError, StderrError};
 pub use validate::{validate, MARKDOWN_CONTENT_MAX_BYTES};
 #[doc(inline)]
 pub use wizard::{
-    WizardCommand, WizardFinishRequest, WizardNavAction, WizardNavigateRequest,
+    NextWizard, WizardCommand, WizardFinishRequest, WizardNavAction, WizardNavigateRequest,
     WizardNavigateResponse, WizardPageDescriptor, WizardPageFieldError, WizardPageHtml,
     WizardPageId, WizardPageLayout, WizardPageTitle, WizardResult, WizardStackEntry,
-    WizardStateResponse, WizardTerminalButton,
+    WizardStateResponse, WizardTerminalButton, WorkflowSpec,
 };

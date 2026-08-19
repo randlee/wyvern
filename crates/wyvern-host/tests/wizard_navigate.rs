@@ -71,6 +71,7 @@ fn wizard_command() -> Command {
         config: serde_json::json!({"theme": "dark"}),
         width: Some(640),
         height: Some(480),
+        workflow: None,
     })
 }
 

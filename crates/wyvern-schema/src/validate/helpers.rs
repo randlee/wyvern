@@ -56,8 +56,12 @@ pub(super) const MARKDOWN_FIELDS: &[&str] = &[
 /// Allowed fields on a `question` command object (b.7).
 pub(super) const QUESTION_FIELDS: &[&str] = &["type", "questions", "width", "height"];
 
-/// Allowed fields on a `wizard` command object (d.1).
-pub(super) const WIZARD_FIELDS: &[&str] = &["type", "page", "config", "width", "height"];
+/// Allowed fields on a `wizard` command object (d.1 + g.4 `workflow`).
+pub(super) const WIZARD_FIELDS: &[&str] =
+    &["type", "page", "config", "width", "height", "workflow"];
+
+/// Allowed fields on `wizard.workflow`.
+pub(super) const WIZARD_WORKFLOW_FIELDS: &[&str] = &["pre", "post"];
 
 /// Allowed fields on `wizard.page`.
 pub(super) const WIZARD_PAGE_FIELDS: &[&str] = &["id", "title", "html", "layout"];

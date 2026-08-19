@@ -167,6 +167,50 @@ pub struct WizardStackEntry {
     pub data: serde_json::Value,
 }
 
+/// CLI workflow hooks on a wizard command (REQ-0124 / REQ-0125, ADR-0023).
+///
+/// Host ignores this field. The CLI runs `pre` after validate and `post` after
+/// a `finish` button, before honoring `next_wizard`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct WorkflowSpec {
+    /// Script path run after validate and before host bind.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pre: Option<String>,
+    /// Script path run after `button: "finish"`, with finish JSON on stdin.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub post: Option<String>,
+}
+
+/// Default `next_wizard.input` is an empty JSON object.
+fn default_next_wizard_input() -> serde_json::Value {
+    serde_json::json!({})
+}
+
+/// CLI chain hop requested on wizard finish (REQ-0126, ADR-0024).
+///
+/// Host copies this field through and does not resolve or execute it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NextWizard {
+    /// Wizard JSON path; `{wyvern_share}` and relative paths are resolved by the CLI.
+    pub path: String,
+    /// Deep-merged into the next wizard `config` before `workflow.pre`.
+    #[serde(default = "default_next_wizard_input")]
+    pub input: serde_json::Value,
+    /// Optional UI root; when omitted the CLI infers the wizard directory.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ui_root: Option<String>,
+}
+
+impl Default for NextWizard {
+    fn default() -> Self {
+        Self {
+            path: String::new(),
+            input: default_next_wizard_input(),
+            ui_root: None,
+        }
+    }
+}
+
 /// Validated wizard ingress after schema validation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WizardCommand {
@@ -178,10 +222,12 @@ pub struct WizardCommand {
     pub width: Option<u32>,
     /// Optional viewer height hint.
     pub height: Option<u32>,
+    /// Optional CLI workflow hooks (host ignores).
+    pub workflow: Option<WorkflowSpec>,
 }
 
 /// Wizard stdout / finish body shape (REQ-0066).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WizardResult {
     /// Terminal button (`finish` | `cancel` | `dismissed`).
     pub button: ButtonLabel,
@@ -189,6 +235,9 @@ pub struct WizardResult {
     pub data: serde_json::Value,
     /// Visited stack (semantics finalized in d.2).
     pub stack: Vec<WizardStackEntry>,
+    /// Optional chain hop (host copies; CLI consumes and omits from final stdout).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub next_wizard: Option<NextWizard>,
 }
 
 impl WizardResult {
@@ -202,6 +251,7 @@ impl WizardResult {
             button: ButtonLabel::dismissed(),
             data: serde_json::json!({}),
             stack: Vec::new(),
+            next_wizard: None,
         }
     }
 }
@@ -322,6 +372,9 @@ pub struct WizardFinishRequest {
     pub data: serde_json::Value,
     /// Client-supplied full visited stack (validated for finish / dismissed).
     pub stack: Vec<WizardStackEntry>,
+    /// Optional chain hop copied onto [`WizardResult`] after stack validation.
+    #[serde(default)]
+    pub next_wizard: Option<NextWizard>,
 }
 
 #[cfg(test)]
@@ -389,6 +442,16 @@ mod tests {
             Some("step-2")
         );
         assert_eq!(req.next.as_ref().unwrap().id.as_str(), "step-2");
+    }
+
+    #[test]
+    fn next_wizard_input_defaults_to_empty_object() {
+        let parsed: NextWizard = serde_json::from_value(serde_json::json!({
+            "path": "{wyvern_share}/welcome/wizard.json"
+        }))
+        .expect("deserialize");
+        assert_eq!(parsed.input, serde_json::json!({}));
+        assert!(parsed.ui_root.is_none());
     }
 
     #[test]
