@@ -6,50 +6,32 @@
   <title>Review DAG</title>
   <link rel="stylesheet" href="/shared/embedded-chrome.css" />
   <link rel="stylesheet" href="/shared/wizard-chrome.css" />
+  <link rel="stylesheet" href="/wizard/styles.css" />
   <script src="/shared/wyvern-api.js"></script>
-  <style>
-    .dag-graph {
-      border: 1px solid #cbd5e1;
-      border-radius: 8px;
-      padding: 12px 16px;
-      margin: 16px 0;
-      background: #f8fafc;
-    }
-    .dag-graph ol { margin: 8px 0 0; padding-left: 1.2rem; }
-    .dag-meta { color: #475569; font-size: 0.9rem; }
-  </style>
+  <script src="/wizard/stack-merge.js"></script>
 </head>
 <body>
-  <main
-    id="dialog"
-    class="dialog dialog--frame"
-    data-wizard-terminal="true"
-    data-testid="agent-dag-review"
-  >
-    <h1 data-testid="agent-dag-review-heading">Review DAG</h1>
-    <p class="lead">
-      Finish writes <code>wyvern-dag-export.json</code> via
-      <code>export-agent-dag.py</code>. There is no Run DAG control —
-      execution is deferred.
-    </p>
-    <p class="dag-meta">
-      Layout: <strong data-testid="review-layout-id">—</strong>
-    </p>
-    <div class="dag-graph" data-testid="dag-graph" aria-label="DAG graph">
-      <div data-testid="review-nodes">—</div>
-      <ol data-testid="review-edges"></ol>
+  <main id="dialog" class="dialog dialog--frame dialog--scrollable" data-testid="agent-dag-review" data-wizard-terminal="true">
+    <div class="content">
+      <h1 data-testid="review-heading">Review DAG</h1>
+      <p class="lead">
+        Finish writes <code>wyvern-dag-export.json</code> via
+        <code>export-agent-dag.py</code>. There is no Run DAG control —
+        execution is deferred.
+      </p>
+      <p class="summary__meta">
+        Layout: <strong data-testid="review-layout-id">—</strong>
+      </p>
+      <div data-testid="review-graph-summary"></div>
+      <ul class="summary" data-testid="review-node-summary"></ul>
+      <ol data-testid="review-edges" hidden></ol>
     </div>
-    <nav class="wizard-chrome" data-wizard-nav aria-label="Wizard navigation">
-      <button type="button" class="secondary" data-wizard-back data-testid="wizard-back">
-        Back
-      </button>
-      <button type="button" class="primary" data-wizard-next data-testid="wizard-next">
-        Finish
-      </button>
-    </nav>
-    <p class="wizard-error" data-testid="wizard-error" hidden></p>
+    <div class="actions">
+      <button type="button" class="secondary" data-testid="review-back">Back</button>
+      <button type="button" class="primary" data-testid="review-finish">Finish</button>
+    </div>
+    <p class="error" data-testid="wizard-error" hidden></p>
   </main>
-  <script src="../app.js"></script>
-  <script src="/shared/wizard-nav.js" data-wizard-chrome></script>
+  <script src="/wizard/app.js"></script>
 </body>
 </html>

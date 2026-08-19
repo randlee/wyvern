@@ -53,7 +53,8 @@ fn cli_resolves_welcome_agent_dag_hop() {
         .expect("hop");
     assert_eq!(next.input, json!({ "from": "welcome" }));
     assert_eq!(next.command["type"], "wizard");
-    assert_eq!(next.command["page"]["id"], "layout");
+    assert_eq!(next.command["page"]["id"], "canvas");
+    assert_eq!(next.command["page"]["layout"], "workspace");
     assert_eq!(
         next.command["workflow"]["post"],
         "{wyvern_share}/scripts/ext/export-agent-dag.py"

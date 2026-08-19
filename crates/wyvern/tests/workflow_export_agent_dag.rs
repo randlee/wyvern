@@ -64,13 +64,11 @@ fn pair_dag() -> Value {
     json!({
         "layout_id": "pair",
         "nodes": [
-            { "id": "agent-1", "name": "planner", "role": "plan" },
-            { "id": "agent-2", "name": "reviewer", "role": "review" }
+            { "id": "node-1", "name": "planner", "role": "plan" },
+            { "id": "node-2", "name": "reviewer", "role": "review" }
         ],
         "edges": [
-            ["layout-picker", "agent-1"],
-            ["agent-1", "agent-2"],
-            ["agent-2", "finish"]
+            ["node-1", "node-2"]
         ]
     })
 }
@@ -147,7 +145,8 @@ fn shipped_wizard_declares_post_and_has_no_execute_hook() {
     let raw = std::fs::read_to_string(&wizard_path).unwrap();
     let wizard: Value = serde_json::from_str(&raw).unwrap();
     wyvern_schema::validate(&wizard).expect("wizard schema");
-    assert_eq!(wizard["page"]["id"], "layout");
+    assert_eq!(wizard["page"]["id"], "canvas");
+    assert_eq!(wizard["page"]["layout"], "workspace");
     assert_eq!(
         wizard["workflow"]["post"],
         "{wyvern_share}/scripts/ext/export-agent-dag.py"
@@ -165,11 +164,20 @@ fn shipped_wizard_declares_post_and_has_no_execute_hook() {
     assert_eq!(layouts[1]["agents"], 2);
     assert_eq!(layouts[2]["agents"], 3);
 
-    let app = std::fs::read_to_string(workspace_share().join("examples/agent-dag/app.js")).unwrap();
+    let example = workspace_share().join("examples/agent-dag");
+    let canvas = std::fs::read_to_string(example.join("pages/canvas.html")).unwrap();
+    assert!(
+        canvas.contains("turbo-flow-canvas") && canvas.contains("/wizard/dist/canvas.js"),
+        "agent-dag must embed the turbo-flow canvas bundle"
+    );
+    assert!(example.join("dist/canvas.js").is_file());
+    assert!(example.join("stack-merge.js").is_file());
+
+    let app = std::fs::read_to_string(example.join("app.js")).unwrap();
     assert!(app.contains("config.layouts") || app.contains("config && config.layouts"));
     assert!(
-        app.contains("data.dag") || app.contains("dag:"),
-        "page JS must assemble data.dag"
+        app.contains("assembleDag") && (app.contains("data.dag") || app.contains("dag:")),
+        "page JS must assemble data.dag from the turbo-flow graph"
     );
     assert_no_execute_hook(&raw, "wizard.json");
     assert_no_execute_hook(&app, "app.js");
