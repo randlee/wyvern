@@ -1,7 +1,8 @@
 //! `--invoke`: PreToolUse stdin → question envelope → REQ-0067 answers.
 
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::process::Stdio;
 
 use serde_json::{json, Value};
 
@@ -13,7 +14,24 @@ fn apply_script() -> PathBuf {
     workspace_root().join("scripts/ext/apply-askuserquestion-hook.py")
 }
 
-fn write_script(dir: &std::path::Path, name: &str, body: &str) -> PathBuf {
+fn resolve_python() -> &'static str {
+    for name in ["python3", "py", "python"] {
+        if std::process::Command::new(name)
+            .arg("-c")
+            .arg("import sys")
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .map(|status| status.success())
+            .unwrap_or(false)
+        {
+            return name;
+        }
+    }
+    panic!("python3, py, or python is required for AskUserQuestion invoke tests");
+}
+
+fn write_bytes(dir: &Path, name: &str, body: &[u8]) -> PathBuf {
     let path = dir.join(name);
     std::fs::write(&path, body).expect("write mock");
     #[cfg(unix)]
@@ -24,6 +42,39 @@ fn write_script(dir: &std::path::Path, name: &str, body: &str) -> PathBuf {
         std::fs::set_permissions(&path, perms).unwrap();
     }
     path
+}
+
+fn mock_wyvern(dir: &Path, captured: &Path) -> PathBuf {
+    let captured_lit = captured.to_string_lossy().replace('\\', "/");
+    let py_body = format!(
+        r#"import json, sys
+open(r"{captured_lit}", "w").write(sys.argv[1])
+envelope = json.loads(sys.argv[1])
+assert envelope["type"] == "question"
+print(json.dumps({{
+    "questions": envelope["questions"],
+    "answers": {{ envelope["questions"][0]["question"]: "A" }},
+    "response": ""
+}}))
+"#
+    );
+
+    #[cfg(unix)]
+    {
+        write_bytes(
+            dir,
+            "mock-wyvern",
+            format!("#!/usr/bin/env python3\n{py_body}").as_bytes(),
+        )
+    }
+
+    #[cfg(windows)]
+    {
+        let py_path = write_bytes(dir, "mock-wyvern.py", py_body.as_bytes());
+        let python = resolve_python();
+        let cmd = format!("@echo off\r\n\"{python}\" \"{}\" %*\r\n", py_path.display());
+        write_bytes(dir, "mock-wyvern.cmd", cmd.as_bytes())
+    }
 }
 
 fn sample_pretool_use() -> Value {
@@ -43,36 +94,14 @@ fn sample_pretool_use() -> Value {
     })
 }
 
-#[test]
-fn invoke_maps_pretooluse_to_question_answers() {
-    let tmp = tempfile::tempdir().unwrap();
-    let captured = tmp.path().join("envelope.json");
-    let mock = write_script(
-        tmp.path(),
-        "mock-wyvern",
-        &format!(
-            r#"#!/usr/bin/env python3
-import json, sys
-open({:?}, "w").write(sys.argv[1])
-envelope = json.loads(sys.argv[1])
-assert envelope["type"] == "question"
-print(json.dumps({{
-    "questions": envelope["questions"],
-    "answers": {{ envelope["questions"][0]["question"]: "A" }},
-    "response": ""
-}}))
-"#,
-            captured
-        ),
-    );
-
-    let mut child = std::process::Command::new("python3")
+fn run_invoke(wyvern_bin: &Path) -> std::process::Output {
+    let mut child = std::process::Command::new(resolve_python())
         .arg(apply_script())
         .arg("--invoke")
-        .env("WYVERN_BIN", &mock)
-        .stdin(std::process::Stdio::piped())
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
+        .env("WYVERN_BIN", wyvern_bin)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .spawn()
         .expect("spawn invoke");
     child
@@ -81,7 +110,16 @@ print(json.dumps({{
         .expect("stdin")
         .write_all(sample_pretool_use().to_string().as_bytes())
         .expect("stdin write");
-    let output = child.wait_with_output().expect("wait");
+    child.wait_with_output().expect("wait")
+}
+
+#[test]
+fn invoke_maps_pretooluse_to_question_answers() {
+    let tmp = tempfile::tempdir().unwrap();
+    let captured = tmp.path().join("envelope.json");
+    let mock = mock_wyvern(tmp.path(), &captured);
+
+    let output = run_invoke(&mock);
     assert!(
         output.status.success(),
         "invoke failed: {}",
@@ -103,13 +141,14 @@ print(json.dumps({{
 
 #[test]
 fn invoke_refuses_python_as_wyvern_bin() {
-    let output = std::process::Command::new("python3")
+    let python = resolve_python();
+    let output = std::process::Command::new(python)
         .arg(apply_script())
         .arg("--invoke")
-        .env("WYVERN_BIN", "python3")
-        .stdin(std::process::Stdio::piped())
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
+        .env("WYVERN_BIN", python)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .spawn()
         .and_then(|mut child| {
             child

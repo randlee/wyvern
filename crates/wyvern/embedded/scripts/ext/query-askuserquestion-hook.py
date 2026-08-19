@@ -11,6 +11,7 @@ import argparse
 import json
 import os
 import sys
+from pathlib import Path
 from typing import Any
 
 MANAGED_BY = "wyvern:askuserquestion-hook"
@@ -95,8 +96,20 @@ def scope_state(settings_path: str) -> dict[str, bool]:
     return {"enabled": present, "installed": present}
 
 
+def resolve_home() -> str | None:
+    """WYVERN_HOME, then HOME, then USERPROFILE, then Path.home()."""
+    for key in ("WYVERN_HOME", "HOME", "USERPROFILE"):
+        value = os.environ.get(key)
+        if value:
+            return value
+    try:
+        return str(Path.home())
+    except (RuntimeError, OSError):
+        return None
+
+
 def hook_state() -> dict[str, Any]:
-    home = os.environ.get("HOME")
+    home = resolve_home()
     repo = os.environ.get("WYVERN_REPO_ROOT") or os.getcwd()
     global_path = os.path.join(home, ".claude", "settings.json") if home else ""
     repo_path = os.path.join(repo, ".claude", "settings.local.json")

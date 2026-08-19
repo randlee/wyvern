@@ -119,6 +119,8 @@ pub struct WorkflowRunner {
     pub allowlist: Allowlist,
     /// Script timeout (normally [`WORKFLOW_SCRIPT_TIMEOUT`]).
     pub timeout: Duration,
+    /// Extra child env merged after the standard workflow env (tests: `WYVERN_HOME`).
+    pub extra_env: Vec<(OsString, OsString)>,
 }
 
 impl WorkflowRunner {
@@ -188,7 +190,8 @@ impl WorkflowRunner {
                 cause: "script argv was empty".into(),
             })?;
         let args = argv.into_iter().skip(1).collect::<Vec<_>>();
-        let extra_env = workflow_env(&self.allowlist)?;
+        let mut extra_env = workflow_env(&self.allowlist)?;
+        extra_env.extend(self.extra_env.iter().cloned());
         let request = ScriptRequest {
             program,
             args,
@@ -381,19 +384,23 @@ impl WorkflowError {
     }
 }
 
-/// Build argv for a canonical script path. `.py` → `python3 <path>`.
+/// Build argv for a canonical script path. `.py` → `python3`/`py`/`python` `<path>`.
 fn script_argv(canonical: &Path) -> Result<Vec<OsString>, WorkflowError> {
     if canonical.extension() == Some(OsStr::new("py")) {
-        if !binary_on_path("python3") {
-            return Err(WorkflowError::MissingPython3);
-        }
-        Ok(vec![
-            OsString::from("python3"),
-            canonical.as_os_str().to_os_string(),
-        ])
+        let python = resolve_python_program().ok_or(WorkflowError::MissingPython3)?;
+        Ok(vec![python, canonical.as_os_str().to_os_string()])
     } else {
         Ok(vec![canonical.as_os_str().to_os_string()])
     }
+}
+
+fn resolve_python_program() -> Option<OsString> {
+    for name in ["python3", "py", "python"] {
+        if binary_on_path(name) {
+            return Some(OsString::from(name));
+        }
+    }
+    None
 }
 
 fn workflow_env(allowlist: &Allowlist) -> Result<Vec<(OsString, OsString)>, WorkflowError> {
@@ -472,7 +479,11 @@ fn parse_config_patch(stdout: &str) -> Result<Value, WorkflowError> {
 fn map_script_error(err: ScriptError) -> WorkflowError {
     match err {
         ScriptError::Timeout { stderr_tail, .. } => WorkflowError::Timeout { stderr_tail },
-        ScriptError::SpawnNotFound { cmd, .. } if cmd == "python3" => WorkflowError::MissingPython3,
+        ScriptError::SpawnNotFound { cmd, .. }
+            if matches!(cmd.as_str(), "python3" | "py" | "python") =>
+        {
+            WorkflowError::MissingPython3
+        }
         ScriptError::SpawnNotFound { cmd, source } | ScriptError::Spawn { cmd, source } => {
             WorkflowError::Resolve {
                 path: cmd,

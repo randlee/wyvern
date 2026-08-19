@@ -48,6 +48,7 @@ fn runner_for(tmp: &Path, share: PathBuf) -> WorkflowRunner {
             wizard_dir: tmp.to_path_buf(),
         },
         timeout: WORKFLOW_SCRIPT_TIMEOUT,
+        extra_env: Vec::new(),
     }
 }
 

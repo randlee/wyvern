@@ -140,6 +140,7 @@ fn two_fixture_chain_omits_next_wizard_on_stdout() {
             wizard_dir: a_root.clone(),
         },
         timeout: WORKFLOW_SCRIPT_TIMEOUT,
+        extra_env: Vec::new(),
     };
     let host = host_options(a_root, url_file.clone());
     let handle = thread::spawn(move || run_wizard_workflow_loop(command, host, &runner, false));

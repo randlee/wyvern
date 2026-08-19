@@ -69,6 +69,7 @@ pub fn run_from_loaded(
                 wizard_dir: host.ui_root.clone(),
             },
             timeout: WORKFLOW_SCRIPT_TIMEOUT,
+            extra_env: Vec::new(),
         };
         return run_wizard_workflow_loop(value, host, &runner, dry_run);
     }
@@ -134,6 +135,7 @@ pub fn run_wizard_workflow_loop(
         let hop_runner = WorkflowRunner {
             allowlist: allowlist.clone(),
             timeout: runner.timeout,
+            extra_env: runner.extra_env.clone(),
         };
         hop_runner
             .run_pre(&spec, &mut wizard.config, dry_run)

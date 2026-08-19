@@ -11,9 +11,11 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 from typing import Any
 
 MANAGED_BY = "wyvern:askuserquestion-hook"
@@ -111,11 +113,18 @@ def strip_managed(settings: dict[str, Any]) -> dict[str, Any]:
 
 
 def resolve_python() -> str:
-    for name in ("python3", "py"):
+    for name in ("python3", "py", "python"):
         found = shutil.which(name)
         if found:
             return os.path.abspath(found)
     return "python3"
+
+
+def quote_hook_token(token: str) -> str:
+    """Quote one argv token for Claude Code's hook ``command`` string."""
+    if os.name == "nt":
+        return subprocess.list2cmdline([token])
+    return shlex.quote(token)
 
 
 def resolve_apply_script() -> str:
@@ -125,7 +134,32 @@ def resolve_apply_script() -> str:
 def hook_command() -> str:
     python = resolve_python()
     script = resolve_apply_script()
-    return f"{python} {script} --invoke"
+    return f"{quote_hook_token(python)} {quote_hook_token(script)} --invoke"
+
+
+def resolve_home() -> str | None:
+    """WYVERN_HOME, then HOME, then USERPROFILE, then Path.home()."""
+    for key in ("WYVERN_HOME", "HOME", "USERPROFILE"):
+        value = os.environ.get(key)
+        if value:
+            return value
+    try:
+        return str(Path.home())
+    except (RuntimeError, OSError):
+        return None
+
+
+def is_python_interpreter(path: str) -> bool:
+    base = os.path.basename(path).lower()
+    stem, ext = os.path.splitext(base)
+    if ext in {".exe", ".bat", ".cmd"}:
+        base = stem
+    if base in {"python", "python3", "py"}:
+        return True
+    try:
+        return os.path.realpath(path) == os.path.realpath(sys.executable)
+    except OSError:
+        return False
 
 
 def managed_entry() -> dict[str, Any]:
@@ -228,7 +262,7 @@ def write_sidecar(settings_path: str, wyvern_bin: str | None, dry_run: bool) -> 
 
 
 def read_sidecar_bin() -> str | None:
-    home = os.environ.get("HOME")
+    home = resolve_home()
     repo = os.environ.get("WYVERN_REPO_ROOT") or os.getcwd()
     candidates = []
     if home:
@@ -246,7 +280,7 @@ def read_sidecar_bin() -> str | None:
 
 
 def scope_paths() -> tuple[str | None, str]:
-    home = os.environ.get("HOME")
+    home = resolve_home()
     repo = os.environ.get("WYVERN_REPO_ROOT") or os.getcwd()
     global_path = os.path.join(home, ".claude", "settings.json") if home else None
     repo_path = os.path.join(repo, ".claude", "settings.local.json")
@@ -276,7 +310,9 @@ def apply_scope(
 ) -> None:
     if settings_path is None:
         if enabled and require_home:
-            raise ValueError("HOME is required to apply the global AskUserQuestion hook")
+            raise ValueError(
+                "WYVERN_HOME, HOME, or USERPROFILE is required to apply the global AskUserQuestion hook"
+            )
         return
     if not enabled:
         if not os.path.isfile(settings_path):
@@ -342,7 +378,7 @@ def invoke_from_stdin(raw: str) -> int:
             file=sys.stderr,
         )
         return 1
-    if os.path.basename(wyvern_bin) in {"python", "python3", "py"} or wyvern_bin == sys.executable:
+    if is_python_interpreter(wyvern_bin):
         print(
             "apply-askuserquestion-hook: refusing to exec a Python interpreter as WYVERN_BIN",
             file=sys.stderr,
