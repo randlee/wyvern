@@ -58,6 +58,18 @@
     return null;
   }
 
+  /** Optional CLI hop: function or plain object on `wizardNextWizard` (REQ-0126). */
+  function resolveNextWizard() {
+    var supplied = global.wizardNextWizard;
+    if (typeof supplied === "function") {
+      return supplied();
+    }
+    if (supplied && typeof supplied === "object") {
+      return supplied;
+    }
+    return null;
+  }
+
   function isTerminalPage() {
     return !!document.querySelector("[data-wizard-terminal='true']");
   }
@@ -149,11 +161,16 @@
       if (typeof global.wyvernWizardFinish !== "function") {
         throw new Error("wizard-nav: wyvernWizardFinish is not available");
       }
-      await global.wyvernWizardFinish({
+      var finishOpts = {
         button: "finish",
         data: data,
         stack: buildFinishStack(data),
-      });
+      };
+      var nextWizard = resolveNextWizard();
+      if (nextWizard) {
+        finishOpts.next_wizard = nextWizard;
+      }
+      await global.wyvernWizardFinish(finishOpts);
       return;
     }
     if (typeof global.wyvernWizardNext !== "function") {

@@ -750,16 +750,22 @@
   }
 
   /**
-   * Terminal finish. `opts` = `{ button, data, stack }` where `stack` is the full
-   * visited stack (`window.wyvern.stack` + current `{ page, data }`).
+   * Terminal finish. `opts` = `{ button, data, stack, next_wizard? }` where
+   * `stack` is the full visited stack (`window.wyvern.stack` + current
+   * `{ page, data }`). Optional `next_wizard` is copied by the host (g.4)
+   * and resolved by the CLI (REQ-0126).
    */
   async function wyvernWizardFinish(opts) {
     opts = opts || {};
-    const json = JSON.stringify({
+    const payload = {
       button: opts.button,
       data: opts.data,
       stack: opts.stack,
-    });
+    };
+    if (opts.next_wizard) {
+      payload.next_wizard = opts.next_wizard;
+    }
+    const json = JSON.stringify(payload);
     if (typeof navigator.sendBeacon === "function") {
       const blob = new Blob([json], { type: "application/json" });
       if (navigator.sendBeacon("/api/wizard/finish", blob)) {
