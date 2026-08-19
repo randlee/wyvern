@@ -39,7 +39,7 @@ Ship `wyvern guide` (REQ-0127) and the CLI workflow foundation used by g.5–g.7
 | `crates/wyvern/tests/workflow_chain.rs` | Two-fixture chain; 17th hop fails; stdout omits `next_wizard` |
 | `crates/wyvern/tests/guide_extension.rs` | `wyvern guide` expands welcome `wizard.json` |
 | `crates/wyvern-host/tests/wizard_next_wizard_passthrough.rs` | Finish request with `next_wizard` is copied onto `WizardResult` |
-| `share/wyvern/welcome/` | Hub `wizard.json`, home page, four **stub** topic pages (full copy + `next_wizard` in g.5–g.7) |
+| `share/wyvern/welcome/` | Hub `wizard.json`, home page, four topic pages — Overview is a **terminal** page with Back/Finish chrome (`data-wizard-terminal="true"`); AskUserQuestion, Template wizard, and Agent DAG remain **stubs** (full copy + `next_wizard` in g.5–g.7) |
 | `share/wyvern/extensions.json` | `guide` argv-prefix entry |
 
 ### Boundary contracts
