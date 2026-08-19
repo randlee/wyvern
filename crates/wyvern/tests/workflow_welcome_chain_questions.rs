@@ -29,6 +29,10 @@ fn questions_page_emits_required_next_wizard() {
     assert!(html.contains("{wyvern_share}/examples/askuserquestion-hook/wizard.json"));
     assert!(html.contains("{wyvern_share}/examples/askuserquestion-hook"));
     assert!(html.contains(r#""from": "welcome""#) || html.contains("from: \"welcome\""));
+    assert!(
+        html.contains("reloads the wizard host"),
+        "welcome topic must document that next_wizard reloads the host window"
+    );
 }
 
 #[test]
