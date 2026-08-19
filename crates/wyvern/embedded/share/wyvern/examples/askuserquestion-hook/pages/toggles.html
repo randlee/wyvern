@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AskUserQuestion hook</title>
+  <link rel="stylesheet" href="/shared/embedded-chrome.css" />
+  <link rel="stylesheet" href="/shared/wizard-chrome.css" />
+  <script src="/shared/wyvern-api.js"></script>
+  <style>
+    .scope-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 12px 0;
+      border-bottom: 1px solid #cbd5e1;
+    }
+    .scope-row:last-of-type { border-bottom: 0; }
+    .scope-meta { color: #475569; font-size: 0.9rem; }
+    .scope-toggle { display: flex; align-items: center; gap: 8px; }
+  </style>
+</head>
+<body>
+  <main id="dialog" class="dialog dialog--frame" data-testid="hook-toggles">
+    <h1 data-testid="hook-toggles-heading">AskUserQuestion hook</h1>
+    <p class="lead">
+      Replace Claude Code <code>AskUserQuestion</code> with a Wyvern question
+      dialog. Enable a scope to install the hook; disable both to remove
+      Wyvern-managed entries only.
+    </p>
+    <div class="scope-row" data-testid="row-global">
+      <div>
+        <strong>Global</strong>
+        <div class="scope-meta">Installs into <code>~/.claude/settings.json</code></div>
+      </div>
+      <label class="scope-toggle">
+        <input type="checkbox" data-testid="toggle-global" data-scope="global" />
+        Enable
+      </label>
+    </div>
+    <div class="scope-row" data-testid="row-repo">
+      <div>
+        <strong>Repo (local)</strong>
+        <div class="scope-meta">Installs into <code>.claude/settings.local.json</code></div>
+      </div>
+      <label class="scope-toggle">
+        <input type="checkbox" data-testid="toggle-repo" data-scope="repo" />
+        Enable
+      </label>
+    </div>
+    <nav class="wizard-chrome" data-wizard-nav aria-label="Wizard navigation">
+      <button type="button" class="secondary" data-wizard-back data-testid="wizard-back">
+        Back
+      </button>
+      <button type="button" class="primary" data-wizard-next data-testid="wizard-next">
+        Next
+      </button>
+    </nav>
+    <p class="wizard-error" data-testid="wizard-error" hidden></p>
+  </main>
+  <script src="../app.js"></script>
+  <script src="/shared/wizard-nav.js" data-wizard-chrome></script>
+</body>
+</html>
