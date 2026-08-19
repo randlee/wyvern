@@ -21,14 +21,54 @@ fn welcome_templates_next_wizard() -> serde_json::Value {
     })
 }
 
+fn assert_emits_template_picker_hop(html: &str, page: &str) {
+    assert!(
+        html.contains("{wyvern_share}/examples/template-picker/wizard.json"),
+        "{page} must hop to template-picker wizard.json"
+    );
+    assert!(
+        html.contains("{wyvern_share}/examples/template-picker"),
+        "{page} must set template-picker ui_root"
+    );
+    assert!(
+        html.contains(r#""from": "welcome""#) || html.contains("from: \"welcome\""),
+        "{page} must pass from=welcome"
+    );
+}
+
 #[test]
 fn templates_page_emits_required_next_wizard() {
     let page = workspace_share().join("welcome/pages/templates.html");
     let html = std::fs::read_to_string(page).expect("templates.html");
     assert!(html.contains("wizardNextWizard"));
-    assert!(html.contains("{wyvern_share}/examples/template-picker/wizard.json"));
-    assert!(html.contains("{wyvern_share}/examples/template-picker"));
-    assert!(html.contains(r#""from": "welcome""#) || html.contains("from: \"welcome\""));
+    assert_emits_template_picker_hop(&html, "templates.html");
+    assert!(
+        html.contains("wyvernWizardFinish"),
+        "templates.html must auto-finish into the picker instead of gating on prose"
+    );
+    assert!(
+        !html.contains("Finish this page to open the picker"),
+        "templates.html must not keep the prose intro gate"
+    );
+}
+
+#[test]
+fn home_page_hops_templates_via_next_wizard() {
+    let page = workspace_share().join("welcome/pages/home.html");
+    let html = std::fs::read_to_string(page).expect("home.html");
+    assert!(
+        html.contains("wizardTemplatesNextWizard") || html.contains("wizardNextWizard"),
+        "home.html must declare the Templates next_wizard hop"
+    );
+    assert_emits_template_picker_hop(&html, "home.html");
+    assert!(
+        html.contains("topic.id === \"templates\"") || html.contains("topic.id === 'templates'"),
+        "home.html Templates card must special-case the picker hop"
+    );
+    assert!(
+        html.contains("wyvernWizardFinish"),
+        "home.html Templates card must finish+next_wizard instead of Next into templates.html"
+    );
 }
 
 #[test]

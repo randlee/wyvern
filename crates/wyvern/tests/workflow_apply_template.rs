@@ -146,6 +146,15 @@ fn shipped_wizard_declares_post_and_seven_templates() {
         "page JS must not scan the catalog directory"
     );
 
+    let welcome: Value = serde_json::from_str(
+        &std::fs::read_to_string(workspace_share().join("welcome/wizard.json")).unwrap(),
+    )
+    .unwrap();
+    assert!(
+        welcome.get("workflow").is_none(),
+        "welcome hub must not own apply-template.py; picker workflow.post is the apply contract"
+    );
+
     for id in ids {
         let manifest = workspace_share()
             .join("templates")
