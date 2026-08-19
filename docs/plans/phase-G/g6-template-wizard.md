@@ -1,8 +1,9 @@
 ---
 id: g.6
 title: Template catalog wizard + apply workflow
-status: planning
+status: complete
 branch: feature/phase-G-g6-template-wizard
+worktree: ../wyvern-worktrees/feature/phase-G-g6-template-wizard
 target: integrate/phase-G
 ---
 
