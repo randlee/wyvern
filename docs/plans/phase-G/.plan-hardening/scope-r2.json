@@ -1,0 +1,30 @@
+{
+  "status": "FAIL",
+  "mode": "plan-scope-review",
+  "reviewer": "plan-scope-reviewer",
+  "round_id": "STEP1-R2",
+  "round_index": 2,
+  "reviewed_commit": "e172aaa",
+  "previous_reviewed_commit": "e172aaa",
+  "findings_hash": "scope-g4-g7-r2-007to008-e172aaa",
+  "scope": { "phase": "G", "sprint": null },
+  "sprint_scores": [
+    { "sprint": "g.4", "status": "PASS", "blocking_count": 0, "important_count": 0, "minor_count": 0 },
+    { "sprint": "g.5", "status": "PASS", "blocking_count": 0, "important_count": 0, "minor_count": 0 },
+    { "sprint": "g.6", "status": "PASS", "blocking_count": 0, "important_count": 0, "minor_count": 0 },
+    { "sprint": "g.7", "status": "FAIL", "blocking_count": 0, "important_count": 2, "minor_count": 1 }
+  ],
+  "docs_read": [
+    "docs/plans/phase-G/g4-welcome-guide-wizard.md",
+    "docs/plans/phase-G/g5-askuserquestion-claude-code.md",
+    "docs/plans/phase-G/g6-template-wizard.md",
+    "docs/plans/phase-G/g7-dag-agent-execution.md"
+  ],
+  "findings": [
+    { "id": "PLAN-SCOPE-007", "severity": "Important", "category": "NON-PROD", "classification": "structural", "affects_ac": true, "issue": "AC 1 scenario untested", "required_correction": "wizard_agent_dag_nav test — applied after R2" },
+    { "id": "PLAN-SCOPE-008", "severity": "Important", "category": "MULTI-SOURCE", "classification": "structural", "affects_ac": true, "issue": "page JS contract in d.5", "required_correction": "app.js + wyvernWizardNext sample — applied after R2" }
+  ],
+  "minor_wording": [],
+  "ready_for_next_step": false,
+  "errors": []
+}

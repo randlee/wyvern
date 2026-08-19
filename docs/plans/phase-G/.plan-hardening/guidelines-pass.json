@@ -1,0 +1,43 @@
+{
+  "status": "PASS",
+  "mode": "plan-hardening-guidelines-pass",
+  "round_id": "STEP1-R1",
+  "round_index": 1,
+  "reviewed_commit": "e172aaa",
+  "previous_reviewed_commit": "",
+  "iterations": 2,
+  "docs_modified": [
+    "docs/wyvern/requirements.md",
+    "docs/wyvern-schema/requirements.md",
+    "docs/requirements.md",
+    "docs/architecture.md",
+    "docs/wyvern/architecture.md",
+    "docs/plans/project-plan.md",
+    "docs/plans/phase-C/HTTP-TYPES.md",
+    "docs/plans/phase-G/README.md",
+    "docs/plans/phase-G/wizard-workflow-architecture.md",
+    "docs/plans/phase-G/workflow-chain-contract.md",
+    "docs/plans/phase-G/g4-welcome-guide-wizard.md",
+    "docs/plans/phase-G/g5-askuserquestion-claude-code.md",
+    "docs/plans/phase-G/g6-template-wizard.md",
+    "docs/plans/phase-G/g7-dag-agent-execution.md",
+    "docs/plans/phase-G/examples-walkthrough.md",
+    "docs/plans/phase-G/claude-code-hook-workflow.md",
+    "docs/plans/phase-G/claude-code-question-mapping.md",
+    "docs/plans/phase-G/template-catalog-workflow.md",
+    "docs/plans/phase-G/agent-dag-execution-deferral.md"
+  ],
+  "docs_created": [
+    "docs/plans/phase-G/.plan-hardening/guidelines-pass.json"
+  ],
+  "guidelines_applied": [
+    "sprint plan is authoritative",
+    "one authoritative list each for deliverables, acceptance criteria, required validation",
+    "production-ready wording; explicit non-closure (g.4 wires deferred; g.7 execution deferred)",
+    "Rust and JSON boundary contracts sampled in g.4; per-sprint JSON in g.5-g.7",
+    "real REQ-0124-0127 and ADR-0023-0024 (no proposed 0138/0139)",
+    "companions stripped of competing checklists"
+  ],
+  "ready_for_next_step": true,
+  "errors": []
+}

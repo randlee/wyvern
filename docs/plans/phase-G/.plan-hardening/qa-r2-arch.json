@@ -1,0 +1,9 @@
+{
+  "agent": "arch-qa",
+  "verdict": "PASS",
+  "blocking": 0,
+  "important": 0,
+  "findings": [],
+  "merge_ready": true,
+  "notes": "ARCH-001/002/003 verified fixed. Host copies next_wizard; CLI owns spawn/chain."
+}

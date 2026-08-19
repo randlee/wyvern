@@ -25,15 +25,25 @@ load → validate → Command → host bind → DialogHandle
   → await_result → CommandResult → emit_stdout
 ```
 
+**Amendment (Phase G g.4 — ADR-0023 / ADR-0024):** wizard one-shots wrap the host in a CLI workflow loop. Host still runs exactly one session per iteration.
+
+```text
+load → validate → [workflow.pre + config_patch merge]
+  → host bind → … → await_result
+  → [workflow.post on button=finish]
+  → [next_wizard → load next command → loop, max 16]
+  → emit_stdout(last finish, next_wizard omitted)
+```
+
 `wyvern-host::run` is none/system/named only — embedded one-shot is CLI DialogHandle composition.
 
 **Amendment (Phase F / ADR-0022):** Before `load_command_input`, `main.rs` matches the host-flag-stripped argv remainder against the extension registry. A match expands to validated `Command` JSON plus optional `host.ui_root`, then enters this same pipeline. Unmatched remainder falls through to JSON / `.json` / stdin load. See principal [ADR-0022](../architecture.md) and the [ADR-0013 amendment](#adr-0013-amendment-phase-f--extension-argv-pipeline) below.
 
-**Amendment (Phase G / ADR-0022):** After host-flag strip and before extension match: global `--help` / `-h` / `help` (exit 0); extension prefix `--help` skill cards via `match_extension_help` (exit 0); on no match, near-miss diagnostics (REQ-0136) before load fallthrough. CLI uses `match_with_diagnostics`; library `match_argv()` returns `.matched` only. See [agent-usability-contract.md](../plans/phase-G/agent-usability-contract.md) and REQ-0134–REQ-0137.
+**Amendment (Phase G Wave 1 / ADR-0022):** After host-flag strip and before extension match: global `--help` / `-h` / `help` (exit 0); extension prefix `--help` skill cards via `match_extension_help` (exit 0); on no match, near-miss diagnostics (REQ-0136) before load fallthrough. CLI uses `match_with_diagnostics`; library `match_argv()` returns `.matched` only. See [agent-usability-contract.md](../plans/phase-G/agent-usability-contract.md) and REQ-0134–REQ-0137.
 
-Load, validation, host bind, viewer spawn, and result await each map to exit ≠ 0 at the CLI boundary via [`PipelineError`]. Emit-stage serialize failures map to exit `8` (`internal` / `INTERNAL_ERROR`).
+Load, validation, host bind, viewer spawn, and result await each map to exit ≠ 0 at the CLI boundary via [`PipelineError`]. Emit-stage serialize failures map to exit `8` (`internal` / `INTERNAL_ERROR`). Workflow / chain failures map to exit `9` (`workflow` / `WORKFLOW_ERROR`).
 
-**Forbidden:** `--window-demo`, extra CLI flags, or any path that bypasses load → validate → bind → await.
+**Forbidden:** `--window-demo`, or any path that bypasses load → validate → [workflow pre] → bind → await → [workflow post / next_wizard]. `--workflow-dry-run` is the only new Wave 2 host-adjacent flag (ADR-0023); it does not skip validate or bind.
 
 ### ADR-0013 amendment (c.6) — pipeline error stages
 
@@ -45,6 +55,7 @@ Load, validation, host bind, viewer spawn, and result await each map to exit ≠
 | Run (host bind/await) | `HostError` (`Bind`, `UiNotFound`, `ViewerNotFound`, …) | `host_bind` / `host_error` / `host_viewer` | `HOST_BIND_ERROR` / `HOST_ERROR` / `HOST_VIEWER_ERROR` | 6–7 |
 | Run (viewer spawn) | `ViewerSpawnError` (missing binary, exec failure) | `host_viewer` | `HOST_VIEWER_ERROR` | 6 |
 | Emit | `EmitError::Serialize` | `internal` | `INTERNAL_ERROR` | 8 |
+| Workflow (g.4+) | `WorkflowError` | `workflow` | `WORKFLOW_ERROR` | 9 |
 
 `PipelineError::Stage` carries pre-built stderr JSON + stage exit code.
 `PipelineError::Emit` triggers `emit_fatal_internal` (static JSON, no recursive serialize).

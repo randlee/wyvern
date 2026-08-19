@@ -78,6 +78,16 @@ Dialog **types** and stdout shapes remain as in Phase B/C (`message`, `input`, `
 
 ---
 
+## Wizard workflow fields (Phase G Wave 2 — g.4)
+
+Host remains domain-agnostic (ADR-0006). CLI owns execution (ADR-0023, ADR-0024).
+
+**REQ-H023** — Ignore optional wizard-command `workflow`. Never spawn pre/post scripts. Planned `boundaries/wyvern-host/host.toml`: `io_forbidden` includes `workflow_script_spawn`.
+
+**REQ-H024** — On `POST /api/wizard/finish`, accept optional known field `next_wizard` (not a REQ-0053 unknown-field 400). After stack validation, copy it onto `WizardResult`. Do not resolve `path`, load the next wizard, or interpret `input`. Sprint: [g4-welcome-guide-wizard.md](../plans/phase-G/g4-welcome-guide-wizard.md).
+
+---
+
 ## Deprecated (do not implement in `wyvern-host`)
 
 | IDs | Former owner | Reason |
