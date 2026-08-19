@@ -39,6 +39,37 @@
           "agent-dag": "Agent DAG"
         })[id] || id;
       }
+
+      // Skip the welcome Templates prose gate (REQ-0126). Same hop as Finish
+      // on pages/templates.html.
+      window.wizardTemplatesNextWizard = {
+        path: "{wyvern_share}/examples/template-picker/wizard.json",
+        input: { from: "welcome" },
+        ui_root: "{wyvern_share}/examples/template-picker"
+      };
+
+      function showError(err) {
+        var el = document.querySelector("[data-testid='wizard-error']");
+        if (el) { el.hidden = false; el.textContent = String(err); }
+      }
+
+      function finishToTemplatePicker() {
+        var data = {};
+        var stack = (window.wyvern && Array.isArray(window.wyvern.stack)
+          ? window.wyvern.stack.slice()
+          : []);
+        stack.push({
+          page: window.wyvern ? window.wyvern.page : null,
+          data: data
+        });
+        return wyvernWizardFinish({
+          button: "finish",
+          data: data,
+          stack: stack,
+          next_wizard: window.wizardTemplatesNextWizard
+        });
+      }
+
       window.wyvernReady = window.wyvernReady || Promise.resolve();
       window.wyvernReady.then(function () {
         return fetch("/api/wizard/state").then(function (r) { return r.json(); });
@@ -52,6 +83,12 @@
           btn.dataset.topicId = topic.id;
           btn.textContent = topic.label || topicTitle(topic.id);
           btn.addEventListener("click", function () {
+            if (topic.id === "templates") {
+              if (typeof wyvernWizardFinish === "function") {
+                finishToTemplatePicker().catch(showError);
+              }
+              return;
+            }
             if (typeof wyvernWizardNext === "function") {
               wyvernWizardNext({}, {
                 id: topic.id,
@@ -62,10 +99,7 @@
           });
           grid.appendChild(btn);
         });
-      }).catch(function (err) {
-        var el = document.querySelector("[data-testid='wizard-error']");
-        if (el) { el.hidden = false; el.textContent = String(err); }
-      });
+      }).catch(showError);
     })();
   </script>
   <script src="/shared/wizard-nav.js" data-wizard-chrome></script>
