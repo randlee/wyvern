@@ -62,6 +62,9 @@ agents:
   wyvern-wizard-js:
     version: 0.1.0
     path: .claude/agents/wyvern-wizard-js.md
+  wyvern-dag-wizard-js:
+    version: 0.1.0
+    path: .claude/agents/wyvern-dag-wizard-js.md
 skills:
   codex-orchestration:
     version: 0.1.0
@@ -115,3 +118,4 @@ skills:
     version: 0.1.0
     depends_on:
       wyvern-wizard-js: 0.x
+      wyvern-dag-wizard-js: 0.x
