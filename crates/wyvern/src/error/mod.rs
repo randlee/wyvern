@@ -10,13 +10,15 @@ pub use emit::{
     emit_stdout, emit_usage_error, emit_usage_message, emit_validation_error, emit_workflow_error,
 };
 
-/// Built-in CLI family that owns subcommands (`browsers`, `extensions`).
+/// Built-in CLI family that owns subcommands (`browsers`, `extensions`, `wizard`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BuiltinDomain {
     /// `wyvern browsers …`
     Browsers,
     /// `wyvern extensions …`
     Extensions,
+    /// `wyvern wizard …`
+    Wizard,
 }
 
 impl BuiltinDomain {
@@ -26,6 +28,7 @@ impl BuiltinDomain {
         match self {
             Self::Browsers => "browsers",
             Self::Extensions => "extensions",
+            Self::Wizard => "wizard",
         }
     }
 }
