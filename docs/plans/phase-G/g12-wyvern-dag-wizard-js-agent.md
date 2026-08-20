@@ -1,7 +1,7 @@
 ---
 id: g.12
 title: wyvern-dag-wizard-js agent + DAG type recipe
-status: planned
+status: in-review
 branch: feature/phase-G-g12-dag-js-agent
 worktree: ../wyvern-worktrees/feature/phase-G-g12-dag-js-agent
 target: integrate/phase-G
