@@ -18,6 +18,13 @@
     }
     .scope-row:last-of-type { border-bottom: 0; }
     .scope-meta { color: #475569; font-size: 0.9rem; }
+    .scope-path {
+      display: block;
+      margin-top: 4px;
+      overflow-wrap: anywhere;
+      word-break: break-all;
+      font-size: 0.85em;
+    }
     .scope-toggle { display: flex; align-items: center; gap: 8px; }
   </style>
 </head>
@@ -29,10 +36,17 @@
       dialog. Enable a scope to install the hook; disable both to remove
       Wyvern-managed entries only.
     </p>
+    <p class="scope-meta" data-testid="host-reload-note">
+      Arriving from the Welcome guide reloads the wizard host (the window
+      closes and reopens). Toggles and Review stay in this window.
+    </p>
     <div class="scope-row" data-testid="row-global">
       <div>
         <strong>Global</strong>
-        <div class="scope-meta">Installs into <code>~/.claude/settings.json</code></div>
+        <div class="scope-meta">
+          Installs into
+          <code class="scope-path" data-testid="path-global">resolved after workflow pre</code>
+        </div>
       </div>
       <label class="scope-toggle">
         <input type="checkbox" data-testid="toggle-global" data-scope="global" />
@@ -42,7 +56,10 @@
     <div class="scope-row" data-testid="row-repo">
       <div>
         <strong>Repo (local)</strong>
-        <div class="scope-meta">Installs into <code>.claude/settings.local.json</code></div>
+        <div class="scope-meta">
+          Installs into
+          <code class="scope-path" data-testid="path-repo">resolved after workflow pre</code>
+        </div>
       </div>
       <label class="scope-toggle">
         <input type="checkbox" data-testid="toggle-repo" data-scope="repo" />

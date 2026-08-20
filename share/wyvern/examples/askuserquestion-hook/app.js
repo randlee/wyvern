@@ -1,6 +1,7 @@
 /**
  * AskUserQuestion hook installer — collect `data.hook_config` only.
  * Page JS must not read or write Claude Code hook files (REQ-0124 / REQ-0125).
+ * Paths come from `config.hook_state` after workflow pre.
  */
 (function (global) {
   "use strict";
@@ -9,7 +10,10 @@
     var hs = (config && config.hook_state) || {};
     function scope(name) {
       var row = hs[name] || {};
-      return { enabled: !!row.enabled };
+      return {
+        enabled: !!row.enabled,
+        settings_path: typeof row.settings_path === "string" ? row.settings_path : ""
+      };
     }
     return { global: scope("global"), repo: scope("repo") };
   }
@@ -28,7 +32,11 @@
     if (pageData && pageData.hook_config) {
       return pageData.hook_config;
     }
-    return hookStateFromConfig(global.wyvern && global.wyvern.config);
+    var state = hookStateFromConfig(global.wyvern && global.wyvern.config);
+    return {
+      global: { enabled: state.global.enabled },
+      repo: { enabled: state.repo.enabled }
+    };
   }
 
   function collectHookConfig() {
@@ -53,6 +61,21 @@
     if (repoEl) {
       repoEl.checked = !!(initial.repo && initial.repo.enabled);
     }
+  }
+
+  function fillPath(testId, path) {
+    var el = document.querySelector("[data-testid='" + testId + "']");
+    if (el && path) {
+      el.textContent = path;
+    }
+  }
+
+  function fillScopePaths() {
+    var state = hookStateFromConfig(global.wyvern && global.wyvern.config);
+    fillPath("path-global", state.global.settings_path);
+    fillPath("path-repo", state.repo.settings_path);
+    fillPath("review-path-global", state.global.settings_path);
+    fillPath("review-path-repo", state.repo.settings_path);
   }
 
   function fillReview() {
@@ -83,10 +106,12 @@
     if (typeof global.wyvernWizardState === "function") {
       return global.wyvernWizardState().then(function () {
         bindToggles();
+        fillScopePaths();
         fillReview();
       });
     }
     bindToggles();
+    fillScopePaths();
     fillReview();
     return Promise.resolve();
   }

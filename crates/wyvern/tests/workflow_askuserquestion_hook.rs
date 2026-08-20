@@ -232,6 +232,24 @@ fn pre_merges_hook_state_then_post_writes_markers() {
     assert_eq!(config["hook_state"]["global"]["installed"], false);
     assert_eq!(config["hook_state"]["repo"]["enabled"], false);
     assert_eq!(config["hook_state"]["repo"]["installed"], false);
+    let expected_global = home.join(".claude").join("settings.json");
+    let expected_repo = repo.join(".claude").join("settings.local.json");
+    assert_eq!(
+        PathBuf::from(
+            config["hook_state"]["global"]["settings_path"]
+                .as_str()
+                .expect("global settings_path")
+        ),
+        expected_global
+    );
+    assert_eq!(
+        PathBuf::from(
+            config["hook_state"]["repo"]["settings_path"]
+                .as_str()
+                .expect("repo settings_path")
+        ),
+        expected_repo
+    );
 
     runner
         .run_post(&post_spec(), &finish_hook_config(true, true), false)
@@ -278,6 +296,22 @@ fn pre_merges_hook_state_then_post_writes_markers() {
     assert_eq!(config_after["hook_state"]["global"]["installed"], true);
     assert_eq!(config_after["hook_state"]["repo"]["enabled"], true);
     assert_eq!(config_after["hook_state"]["repo"]["installed"], true);
+    assert_eq!(
+        PathBuf::from(
+            config_after["hook_state"]["global"]["settings_path"]
+                .as_str()
+                .expect("global settings_path after install")
+        ),
+        expected_global
+    );
+    assert_eq!(
+        PathBuf::from(
+            config_after["hook_state"]["repo"]["settings_path"]
+                .as_str()
+                .expect("repo settings_path after install")
+        ),
+        expected_repo
+    );
 }
 
 #[test]
@@ -443,8 +477,23 @@ fn shipped_wizard_declares_pre_post_and_toggles() {
         std::fs::read_to_string(workspace_share().join("examples/askuserquestion-hook/app.js"))
             .unwrap();
     assert!(app.contains("hook_config"));
+    assert!(app.contains("settings_path"));
     assert!(
         !app.contains("settings.json"),
         "page JS must not touch hook files"
     );
+    let toggles = std::fs::read_to_string(
+        workspace_share().join("examples/askuserquestion-hook/pages/toggles.html"),
+    )
+    .unwrap();
+    assert!(toggles.contains("data-testid=\"path-global\""));
+    assert!(toggles.contains("data-testid=\"path-repo\""));
+    assert!(toggles.contains("reloads the wizard host"));
+    let review = std::fs::read_to_string(
+        workspace_share().join("examples/askuserquestion-hook/pages/review.html"),
+    )
+    .unwrap();
+    assert!(review.contains("Back leaves hook files unchanged"));
+    assert!(review.contains("data-testid=\"review-path-repo\""));
+    assert!(!review.contains("Cancel leaves"));
 }

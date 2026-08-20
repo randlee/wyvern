@@ -2,8 +2,8 @@
 id: g.5
 title: AskUserQuestion replacement + Claude Code hook workflow
 status: complete
-branch: feature/phase-G-g5-askuserquestion
-worktree: ../wyvern-worktrees/feature/phase-G-g5-askuserquestion
+branch: feature/phase-G-g5-askuserquestion-ux
+worktree: ../wyvern-worktrees/feature/phase-G-g5-askuserquestion-ux
 target: integrate/phase-G
 ---
 
@@ -51,12 +51,22 @@ Pre stdout:
 {
   "config_patch": {
     "hook_state": {
-      "global": { "enabled": true, "installed": true },
-      "repo": { "enabled": false, "installed": false }
+      "global": {
+        "enabled": true,
+        "installed": true,
+        "settings_path": "/absolute/path/to/.claude/settings.json"
+      },
+      "repo": {
+        "enabled": false,
+        "installed": false,
+        "settings_path": "/absolute/path/to/repo/.claude/settings.local.json"
+      }
     }
   }
 }
 ```
+
+Each scope in `hook_state` includes `settings_path`: the absolute, resolved path to that scope's settings file (same roots as the on-disk hook contract below). Pre emits this even when the file does not exist yet; the UI uses it to show where hooks would be written.
 
 Finish `data.hook_config`:
 

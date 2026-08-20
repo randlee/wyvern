@@ -90,10 +90,21 @@ def is_managed_entry(entry: Any) -> bool:
     )
 
 
-def scope_state(settings_path: str) -> dict[str, bool]:
-    settings = load_settings(settings_path)
+def resolved_settings_path(root: str | None, filename: str) -> str:
+    """Absolute settings file path. Same roots as apply ``scope_paths``."""
+    if not root:
+        return ""
+    return os.path.abspath(os.path.join(root, ".claude", filename))
+
+
+def scope_state(settings_path: str) -> dict[str, Any]:
+    settings = load_settings(settings_path) if settings_path else None
     present = any(is_managed_entry(entry) for entry in pretool_entries(settings))
-    return {"enabled": present, "installed": present}
+    return {
+        "enabled": present,
+        "installed": present,
+        "settings_path": settings_path,
+    }
 
 
 def resolve_home() -> str | None:
@@ -111,10 +122,11 @@ def resolve_home() -> str | None:
 def hook_state() -> dict[str, Any]:
     home = resolve_home()
     repo = os.environ.get("WYVERN_REPO_ROOT") or os.getcwd()
-    global_path = os.path.join(home, ".claude", "settings.json") if home else ""
-    repo_path = os.path.join(repo, ".claude", "settings.local.json")
+    # Same roots as apply-askuserquestion-hook.scope_paths; abspath for UI.
+    global_path = resolved_settings_path(home, "settings.json")
+    repo_path = resolved_settings_path(repo, "settings.local.json")
     return {
-        "global": scope_state(global_path) if global_path else {"enabled": False, "installed": False},
+        "global": scope_state(global_path),
         "repo": scope_state(repo_path),
     }
 
