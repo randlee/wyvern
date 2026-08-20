@@ -1,0 +1,38 @@
+# Wave 3 stack registry — single source of truth for creating-wyvern-wizard.
+# Authors pick one stack at gate G2. Default is vanilla-chrome.
+# Adding a stack later: new row here + references/stacks/<id>.md + optional templates/<id>/.
+
+stacks:
+  vanilla-chrome:
+    status: default
+    doc: references/stacks/vanilla-chrome.md
+    template: templates/vanilla-chrome/
+    lint_profile: nav + dataflow-v1
+    agent: wyvern-wizard-js
+    golden:
+      - share/wyvern/examples/template-picker/
+      - share/wyvern/examples/askuserquestion-hook/
+      - share/wyvern/welcome/
+    notes: >
+      Dialog-frame wizards. Plain HTML + shared wyvern JS/CSS + IIFE app.js.
+      No bundler required to run `wyvern path/to/wizard.json`.
+
+  workspace-canvas:
+    status: supported
+    doc: references/stacks/workspace-canvas.md
+    template: templates/workspace-canvas/
+    lint_profile: nav-limited + export-contract
+    agent: wyvern-dag-wizard-js
+    golden:
+      - share/wyvern/examples/agent-dag/
+    notes: >
+      page.layout workspace. Prebuilt SPA dist (turbo-flow). Custom toolbar;
+      nav lint is partial. Finish export is data.dag.
+
+  # Future — not a Wave 3 authoring target
+  # vite-spa:
+  #   status: experimental
+  #   doc: references/stacks/vite-spa.md
+  #   build: npm run build → dist/ served as static under the wizard dir
+  #   lint_profile: nav + dataflow-v1 + dist-present
+  #   agent: wyvern-wizard-js
