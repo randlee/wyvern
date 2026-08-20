@@ -1,11 +1,12 @@
 # Phase G — CLI Extension Agent Usability (`integrate/phase-G`)
 
-Phase G has **two waves**. Implementation PRs target **`integrate/phase-G`**. **Sprint docs are sole authority** for deliverables, acceptance criteria, and required validation.
+Phase G has **three waves**. Implementation PRs target **`integrate/phase-G`**. **Sprint docs are sole authority** for deliverables, acceptance criteria, and required validation.
 
 | Wave | Sprints | Ships |
 |------|---------|-------|
 | **1 — CLI surfaces** | g.1–g.3 | `--help`, error-teaches, skill catalog |
 | **2 — Welcome & examples** | g.4–g.7 | `wyvern guide` + workflow runner + three examples |
+| **3 — Authoring agents** | g.11 | vanilla-chrome wizard JS agent + skeleton |
 
 **Review Wave 2 one example at a time:** [examples-walkthrough.md](examples-walkthrough.md) (review order only; not a second AC list).
 
@@ -111,10 +112,34 @@ Each sprint's **Required validation** is the only command list. Do not copy comm
 
 ---
 
-## Boundaries (both waves)
+## Wave 3 — Authoring agents (g.11)
+
+**Ordering:** After Wave 2 examples exist on `integrate/phase-G` (goldens:
+`template-picker`, `askuserquestion-hook`).
+
+**Goal:** Ship an authoring agent so a cold session can write vanilla-chrome
+wizard pages without inventing nav hooks or putting disk I/O in page JS.
+
+| Sprint | Doc | Status |
+|--------|-----|--------|
+| g.11 | [g11-wyvern-wizard-js-agent.md](g11-wyvern-wizard-js-agent.md) | in-progress |
+
+g.11 does **not** use `rust-developer` and does not change `crates/**`. Each
+sprint's **Required validation** is the only command list.
+
+### What Wave 3 does not close
+
+- Replacing `share/wyvern/templates/wizard/*` catalog skeletons
+- React / Svelte / turbo-flow authoring
+- Workflow script authoring beyond pointing at `workflow.pre` / `workflow.post`
+
+---
+
+## Boundaries (all waves)
 
 - Wave 1: **`wyvern` CLI crate** + `extensions.json` schema fields; REQ-0134–REQ-0137; ADR-0022 Phase G amendment
 - Wave 2: `crates/wyvern`, package `wyvern-cli` — workflow/chain + `share/wyvern/**` + `scripts/ext/**` — **no new dialog types**
+- Wave 3: `.claude/agents/wyvern-wizard-js.md` + `creating-wyvern-wizard` templates — **no `crates/**`, no `rust-developer`**
 - `wyvern help` = stdout; `wyvern guide` = wizard extension (do not merge)
 - Host copies `next_wizard` and ignores `workflow`; host does not spawn scripts (ADR-0023, ADR-0024)
 - No new `Command` enum variants; no new `ErrorCode` variants in `wyvern-schema` for Wave 1 near-misses
