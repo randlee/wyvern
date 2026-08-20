@@ -1,4 +1,5 @@
 //! L1: Agent DAG finish asserts `data.dag` wire-shape (g.7 AC 2).
+//! Canvas workspace + node configure replace the old layout/agent HTML flow.
 
 mod support;
 use support::http::{http_client, wait_for_url_file, wait_for_wizard_state};
@@ -10,7 +11,8 @@ use std::time::Duration;
 
 use wyvern_host::{begin, DialogHandle, HostOptions, ViewerMode};
 use wyvern_schema::{
-    validate, Command, WizardPageDescriptor, WizardPageHtml, WizardPageId, WizardPageTitle,
+    validate, Command, WizardPageDescriptor, WizardPageHtml, WizardPageId, WizardPageLayout,
+    WizardPageTitle,
 };
 
 fn workspace_root() -> PathBuf {
@@ -43,7 +45,11 @@ fn page(id: &str, title: &str, html: &str) -> WizardPageDescriptor {
         id: WizardPageId::new(id),
         title: WizardPageTitle::new(title),
         html: WizardPageHtml::new(html),
-        layout: None,
+        layout: if id == "canvas" {
+            Some(WizardPageLayout::Workspace)
+        } else {
+            None
+        },
     }
 }
 
@@ -91,17 +97,54 @@ fn post_navigate(
     resp.json().expect("navigate json")
 }
 
+fn pair_canvas_data() -> serde_json::Value {
+    serde_json::json!({
+        "nodes": [
+            {
+                "id": "node-1",
+                "type": "turbo",
+                "position": { "x": 0, "y": 0 },
+                "data": { "label": "planner", "subtitle": "plan" }
+            },
+            {
+                "id": "node-2",
+                "type": "turbo",
+                "position": { "x": 250, "y": 80 },
+                "data": { "label": "reviewer", "subtitle": "review" }
+            }
+        ],
+        "edges": [
+            { "id": "edge-1-2", "source": "node-1", "target": "node-2", "type": "turbo" }
+        ],
+        "details": {
+            "node-1": {
+                "core": {
+                    "node_id": "node-1",
+                    "name": "planner",
+                    "role": "plan"
+                }
+            },
+            "node-2": {
+                "core": {
+                    "node_id": "node-2",
+                    "name": "reviewer",
+                    "role": "review"
+                }
+            }
+        },
+        "editing_node_id": "node-1"
+    })
+}
+
 fn pair_dag() -> serde_json::Value {
     serde_json::json!({
         "layout_id": "pair",
         "nodes": [
-            { "id": "agent-1", "name": "planner", "role": "plan" },
-            { "id": "agent-2", "name": "reviewer", "role": "review" }
+            { "id": "node-1", "name": "planner", "role": "plan" },
+            { "id": "node-2", "name": "reviewer", "role": "review" }
         ],
         "edges": [
-            ["layout-picker", "agent-1"],
-            ["agent-1", "agent-2"],
-            ["agent-2", "finish"]
+            ["node-1", "node-2"]
         ]
     })
 }
@@ -127,45 +170,56 @@ fn assert_dag_wire_shape(dag: &serde_json::Value) {
     }
 }
 
-/// Pair path finish includes the AC 2 `data.dag` wire-shape.
+/// Pair canvas path finish includes the AC 2 `data.dag` wire-shape.
 #[test]
 fn wizard_agent_dag_finish_has_dag_wire_shape() {
     let client = http_client();
     let (handle, base, url_file) = start_agent_dag(&client);
 
     let state = wait_for_wizard_state(&client, &base);
-    assert_eq!(state["page"]["id"], "layout");
+    assert_eq!(state["page"]["id"], "canvas");
+    assert_eq!(state["page"]["layout"], "workspace");
     assert_eq!(state["config"]["layouts"].as_array().unwrap().len(), 3);
 
-    let layout_data = serde_json::json!({ "layout_id": "pair" });
+    let canvas = client
+        .get(format!("{base}/wizard/pages/canvas.html"))
+        .send()
+        .expect("canvas page")
+        .text()
+        .expect("canvas html");
+    assert!(
+        canvas.contains("turbo-flow-canvas"),
+        "agent-dag should embed the turbo-flow canvas"
+    );
+    let bundle = client
+        .get(format!("{base}/wizard/dist/canvas.js"))
+        .send()
+        .expect("canvas bundle");
+    assert_eq!(bundle.status(), reqwest::StatusCode::OK);
+    assert!(!bundle.text().expect("bundle").is_empty());
+
+    let canvas_data = pair_canvas_data();
     post_navigate(
         &client,
         &base,
         serde_json::json!({
             "action": "next",
-            "data": layout_data,
-            "next": page("agent-1", "Agent 1", "pages/agent.html")
+            "data": canvas_data,
+            "next": page("node-detail", "Configure node", "pages/detail.html")
         }),
     );
 
-    let agent1 = serde_json::json!({ "name": "planner", "role": "plan" });
+    let node1 = serde_json::json!({
+        "node_id": "node-1",
+        "name": "planner",
+        "role": "plan"
+    });
     post_navigate(
         &client,
         &base,
         serde_json::json!({
             "action": "next",
-            "data": agent1,
-            "next": page("agent-2", "Agent 2", "pages/agent.html")
-        }),
-    );
-
-    let agent2 = serde_json::json!({ "name": "reviewer", "role": "review" });
-    post_navigate(
-        &client,
-        &base,
-        serde_json::json!({
-            "action": "next",
-            "data": agent2,
+            "data": node1,
             "next": page("review", "Review", "pages/review.html")
         }),
     );
@@ -174,16 +228,12 @@ fn wizard_agent_dag_finish_has_dag_wire_shape() {
     let finish_data = serde_json::json!({ "dag": dag });
     let stack = serde_json::json!([
         {
-            "page": page("layout", "Agent DAG", "pages/layout.html"),
-            "data": layout_data
+            "page": page("canvas", "Agent DAG", "pages/canvas.html"),
+            "data": canvas_data
         },
         {
-            "page": page("agent-1", "Agent 1", "pages/agent.html"),
-            "data": agent1
-        },
-        {
-            "page": page("agent-2", "Agent 2", "pages/agent.html"),
-            "data": agent2
+            "page": page("node-detail", "Configure node", "pages/detail.html"),
+            "data": node1
         },
         {
             "page": page("review", "Review", "pages/review.html"),

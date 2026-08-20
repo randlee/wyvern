@@ -2,7 +2,8 @@
 id: g.7
 title: Agent DAG demo + export (execution deferred)
 status: complete
-branch: feature/phase-G-g7-dag-agent-execution
+branch: feature/phase-G-g7-dag-turbo-flow
+worktree: ../wyvern-worktrees/feature/phase-G-g7-dag-turbo-flow
 target: integrate/phase-G
 ---
 
@@ -10,7 +11,7 @@ target: integrate/phase-G
 
 ## Goal
 
-Example (c): layout → configure agents → review, then export DAG JSON via the g.4 post runner (REQ-0125). The welcome Agent DAG page finishes with `next_wizard` into this demo (REQ-0126). Page JS branching is specified in this sprint's Contracts. **DAG execution is deferred** ([agent-dag-execution-deferral.md](agent-dag-execution-deferral.md)).
+Example (c): turbo-flow canvas (nodes + edges) → configure node → review, then export DAG JSON via the g.4 post runner (REQ-0125). The welcome Agent DAG page finishes with `next_wizard` into this demo (REQ-0126). Page JS branching is specified in this sprint's Contracts. **DAG execution is deferred** ([agent-dag-execution-deferral.md](agent-dag-execution-deferral.md)).
 
 ## Hard dependencies
 
@@ -22,14 +23,15 @@ Example (c): layout → configure agents → review, then export DAG JSON via th
 | Path | Purpose |
 |------|---------|
 | `share/wyvern/examples/agent-dag/wizard.json` | Demo + `workflow.post` |
-| `share/wyvern/examples/agent-dag/pages/*.html` | Layout, configure, review (HTML graph) |
-| `share/wyvern/examples/agent-dag/app.js` | `wyvernWizardNext` / back / finish `data.dag` assembly |
+| `share/wyvern/examples/agent-dag/pages/*.html` | Vendored turbo-flow canvas + node detail/extras + review |
+| `share/wyvern/examples/agent-dag/dist/` | Prebuilt turbo-flow Svelte bundle (`canvas.js` / `canvas.css`) |
+| `share/wyvern/examples/agent-dag/app.js` | Canvas workspace + finish `data.dag` assembly from graph state |
 | `scripts/ext/export-agent-dag.py` | Default write `$WYVERN_REPO_ROOT/wyvern-dag-export.json` or `./wyvern-dag-export.json`; `-o` is script/test-only |
 | `share/wyvern/welcome/pages/agent-dag.html` | Deferral notice + required `next_wizard` |
 | `crates/wyvern/tests/workflow_export_agent_dag.rs` | Post export contract; assert no execute/spawn API |
 | `crates/wyvern/tests/workflow_welcome_chain_agent_dag.rs` | Welcome Agent DAG finish JSON → CLI resolves next hop |
 | `crates/wyvern-host/tests/wizard_agent_dag.rs` | HTTP finish asserts AC 2 `data.dag` wire-shape (layout_id, nodes, edges) |
-| `crates/wyvern-host/tests/wizard_agent_dag_nav.rs` | HTTP drive of AC 1: pair → agent-1 → back → solo → finish |
+| `crates/wyvern-host/tests/wizard_agent_dag_nav.rs` | HTTP drive of AC 1: canvas pair → configure → back → solo → finish |
 
 No **Run DAG** control. Host and schema treat `data` as opaque (ADR-0006).
 
@@ -40,7 +42,12 @@ Page JS reads `config.layouts` only.
 ```json
 {
   "type": "wizard",
-  "page": { "id": "layout", "title": "Agent DAG", "html": "pages/layout.html" },
+  "page": {
+    "id": "canvas",
+    "title": "Agent DAG",
+    "html": "pages/canvas.html",
+    "layout": "workspace"
+  },
   "config": {
     "layouts": [
       { "id": "solo", "agents": 1 },
@@ -57,40 +64,38 @@ Page JS reads `config.layouts` only.
 Page JS contract (`app.js`):
 
 ```js
-// layout page — pair selected
+// canvas workspace — pair graph (two turbo-flow nodes + one edge)
 await wyvernWizardNext({
-  data: { layout_id: "pair" },
-  next: { id: "agent-1", title: "Agent 1", html: "pages/agent.html" }
+  data: { nodes: [/* node-1, node-2 */], edges: [/* node-1 → node-2 */], details: {}, editing_node_id: "node-1" },
+  next: { id: "node-detail", title: "Configure node", html: "pages/detail.html" }
 });
-// after configure agent-1, back restores page_data on agent-1
+// after configure node-1, back restores canvas graph + node-detail fields
 await wyvernWizardBack();
-// switch to solo — forward history truncated; finish assembles data.dag
+// switch canvas to one node — forward history truncated; finish assembles data.dag
 await wyvernWizardFinish({
   button: "finish",
   data: {
     dag: {
       layout_id: "solo",
-      nodes: [{ id: "agent-1", name: "planner", role: "plan" }],
-      edges: [["layout-picker", "agent-1"], ["agent-1", "finish"]]
+      nodes: [{ id: "node-1", name: "scout", role: "explore" }],
+      edges: [["node-1", "finish"]]
     }
   },
   stack: [ /* full visited stack */ ]
 });
 ```
 
-Finish `data.dag` (flat under `data`, not wrapped again) for a **pair** path (review-page example):
+Finish `data.dag` (flat under `data`, not wrapped again) for a **pair** canvas path:
 
 ```json
 {
   "layout_id": "pair",
   "nodes": [
-    { "id": "agent-1", "name": "planner", "role": "plan" },
-    { "id": "agent-2", "name": "reviewer", "role": "review" }
+    { "id": "node-1", "name": "planner", "role": "plan" },
+    { "id": "node-2", "name": "reviewer", "role": "review" }
   ],
   "edges": [
-    ["layout-picker", "agent-1"],
-    ["agent-1", "agent-2"],
-    ["agent-2", "finish"]
+    ["node-1", "node-2"]
   ]
 }
 ```
@@ -114,8 +119,8 @@ Shipped post writes the default path only (`$WYVERN_REPO_ROOT/wyvern-dag-export.
 
 ## Acceptance criteria
 
-1. `wizard_agent_dag_nav` drives: select **pair** → configure agent-1 → **back** → change to **solo** → review/finish. Finish `data.dag.layout_id` is `solo` with one node; agent-1 fields entered before back are restored when revisiting pair, then discarded after switching to solo.
-2. Finish JSON includes `data.dag` with required wire-shape: `layout_id` (string), `nodes` (array of `{ id, name, role }`), `edges` (array of `[from, to]` pairs). `wizard_agent_dag` asserts this shape on finish; review-page HTML graph is illustrative only (no DOM render gate).
+1. `wizard_agent_dag_nav` drives: canvas **pair** graph → configure node-1 → **back** → restore node fields → change canvas to **solo** (one node) → review/finish. Finish `data.dag.layout_id` is `solo` with one node; node-1 fields entered before back are restored when revisiting configure, then discarded after switching to a one-node graph.
+2. Finish JSON includes `data.dag` with required wire-shape: `layout_id` (string), `nodes` (array of `{ id, name, role }`), `edges` (array of `[from, to]` pairs). `layout_id` is derived from `config.layouts` by node count (`1` → `solo`, `2` → `pair`, `3` → `trio`, else `custom`). `wizard_agent_dag` asserts this shape on finish; review-page HTML graph is illustrative only (no DOM render gate).
 3. Welcome Agent DAG page states execution is deferred and emits the `next_wizard` object above; `workflow_welcome_chain_agent_dag` asserts the CLI resolves that hop (REQ-0126).
 4. `export-agent-dag.py` runs as `workflow.post` and writes the default export path from finish stdin (REQ-0125). `--workflow-dry-run` writes nothing.
 5. `workflow_export_agent_dag` asserts the export shape and that the wizard command has no execute hook (no agent spawn, Task delegation, or Rust DAG engine).
@@ -139,7 +144,6 @@ cargo test -p wyvern-host --test wizard_agent_dag_nav
 
 - Wiring to a separate DAG execution runtime (post-publish, other repo)
 - Validating DAG acyclicity in Rust
-- turbo-flow / Svelte canvas
 - Live execution status in the wizard
 - Spawning Cursor / Claude / ATM agents from finish JSON
 - `--emit-all`
