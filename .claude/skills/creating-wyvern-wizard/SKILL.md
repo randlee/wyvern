@@ -90,8 +90,7 @@ do not re-wrap the envelope.
 **Allowed agents:** `wyvern-wizard-js`, `wyvern-dag-wizard-js`.  
 **Forbidden:** `rust-developer` and every other rust-* / CLI / host agent.
 
-Agents land in g.11 / g.12. Until then, follow Layer 1–2 and the goldens; do
-not invent a third authoring agent.
+Both page-author agents ship in this bundle (g.11 / g.12). Do not invent a third authoring agent.
 
 ## Step 1 — Verify wyvern
 
