@@ -27,6 +27,7 @@ Layer 1  references/core/author-workflow.md     gates G1–G6 (fail-fast)
          references/core/platform-contract.md   host / CLI / page-JS seams
          references/core/validation-and-lint.md schema validate + wizard lint
          references/core/dataflow-contracts.md  exports / requires (G3–G4)
+         references/installation-and-troubleshooting.md  G1 / verify wyvern (Step 1)
 Layer 2  references/stacks/<stack>.md           after G2 — one stack only
 Layer 3  references/wizard-types/<type>.md      after type pick (g.12–g.13)
 Layer 4  templates/<stack>/                     skeleton copy (g.11+)
@@ -43,7 +44,7 @@ Stop at the first failure. Full checklist:
 
 | Gate | Check | Load |
 |------|-------|------|
-| **G1** | `wizard.json` schema | `platform-contract.md`, `validation-and-lint.md` |
+| **G1** | `wizard.json` schema + `wyvern` on PATH | `installation-and-troubleshooting.md`, `platform-contract.md`, `validation-and-lint.md` |
 | **G2** | Exactly one stack | `references/stacks/registry.yaml` |
 | **G3** | Walkable page graph | `platform-contract.md`, `dataflow-contracts.md` |
 | **G4** | `wyvern wizard lint` | `validation-and-lint.md` |
@@ -93,6 +94,8 @@ Agents land in g.11 / g.12. Until then, follow Layer 1–2 and the goldens; do
 not invent a third authoring agent.
 
 ## Step 1 — Verify wyvern
+
+See [installation-and-troubleshooting.md](references/installation-and-troubleshooting.md) if the binary is missing or the wrong build.
 
 ```bash
 which wyvern && wyvern --version

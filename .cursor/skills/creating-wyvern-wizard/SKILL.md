@@ -14,6 +14,6 @@ agent delegation):
 
 `.claude/skills/creating-wyvern-wizard/SKILL.md`
 
-Read that file and its `references/core/` siblings. Do not fork instructions
+Read that file, `references/installation-and-troubleshooting.md` (Step 1 / wyvern verify), and its `references/core/` siblings. Do not fork instructions
 in this stub. Page-author agents remain `wyvern-wizard-js` and
 `wyvern-dag-wizard-js` only — never `rust-developer`.
