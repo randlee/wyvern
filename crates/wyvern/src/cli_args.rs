@@ -259,6 +259,7 @@ pub fn usage_message() -> String {
         "       echo '<json>' | wyvern [options]\n",
         "       wyvern browsers list|refresh\n",
         "       wyvern extensions list|show\n",
+        "       wyvern wizard lint <path> [<path>...]   Static nav-button lint for wizard packages\n",
         "       wyvern --version\n",
         "\n",
         "Options:\n",
@@ -460,6 +461,7 @@ mod tests {
         assert!(text.contains("wizard.json or pages/"), "{text}");
         assert!(text.contains("wyvern guide"), "{text}");
         assert!(text.contains("--workflow-dry-run"), "{text}");
+        assert!(text.contains("wyvern wizard lint"), "{text}");
     }
 
     #[test]
