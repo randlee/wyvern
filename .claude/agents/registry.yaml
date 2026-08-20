@@ -59,6 +59,9 @@ agents:
   sc-git-worktree-update:
     version: 0.12.0
     path: .claude/agents/sc-git-worktree-update.md
+  wyvern-dag-wizard-js:
+    version: 0.1.0
+    path: .claude/agents/wyvern-dag-wizard-js.md
 skills:
   codex-orchestration:
     version: 0.1.0
