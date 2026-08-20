@@ -2,8 +2,8 @@
 id: g.5
 title: AskUserQuestion replacement + Claude Code hook workflow
 status: complete
-branch: feature/phase-G-g5-askuserquestion
-worktree: ../wyvern-worktrees/feature/phase-G-g5-askuserquestion
+branch: feature/phase-G-g5-askuserquestion-ux
+worktree: ../wyvern-worktrees/feature/phase-G-g5-askuserquestion-ux
 target: integrate/phase-G
 ---
 
