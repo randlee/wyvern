@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Step 1</title>
+  <link rel="stylesheet" href="/shared/embedded-chrome.css" />
+  <link rel="stylesheet" href="/shared/wizard-chrome.css" />
+  <script src="/shared/wyvern-api.js"></script>
+  <style>
+    .field { display: flex; flex-direction: column; gap: 4px; margin: 12px 0; }
+    .field input { font: inherit; padding: 6px 8px; }
+  </style>
+</head>
+<body>
+  <main id="dialog" class="dialog dialog--frame" data-testid="one">
+    <h1 data-testid="one-heading">Step 1</h1>
+    <p class="lead">
+      Collect a label and an optional file path. Page JS does not read or write
+      disk — paths travel in finish data for <code>workflow.post</code>.
+    </p>
+    <form data-testid="vanilla-form">
+      <label class="field">
+        Label
+        <input type="text" name="label" data-testid="field-label" autocomplete="off" />
+      </label>
+      <label class="field">
+        File path
+        <input type="text" name="file_path" data-testid="field-file-path" autocomplete="off" />
+      </label>
+      <label class="field">
+        Or choose a file (path only)
+        <input type="file" data-testid="field-file" />
+      </label>
+    </form>
+    <nav class="wizard-chrome" data-wizard-nav aria-label="Wizard navigation">
+      <button type="button" class="secondary" data-wizard-back data-testid="wizard-back">
+        Back
+      </button>
+      <button type="button" class="primary" data-wizard-next data-testid="wizard-next">
+        Next
+      </button>
+    </nav>
+    <p class="wizard-error" data-testid="wizard-error" hidden></p>
+  </main>
+  <script src="../app.js"></script>
+  <script src="/shared/wizard-nav.js" data-wizard-chrome></script>
+</body>
+</html>

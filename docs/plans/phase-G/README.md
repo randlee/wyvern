@@ -1,11 +1,12 @@
 # Phase G — CLI Extension Agent Usability (`integrate/phase-G`)
 
-Phase G has **two waves**. Implementation PRs target **`integrate/phase-G`**. **Sprint docs are sole authority** for deliverables, acceptance criteria, and required validation.
+Phase G has **three waves**. Implementation PRs target **`integrate/phase-G`**. **Sprint docs are sole authority** for deliverables, acceptance criteria, and required validation.
 
 | Wave | Sprints | Ships |
 |------|---------|-------|
 | **1 — CLI surfaces** | g.1–g.3 | `--help`, error-teaches, skill catalog |
 | **2 — Welcome & examples** | g.4–g.7 | `wyvern guide` + workflow runner + three examples |
+| **3 — Authoring platform** | g.8–g.14 (bundle: g.8+g.10+g.11+g.12 on PR #109) | authoring platform — skill router, wyvern-wizard-js, wyvern-dag-wizard-js, stack registry |
 
 **Review Wave 2 one example at a time:** [examples-walkthrough.md](examples-walkthrough.md) (review order only; not a second AC list).
 
@@ -111,10 +112,46 @@ Each sprint's **Required validation** is the only command list. Do not copy comm
 
 ---
 
-## Boundaries (both waves)
+## Wave 3 — Wizard authoring platform (g.8–g.14)
+
+**Sprint map:** [wave-3-wizard-authoring/README.md](wave-3-wizard-authoring/README.md) — g.8–g.14 ordering, parallel groups, and merge order.
+
+**Ordering:** After Wave 2 examples exist on `integrate/phase-G` (goldens: `template-picker`, `askuserquestion-hook`).
+
+**Goal:** End-user wizard creation via progressive-disclosure skill routing, JS page-author agents, stack registry (`vanilla-chrome` default, `workspace-canvas` supported), and (in later sprints) dataflow lint, type refs, and CI.
+
+**Page-author agents:**
+
+| Agent | Stack | Sprint |
+|-------|-------|--------|
+| `wyvern-wizard-js` | `vanilla-chrome` — dialog frames, forms, hooks, welcome bridges | g.11 |
+| `wyvern-dag-wizard-js` | `workspace-canvas` — canvas / DAG wizards | g.12 |
+
+| Sprint | Doc | Status |
+|--------|-----|--------|
+| g.8 | [g8-wizard-authoring-foundation.md](g8-wizard-authoring-foundation.md) | in-review (bundle PR #109) |
+| g.10 | [g10-creating-wyvern-wizard-skill.md](g10-creating-wyvern-wizard-skill.md) | in-review (bundle PR #109) |
+| g.11 | [g11-wyvern-wizard-js-agent.md](g11-wyvern-wizard-js-agent.md) | in-review (bundle PR #109) |
+| g.12 | [g12-wyvern-dag-wizard-js-agent.md](g12-wyvern-dag-wizard-js-agent.md) | in-review (bundle PR #109) |
+
+Wave 3 bundle on `feature/phase-G-wave3-authoring` does **not** use `rust-developer` and does not change `crates/**`. Each sprint's **Required validation** is the only command list.
+
+### What Wave 3 does not close
+
+- **g.9** — `wyvern wizard lint` dataflow rules (WIZARD-LINT-005–008) implementation
+- **g.13** — template / hook / welcome-bridge type refs + sc-compose snippets
+- **g.14** — CI `wyvern wizard lint` gate + known nav-lint HTML fixes
+- Replacing `share/wyvern/templates/wizard/*` catalog skeletons wholesale
+- React / Svelte live in-repo builds; turbo-flow stays vendored dist for DAG demo
+- Workflow script authoring beyond pointing at `workflow.pre` / `workflow.post`
+
+---
+
+## Boundaries (all waves)
 
 - Wave 1: **`wyvern` CLI crate** + `extensions.json` schema fields; REQ-0134–REQ-0137; ADR-0022 Phase G amendment
 - Wave 2: `crates/wyvern`, package `wyvern-cli` — workflow/chain + `share/wyvern/**` + `scripts/ext/**` — **no new dialog types**
+- Wave 3: both JS page-author agents (`wyvern-wizard-js`, `wyvern-dag-wizard-js`) + `creating-wyvern-wizard` skill router/refs — **no `crates/**`, no `rust-developer`**
 - `wyvern help` = stdout; `wyvern guide` = wizard extension (do not merge)
 - Host copies `next_wizard` and ignores `workflow`; host does not spawn scripts (ADR-0023, ADR-0024)
 - No new `Command` enum variants; no new `ErrorCode` variants in `wyvern-schema` for Wave 1 near-misses
