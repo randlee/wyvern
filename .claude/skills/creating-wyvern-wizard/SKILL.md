@@ -47,9 +47,13 @@ Stop at the first failure. Full checklist:
 | **G1** | `wizard.json` schema + `wyvern` on PATH | `installation-and-troubleshooting.md`, `platform-contract.md`, `validation-and-lint.md` |
 | **G2** | Exactly one stack | `references/stacks/registry.yaml` |
 | **G3** | Walkable page graph | `platform-contract.md`, `dataflow-contracts.md` |
-| **G4** | `wyvern wizard lint` | `validation-and-lint.md` |
+| **G4** | `wyvern wizard lint` — **mandatory; must be clean before presenting** | `validation-and-lint.md` |
 | **G5** | Tests + `--workflow-dry-run` | `author-workflow.md` |
 | **G6** | Sprint / REQ hygiene | `author-workflow.md` |
+
+**Presentation rule:** Do not summarize, demo, or hand off a wizard package to the
+user until G4 exits **0** on that package. Run lint, fix every finding, re-run
+until clean. Delegated agents must do the same before returning success.
 
 ## Stack picker (G2)
 
@@ -78,8 +82,10 @@ a g.10 failure — use the golden and stay on Layer 1–2.
 ## Agent delegation
 
 Invoke via Agent Runner / Task using `.claude/agents/registry.yaml`. Receive
-the agent's fenced JSON (`success`, `data`, `error`). Present a short summary;
-do not re-wrap the envelope.
+the agent's fenced JSON (`success`, `data`, `error`). **Before presenting:**
+confirm G4 lint is clean on the wizard directory (run yourself if the agent
+did not). Fix any findings or re-delegate with `action: lint` until exit 0.
+Then present a short summary; do not re-wrap the envelope.
 
 | Operation | Agent | Returns |
 |-----------|-------|---------|
@@ -120,8 +126,10 @@ Exact flags and codes: `references/core/validation-and-lint.md`.
 2. G1 — schema-validate `wizard.json` before HTML/JS work.
 3. G2 — pick one stack; load that stack doc only.
 4. Pick one wizard type; load its type doc if present.
-5. Delegate page authoring / lint to the stack's JS agent (never `rust-developer`).
-6. G3–G6 — graph, lint, tests, doc hygiene.
+5. Delegate page authoring to the stack's JS agent (never `rust-developer`).
+6. **G4 (mandatory)** — `wyvern wizard lint path/to/wizard-dir`; fix every
+   finding; re-run until exit 0. **Never skip this before showing the user.**
+7. G5–G6 — tests, dry-run, doc hygiene.
 
 Page JS has **no disk I/O**. Persist with `workflow.post`; pre-fill with
 `workflow.pre` `config_patch`. Paths are strings in finish `data`.

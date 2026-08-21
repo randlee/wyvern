@@ -45,7 +45,12 @@ If omitted, treat as `{ "action": "scaffold", "target_dir": "./wizard" }`.
    one shared `app.js` (golden style) over inline page scripts.
 5. For `lint` / `validate: true`: do not write. Fail on any Forbidden page-JS
    pattern, missing hook, missing chrome script, or missing required testid.
-6. Return **only** the fenced JSON envelope (plus the required fence). No
+6. **Mandatory G4 before success (`scaffold` / `author`):** after writing files,
+   run `wyvern wizard lint <target_dir>` (or `<target_dir>` if it contains
+   `wizard.json`). If exit ≠ 0, read every WIZARD-LINT-* line, fix HTML/JS/
+   `config.dataflow`, re-run until exit **0**. Do **not** return `success: true`
+   or present the package to the user with open lint findings.
+7. Return **only** the fenced JSON envelope (plus the required fence). No
    extra prose after the envelope.
 
 ## Shared chrome (required)

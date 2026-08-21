@@ -89,6 +89,12 @@ jobs:
       - name: wyvern wizard lint askuserquestion-hook
         run: ${WYVERN_BIN} wizard lint share/wyvern/examples/askuserquestion-hook
 
+      - name: wyvern wizard lint welcome guide
+        run: ${WYVERN_BIN} wizard lint share/wyvern/welcome
+
+      - name: wyvern wizard lint agent-dag
+        run: ${WYVERN_BIN} wizard lint share/wyvern/examples/agent-dag
+
       - name: wyvern wizard lint dataflow fixture
         run: ${WYVERN_BIN} wizard lint fixtures/wizard-dataflow-lint
 

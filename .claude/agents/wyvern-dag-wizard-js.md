@@ -48,6 +48,12 @@ Fenced JSON or equivalent fields:
 - `wizard_root` required; must stay under the repo (no `..` escape).
 - `layouts` optional; default is the g.7 trio (`solo` / `pair` / `trio`).
 
+**Mandatory G4 before success (`create` / `revise`):** run
+`wyvern wizard lint <wizard_root>` after edits. Workspace-canvas uses
+`nav-limited` + `export-contract` (terminal Cancel, `data.dag` literals).
+Fix every WIZARD-LINT-* finding; re-run until exit **0**. Do not return success
+or hand off to the user with open lint findings.
+
 ## Execution Steps
 
 1. **Confirm stack.** Entry page MUST set `page.layout: "workspace"`. If the
