@@ -17,9 +17,9 @@ forms, pickers, hooks, and welcome cards.
 | Intent | This type? |
 |--------|------------|
 | Draw / edit a DAG, then export JSON | Yes |
-| Pick a template and fill fields | No — template-wizards |
-| Toggle hook / settings files | No — hook-and-settings-wizards |
-| Hub card that hops to another wizard | No — welcome-bridge-wizards |
+| Pick a template and fill fields | No — [template.md](template.md) |
+| Toggle hook / settings files | No — [hook.md](hook.md) |
+| Hub card that hops to another wizard | No — [welcome-bridge.md](welcome-bridge.md) |
 
 ## Layout
 
