@@ -23,7 +23,8 @@ use wyvern::extensions::{
 use wyvern::{
     apply_host_overrides, emit_extension_error, emit_fatal_internal, emit_io_error, emit_near_miss,
     emit_parse_error, emit_usage_error, emit_usage_message, load_command_input, parse_cli_args,
-    run_browsers_command, run_from_loaded, usage_message, BrowsersError, LoadError, PipelineError,
+    run_browsers_command, run_from_loaded, run_wizard_command, usage_message, BrowsersError,
+    LoadError, PipelineError, WizardCmdError, WizardCmdResult,
 };
 
 mod main_observability;
@@ -79,6 +80,33 @@ fn main() -> ExitCode {
                 ExitCode::from(u8::try_from(exit_code).unwrap_or(1))
             }
             Err(ExtensionsCmdError::Emit(e)) => emit_fatal_internal(&e),
+        };
+    }
+
+    if args.first().map(String::as_str) == Some("wizard") {
+        return match run_wizard_command(&args[1..]) {
+            Ok(WizardCmdResult::Clean(stdout)) => {
+                print!("{stdout}");
+                ExitCode::SUCCESS
+            }
+            Ok(WizardCmdResult::Findings(stdout)) => {
+                print!("{stdout}");
+                ExitCode::from(1)
+            }
+            Err(WizardCmdError::Usage { kind, message }) => {
+                match emit_usage_error(&LoadError::Usage { kind, message }) {
+                    Ok(stderr) => {
+                        eprintln!("{stderr}");
+                        ExitCode::from(2)
+                    }
+                    Err(e) => emit_fatal_internal(&e),
+                }
+            }
+            Err(WizardCmdError::Stage { stderr, exit_code }) => {
+                eprintln!("{stderr}");
+                ExitCode::from(u8::try_from(exit_code).unwrap_or(1))
+            }
+            Err(WizardCmdError::Emit(e)) => emit_fatal_internal(&e),
         };
     }
 
