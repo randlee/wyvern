@@ -13,11 +13,13 @@
 //! |  1   | One or more findings reported |
 //! |  2   | Usage / bad arguments         |
 
-use std::collections::{HashSet, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::{Component, Path, PathBuf};
 
 use wyvern_wizard::{
-    extract_local_script_srcs, extract_next_hops, lint_page, LintFinding, PageInfo, PageRole,
+    add_edge, extract_local_script_srcs, extract_next_hops, lint_dataflow, lint_page,
+    merge_html_dataflow_overlay, parse_dataflow_from_json, DataflowLintInput, GraphPage,
+    LintFinding, PageInfo, PageRole, WizardPageGraph,
 };
 
 use crate::error::{BuiltinDomain, EmitError, UsageErrorKind};
@@ -77,6 +79,10 @@ pub fn wizard_usage_message() -> String {
         "  WIZARD-LINT-002  Terminal page missing cancel button\n",
         "  WIZARD-LINT-003  wizard-nav.js chrome opt-in but no nav region\n",
         "  WIZARD-LINT-004  Non-terminal page (with chrome opt-in) missing next button\n",
+        "  WIZARD-LINT-005  config.dataflow requires unsatisfied or type conflict\n",
+        "  WIZARD-LINT-006  Terminal post_input not covered by exports\n",
+        "  WIZARD-LINT-007  next_wizard input keys undeclared on target\n",
+        "  WIZARD-LINT-008  Local JS reads a key no page exports\n",
         "\n",
         "See also: wyvern --help\n",
     )
@@ -196,11 +202,11 @@ fn lint_package(path_str: &str) -> Result<(Vec<LintFinding>, usize), String> {
         .map_err(|msg| format!("error: '{}': {msg}", wizard_json_path.display()))?;
 
     // BFS to build the reachable page graph.
-    let pages = build_page_graph(&wizard_dir, &entry_id, &entry_html);
+    let (pages, graph) = build_page_graph(&wizard_dir, &entry_id, &entry_html);
     let page_count = pages.len();
 
-    // Lint each page.
-    let findings = pages
+    // Nav lint for each page.
+    let mut findings: Vec<LintFinding> = pages
         .iter()
         .flat_map(|p| {
             lint_page(&PageInfo {
@@ -211,6 +217,23 @@ fn lint_package(path_str: &str) -> Result<(Vec<LintFinding>, usize), String> {
             })
         })
         .collect();
+
+    // Dataflow lint when config.dataflow is declared.
+    if let Some(mut spec) = parse_dataflow_from_json(&json_content) {
+        for page in &pages {
+            merge_html_dataflow_overlay(&mut spec, &page.id, &page.html);
+        }
+        let js_files = collect_local_js_files(&wizard_dir, &pages);
+        let has_workflow_post = wizard_json_has_workflow_post(&json_content);
+        let next_wizard_targets = HashMap::new();
+        findings.extend(lint_dataflow(&DataflowLintInput {
+            spec: &spec,
+            graph: &graph,
+            js_files: &js_files,
+            has_workflow_post,
+            next_wizard_targets: &next_wizard_targets,
+        }));
+    }
 
     Ok((findings, page_count))
 }
@@ -273,31 +296,40 @@ struct PageNode {
 
 /// Build the reachable page graph via BFS, starting from the entry page.
 ///
-/// Each page's linked local scripts are scanned for `wizardNextDescriptor` /
-/// `wyvernWizardNext` hops to discover further pages.  Already-visited pages
-/// (by relative HTML path) are not re-queued.
-fn build_page_graph(wizard_dir: &Path, entry_id: &str, entry_html: &str) -> Vec<PageNode> {
+/// Returns page nodes for nav lint and a [`WizardPageGraph`] for dataflow lint.
+fn build_page_graph(
+    wizard_dir: &Path,
+    entry_id: &str,
+    entry_html: &str,
+) -> (Vec<PageNode>, WizardPageGraph) {
     let mut visited: HashSet<String> = HashSet::new();
-    let mut queue: VecDeque<(String, String, PageRole)> = VecDeque::new();
+    let mut queue: VecDeque<(String, String, PageRole, Option<String>)> = VecDeque::new();
     let mut pages: Vec<PageNode> = Vec::new();
+    let mut graph = WizardPageGraph {
+        entry_id: entry_id.to_string(),
+        pages: HashMap::new(),
+        edges: HashMap::new(),
+    };
 
     queue.push_back((
         entry_id.to_string(),
         entry_html.to_string(),
         PageRole::Entry,
+        None,
     ));
 
-    while let Some((id, html_rel, role)) = queue.pop_front() {
+    while let Some((id, html_rel, role, from_id)) = queue.pop_front() {
         if visited.contains(&html_rel) {
             continue;
         }
         visited.insert(html_rel.clone());
 
+        if let Some(from) = from_id {
+            add_edge(&mut graph, &from, &id);
+        }
+
         let html_abs = wizard_dir.join(&html_rel);
         let Ok(html_content) = std::fs::read_to_string(&html_abs) else {
-            // Referenced page not found — record it as an empty page so the
-            // missing-file itself surfaces through normal error handling, but
-            // don't silently drop reachable hops from the report.
             continue;
         };
 
@@ -305,18 +337,30 @@ fn build_page_graph(wizard_dir: &Path, entry_id: &str, entry_html: &str) -> Vec<
         let html_dir = html_abs.parent().unwrap_or(wizard_dir);
         let srcs = extract_local_script_srcs(&html_content);
         for src in srcs {
-            // Resolve the script path relative to the HTML file's directory,
-            // then make it relative to the wizard root for consistent keys.
             let script_abs = normalize_path(&html_dir.join(&src));
             let Ok(js) = std::fs::read_to_string(&script_abs) else {
                 continue;
             };
             for hop in extract_next_hops(&js) {
                 if !visited.contains(&hop.html) {
-                    queue.push_back((hop.id, hop.html, PageRole::Inner));
+                    queue.push_back((
+                        hop.id.clone(),
+                        hop.html.clone(),
+                        PageRole::Inner,
+                        Some(id.clone()),
+                    ));
                 }
             }
         }
+
+        graph.pages.insert(
+            id.clone(),
+            GraphPage {
+                id: id.clone(),
+                file: html_rel.clone(),
+                html: html_content.clone(),
+            },
+        );
 
         pages.push(PageNode {
             id,
@@ -326,7 +370,41 @@ fn build_page_graph(wizard_dir: &Path, entry_id: &str, entry_html: &str) -> Vec<
         });
     }
 
-    pages
+    (pages, graph)
+}
+
+fn collect_local_js_files(wizard_dir: &Path, pages: &[PageNode]) -> HashMap<String, String> {
+    let mut files: HashMap<String, String> = HashMap::new();
+    for page in pages {
+        let html_abs = wizard_dir.join(&page.rel_path);
+        let html_dir = html_abs.parent().unwrap_or(wizard_dir);
+        let srcs = extract_local_script_srcs(&page.html);
+        for src in srcs {
+            let script_abs = normalize_path(&html_dir.join(&src));
+            let Ok(rel) = script_abs.strip_prefix(wizard_dir) else {
+                continue;
+            };
+            let rel_str = rel.to_string_lossy().replace('\\', "/");
+            if files.contains_key(&rel_str) {
+                continue;
+            }
+            if let Ok(js) = std::fs::read_to_string(&script_abs) {
+                files.insert(rel_str, js);
+            }
+        }
+    }
+    files
+}
+
+fn wizard_json_has_workflow_post(json: &str) -> bool {
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(json) else {
+        return false;
+    };
+    value
+        .get("workflow")
+        .and_then(|w| w.get("post"))
+        .and_then(|v| v.as_str())
+        .is_some_and(|s| !s.is_empty())
 }
 
 /// Normalize path components by resolving `..` without touching the filesystem.
@@ -447,5 +525,7 @@ mod tests {
         assert!(text.contains("WIZARD-LINT-002"), "{text}");
         assert!(text.contains("WIZARD-LINT-003"), "{text}");
         assert!(text.contains("WIZARD-LINT-004"), "{text}");
+        assert!(text.contains("WIZARD-LINT-005"), "{text}");
+        assert!(text.contains("WIZARD-LINT-008"), "{text}");
     }
 }
