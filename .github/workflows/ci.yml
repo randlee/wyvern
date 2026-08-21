@@ -54,6 +54,44 @@ jobs:
       - name: sc-lint check
         run: sc-lint check native --config .sc-lint.toml
 
+  wizard-lint:
+    name: wyvern wizard lint (examples)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Linux build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwayland-dev \
+            pkg-config \
+            libwebkit2gtk-4.1-dev \
+            libxkbcommon-x11-0 \
+            libgl1-mesa-dri \
+            mesa-utils \
+            at-spi2-core \
+            dbus-x11 \
+            xvfb
+
+      - name: cargo build -p wyvern-cli
+        run: cargo build -p wyvern-cli
+
+      - name: Set WYVERN_BIN
+        run: echo "WYVERN_BIN=${GITHUB_WORKSPACE}/target/debug/wyvern" >> "$GITHUB_ENV"
+
+      - name: wyvern wizard lint template-picker
+        run: ${WYVERN_BIN} wizard lint share/wyvern/examples/template-picker
+
+      - name: wyvern wizard lint askuserquestion-hook
+        run: ${WYVERN_BIN} wizard lint share/wyvern/examples/askuserquestion-hook
+
+      - name: wyvern wizard lint dataflow fixture
+        run: ${WYVERN_BIN} wizard lint fixtures/wizard-dataflow-lint
+
   audit:
     name: cargo audit
     runs-on: ubuntu-latest

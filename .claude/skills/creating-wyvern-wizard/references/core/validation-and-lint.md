@@ -109,8 +109,8 @@ From `references/stacks/registry.yaml`:
 | `vanilla-chrome` | `nav + dataflow-v1` | Full 001–004; 005–008 when declared |
 | `workspace-canvas` | `nav-limited + export-contract` | 002 still required on terminal; 001/003/004 only if `data-wizard-chrome` is present; `dag` export must mention `layout_id`, `nodes`, `edges` in local JS |
 
-Known Wave 2 finding: template-picker `pages/review.html` is terminal without
-Cancel (WIZARD-LINT-002). Fix is **g.14**, not this file.
+Known Wave 2 finding: template-picker `pages/review.html` missing Cancel
+(WIZARD-LINT-002) — **fixed in g.14**; CI gate enforces clean lint.
 
 ## 6. Author loop
 
