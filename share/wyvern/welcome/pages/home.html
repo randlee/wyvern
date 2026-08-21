@@ -28,9 +28,20 @@
   <h1 data-testid="guide-home">Wyvern Guide</h1>
   <p class="lead">Choose a topic. Full example tours land in later sprints.</p>
   <div class="guide-grid" data-testid="guide-topics"></div>
+  <nav class="wizard-chrome" data-wizard-nav aria-label="Wizard navigation">
+    <button type="button" class="primary" data-wizard-next data-testid="wizard-next">
+      Next
+    </button>
+  </nav>
   <p class="error" data-testid="wizard-error" hidden></p>
   <script>
     (function () {
+      window.wizardNextDescriptor = {
+        id: "overview",
+        title: "Overview",
+        html: "pages/overview.html"
+      };
+
       function topicTitle(id) {
         return ({
           overview: "Overview",
