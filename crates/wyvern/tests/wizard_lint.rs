@@ -1,19 +1,12 @@
 //! Integration tests for `wyvern wizard lint`.
 //!
-//! These tests run the lint command against the shipped `template-picker`
-//! example and **expect findings** for the known bugs documented below:
-//!
-//! - `review.html` is a terminal page (copy says "Cancel writes nothing") but
-//!   has **no cancel button** — the page prose mentions Cancel but there is no
-//!   `data-wizard-cancel` or `<button>Cancel</button>`.  This is a chronic
-//!   template-picker issue; this test documents it until it is fixed separately.
+//! Validates lint on shipped examples and CLI error paths.
 
 use std::path::PathBuf;
 
 use wyvern::{run_wizard_command, WizardCmdResult};
 
 fn template_picker_dir() -> PathBuf {
-    // crates/wyvern/tests/ → workspace root → share/wyvern/examples/template-picker
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .expect("crates/")
@@ -22,14 +15,9 @@ fn template_picker_dir() -> PathBuf {
         .join("share/wyvern/examples/template-picker")
 }
 
-/// Running `wyvern wizard lint` on template-picker reports WIZARD-LINT-002
-/// for `review.html` (terminal page missing cancel button).
-///
-/// **This is a known bug in the template-picker**: the copy on `review.html`
-/// says "Cancel writes nothing" but there is no cancel button element.
-/// Fix the HTML separately; do NOT remove this test until the button is added.
+/// Running `wyvern wizard lint` on template-picker is clean after g.14 Cancel fix.
 #[test]
-fn template_picker_missing_cancel_on_review_is_reported() {
+fn template_picker_lint_is_clean() {
     let dir = template_picker_dir();
     assert!(
         dir.exists(),
@@ -41,21 +29,14 @@ fn template_picker_missing_cancel_on_review_is_reported() {
     let result = run_wizard_command(&["lint".into(), path_str]).expect("lint must not I/O-error");
 
     match result {
-        WizardCmdResult::Findings(report) => {
+        WizardCmdResult::Clean(report) => {
             assert!(
-                report.contains("WIZARD-LINT-002"),
-                "expected WIZARD-LINT-002 (missing cancel on terminal page) in report:\n{report}"
-            );
-            assert!(
-                report.contains("review"),
-                "finding should reference 'review' page:\n{report}"
+                !report.contains("WIZARD-LINT-002"),
+                "unexpected 002 after Cancel fix:\n{report}"
             );
         }
-        WizardCmdResult::Clean(report) => {
-            panic!(
-                "expected findings for template-picker (review.html has no cancel button) \
-                 but got clean:\n{report}"
-            );
+        WizardCmdResult::Findings(report) => {
+            panic!("expected clean template-picker lint after g.14:\n{report}");
         }
     }
 }
