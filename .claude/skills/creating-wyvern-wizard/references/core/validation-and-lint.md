@@ -117,8 +117,29 @@ Known Wave 2 finding: template-picker `pages/review.html` missing Cancel
 1. G1 — `wyvern path/to/wizard.json --viewer none` (exit 0 or 4).
 2. Declare `config.dataflow` ([dataflow-contracts.md](dataflow-contracts.md) §8).
 3. G4 — `wyvern wizard lint path/to/wizard-dir` (005–008 when dataflow declared).
-4. G5 — happy-path finish JSON test; `--workflow-dry-run` when `workflow.post`
+4. **Fix every finding.** Re-run G4 until exit **0**. Do not present the wizard
+   to the user with open lint findings — that is why lint exists.
+5. G5 — happy-path finish JSON test; `--workflow-dry-run` when `workflow.post`
    exists (writes nothing).
+
+## 7. Mandatory before presenting to the user
+
+Lint is not optional polish. It is the checklist that catches missed Back/Cancel
+buttons, broken dataflow, and stack export gaps.
+
+```bash
+wyvern wizard lint path/to/wizard-dir
+# exit 1 → read stdout, fix HTML/JS/config.dataflow, repeat until exit 0
+```
+
+| Role | Obligation |
+|------|------------|
+| Skill router (`creating-wyvern-wizard`) | Block hand-off until G4 clean |
+| `wyvern-wizard-js` | Run lint after `scaffold` / `author`; fix findings before success JSON |
+| `wyvern-dag-wizard-js` | Same for workspace-canvas (`nav-limited` + export-contract) |
+
+If lint fails, list rule id + file + message, fix in-tree, re-run. Never ask the
+user to discover nav or dataflow gaps manually.
 
 Page-JS disk I/O is a **skill / agent** lint (`VALIDATION.DISK_IO` in g.11),
 not a `wyvern wizard lint` code. Refuse it at author time.

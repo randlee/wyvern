@@ -57,7 +57,7 @@ Page JS runs in the webview. **No disk I/O.** Read `window.wyvern` (`config`, `p
 
 File/path picking in the UI is a **string in finish data** (`<input type="file">` or a text field). The post script writes bytes.
 
-## Gate G4 — Lint
+## Gate G4 — Lint (mandatory before presenting)
 
 ```bash
 wyvern wizard lint path/to/wizard-dir
@@ -72,9 +72,13 @@ wyvern wizard lint path/to/wizard-dir
 
 Exit 0 = clean, 1 = findings, 2 = usage error (existing CLI contract).
 
-Fix findings in HTML/JS/declarations. Do not disable rules to close a sprint.
+**Mandatory loop:** run lint → fix every finding → re-run until exit **0**.
+Do not present the wizard to the user, open a PR, or return agent success until
+G4 is clean. Listing missed Back/Cancel buttons for the user to fix defeats the
+purpose of lint.
 
-Until g.9 merges, G4 is **nav-only** plus a manual review of the `config.dataflow` object against [dataflow-contracts.md](dataflow-contracts.md).
+Fix findings in HTML/JS/declarations. Do not disable rules to close a sprint.
+When `config.dataflow` is declared, 005–008 run automatically (g.9 on integrate).
 
 ## Gate G5 — Tests and dry-run
 

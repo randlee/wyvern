@@ -17,3 +17,6 @@ agent delegation):
 Read that file, `references/installation-and-troubleshooting.md` (Step 1 / wyvern verify), and its `references/core/` siblings. Do not fork instructions
 in this stub. Page-author agents remain `wyvern-wizard-js` and
 `wyvern-dag-wizard-js` only — never `rust-developer`.
+
+**Mandatory:** run `wyvern wizard lint` on the wizard directory, fix every
+finding, re-run until exit 0 **before** presenting work to the user (G4).
