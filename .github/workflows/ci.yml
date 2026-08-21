@@ -84,13 +84,13 @@ jobs:
         run: echo "WYVERN_BIN=${GITHUB_WORKSPACE}/target/debug/wyvern" >> "$GITHUB_ENV"
 
       - name: wyvern wizard lint — template-picker
-        run: wyvern wizard lint share/wyvern/examples/template-picker
+        run: "$WYVERN_BIN" wizard lint share/wyvern/examples/template-picker
 
       - name: wyvern wizard lint — askuserquestion-hook
-        run: wyvern wizard lint share/wyvern/examples/askuserquestion-hook
+        run: "$WYVERN_BIN" wizard lint share/wyvern/examples/askuserquestion-hook
 
       - name: wyvern wizard lint — dataflow fixture
-        run: wyvern wizard lint fixtures/wizard-dataflow-lint
+        run: "$WYVERN_BIN" wizard lint fixtures/wizard-dataflow-lint
 
   audit:
     name: cargo audit
