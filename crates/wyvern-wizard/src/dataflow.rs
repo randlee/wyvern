@@ -202,12 +202,7 @@ fn lint_requires(input: &DataflowLintInput<'_>) -> Vec<LintFinding> {
     findings
 }
 
-fn export_type_conflict(
-    spec: &DataflowSpec,
-    page_id: &str,
-    key: &str,
-    ty: &str,
-) -> Option<String> {
+fn export_type_conflict(spec: &DataflowSpec, page_id: &str, key: &str, ty: &str) -> Option<String> {
     let decl = spec.pages.get(page_id)?;
     // Scan all pages that also export this key — conflict if types differ.
     for (other_id, other) in &spec.pages {
@@ -226,11 +221,7 @@ fn export_type_conflict(
     None
 }
 
-fn exports_on_path(
-    spec: &DataflowSpec,
-    path: &[String],
-    target: &str,
-) -> HashMap<String, String> {
+fn exports_on_path(spec: &DataflowSpec, path: &[String], target: &str) -> HashMap<String, String> {
     let mut out = HashMap::new();
     for page_id in path {
         if page_id == target {
@@ -415,11 +406,7 @@ pub fn extract_data_reads(js: &str) -> HashSet<String> {
 
 fn regex_lite_scan(js: &str) -> Vec<String> {
     let mut keys = Vec::new();
-    let patterns = [
-        "data.",
-        "page_data.",
-        ".data.",
-    ];
+    let patterns = ["data.", "page_data.", ".data."];
     for pat in patterns {
         let mut pos = 0;
         while let Some(rel) = js[pos..].find(pat) {
@@ -536,16 +523,16 @@ fn lint_dag_export_contract(input: &DataflowLintInput<'_>) -> Vec<LintFinding> {
 fn parse_meta_kv(html: &str, name: &str) -> Option<Vec<(String, String)>> {
     let needle = format!("name=\"{name}\"");
     let needle_sq = format!("name='{name}'");
-    let content = extract_meta_content(html, &needle)
-        .or_else(|| extract_meta_content(html, &needle_sq))?;
+    let content =
+        extract_meta_content(html, &needle).or_else(|| extract_meta_content(html, &needle_sq))?;
     Some(parse_kv_list(&content))
 }
 
 fn parse_meta_requires(html: &str, name: &str) -> Option<Vec<String>> {
     let needle = format!("name=\"{name}\"");
     let needle_sq = format!("name='{name}'");
-    let content = extract_meta_content(html, &needle)
-        .or_else(|| extract_meta_content(html, &needle_sq))?;
+    let content =
+        extract_meta_content(html, &needle).or_else(|| extract_meta_content(html, &needle_sq))?;
     Some(
         content
             .split(',')

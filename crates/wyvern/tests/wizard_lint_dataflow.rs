@@ -52,8 +52,7 @@ fn dataflow_lint_unsatisfied_require_reports_005() {
 
 #[test]
 fn wizard_lint_help_lists_dataflow_codes() {
-    let result =
-        run_wizard_command(&["lint".into(), "--help".into()]).expect("help ok");
+    let result = run_wizard_command(&["lint".into(), "--help".into()]).expect("help ok");
     match result {
         WizardCmdResult::Clean(text) => {
             assert!(text.contains("WIZARD-LINT-005"), "{text}");
