@@ -14,6 +14,8 @@
     )
 )]
 
+/// Dataflow lint rules WIZARD-LINT-005–008 (`config.dataflow`).
+pub mod dataflow;
 mod history;
 /// Static lint analysis for wizard packages (`wyvern wizard lint`).
 ///
@@ -21,6 +23,12 @@ mod history;
 pub mod lint;
 mod session;
 
+#[doc(inline)]
+pub use dataflow::{
+    add_edge, extract_data_reads, extract_next_wizard_refs, lint_dataflow,
+    merge_html_dataflow_overlay, parse_dataflow_from_json, parse_dataflow_value, DataflowLintInput,
+    DataflowSpec, GraphPage, NextWizardRef, PageDataflow, WizardPageGraph,
+};
 #[doc(inline)]
 pub use lint::{
     extract_local_script_srcs, extract_next_hops, has_back_button, has_cancel_button,

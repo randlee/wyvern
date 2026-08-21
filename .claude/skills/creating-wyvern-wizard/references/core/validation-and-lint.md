@@ -3,16 +3,14 @@
 Gate G1 (schema) and gate G4 (lint). Load from the Layer 0 router. Do not invent
 a second schema or a second lint tool.
 
-**Until g.9 merges:** G4 is nav-only (WIZARD-LINT-001–004) plus a **manual**
-review of `config.dataflow` against [dataflow-contracts.md](dataflow-contracts.md).
-Codes 005–008 are reserved; they must not be treated as implemented.
+**Dataflow (g.9 — implemented):**
 
 ## 1. Two commands
 
 | Gate | Command | What it checks |
 |------|---------|----------------|
 | G1 | `wyvern path/to/wizard.json --viewer none` | Wizard **schema** (same load path as a real run) |
-| G4 | `wyvern wizard lint path/to/wizard-dir` | Nav (now) + dataflow (g.9) + stack export-contract |
+| G4 | `wyvern wizard lint path/to/wizard-dir` | Nav (001–004) + dataflow (005–008 when `config.dataflow` declared) + stack export-contract |
 
 There is no `wyvern wizard schema-validate`. Schema is the default command
 loader. `--viewer none` avoids opening a window after a valid load.
@@ -89,7 +87,7 @@ build of that branch).
 | **WIZARD-LINT-003** | Chrome opt-in missing `[data-wizard-nav]` |
 | **WIZARD-LINT-004** | Non-terminal chrome page missing Next |
 
-### Dataflow (g.9 — reserved)
+### Dataflow (implemented — g.9)
 
 | Code | When |
 |------|------|
@@ -118,10 +116,8 @@ Cancel (WIZARD-LINT-002). Fix is **g.14**, not this file.
 
 1. G1 — `wyvern path/to/wizard.json --viewer none` (exit 0 or 4).
 2. Declare `config.dataflow` ([dataflow-contracts.md](dataflow-contracts.md) §8).
-3. G4 — `wyvern wizard lint path/to/wizard-dir`.
-4. Until g.9: if the CLI has no dataflow rules, walk `exports` / `requires`
-   by hand against every hop in `app.js`.
-5. G5 — happy-path finish JSON test; `--workflow-dry-run` when `workflow.post`
+3. G4 — `wyvern wizard lint path/to/wizard-dir` (005–008 when dataflow declared).
+4. G5 — happy-path finish JSON test; `--workflow-dry-run` when `workflow.post`
    exists (writes nothing).
 
 Page-JS disk I/O is a **skill / agent** lint (`VALIDATION.DISK_IO` in g.11),

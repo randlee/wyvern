@@ -11,8 +11,13 @@
 //! | `WIZARD-LINT-002` | Terminal page missing cancel button                         |
 //! | `WIZARD-LINT-003` | `wizard-nav.js` chrome opt-in present but nav region absent |
 //! | `WIZARD-LINT-004` | Non-terminal page (with chrome opt-in) missing next button  |
+//! | `WIZARD-LINT-005` | `requires` unsatisfied or export type conflict            |
+//! | `WIZARD-LINT-006` | Terminal `post_input` not covered by `exports`            |
+//! | `WIZARD-LINT-007` | `next_wizard.input` keys undeclared on target             |
+//! | `WIZARD-LINT-008` | Local JS reads a key no page exports                      |
 //!
-//! Normative contracts sourced from `ui/shared/wizard-nav.js` sprint d.7.
+//! Nav rules sourced from `ui/shared/wizard-nav.js` sprint d.7.
+//! Dataflow rules sourced from `dataflow-contracts.md` sprint g.8/g.9.
 
 /// Stable lint finding codes for `wyvern wizard lint`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -27,6 +32,14 @@ pub enum LintCode {
     /// Non-terminal page with chrome opt-in missing `[data-wizard-next]` or
     /// `[data-testid="wizard-next"]`.
     W004MissingNext,
+    /// A `requires` key is missing on at least one reachable path, or types conflict.
+    W005UnsatisfiedRequire,
+    /// Terminal `post_input` key not listed in that page's `exports`.
+    W006PostInputMismatch,
+    /// `next_wizard.input` key not declared on the target wizard.
+    W007NextWizardInput,
+    /// Local JS reads a stack / `page_data` key nobody exports.
+    W008UndeclaredRead,
 }
 
 impl LintCode {
@@ -38,6 +51,10 @@ impl LintCode {
             Self::W002MissingCancel => "WIZARD-LINT-002",
             Self::W003MissingNavRegion => "WIZARD-LINT-003",
             Self::W004MissingNext => "WIZARD-LINT-004",
+            Self::W005UnsatisfiedRequire => "WIZARD-LINT-005",
+            Self::W006PostInputMismatch => "WIZARD-LINT-006",
+            Self::W007NextWizardInput => "WIZARD-LINT-007",
+            Self::W008UndeclaredRead => "WIZARD-LINT-008",
         }
     }
 }
