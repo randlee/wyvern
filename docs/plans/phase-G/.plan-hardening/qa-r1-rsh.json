@@ -1,0 +1,10 @@
+{
+  "success": true,
+  "data": {
+    "status": "skipped",
+    "review_mode": "doc_review",
+    "service_indicators_found": [],
+    "findings": [],
+    "notes": ["CLI workflow planning; no new service."]
+  }
+}

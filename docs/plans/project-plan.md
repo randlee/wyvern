@@ -184,25 +184,31 @@ Phase F sprint PRs target `integrate/phase-F`. Sprint authority: `docs/plans/pha
 
 ## Phase G — Extension Agent Usability
 
-**Phase goal:** CLI surfaces teach agents how to invoke Phase F extensions without checkout docs — first-class help, error-teaches near-misses, and a parseable skill catalog.
+**Phase goal (Wave 1):** CLI surfaces teach agents how to invoke Phase F extensions without checkout docs — first-class help, error-teaches near-misses, and a parseable skill catalog (REQ-0134–REQ-0137).
 
-**Prerequisite:** Phase F complete on `develop`.
+**Phase goal (Wave 2):** Ship **`wyvern guide`** plus three examples (AskUserQuestion hook installer, template catalog, DAG demo/export). g.4 lands CLI workflow pre/post (REQ-0124–0125, ADR-0023) and `next_wizard` chaining (REQ-0126, ADR-0024); g.5–g.7 consume them.
 
-**Recommended before Phase E** so interactive/MCP agents inherit discoverable argv help.
+**Prerequisite:** Phase F complete on `develop`. Wave 2 after Wave 1 merged.
 
-**Phase acceptance criteria:** Meets REQ-0134–REQ-0137 — `wyvern --help` lists every shipped skill (exit 0); `wyvern compose render --help` prints a skill card; `wyvern extensions list --json` is valid JSON; near-miss paths name the next command — not misleading parse text.
+**Recommended before Phase E** so interactive/MCP agents inherit discoverable argv help and welcome examples.
 
-Phase G sprint PRs target `integrate/phase-G`. Sprint authority: `docs/plans/phase-G/` (sprints **g.1–g.3**, sequential).
+**Phase acceptance (Wave 1):** `wyvern --help` lists every shipped skill (exit 0); `wyvern compose render --help` prints a skill card; `wyvern extensions list --json` is valid JSON; near-miss paths name the next command.
+
+Phase G sprint PRs target `integrate/phase-G`. Sprint authority: `docs/plans/phase-G/` (sprints **g.1–g.7**).
 
 **Input:** [phase-F-usability-review.md](phase-F/phase-F-usability-review.md)
 
-**Sprints:** three active (**g.1–g.3**). See [docs/plans/phase-G/README.md](phase-G/README.md).
+**Walkthrough (Wave 2 review):** [examples-walkthrough.md](phase-G/examples-walkthrough.md)
 
 | Sprint | Title | Doc |
 |--------|-------|-----|
 | g.1 | Help surface — global and extension-local | [g1-help-surface.md](phase-G/g1-help-surface.md) |
 | g.2 | Error-teaches — near-miss diagnostics and preexec recovery | [g2-error-teaches.md](phase-G/g2-error-teaches.md) |
 | g.3 | Skill catalog — list, JSON, show | [g3-skill-catalog.md](phase-G/g3-skill-catalog.md) |
+| g.4 | Welcome guide wizard + workflow foundation | [g4-welcome-guide-wizard.md](phase-G/g4-welcome-guide-wizard.md) |
+| g.5 | AskUserQuestion hook example | [g5-askuserquestion-claude-code.md](phase-G/g5-askuserquestion-claude-code.md) |
+| g.6 | Template wizard | [g6-template-wizard.md](phase-G/g6-template-wizard.md) |
+| g.7 | DAG agent demo + export | [g7-dag-agent-execution.md](phase-G/g7-dag-agent-execution.md) |
 
 ---
 
@@ -237,7 +243,7 @@ Phase E sprint PRs target `integrate/phase-E`. Sprint authority: `docs/plans/pha
 | Phase B — Core Dialogs | 8 | **MVP — all dialog types usable** |
 | Phase D — Wizard | 8 | Multi-page wizard with branching |
 | Phase F — CLI Extensions | 4 | Suffix/subcommand argv expansion (CSV table, HTML, compose) |
-| Phase G — Extension Agent Usability | 3 | Help, error-teaches, skill catalog (`list --json`, `show`) |
+| Phase G — Extension Agent Usability | 7 | Help/catalog (g.1–g.3) + welcome guide & examples (g.4–g.7) |
 | Phase E — Interactive & MCP | 4 | Agent-driveable status viewer + MCP |
 
 ## Dependency Map
@@ -248,6 +254,6 @@ Phase A
        └─ Phase C (c.9–c.16 HTTP delivery + wyvern-viewer + v0.1.0)
             └─ Phase D (wizard — HTTP on same host)
                  └─ Phase F (CLI extension registry)
-                      └─ Phase G (extension agent usability — recommended)
+                      └─ Phase G (extension agent usability + welcome examples — recommended)
                            └─ Phase E (persistent host + MCP)
 ```
