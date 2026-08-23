@@ -20,7 +20,7 @@ Nav lint WIZARD-LINT-001–004 landed on `feature/phase-G-wizard-lint` (`0578ebe
 | **g.13** | [g13-wizard-type-refs-and-templates.md](../g13-wizard-type-refs-and-templates.md) | g.10, g.11, g.12 | **W3** |
 | **g.14** | [g14-wizard-authoring-ci-and-fixes.md](../g14-wizard-authoring-ci-and-fixes.md) | g.9, g.13 | **W4** |
 
-g.9–g.14 sprint docs are written in those sprints. Until they exist, this table is the map only — do not treat missing sibling docs as g.8 failures.
+g.9–g.14 sprint docs are landed and marked **complete (integrate)**; the table below is the merge-order map only — use each linked sprint doc as sole authority for deliverables and acceptance criteria.
 
 ## Parallel execution
 

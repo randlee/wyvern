@@ -5,7 +5,9 @@ use std::path::PathBuf;
 use serde_json::{Map, Value};
 
 use super::{Allowlist, WorkflowError};
+use crate::error::LoadError;
 use crate::extensions::infer_wizard_root;
+use crate::input::read_file_capped;
 use wyvern_schema::NextWizard;
 
 /// Next hop loaded from `next_wizard.path` (CLI resolves; host does not).
@@ -47,9 +49,15 @@ pub fn resolve_next_wizard(
         })?;
     let path = next.path.as_str();
     let wizard_path = allowlist.resolve_allowed(path)?;
-    let text = std::fs::read_to_string(&wizard_path).map_err(|err| WorkflowError::Resolve {
-        path: path.to_string(),
-        cause: format!("could not read wizard.json: {err}"),
+    let text = read_file_capped(&wizard_path).map_err(|err| match err {
+        LoadError::Io { message, .. } => WorkflowError::Resolve {
+            path: path.to_string(),
+            cause: message,
+        },
+        LoadError::Parse { message } | LoadError::Usage { message, .. } => WorkflowError::Resolve {
+            path: path.to_string(),
+            cause: message,
+        },
     })?;
     let command: Value = serde_json::from_str(&text).map_err(|err| WorkflowError::Resolve {
         path: path.to_string(),
