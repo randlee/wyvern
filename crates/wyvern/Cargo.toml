@@ -10,13 +10,9 @@ description  = "What You View, Engine Renders Natively — HTTP dialog CLI"
 keywords     = ["wyvern", "dialog", "webview", "cli", "json"]
 categories   = ["command-line-utilities", "gui"]
 readme       = "../../README.md"
-# ui/ is included here for cargo-install users (no separate share/wyvern/ui needed).
-# rust-embed must compile from files inside this crate so `cargo publish --dry-run`
-# can verify the tarball (QA-001). Keep the vendored share/wyvern glob wide so
-# welcome/ and testdata/workflow/ ride along — do not narrow it. Workspace
-# share/wyvern and scripts/ext remain the live development trees; copy them
-# into embedded/ when those assets change.
-include      = ["src/**", "ui/**", "embedded/**", "Cargo.toml"]
+# ui/, share/wyvern/, and scripts/ext/ are vendored under this crate for cargo publish
+# (see scripts/check-ui-sync.sh and scripts/check-share-sync.sh).
+include      = ["src/**", "ui/**", "share/**", "scripts/**", "Cargo.toml"]
 
 [lib]
 name = "wyvern"

@@ -226,3 +226,5 @@ jobs:
         run: python3 scripts/check-boundaries.py
       - name: Verify ui/ matches crates/wyvern/ui/
         run: bash scripts/check-ui-sync.sh
+      - name: Verify share/ and scripts/ext match crates/wyvern/
+        run: bash scripts/check-share-sync.sh
