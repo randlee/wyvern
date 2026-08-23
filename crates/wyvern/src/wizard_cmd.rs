@@ -20,8 +20,7 @@ use wyvern_schema::{WizardPageHtml, WizardPageId};
 use wyvern_wizard::{
     add_edge, extract_local_script_srcs, extract_next_hops, extract_next_wizard_refs,
     lint_dataflow, lint_page, merge_html_dataflow_overlay, parse_dataflow_from_json,
-    DataflowLintInput, DataflowSpec, GraphPage, LintFinding, PageInfo, PageRole,
-    WizardPageGraph,
+    DataflowLintInput, DataflowSpec, GraphPage, LintFinding, PageInfo, PageRole, WizardPageGraph,
 };
 
 use crate::error::{BuiltinDomain, EmitError, UsageErrorKind};
@@ -273,16 +272,14 @@ fn parse_wizard_json_entry(json: &str) -> Result<(String, String), String> {
         .ok_or("missing 'page' field in wizard.json")?;
 
     let id = WizardPageId::try_new(
-        page
-            .get("id")
+        page.get("id")
             .and_then(|v| v.as_str())
             .ok_or("wizard.json page.id must be a string")?,
     )
     .map_err(|_| "wizard.json page.id must be non-empty".to_string())?;
 
     let html = WizardPageHtml::try_new(
-        page
-            .get("html")
+        page.get("html")
             .and_then(|v| v.as_str())
             .ok_or("wizard.json page.html must be a string")?,
     )
@@ -336,12 +333,8 @@ fn build_page_graph(
         }
 
         let html_abs = wizard_dir.join(&html_rel);
-        let html_content = std::fs::read_to_string(&html_abs).map_err(|e| {
-            format!(
-                "error: cannot read page '{}': {e}",
-                html_abs.display()
-            )
-        })?;
+        let html_content = std::fs::read_to_string(&html_abs)
+            .map_err(|e| format!("error: cannot read page '{}': {e}", html_abs.display()))?;
 
         // Discover next-page hops from linked local JS files.
         let html_dir = html_abs.parent().unwrap_or(wizard_dir);
