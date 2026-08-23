@@ -23,10 +23,10 @@ for ad-hoc agent review (failures + proposed fix side-by-side).
 | Path | Purpose |
 |------|---------|
 | `docs/plans/phase-H/h2-xhtml-panel-array.md` | This sprint doc |
-| `share/wyvern/extensions.json` | `report-xhtml` + **`report-xhtml-review`** (review prefix, h.3) |
-| `scripts/ext/xhtml_report.py` | `--mode array`, manifest reader, `--validate-manifest`; writes `{tmpdir}/report-command.json` |
+| `share/wyvern/extensions.json` | `report-xhtml` extension only |
+| `scripts/ext/xhtml_report.py` | Extends h.1 script: `--mode array`, manifest reader, `--validate-manifest`; writes `{tmpdir}/report-command.json` |
 | `docs/plans/phase-H/review-manifest.schema.json` | JSON schema for manifests |
-| `crates/wyvern/tests/fixtures/xhtml-review/view.json` | Minimal 2-panel manifest fixture (owned here, reused by h.5) |
+| `crates/wyvern/tests/fixtures/xhtml-review/view.json` | Minimal 2-panel **test-only** fixture (h.5 ships separate examples under `share/`) |
 | `crates/wyvern/tests/extensions_xhtml_array.rs` | Manifest → expand tests |
 | `ui/shared/report-base.css` | `.pane`, `.pane--proposal` styles |
 
@@ -64,6 +64,7 @@ WYVERN_VIEWER=none wyvern report-xhtml crates/wyvern/tests/fixtures/xhtml-review
 
 ## Non-closure
 
+- `report-xhtml-review` extension registration (h.3 sole owner)
 - `--review` / Approve-Cancel (h.3)
 - Directory glob without manifest
 - Paginated one-pane-at-a-time mode

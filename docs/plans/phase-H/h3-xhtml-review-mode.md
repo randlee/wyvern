@@ -23,8 +23,8 @@ Cancel / Approve buttons; structured finish JSON for agent loops.
 | Path | Purpose |
 |------|---------|
 | `docs/plans/phase-H/h3-xhtml-review-mode.md` | This sprint doc |
-| `scripts/ext/xhtml_report.py` | `--mode review` frame profile |
-| `ui/shared/report-review.js` | POST `/api/report/finish` |
+| `scripts/ext/xhtml_report.py` | `--mode review` frame profile; embeds manifest JSON in page |
+| `ui/shared/report-review.js` | POST `/api/report/finish`; exactly one POST per button click (disable after submit) |
 | `ui/shared/report-base.css` | Review footer layout |
 | `crates/wyvern-host/src/routes/report.rs` | `POST /api/report/finish` |
 | `crates/wyvern-schema/src/result.rs` | Report finish `data` shape docs/tests |
@@ -40,7 +40,21 @@ Cancel / Approve buttons; structured finish JSON for agent loops.
 | REQ-0144 | Review finish JSON (`approved`, `comments`, `panels`) on stdout |
 | REQ-HOST-0142 | `POST /api/report/finish` registered only in review mode |
 
-### Finish contract (normative)
+### Finish request (normative POST body)
+
+```json
+{
+  "approved": true,
+  "comments": "optional review notes",
+  "panels": [{ "path": "panels/fail-1.xhtml", "label": "Fail 1", "role": "failure" }]
+}
+```
+
+Unknown top-level keys rejected (HTTP 400). `comments` max 32_768 chars. Preexec embeds
+the input manifest as `<script id="manifest-data" type="application/json">…</script>`;
+`report-review.js` reads it and includes the `panels` array in the POST body.
+
+### Finish response (stdout)
 
 ```json
 {
@@ -71,6 +85,9 @@ wyvern report-xhtml path/to/review.json   # when manifest.mode is "review"
 3. Cancel → `approved: false`; host exits cleanly.
 4. View-only report (h.1/h.2 without review) unchanged — no review footer.
 5. No wizard APIs loaded on review pages (`wizard-nav.js` absent).
+6. `wyvern extensions list --json | jq -e '.[] | select(.id=="report-xhtml-review")'` succeeds (sole registry owner for review prefix).
+7. Finish POST acknowledged before host shutdown (RSH-007 `SessionState::complete` / consume-before-shutdown).
+8. `report-review.js` disables Approve/Cancel after first finish POST; no automatic retry on 409/5xx.
 
 ## Required validation
 

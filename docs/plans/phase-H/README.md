@@ -47,6 +47,10 @@ argv → extension match → preexec (optional frame stitch) → expand type: re
      → CommandResult JSON
 ```
 
+**Host hardening inheritance:** report sessions inherit `session_timeout`,
+`REQUEST_TIMEOUT` (310s), and preexec script timeout from `wyvern-host` /
+`extensions/preexec.rs` (same as Phase F compose/CSV extensions). See h.5 CI notes.
+
 | Surface | CLI | Frame |
 |---------|-----|-------|
 | Single panel | `wyvern panel.xhtml` | Basic document shell (charset, viewport) |
@@ -76,28 +80,31 @@ include `--review` finish shape.)
 
 ---
 
-## Phase acceptance criteria (smoke)
+## Phase integration smoke (non-normative)
 
-1. `WYVERN_VIEWER=none wyvern share/wyvern/examples/xhtml-review/panels/fail-1.xhtml` exits 0 (h.1 single panel).
-2. `WYVERN_VIEWER=none wyvern report-xhtml share/wyvern/examples/xhtml-review/review-view.json` exits 0 (h.2 array).
-3. `wyvern report-xhtml --review share/wyvern/examples/xhtml-review/review-review.json` returns finish JSON with `approved` + `comments` after user action (h.3).
-4. `wyvern extensions list --json | jq -e '.[] | select(.id=="xhtml-suffix" or .id=="report-xhtml" or .id=="report-xhtml-review")'` succeeds.
-5. `cargo test -p wyvern-cli extensions_xhtml_single extensions_xhtml_array extensions_xhtml_review` passes.
-6. `cargo test -p wyvern-host report_` passes.
+Sprint docs remain **sole authority** for acceptance criteria and required validation.
+This checklist mirrors h.1–h.5 smoke paths for phase closeout only.
+
+1. `WYVERN_VIEWER=none wyvern share/wyvern/examples/xhtml-review/panels/fail-1.xhtml` exits 0 (h.1).
+2. `WYVERN_VIEWER=none wyvern report-xhtml share/wyvern/examples/xhtml-review/review-view.json` exits 0 (h.2).
+3. `wyvern report-xhtml --review share/wyvern/examples/xhtml-review/review-review.json` returns finish JSON (h.3).
+4. Extension registry includes `xhtml-suffix`, `report-xhtml`, and `report-xhtml-review`.
+5. Per-sprint tests pass (run separately — cargo does not accept multiple `--test` filters):
 
 ```bash
-# h.1 — single fragment panel
-WYVERN_VIEWER=none wyvern share/wyvern/examples/xhtml-review/panels/fail-1.xhtml
-
-# h.2 — panel array
-WYVERN_VIEWER=none wyvern report-xhtml share/wyvern/examples/xhtml-review/review-view.json
-
-# h.3 — review finish JSON
-wyvern report-xhtml --review share/wyvern/examples/xhtml-review/review-review.json
-
-wyvern extensions list --json | jq -e '.[] | select(.id=="xhtml-suffix" or .id=="report-xhtml")'
-cargo test -p wyvern-cli extensions_xhtml_single extensions_xhtml_array extensions_xhtml_review
+cargo test -p wyvern-cli --test extensions_xhtml_single
+cargo test -p wyvern-cli --test extensions_xhtml_array
+cargo test -p wyvern-cli --test extensions_xhtml_review
 cargo test -p wyvern-host report_
+```
+
+Optional operator walkthrough (copy/paste):
+
+```bash
+WYVERN_VIEWER=none wyvern share/wyvern/examples/xhtml-review/panels/fail-1.xhtml
+WYVERN_VIEWER=none wyvern report-xhtml share/wyvern/examples/xhtml-review/review-view.json
+wyvern report-xhtml --review share/wyvern/examples/xhtml-review/review-review.json
+wyvern extensions list --json | jq -e '.[] | select(.id=="xhtml-suffix" or .id=="report-xhtml" or .id=="report-xhtml-review")'
 ```
 
 ---

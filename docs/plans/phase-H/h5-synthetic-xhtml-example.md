@@ -48,17 +48,14 @@ Ship a **working** synthetic example (atm-core-style benchmark panels) under
 After `cargo build -p wyvern-cli`:
 
 ```bash
-wyvern wizard lint share/wyvern/examples/xhtml-review  # nav lint N/A — expect skip or clean if lint extended; document outcome
+# Report examples MUST NOT use wizard-nav (contract § Boundaries)
+test -z "$(rg -n 'wizard-nav' share/wyvern/examples/xhtml-review/ || true)"
 wyvern report-xhtml share/wyvern/examples/xhtml-review/review-view.json  # expand-only or --viewer none smoke
 python3 scripts/ext/xhtml_report.py --validate-manifest share/wyvern/examples/xhtml-review/review-view.json
 ```
 
-If wizard lint does not apply to report examples, document explicit exclusion in
-README and skip lint step in CI (report ≠ wizard).
-
-Host hardening inherits Phase C/D session timeouts and preexec timeout from
-`extensions/preexec.rs` (same as compose/CSV extensions). Review `comments` max
-32_768 chars (contract § Error inventory).
+Report surfaces are excluded from `wyvern wizard lint` (not wizard packages). CI verifies
+no `wizard-nav` references under `share/wyvern/examples/xhtml-review/`.
 
 ## Acceptance criteria
 
@@ -70,6 +67,7 @@ Host hardening inherits Phase C/D session timeouts and preexec timeout from
    `wyvern share/wyvern/examples/xhtml-review/panels/fail-1.xhtml`.
 4. h.4 skill links to this example tree.
 5. Embedded share sync check passes.
+6. `rg wizard-nav share/wyvern/examples/xhtml-review/` returns no matches (report ≠ wizard boundary).
 
 ## Required validation
 

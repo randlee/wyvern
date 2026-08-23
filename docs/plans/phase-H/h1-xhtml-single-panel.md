@@ -36,7 +36,7 @@ fragments.
 | `crates/wyvern-host/src/routes/report.rs` | Static `/report/*` + view dismiss |
 | `crates/wyvern-host/src/server.rs` | Report router + **`/shared/*`** for report sessions |
 | `crates/wyvern/src/pipeline.rs` | Run report commands |
-| `scripts/ext/xhtml_report.py` | `--mode single` fragment wrapper |
+| `scripts/ext/xhtml_report.py` | `--mode single`; writes wrapped HTML to `{tmpdir}/pages/view.xhtml` (creates `pages/` if absent); `--mode array` stub non-zero until h.2 |
 | `ui/shared/report-base.css` | Minimal pane typography |
 | `share/wyvern/extensions.json` | `xhtml-suffix` entry |
 | `crates/wyvern/embedded/…` | Parity for extensions + ui |
@@ -65,7 +65,7 @@ Host REQ text: REQ-HOST-0140 (`/report/*`), REQ-HOST-0141 (`/shared/*` during re
   "match": { "positional_suffix": ".xhtml" },
   "preexec": {
     "cmd": "python3",
-    "args": ["{wyvern_share}/scripts/ext/xhtml_report.py", "--mode", "single", "--input", "{path}", "--title", "{basename}"],
+    "args": ["{wyvern_share}/scripts/ext/xhtml_report.py", "--mode", "single", "--input", "{path}", "--title", "{basename}", "--out", "{tmpdir}/pages/view.xhtml"],
     "requires": ["python3"]
   },
   "expand": {
