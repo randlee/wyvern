@@ -14,9 +14,10 @@
 //! |  2   | Usage / bad arguments         |
 
 use std::collections::{HashMap, HashSet, VecDeque};
+use std::fmt;
 use std::path::{Component, Path, PathBuf};
 
-use wyvern_schema::{WizardPageHtml, WizardPageId};
+use wyvern_schema::{FieldName, WizardPageFieldError, WizardPageHtml, WizardPageId};
 use wyvern_wizard::{
     add_edge, extract_local_script_srcs, extract_next_hops, extract_next_wizard_refs,
     lint_dataflow, lint_page, merge_html_dataflow_overlay, parse_dataflow_from_json,
@@ -48,15 +49,104 @@ pub enum WizardCmdError {
         /// Plain-text usage message.
         message: String,
     },
-    /// I/O or parse failure (exit 1) — emit via [`emit_wizard_lint_stage_error`].
-    Stage {
-        /// Human-readable detail (one or more lines).
-        message: String,
-        /// Process exit code (typically 1).
-        exit_code: i32,
-    },
+    /// I/O, parse, or field-validation failure — emit via [`emit_wizard_lint_stage_error`].
+    Stage(WizardLintStageError),
     /// Emit-boundary serialize failure.
     Emit(EmitError),
+}
+
+/// Structured `wizard lint` stage failure (RBP-001 / RBP-F001).
+///
+/// Carries path and field context so [`emit_wizard_lint_stage_error`] can map
+/// each variant to `IoError` / `ParseError` / `ValidationError` with a stable
+/// subcode and recovery steps.
+#[derive(Debug)]
+pub enum WizardLintStageError {
+    /// Filesystem read or path resolution failed.
+    Io {
+        /// Path that could not be read or resolved.
+        path: PathBuf,
+        /// Human-readable detail.
+        message: String,
+    },
+    /// `wizard.json` was not valid JSON.
+    Parse {
+        /// `wizard.json` path.
+        path: PathBuf,
+        /// Parser detail.
+        message: String,
+    },
+    /// `wizard.json` fields failed newtype or shape checks.
+    Validation {
+        /// `wizard.json` path.
+        path: PathBuf,
+        /// Field that failed (e.g. `page.id`).
+        field: FieldName,
+        /// Human-readable detail, including [`WizardPageFieldError`] when applicable.
+        message: String,
+    },
+}
+
+impl fmt::Display for WizardLintStageError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.message())
+    }
+}
+
+impl std::error::Error for WizardLintStageError {}
+
+impl WizardLintStageError {
+    /// Human-readable detail for stdout / tests.
+    #[must_use]
+    pub fn message(&self) -> &str {
+        match self {
+            Self::Io { message, .. }
+            | Self::Parse { message, .. }
+            | Self::Validation { message, .. } => message,
+        }
+    }
+
+    /// Process exit code for `wyvern wizard lint` stage failures (always 1).
+    #[must_use]
+    pub const fn exit_code(&self) -> i32 {
+        1
+    }
+
+    /// Stable sub-discriminator under the mapped [`wyvern_schema::ErrorCode`].
+    #[must_use]
+    pub const fn subcode(&self) -> &'static str {
+        match self {
+            Self::Io { .. } => "wizard_lint_io",
+            Self::Parse { .. } => "wizard_lint_parse",
+            Self::Validation { .. } => "wizard_lint_validation",
+        }
+    }
+}
+
+fn combine_stage_errors(mut errors: Vec<WizardLintStageError>) -> WizardLintStageError {
+    if errors.len() == 1 {
+        return errors.remove(0);
+    }
+    let combined = errors
+        .iter()
+        .map(ToString::to_string)
+        .collect::<Vec<_>>()
+        .join("\n");
+    match errors.remove(0) {
+        WizardLintStageError::Io { path, .. } => WizardLintStageError::Io {
+            path,
+            message: combined,
+        },
+        WizardLintStageError::Parse { path, .. } => WizardLintStageError::Parse {
+            path,
+            message: combined,
+        },
+        WizardLintStageError::Validation { path, field, .. } => WizardLintStageError::Validation {
+            path,
+            field,
+            message: combined,
+        },
+    }
 }
 
 /// Usage text for `wyvern wizard --help` / `wyvern wizard lint --help`.
@@ -145,7 +235,7 @@ fn run_lint(args: &[String]) -> Result<WizardCmdResult, WizardCmdError> {
     }
 
     let mut all_findings: Vec<LintFinding> = Vec::new();
-    let mut errors: Vec<String> = Vec::new();
+    let mut errors: Vec<WizardLintStageError> = Vec::new();
     let mut total_pages: usize = 0;
 
     for path_str in args {
@@ -154,18 +244,15 @@ fn run_lint(args: &[String]) -> Result<WizardCmdResult, WizardCmdError> {
                 total_pages += page_count;
                 all_findings.extend(findings);
             }
-            Err(msg) => {
-                errors.push(msg);
+            Err(err) => {
+                errors.push(err);
             }
         }
     }
 
-    // I/O errors are reported on stderr and set exit 1.
+    // I/O / parse / validation errors are reported on stderr and set exit 1.
     if !errors.is_empty() {
-        return Err(WizardCmdError::Stage {
-            message: errors.join("\n"),
-            exit_code: 1,
-        });
+        return Err(WizardCmdError::Stage(combine_stage_errors(errors)));
     }
 
     if all_findings.is_empty() {
@@ -189,30 +276,32 @@ fn run_lint(args: &[String]) -> Result<WizardCmdResult, WizardCmdError> {
 
 /// Lint a single wizard package rooted at `path_str`.
 ///
-/// Returns `(findings, page_count)` on success, or an error string on failure.
-fn lint_package(path_str: &str) -> Result<(Vec<LintFinding>, usize), String> {
+/// Returns `(findings, page_count)` on success, or a structured stage error.
+fn lint_package(path_str: &str) -> Result<(Vec<LintFinding>, usize), WizardLintStageError> {
     let input = Path::new(path_str);
 
     // Resolve wizard.json and wizard root directory.
     let (wizard_json_path, wizard_dir) = resolve_wizard_paths(input)?;
 
     // Parse wizard.json to get the entry page descriptor.
-    let json_content = std::fs::read_to_string(&wizard_json_path)
-        .map_err(|e| format!("error: cannot read '{}': {e}", wizard_json_path.display()))?;
+    let json_content =
+        std::fs::read_to_string(&wizard_json_path).map_err(|e| WizardLintStageError::Io {
+            path: wizard_json_path.clone(),
+            message: format!("error: cannot read '{}': {e}", wizard_json_path.display()),
+        })?;
 
-    let (entry_id, entry_html) = parse_wizard_json_entry(&json_content)
-        .map_err(|msg| format!("error: '{}': {msg}", wizard_json_path.display()))?;
+    let (entry_id, entry_html) = parse_wizard_json_entry(&json_content, &wizard_json_path)?;
 
     // BFS to build the reachable page graph.
     let (pages, graph) = build_page_graph(&wizard_dir, &entry_id, &entry_html)?;
 
-    // Nav lint for each page.
+    // Nav lint for each page. Borrow newtypes as `&str` only at the wyvern_wizard boundary.
     let mut findings: Vec<LintFinding> = pages
         .iter()
         .flat_map(|p| {
             lint_page(&PageInfo {
-                id: &p.id,
-                file: &p.rel_path,
+                id: p.id.as_str(),
+                file: p.rel_path.as_str(),
                 html: &p.html,
                 role: p.role,
             })
@@ -222,7 +311,7 @@ fn lint_package(path_str: &str) -> Result<(Vec<LintFinding>, usize), String> {
     // Dataflow lint when config.dataflow is declared.
     if let Some(mut spec) = parse_dataflow_from_json(&json_content) {
         for page in &pages {
-            merge_html_dataflow_overlay(&mut spec, &page.id, &page.html);
+            merge_html_dataflow_overlay(&mut spec, page.id.as_str(), &page.html);
         }
         let js_files = collect_local_js_files(&wizard_dir, &pages);
         let has_workflow_post = wizard_json_has_workflow_post(&json_content);
@@ -241,86 +330,123 @@ fn lint_package(path_str: &str) -> Result<(Vec<LintFinding>, usize), String> {
 }
 
 /// Resolve `input` to `(wizard_json_path, wizard_dir)`.
-fn resolve_wizard_paths(input: &Path) -> Result<(PathBuf, PathBuf), String> {
+fn resolve_wizard_paths(input: &Path) -> Result<(PathBuf, PathBuf), WizardLintStageError> {
     if input.is_dir() {
         let json = input.join("wizard.json");
         if json.is_file() {
             return Ok((json, input.to_path_buf()));
         }
-        return Err(format!(
-            "error: '{}' is a directory but contains no wizard.json",
-            input.display()
-        ));
+        return Err(WizardLintStageError::Io {
+            path: json,
+            message: format!(
+                "error: '{}' is a directory but contains no wizard.json",
+                input.display()
+            ),
+        });
     }
     if input.is_file() {
         let dir = input.parent().unwrap_or(Path::new("."));
         return Ok((input.to_path_buf(), dir.to_path_buf()));
     }
-    Err(format!(
-        "error: '{}' not found (expected directory or wizard.json path)",
-        input.display()
-    ))
+    Err(WizardLintStageError::Io {
+        path: input.to_path_buf(),
+        message: format!(
+            "error: '{}' not found (expected directory or wizard.json path)",
+            input.display()
+        ),
+    })
 }
 
-/// Extract `(entry_id, entry_html)` from wizard.json content.
-fn parse_wizard_json_entry(json: &str) -> Result<(String, String), String> {
+/// Extract typed `(entry_id, entry_html)` from wizard.json content.
+///
+/// Keeps [`WizardPageId`] / [`WizardPageHtml`] so callers do not strip newtypes
+/// at the parse boundary (RBP-004 / RBP-F003).
+fn parse_wizard_json_entry(
+    json: &str,
+    path: &Path,
+) -> Result<(WizardPageId, WizardPageHtml), WizardLintStageError> {
     let value: serde_json::Value =
-        serde_json::from_str(json).map_err(|e| format!("invalid JSON: {e}"))?;
+        serde_json::from_str(json).map_err(|e| WizardLintStageError::Parse {
+            path: path.to_path_buf(),
+            message: format!("error: '{}': invalid JSON: {e}", path.display()),
+        })?;
 
     let page = value
         .get("page")
-        .ok_or("missing 'page' field in wizard.json")?;
+        .ok_or_else(|| WizardLintStageError::Validation {
+            path: path.to_path_buf(),
+            field: FieldName::new("page"),
+            message: format!(
+                "error: '{}': missing 'page' field in wizard.json",
+                path.display()
+            ),
+        })?;
 
-    let id = WizardPageId::try_new(
-        page.get("id")
-            .and_then(|v| v.as_str())
-            .ok_or("wizard.json page.id must be a string")?,
-    )
-    .map_err(|_| "wizard.json page.id must be non-empty".to_string())?;
+    let id = parse_page_newtype_field(page, path, "id", WizardPageId::try_new)?;
+    let html = parse_page_newtype_field(page, path, "html", WizardPageHtml::try_new)?;
 
-    let html = WizardPageHtml::try_new(
-        page.get("html")
-            .and_then(|v| v.as_str())
-            .ok_or("wizard.json page.html must be a string")?,
-    )
-    .map_err(|_| "wizard.json page.html must be non-empty".to_string())?;
+    Ok((id, html))
+}
 
-    Ok((id.into_inner(), html.into_inner()))
+fn parse_page_newtype_field<T>(
+    page: &serde_json::Value,
+    path: &Path,
+    field: &str,
+    ctor: impl FnOnce(String) -> Result<T, WizardPageFieldError>,
+) -> Result<T, WizardLintStageError> {
+    let field_name = format!("page.{field}");
+    let raw = page.get(field).and_then(|v| v.as_str()).ok_or_else(|| {
+        WizardLintStageError::Validation {
+            path: path.to_path_buf(),
+            field: FieldName::new(field_name.clone()),
+            message: format!(
+                "error: '{}': wizard.json {field_name} must be a string",
+                path.display()
+            ),
+        }
+    })?;
+    ctor(raw.to_string()).map_err(|err| WizardLintStageError::Validation {
+        path: path.to_path_buf(),
+        field: FieldName::new(field_name.clone()),
+        message: format!(
+            "error: '{}': wizard.json {field_name}: {err}",
+            path.display()
+        ),
+    })
 }
 
 // ── BFS page graph ────────────────────────────────────────────────────────────
 
 struct PageNode {
-    id: String,
+    id: WizardPageId,
     /// Path relative to the wizard root (for display).
-    rel_path: String,
+    rel_path: WizardPageHtml,
     html: String,
     role: PageRole,
 }
 
 /// Build the reachable page graph via BFS, starting from the entry page.
 ///
-/// Returns page nodes for nav lint and a [`WizardPageGraph`] for dataflow lint.
+/// Keeps [`WizardPageId`] / [`WizardPageHtml`] on [`PageNode`] and the BFS
+/// queue. String keys are produced with [`WizardPageId::as_str`] /
+/// [`WizardPageHtml::as_str`] only when filling [`WizardPageGraph`]
+/// (wyvern_wizard API boundary).
 fn build_page_graph(
     wizard_dir: &Path,
-    entry_id: &str,
-    entry_html: &str,
-) -> Result<(Vec<PageNode>, WizardPageGraph), String> {
-    let mut visited: HashSet<String> = HashSet::new();
-    let mut queue: VecDeque<(String, String, PageRole, Option<String>)> = VecDeque::new();
+    entry_id: &WizardPageId,
+    entry_html: &WizardPageHtml,
+) -> Result<(Vec<PageNode>, WizardPageGraph), WizardLintStageError> {
+    let mut visited: HashSet<WizardPageHtml> = HashSet::new();
+    let mut queue: VecDeque<(WizardPageId, WizardPageHtml, PageRole, Option<WizardPageId>)> =
+        VecDeque::new();
     let mut pages: Vec<PageNode> = Vec::new();
     let mut graph = WizardPageGraph {
-        entry_id: entry_id.to_string(),
+        entry_id: entry_id.as_str().to_string(),
         pages: HashMap::new(),
         edges: HashMap::new(),
     };
 
-    queue.push_back((
-        entry_id.to_string(),
-        entry_html.to_string(),
-        PageRole::Entry,
-        None,
-    ));
+    queue.push_back((entry_id.clone(), entry_html.clone(), PageRole::Entry, None));
 
     while let Some((id, html_rel, role, from_id)) = queue.pop_front() {
         if visited.contains(&html_rel) {
@@ -329,12 +455,15 @@ fn build_page_graph(
         visited.insert(html_rel.clone());
 
         if let Some(from) = from_id {
-            add_edge(&mut graph, &from, &id);
+            add_edge(&mut graph, from.as_str(), id.as_str());
         }
 
-        let html_abs = wizard_dir.join(&html_rel);
-        let html_content = std::fs::read_to_string(&html_abs)
-            .map_err(|e| format!("error: cannot read page '{}': {e}", html_abs.display()))?;
+        let html_abs = wizard_dir.join(html_rel.as_str());
+        let html_content =
+            std::fs::read_to_string(&html_abs).map_err(|e| WizardLintStageError::Io {
+                path: html_abs.clone(),
+                message: format!("error: cannot read page '{}': {e}", html_abs.display()),
+            })?;
 
         // Discover next-page hops from linked local JS files.
         let html_dir = html_abs.parent().unwrap_or(wizard_dir);
@@ -345,22 +474,23 @@ fn build_page_graph(
                 continue;
             };
             for hop in extract_next_hops(&js) {
-                if !visited.contains(&hop.html) {
-                    queue.push_back((
-                        hop.id.clone(),
-                        hop.html.clone(),
-                        PageRole::Inner,
-                        Some(id.clone()),
-                    ));
+                let Ok(hop_html) = WizardPageHtml::try_new(hop.html) else {
+                    continue;
+                };
+                if !visited.contains(&hop_html) {
+                    let Ok(hop_id) = WizardPageId::try_new(hop.id) else {
+                        continue;
+                    };
+                    queue.push_back((hop_id, hop_html, PageRole::Inner, Some(id.clone())));
                 }
             }
         }
 
         graph.pages.insert(
-            id.clone(),
+            id.as_str().to_string(),
             GraphPage {
-                id: id.clone(),
-                file: html_rel.clone(),
+                id: id.as_str().to_string(),
+                file: html_rel.as_str().to_string(),
                 html: html_content.clone(),
             },
         );
@@ -411,7 +541,7 @@ fn build_next_wizard_targets(
 fn collect_local_js_files(wizard_dir: &Path, pages: &[PageNode]) -> HashMap<String, String> {
     let mut files: HashMap<String, String> = HashMap::new();
     for page in pages {
-        let html_abs = wizard_dir.join(&page.rel_path);
+        let html_abs = wizard_dir.join(page.rel_path.as_str());
         let html_dir = html_abs.parent().unwrap_or(wizard_dir);
         let srcs = extract_local_script_srcs(&page.html);
         for src in srcs {
@@ -562,5 +692,53 @@ mod tests {
         assert!(text.contains("WIZARD-LINT-004"), "{text}");
         assert!(text.contains("WIZARD-LINT-005"), "{text}");
         assert!(text.contains("WIZARD-LINT-008"), "{text}");
+    }
+
+    #[test]
+    fn parse_wizard_json_entry_keeps_page_newtypes() {
+        let json = r#"{"page":{"id":"start","html":"pages/start.html"}}"#;
+        let (id, html) = parse_wizard_json_entry(json, Path::new("wizard.json")).expect("ok");
+        assert_eq!(id.as_str(), "start");
+        assert_eq!(html.as_str(), "pages/start.html");
+    }
+
+    #[test]
+    fn parse_wizard_json_entry_preserves_field_error_detail() {
+        let json = r#"{"page":{"id":"","html":"pages/start.html"}}"#;
+        let err = parse_wizard_json_entry(json, Path::new("wizard.json")).expect_err("empty id");
+        match err {
+            WizardLintStageError::Validation { field, message, .. } => {
+                assert_eq!(field.as_str(), "page.id");
+                assert!(
+                    message.contains("wizard page field must be a non-empty string"),
+                    "{message}"
+                );
+            }
+            other => panic!("expected Validation, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_wizard_json_entry_invalid_json_is_parse() {
+        let err = parse_wizard_json_entry("{", Path::new("wizard.json")).expect_err("parse");
+        assert!(matches!(err, WizardLintStageError::Parse { .. }), "{err:?}");
+    }
+
+    #[test]
+    fn lint_missing_path_is_io_stage_error() {
+        let err =
+            run_wizard_command(&["lint".into(), "/no/such/wizard-pkg".into()]).expect_err("io");
+        match err {
+            WizardCmdError::Stage(stage) => {
+                assert!(
+                    matches!(stage, WizardLintStageError::Io { .. }),
+                    "{stage:?}"
+                );
+                assert!(stage.message().contains("not found"), "{}", stage.message());
+                assert_eq!(stage.exit_code(), 1);
+                assert_eq!(stage.subcode(), "wizard_lint_io");
+            }
+            other => panic!("expected Stage, got {other:?}"),
+        }
     }
 }

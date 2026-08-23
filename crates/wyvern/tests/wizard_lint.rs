@@ -92,16 +92,21 @@ fn wizard_lint_no_paths_is_usage_error() {
 /// `wyvern wizard lint` on a nonexistent path returns a Stage error (exit 1).
 #[test]
 fn wizard_lint_nonexistent_path_is_stage_error() {
-    use wyvern::WizardCmdError;
+    use wyvern::{WizardCmdError, WizardLintStageError};
     let err = run_wizard_command(&["lint".into(), "/nonexistent/wizard-pkg".into()])
         .expect_err("should error for missing path");
     match err {
-        WizardCmdError::Stage { message, exit_code } => {
+        WizardCmdError::Stage(stage) => {
             assert!(
-                message.contains("not found") || message.contains("error"),
-                "expected error message: {message}"
+                matches!(stage, WizardLintStageError::Io { .. }),
+                "expected Io stage error: {stage:?}"
             );
-            assert_eq!(exit_code, 1);
+            assert!(
+                stage.message().contains("not found") || stage.message().contains("error"),
+                "expected error message: {}",
+                stage.message()
+            );
+            assert_eq!(stage.exit_code(), 1);
         }
         other => panic!("expected Stage error, got {other:?}"),
     }

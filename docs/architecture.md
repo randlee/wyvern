@@ -83,7 +83,7 @@ wyvern-schema   →  (no internal deps — pure types + logic)
 wyvern-wizard   →  wyvern-schema
 wyvern-host     →  wyvern-schema [, wyvern-wizard for Phase D wizard routes], HTTP stack (axum/tokio)
 wyvern-viewer   →  wry, winit [, serde/serde_json for OS-close dismiss JSON only — ADR-0021] (optional crate — URL navigate + dismiss)
-wyvern          →  wyvern-host, wyvern-schema  (spawns wyvern-viewer via subprocess — not a required Cargo dep)
+wyvern          →  wyvern-host, wyvern-schema [, wyvern-wizard for `wyvern wizard lint` — Phase G g.9/g.14]
 wyvern-mcp      →  wyvern-host, wyvern-schema
 ```
 
@@ -95,6 +95,7 @@ wyvern-mcp      →  wyvern-host, wyvern-schema
 - `wyvern-host` may depend on `wyvern-wizard` from Phase D (d.1) for wizard route state orchestration only — pure logic stays in `wyvern-wizard`
 - `wry` and `winit` only in `wyvern-viewer` (optional) — not in `wyvern-host`
 - **`wyvern` CLI** spawns `wyvern-viewer` as a **subprocess** for `--viewer embedded` — sibling binary discovery, not a required library dependency (dev builds may use `CARGO_BIN_EXE_wyvern-viewer`)
+- **`wyvern` CLI** may depend on **`wyvern-wizard`** from Phase G (g.9/g.14) for **static** `wyvern wizard lint` only — no session/history APIs; lint modules are allowlisted in `boundaries/wyvern-wizard/wizard.toml`
 - `wyvern-mcp` accesses dialogs only through `wyvern-host`'s public API
 - `wyvern` binary is a thin entry point — logic belongs in library crates
 - `wyvern-window` is **removed** — do not extend. Optional URL webview = **`wyvern-viewer`** (c.15).

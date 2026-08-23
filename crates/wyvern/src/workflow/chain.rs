@@ -42,9 +42,15 @@ pub fn resolve_next_wizard(
     if next.is_null() {
         return Ok(None);
     }
+    let path_hint = next
+        .get("path")
+        .and_then(Value::as_str)
+        .filter(|path| !path.is_empty())
+        .unwrap_or("next_wizard.path")
+        .to_string();
     let next: NextWizard =
         serde_json::from_value(next.clone()).map_err(|err| WorkflowError::Resolve {
-            path: String::new(),
+            path: path_hint,
             cause: format!("next_wizard is invalid: {err}"),
         })?;
     let path = next.path.as_str();
@@ -189,5 +195,30 @@ mod tests {
             .expect("some");
         assert_eq!(next.input, json!({"from": "a"}));
         assert_eq!(next.command["type"], "wizard");
+    }
+
+    #[test]
+    fn resolve_empty_next_wizard_path_includes_path_context() {
+        let tmp = tempfile::tempdir().expect("tmp");
+        let allow = Allowlist {
+            share_root: tmp.path().to_path_buf(),
+            cwd: tmp.path().to_path_buf(),
+            wizard_dir: tmp.path().to_path_buf(),
+        };
+        let err = resolve_next_wizard(
+            &json!({"button": "finish", "next_wizard": {"path": ""}}),
+            &allow,
+        )
+        .expect_err("empty path");
+        match err {
+            WorkflowError::Resolve { path, cause } => {
+                assert_eq!(path, "next_wizard.path");
+                assert!(
+                    cause.contains("next_wizard is invalid"),
+                    "expected deserialize context: {cause}"
+                );
+            }
+            other => panic!("expected Resolve, got {other:?}"),
+        }
     }
 }

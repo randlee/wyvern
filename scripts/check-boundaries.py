@@ -105,6 +105,14 @@ def package_dir(owner: str) -> Path | None:
     candidate = CRATES / owner
     if (candidate / "Cargo.toml").is_file():
         return candidate
+    # owner_package is the Cargo package name (e.g. wyvern-cli → crates/wyvern).
+    for crate_dir in sorted(CRATES.iterdir()):
+        manifest = crate_dir / "Cargo.toml"
+        if not manifest.is_file():
+            continue
+        data = tomllib.loads(manifest.read_text(encoding="utf-8"))
+        if data.get("package", {}).get("name") == owner:
+            return crate_dir
     return None
 
 

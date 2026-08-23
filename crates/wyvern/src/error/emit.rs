@@ -641,20 +641,72 @@ pub fn emit_host_error(err: &wyvern_host::HostError) -> Result<String, EmitError
     envelope.to_json_string().map_err(EmitError::Serialize)
 }
 
-/// Serialize a wizard lint stage failure (I/O / parse) as stderr JSON.
+/// Serialize a wizard lint stage failure as stderr JSON.
+///
+/// Maps [`WizardLintStageError`] variants to `IoError`, `ParseError`, or
+/// `ValidationError` with distinct subcodes and recovery steps (RBP-F002).
 ///
 /// # Errors
 ///
 /// Returns [`EmitError::Serialize`] when the envelope cannot be serialized.
-pub fn emit_wizard_lint_stage_error(message: &str) -> Result<String, EmitError> {
-    StderrError::new(ErrorCode::IoError, message.to_string())
-        .subcode("wizard_lint_stage")
-        .cause("wyvern wizard lint could not read or parse the wizard package")
-        .recovery("Verify the path contains wizard.json and all referenced pages exist")
-        .recovery("Run `wyvern wizard lint --help` for usage")
-        .docs(".claude/skills/creating-wyvern-wizard/references/core/validation-and-lint.md")
-        .to_json_string()
-        .map_err(EmitError::Serialize)
+pub fn emit_wizard_lint_stage_error(
+    err: &crate::wizard_cmd::WizardLintStageError,
+) -> Result<String, EmitError> {
+    use crate::wizard_cmd::WizardLintStageError;
+    const DOCS: &str =
+        ".claude/skills/creating-wyvern-wizard/references/core/validation-and-lint.md";
+    let (code, message, cause, recovery, field) = match err {
+        WizardLintStageError::Io { path, message } => (
+            ErrorCode::IoError,
+            message.clone(),
+            format!("wyvern wizard lint could not read '{}'", path.display()),
+            vec![
+                "Verify the path contains wizard.json and all referenced pages exist".into(),
+                "Run `wyvern wizard lint --help` for usage".into(),
+            ],
+            None,
+        ),
+        WizardLintStageError::Parse { path, message } => (
+            ErrorCode::ParseError,
+            message.clone(),
+            format!("wizard.json at '{}' is not valid JSON", path.display()),
+            vec![
+                "Ensure wizard.json is valid JSON".into(),
+                "Check for trailing commas, unquoted keys, or truncated input".into(),
+                "Run `wyvern wizard lint --help` for usage".into(),
+            ],
+            None,
+        ),
+        WizardLintStageError::Validation {
+            path,
+            field,
+            message,
+        } => (
+            ErrorCode::ValidationError,
+            message.clone(),
+            format!(
+                "wizard.json at '{}' failed field checks on '{field}'",
+                path.display()
+            ),
+            vec![
+                format!("Fix field '{field}' to a non-empty string"),
+                "page.id and page.html must be non-empty".into(),
+                "Run `wyvern wizard lint --help` for usage".into(),
+            ],
+            Some(field.clone()),
+        ),
+    };
+    let mut envelope = StderrError::new(code, message)
+        .subcode(err.subcode())
+        .cause(cause)
+        .docs(DOCS);
+    if let Some(field) = field {
+        envelope = envelope.field(field);
+    }
+    for step in recovery {
+        envelope = envelope.recovery(step);
+    }
+    envelope.to_json_string().map_err(EmitError::Serialize)
 }
 
 /// Serialize a workflow / chain failure as stderr JSON (`WORKFLOW_ERROR`, exit 9).

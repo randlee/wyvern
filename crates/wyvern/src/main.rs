@@ -102,15 +102,13 @@ fn main() -> ExitCode {
                     Err(e) => emit_fatal_internal(&e),
                 }
             }
-            Err(WizardCmdError::Stage { message, exit_code }) => {
-                match emit_wizard_lint_stage_error(&message) {
-                    Ok(stderr) => {
-                        eprintln!("{stderr}");
-                        ExitCode::from(u8::try_from(exit_code).unwrap_or(1))
-                    }
-                    Err(e) => emit_fatal_internal(&e),
+            Err(WizardCmdError::Stage(err)) => match emit_wizard_lint_stage_error(&err) {
+                Ok(stderr) => {
+                    eprintln!("{stderr}");
+                    ExitCode::from(u8::try_from(err.exit_code()).unwrap_or(1))
                 }
-            }
+                Err(e) => emit_fatal_internal(&e),
+            },
             Err(WizardCmdError::Emit(e)) => emit_fatal_internal(&e),
         };
     }

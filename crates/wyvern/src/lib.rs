@@ -53,7 +53,9 @@ pub use pipeline::{run_from_loaded, run_wizard_workflow_loop, PipelineError};
 #[doc(inline)]
 pub use viewer_spawn::{resolve_viewer_bin, spawn_embedded_viewer, ViewerSpawnError};
 #[doc(inline)]
-pub use wizard_cmd::{run_wizard_command, wizard_usage_message, WizardCmdError, WizardCmdResult};
+pub use wizard_cmd::{
+    run_wizard_command, wizard_usage_message, WizardCmdError, WizardCmdResult, WizardLintStageError,
+};
 #[doc(inline)]
 pub use workflow::{
     check_chain_depth, merge_wizard_config, resolve_next_wizard, Allowlist, NextInvocation,

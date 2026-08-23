@@ -7,6 +7,7 @@ name = "WyvernCli"
 allowed_dependencies = [
   "wyvern-schema",
   "wyvern-host",
+  "wyvern-wizard",
   "wyvern-viewer",
   "serde",
   "serde_json",
@@ -19,7 +20,7 @@ allowed_dependencies = [
   "tempfile",
   "libc",
 ]
-forbidden_dependencies = ["wyvern-wizard", "wyvern-mcp", "wry", "winit", "rfd"]
+forbidden_dependencies = ["wyvern-mcp", "wry", "winit", "rfd"]
 forbidden_edges = ["wyvern-cli -> wyvern-mcp"]
 
 [ownership]
