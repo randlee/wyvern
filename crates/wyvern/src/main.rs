@@ -23,8 +23,8 @@ use wyvern::extensions::{
 use wyvern::{
     apply_host_overrides, emit_extension_error, emit_fatal_internal, emit_io_error, emit_near_miss,
     emit_parse_error, emit_usage_error, emit_usage_message, emit_wizard_lint_stage_error,
-    load_command_input, parse_cli_args, run_browsers_command, run_from_loaded, run_wizard_command, usage_message, BrowsersError,
-    LoadError, PipelineError, WizardCmdError, WizardCmdResult,
+    load_command_input, parse_cli_args, run_browsers_command, run_from_loaded, run_wizard_command,
+    usage_message, BrowsersError, LoadError, PipelineError, WizardCmdError, WizardCmdResult,
 };
 
 mod main_observability;
