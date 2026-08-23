@@ -17,6 +17,7 @@ A sprint is a single testable deliverable that fits within one AI context window
 | `integrate/phase-F` | Phase F — CLI Extensions | `docs/plans/phase-F/` |
 | `integrate/phase-G` | Phase G — Extension Agent Usability | `docs/plans/phase-G/` |
 | `integrate/phase-E` | Phase E — Persistent & MCP | `docs/plans/phase-E/` |
+| `integrate/phase-H` | Phase H — XHTML reporting & review | `docs/plans/phase-H/` |
 
 Phase A sprint PRs target `integrate/phase-A`. Sprint authority: `docs/plans/phase-A/` (sprints **a.1–a.7**).
 
@@ -235,6 +236,38 @@ Phase E sprint PRs target `integrate/phase-E`. Sprint authority: `docs/plans/pha
 
 ---
 
+## Phase H — XHTML reporting & review
+
+**Phase goal:** Non-wizard surfaces for sc-compose XHTML panels — single panel, panel
+arrays, and optional **`--review`** (comments + Approve/Cancel) with structured finish
+JSON for agent loops.
+
+**Prerequisite:** Phase G complete on `integrate/phase-G` (extension runtime, help,
+skill catalog, wizard lint — merge via [#117](https://github.com/randlee/wyvern/pull/117)).
+Phase H does **not** require Phase E.
+
+**Transport:** `type: "report"` on `wyvern-host` — static `/report/*`, optional
+`/api/report/finish`. **Not** wizard (`wizard-nav.js`, stack, `/api/wizard/*`).
+
+Phase H sprint PRs target `integrate/phase-H`. Sprint authority: `docs/plans/phase-H/`
+(sprints **h.1–h.5**, sequential).
+
+**Sprints:** five active (**h.1–h.5**). See [docs/plans/phase-H/README.md](phase-H/README.md).
+
+| Sprint | Deliverable | Doc |
+|--------|-------------|-----|
+| h.1 | `report` host + `xhtml-suffix` + basic single-panel frame | [h1-xhtml-single-panel.md](phase-H/h1-xhtml-single-panel.md) |
+| h.2 | `report-xhtml` extension + panel-array basic frame | [h2-xhtml-panel-array.md](phase-H/h2-xhtml-panel-array.md) |
+| h.3 | `--review` frame + finish JSON contract | [h3-xhtml-review-mode.md](phase-H/h3-xhtml-review-mode.md) |
+| h.4 | `wyvern-reporting` skill + reference docs | [h4-wyvern-reporting-skill.md](phase-H/h4-wyvern-reporting-skill.md) |
+| h.5 | Synthetic example package + CI smoke | [h5-synthetic-xhtml-example.md](phase-H/h5-synthetic-xhtml-example.md) |
+
+**Related:** [GitHub #115](https://github.com/randlee/wyvern/issues/115) — closed by h.1.
+
+Contract: [xhtml-reporting-contract.md](phase-H/xhtml-reporting-contract.md).
+
+---
+
 ## Phase Summary
 
 | Phase | Sprints | Ships |
@@ -245,6 +278,7 @@ Phase E sprint PRs target `integrate/phase-E`. Sprint authority: `docs/plans/pha
 | Phase F — CLI Extensions | 4 | Suffix/subcommand argv expansion (CSV table, HTML, compose) |
 | Phase G — Extension Agent Usability | 7 | Help/catalog (g.1–g.3) + welcome guide & examples (g.4–g.7) |
 | Phase E — Interactive & MCP | 4 | Agent-driveable status viewer + MCP |
+| Phase H — XHTML reporting & review | 5 | Single/array XHTML panels + `--review` finish JSON |
 
 ## Dependency Map
 
@@ -254,6 +288,7 @@ Phase A
        └─ Phase C (c.9–c.16 HTTP delivery + wyvern-viewer + v0.1.0)
             └─ Phase D (wizard — HTTP on same host)
                  └─ Phase F (CLI extension registry)
-                      └─ Phase G (extension agent usability + welcome examples — recommended)
-                           └─ Phase E (persistent host + MCP)
+                      └─ Phase G (extension agent usability + welcome examples)
+                           ├─ Phase E (persistent host + MCP)
+                           └─ Phase H (XHTML report surfaces — after G)
 ```
