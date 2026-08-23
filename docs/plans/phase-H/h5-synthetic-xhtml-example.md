@@ -56,6 +56,10 @@ python3 scripts/ext/xhtml_report.py --validate-manifest share/wyvern/examples/xh
 If wizard lint does not apply to report examples, document explicit exclusion in
 README and skip lint step in CI (report ≠ wizard).
 
+Host hardening inherits Phase C/D session timeouts and preexec timeout from
+`extensions/preexec.rs` (same as compose/CSV extensions). Review `comments` max
+32_768 chars (contract § Error inventory).
+
 ## Acceptance criteria
 
 1. `wyvern report-xhtml share/wyvern/examples/xhtml-review/review-view.json`

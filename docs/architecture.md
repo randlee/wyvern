@@ -173,6 +173,25 @@ Boundary rules are encoded in `boundaries/` and enforced in CI.
 
 ---
 
+### ADR-0025: Report command (static XHTML/HTML review surfaces)
+
+**Status:** Accepted (planning — Phase H h.1)
+
+**Context:** Agents need ad-hoc sc-compose XHTML panel review (single pane, arrays, optional Approve/Cancel) outside wizard stack semantics. Overloading `type: "wizard"` confuses authoring skills and WIZARD-LINT profiles. Phase F ADR-0022 forbade new schema variants; Phase H is the first deliberate exception.
+
+**Decision:**
+
+1. Add **`type: "report"`** to `wyvern-schema` — fields: `title`, `page`, optional `mode` (`view` \| `review`), optional viewer hints. No `config`, `workflow`, or stack fields.
+2. **`wyvern-host`** serves static pages under `/report/*` from `--ui-root`; mounts `/shared/*` for report CSS/JS during report sessions; registers `POST /api/report/finish` only when `mode: "review"`.
+3. **Extensions** (`xhtml-suffix`, `report-xhtml`, `report-xhtml-review`) expand via existing Phase F runtime. Multi-panel flows use preexec → **`command_from_file`** (`{tmpdir}/report-command.json`); no new template placeholder vars.
+4. Report surfaces are **not** wizard lint targets. Authoring guidance lives in **`wyvern-reporting`** skill (not `creating-wyvern-wizard`).
+
+**Consequences:** Amends ADR-0022 §2 (see below). MCP Phase E still accepts pre-expanded `Command` JSON including `report`. Contract: [xhtml-reporting-contract.md](plans/phase-H/xhtml-reporting-contract.md).
+
+**Amendment to ADR-0022 (Phase H):** Point 2 now reads: extensions produce validated `Command` JSON; **`report` is the only Phase-H-added variant**. No per-extension host handlers; report uses the shared report route family in `wyvern-host`.
+
+---
+
 ### ADR-0021: Minimal serde_json in wyvern-viewer for wizard dismiss
 
 **Status:** Accepted (Phase D d.8)

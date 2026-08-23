@@ -5,7 +5,7 @@ family. Phase H sprint docs implement this; they do not redefine it.
 
 ---
 
-## Motivation (ADR candidate)
+## Motivation
 
 Wizard (`type: "wizard"`) carries stack navigation, history, and wizard-api
 semantics. **Report viewing** is a single static document — optionally with one
@@ -14,6 +14,11 @@ authoring skills and lint profiles.
 
 **Decision:** Add `type: "report"` — static HTML/XHTML under `--ui-root`, optional
 review finish, no stack.
+
+**Architecture:** Formal **ADR-0025** and ADR-0022 amendment land in **h.1**
+(`docs/architecture.md`, `docs/plans/phase-F/cli-extensions-contract.md`). Phase H
+adds the first new `Command` variant since Phase B; extensions still expand to
+validated `Command` JSON (ADR-0022 Path A unchanged for MCP).
 
 ---
 
@@ -51,8 +56,8 @@ stack descriptors, `next_wizard`.
 | Route | Method | Purpose |
 |-------|--------|---------|
 | `/report/{page_path}` | GET | Static page (via `ServeDir` under `ui_root`) |
-| `/shared/*` | GET | Packaged `wyvern-api.js`, CSS (review mode only) |
-| `/api/report/finish` | POST | Review mode terminal action → `CommandResult` |
+| `/shared/*` | GET | Packaged shared assets (`report-base.css`; `report-review.js` in review mode). Same mount pattern as wizard/dialog shared UI — available whenever the report host session is active (view **and** review). |
+| `/api/report/finish` | POST | Review mode terminal action → `CommandResult` (registered only when `mode: "review"`) |
 
 View mode (`mode: "view"`): user closes window → `{"button":"dismissed"}` (same
 semantics as chrome dismiss unless review controls present).
@@ -178,30 +183,55 @@ frame wrapper → `type: "report"`, `mode: "view"`.
 
 ### `report-xhtml` (h.2–h.3)
 
+Preexec reads the manifest, stitches panes, and writes **`{tmpdir}/report-command.json`**
+(validated `type: "report"` command). Expand uses Phase F **`command_from_file`**
+(no custom template placeholders).
+
 ```json
 {
   "id": "report-xhtml",
-  "match": { "argv_prefix": ["report-xhtml"] },
+  "description": "Open an ordered array of XHTML panels as one report view.",
+  "examples": ["wyvern report-xhtml path/to/review.json"],
+  "match": { "argv_prefix": ["report-xhtml"], "positional_suffix": ".json" },
   "preexec": {
     "cmd": "python3",
     "args": [
       "{wyvern_share}/scripts/ext/xhtml_report.py",
-      "--manifest", "{path}",
-      "{arg:review:flag}"
+      "--manifest", "{path}"
     ],
     "requires": ["python3"]
   },
   "expand": {
-    "command": {
-      "type": "report",
-      "title": "{title_from_manifest}",
-      "page": "pages/view.xhtml",
-      "mode": "{mode_from_preexec}"
-    },
+    "command_from_file": "{tmpdir}/report-command.json",
     "host": { "ui_root": "{tmpdir}" }
   }
 }
 ```
+
+**Review override (h.3):** register a **second** extension with a longer prefix so
+no new `{arg:*:flag}` template syntax is required:
+
+```json
+{
+  "id": "report-xhtml-review",
+  "description": "Open XHTML panels in review mode (comments + Approve/Cancel).",
+  "examples": ["wyvern report-xhtml --review path/to/review.json"],
+  "match": { "argv_prefix": ["report-xhtml", "--review"], "positional_suffix": ".json" },
+  "extends": "report-xhtml",
+  "preexec": {
+    "args": [
+      "{wyvern_share}/scripts/ext/xhtml_report.py",
+      "--manifest", "{path}",
+      "--force-mode", "review"
+    ]
+  }
+}
+```
+
+Registry ordering: **`report-xhtml-review` before `report-xhtml`** so the longer
+prefix wins. Preexec sets `mode` from manifest `mode` (default `"view"`) unless
+`--force-mode review` is present. `report-command.json` always includes `title`
+from manifest and `page: "pages/view.xhtml"`.
 
 CLI:
 
@@ -232,3 +262,22 @@ Panel authoring guidance ships in **`wyvern-reporting`** skill refs — not here
 - Report surfaces MUST NOT register as wizard lint targets (WIZARD-LINT-*).
 - Report pages MUST NOT require `data-wizard-nav` or wizard finish helpers.
 - Phase H does not add `config.dataflow` or wizard schema fields.
+
+---
+
+## Error inventory (normative — h.1/h.3)
+
+| Stage | Condition | Exit / code | Recovery |
+|-------|-----------|-------------|----------|
+| Extension match | Unknown suffix / prefix | `ParseError` near-miss (REQ-0136) | `wyvern extensions list` |
+| Preexec | Missing manifest panel path | preexec non-zero → `ExtensionError::PreexecFailed` | stderr names missing file |
+| Preexec | Invalid manifest JSON / schema | preexec non-zero | fix manifest; schema in `review-manifest.schema.json` |
+| Validate | `report-command.json` missing after preexec | `ExtensionError::InvalidCommand` | preexec must write `{tmpdir}/report-command.json` |
+| Host | `page` not under `ui_root` | validation before bind | fix preexec output path |
+| Host | `POST /api/report/finish` in view mode | HTTP 404 or `405` | use review mode or dismiss window |
+| Host | Malformed finish body | HTTP 400 + structured error | resubmit valid JSON |
+| Host | Duplicate finish POST | HTTP 409; session already complete | single terminal action per session |
+
+Finish request schema (h.3): `approved` (required bool), `comments` (string, max
+32_768 chars), `panels` (required array, echo manifest entries). Unknown top-level
+keys rejected.

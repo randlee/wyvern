@@ -76,10 +76,17 @@ include `--review` finish shape.)
 
 ---
 
-## Phase acceptance (smoke)
+## Phase acceptance criteria (smoke)
+
+1. `WYVERN_VIEWER=none wyvern share/wyvern/examples/xhtml-review/panels/fail-1.xhtml` exits 0 (h.1 single panel).
+2. `WYVERN_VIEWER=none wyvern report-xhtml share/wyvern/examples/xhtml-review/review-view.json` exits 0 (h.2 array).
+3. `wyvern report-xhtml --review share/wyvern/examples/xhtml-review/review-review.json` returns finish JSON with `approved` + `comments` after user action (h.3).
+4. `wyvern extensions list --json | jq -e '.[] | select(.id=="xhtml-suffix" or .id=="report-xhtml" or .id=="report-xhtml-review")'` succeeds.
+5. `cargo test -p wyvern-cli extensions_xhtml_single extensions_xhtml_array extensions_xhtml_review` passes.
+6. `cargo test -p wyvern-host report_` passes.
 
 ```bash
-# h.1 — single fragment panel (synthetic example path)
+# h.1 — single fragment panel
 WYVERN_VIEWER=none wyvern share/wyvern/examples/xhtml-review/panels/fail-1.xhtml
 
 # h.2 — panel array
@@ -87,10 +94,9 @@ WYVERN_VIEWER=none wyvern report-xhtml share/wyvern/examples/xhtml-review/review
 
 # h.3 — review finish JSON
 wyvern report-xhtml --review share/wyvern/examples/xhtml-review/review-review.json
-# → stdout includes approved + comments after user action
 
 wyvern extensions list --json | jq -e '.[] | select(.id=="xhtml-suffix" or .id=="report-xhtml")'
-cargo test -p wyvern-cli --test extensions_xhtml_report
+cargo test -p wyvern-cli extensions_xhtml_single extensions_xhtml_array extensions_xhtml_review
 cargo test -p wyvern-host report_
 ```
 
@@ -102,8 +108,7 @@ cargo test -p wyvern-host report_
   for report surfaces (skill lives in `wyvern-reporting`).
 - **No** replacement of atm-core “publish aggregate HTML report” pipeline — Phase
   H is **non-standard viewing** only.
-- **`wyvern-schema`:** adds `type: "report"` only (ADR in contract doc); no opaque
-  page-data graph (ADR-0006 wizard dataflow does not apply).
+- **`wyvern-schema`:** adds `type: "report"` per **ADR-0025**; no opaque page-data graph (ADR-0006 wizard dataflow does not apply).
 - Host changes in **`wyvern-host`** + CLI in **`wyvern`**; preexec scripts in
   **`scripts/ext/`**.
 

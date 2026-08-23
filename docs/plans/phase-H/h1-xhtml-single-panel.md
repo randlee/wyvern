@@ -26,17 +26,34 @@ fragments.
 | Path | Purpose |
 |------|---------|
 | `docs/plans/phase-H/h1-xhtml-single-panel.md` | This sprint doc |
+| `docs/architecture.md` | **ADR-0025** (report command) + **ADR-0022 amendment** (Phase H exception) |
+| `docs/plans/phase-F/cli-extensions-contract.md` | Phase H amendment: `command_from_file` report pattern, `report-xhtml` ids |
+| `docs/wyvern/requirements.md` | **REQ-0140–REQ-0143** (report command, xhtml suffix, host options) |
+| `docs/wyvern-host/requirements.md` | **REQ-HOST-0140–0141** (`/report/*`, `/shared/*` mount) |
+| `docs/requirements.md` | Command-surface index: `.xhtml`, `report-xhtml` |
 | `crates/wyvern-schema/src/report.rs` | `ReportCommand` + validate |
 | `crates/wyvern-schema/src/command.rs` | `Command::Report { … }` variant |
 | `crates/wyvern-host/src/routes/report.rs` | Static `/report/*` + view dismiss |
-| `crates/wyvern-host/src/server.rs` | Report router branch |
+| `crates/wyvern-host/src/server.rs` | Report router + **`/shared/*`** for report sessions |
 | `crates/wyvern/src/pipeline.rs` | Run report commands |
 | `scripts/ext/xhtml_report.py` | `--mode single` fragment wrapper |
 | `ui/shared/report-base.css` | Minimal pane typography |
 | `share/wyvern/extensions.json` | `xhtml-suffix` entry |
 | `crates/wyvern/embedded/…` | Parity for extensions + ui |
 | `crates/wyvern/tests/extensions_xhtml_single.rs` | Expand + frame smoke |
+| `crates/wyvern/tests/extensions_help_parity.rs` | REQ-0137 parity for `xhtml-suffix` (extend existing test) |
 | `crates/wyvern-host/tests/report_view.rs` | Headless URL resolves |
+
+### REQ traceability (h.1 lands)
+
+| REQ | Summary |
+|-----|---------|
+| REQ-0140 | `type: "report"` command JSON validated in `wyvern-schema` |
+| REQ-0141 | `.xhtml` suffix expands via `xhtml-suffix` to report view (not wizard) |
+| REQ-0142 | Report host serves static page under `/report/*` + shared CSS at `/shared/*` |
+| REQ-0143 | View mode dismiss → `{"button":"dismissed"}` |
+
+Host REQ text: REQ-HOST-0140 (`/report/*`), REQ-HOST-0141 (`/shared/*` during report sessions).
 
 ### `xhtml-suffix` registry (normative)
 
