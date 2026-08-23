@@ -197,7 +197,9 @@ Preexec reads the manifest, stitches panes, and writes **`{tmpdir}/report-comman
     "cmd": "python3",
     "args": [
       "{wyvern_share}/scripts/ext/xhtml_report.py",
-      "--manifest", "{path}"
+      "--manifest", "{path}",
+      "--out", "{tmpdir}/pages/view.xhtml",
+      "--command-out", "{tmpdir}/report-command.json"
     ],
     "requires": ["python3"]
   },
@@ -222,6 +224,8 @@ no new `{arg:*:flag}` template syntax is required:
     "args": [
       "{wyvern_share}/scripts/ext/xhtml_report.py",
       "--manifest", "{path}",
+      "--out", "{tmpdir}/pages/view.xhtml",
+      "--command-out", "{tmpdir}/report-command.json",
       "--force-mode", "review"
     ]
   }

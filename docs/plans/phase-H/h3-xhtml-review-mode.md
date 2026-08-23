@@ -27,7 +27,7 @@ Cancel / Approve buttons; structured finish JSON for agent loops.
 | `ui/shared/report-review.js` | POST `/api/report/finish`; exactly one POST per button click (disable after submit) |
 | `ui/shared/report-base.css` | Review footer layout |
 | `crates/wyvern-host/src/routes/report.rs` | `POST /api/report/finish` |
-| `crates/wyvern-schema/src/result.rs` | Report finish `data` shape docs/tests |
+| `crates/wyvern-schema/src/result.rs` | Extend `CommandResult::Report` finish `data` shape docs/tests (review finish) |
 | `share/wyvern/extensions.json` | `report-xhtml-review` extension (longer prefix) |
 | `crates/wyvern/tests/extensions_help_parity.rs` | REQ-0137 parity for `report-xhtml` + `report-xhtml-review` |
 | `crates/wyvern/tests/extensions_xhtml_review.rs` | Review expand + finish integration |

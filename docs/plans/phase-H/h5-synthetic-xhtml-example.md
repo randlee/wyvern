@@ -73,8 +73,10 @@ no `wizard-nav` references under `share/wyvern/examples/xhtml-review/`.
 
 ```bash
 scripts/check-share-sync.sh
-cargo test -p wyvern-cli examples_xhtml_review
-cargo test -p wyvern-cli extensions_xhtml_single extensions_xhtml_array extensions_xhtml_review
+cargo test -p wyvern-cli --test examples_xhtml_review
+cargo test -p wyvern-cli --test extensions_xhtml_single
+cargo test -p wyvern-cli --test extensions_xhtml_array
+cargo test -p wyvern-cli --test extensions_xhtml_review
 ```
 
 ## Non-closure

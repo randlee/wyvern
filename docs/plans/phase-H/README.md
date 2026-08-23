@@ -49,7 +49,7 @@ argv → extension match → preexec (optional frame stitch) → expand type: re
 
 **Host hardening inheritance:** report sessions inherit `session_timeout`,
 `REQUEST_TIMEOUT` (310s), and preexec script timeout from `wyvern-host` /
-`extensions/preexec.rs` (same as Phase F compose/CSV extensions). See h.5 CI notes.
+`extensions/preexec.rs` (same as Phase F compose/CSV extensions).
 
 | Surface | CLI | Frame |
 |---------|-----|-------|

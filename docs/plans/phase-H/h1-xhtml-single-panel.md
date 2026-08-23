@@ -31,10 +31,19 @@ fragments.
 | `docs/wyvern/requirements.md` | **REQ-0140–REQ-0143** (report command, xhtml suffix, host options) |
 | `docs/wyvern-host/requirements.md` | **REQ-HOST-0140–0141** (`/report/*`, `/shared/*` mount) |
 | `docs/requirements.md` | Command-surface index: `.xhtml`, `report-xhtml` |
-| `crates/wyvern-schema/src/report.rs` | `ReportCommand` + validate |
+| `crates/wyvern-schema/src/report.rs` | `ReportCommand` types |
+| `crates/wyvern-schema/src/validate/report.rs` | Report validator module (wired via `validate/mod.rs`) |
 | `crates/wyvern-schema/src/command.rs` | `Command::Report { … }` variant |
-| `crates/wyvern-host/src/routes/report.rs` | Static `/report/*` + view dismiss |
+| `crates/wyvern-schema/src/result.rs` | `CommandResult::Report` with `{ "button": "dismissed" }` (view mode) |
+| `crates/wyvern-host/src/routes/report.rs` | Static `/report/*` routes |
 | `crates/wyvern-host/src/server.rs` | Report router + **`/shared/*`** for report sessions |
+| `crates/wyvern-host/src/handle.rs` | `DialogTypeName::Report` exhaustive arm |
+| `crates/wyvern-host/src/options.rs` | Report title from command |
+| `crates/wyvern-host/src/routes/result.rs` | Report dismiss via shared `/api/result` path |
+| `crates/wyvern-host/src/routes/dialog.rs` | Report dialog route registration |
+| `boundaries/wyvern-host/host.toml` | `report_routes` / `report_session` in `io_owns` |
+| `docs/wyvern-schema/architecture.md` | Command / CommandResult enum samples include `report` |
+| `docs/wyvern-host/architecture.md` | Module shape includes `routes/report.rs` |
 | `crates/wyvern/src/pipeline.rs` | Run report commands |
 | `scripts/ext/xhtml_report.py` | `--mode single`; writes wrapped HTML to `{tmpdir}/pages/view.xhtml` (creates `pages/` if absent); `--mode array` stub non-zero until h.2 |
 | `ui/shared/report-base.css` | Minimal pane typography |
