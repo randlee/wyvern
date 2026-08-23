@@ -1,7 +1,7 @@
 ---
 id: g.14
 title: Wizard authoring CI lint gate + known nav HTML fixes
-status: in-review
+status: complete (integrate)
 branch: feature/phase-G-g14-authoring-ci
 worktree: ../wyvern-worktrees/feature/phase-G-g14-authoring-ci
 target: integrate/phase-G

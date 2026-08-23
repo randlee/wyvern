@@ -96,10 +96,10 @@ fn wizard_lint_nonexistent_path_is_stage_error() {
     let err = run_wizard_command(&["lint".into(), "/nonexistent/wizard-pkg".into()])
         .expect_err("should error for missing path");
     match err {
-        WizardCmdError::Stage { stderr, exit_code } => {
+        WizardCmdError::Stage { message, exit_code } => {
             assert!(
-                stderr.contains("not found") || stderr.contains("error"),
-                "expected error message in stderr: {stderr}"
+                message.contains("not found") || message.contains("error"),
+                "expected error message: {message}"
             );
             assert_eq!(exit_code, 1);
         }

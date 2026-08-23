@@ -22,8 +22,8 @@ use wyvern::extensions::{
 };
 use wyvern::{
     apply_host_overrides, emit_extension_error, emit_fatal_internal, emit_io_error, emit_near_miss,
-    emit_parse_error, emit_usage_error, emit_usage_message, load_command_input, parse_cli_args,
-    run_browsers_command, run_from_loaded, run_wizard_command, usage_message, BrowsersError,
+    emit_parse_error, emit_usage_error, emit_usage_message, emit_wizard_lint_stage_error,
+    load_command_input, parse_cli_args, run_browsers_command, run_from_loaded, run_wizard_command, usage_message, BrowsersError,
     LoadError, PipelineError, WizardCmdError, WizardCmdResult,
 };
 
@@ -102,9 +102,14 @@ fn main() -> ExitCode {
                     Err(e) => emit_fatal_internal(&e),
                 }
             }
-            Err(WizardCmdError::Stage { stderr, exit_code }) => {
-                eprintln!("{stderr}");
-                ExitCode::from(u8::try_from(exit_code).unwrap_or(1))
+            Err(WizardCmdError::Stage { message, exit_code }) => {
+                match emit_wizard_lint_stage_error(&message) {
+                    Ok(stderr) => {
+                        eprintln!("{stderr}");
+                        ExitCode::from(u8::try_from(exit_code).unwrap_or(1))
+                    }
+                    Err(e) => emit_fatal_internal(&e),
+                }
             }
             Err(WizardCmdError::Emit(e)) => emit_fatal_internal(&e),
         };

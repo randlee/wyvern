@@ -1,7 +1,7 @@
 ---
 id: g.9
 title: wyvern wizard lint dataflow rules (WIZARD-LINT-005–008)
-status: in-review
+status: complete (integrate)
 branch: feature/phase-G-g9-wizard-lint-dataflow
 worktree: ../wyvern-worktrees/feature/phase-G-g9-wizard-lint-dataflow
 target: integrate/phase-G

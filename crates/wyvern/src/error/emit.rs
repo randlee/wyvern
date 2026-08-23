@@ -632,10 +632,29 @@ pub fn emit_host_error(err: &wyvern_host::HostError) -> Result<String, EmitError
     };
 
     let mut envelope = StderrError::new(code, message).cause(cause).docs(docs);
+    if let HostError::Wizard { source } = err {
+        envelope = envelope.subcode(source.subcode());
+    }
     for step in recovery {
         envelope = envelope.recovery(step);
     }
     envelope.to_json_string().map_err(EmitError::Serialize)
+}
+
+/// Serialize a wizard lint stage failure (I/O / parse) as stderr JSON.
+///
+/// # Errors
+///
+/// Returns [`EmitError::Serialize`] when the envelope cannot be serialized.
+pub fn emit_wizard_lint_stage_error(message: &str) -> Result<String, EmitError> {
+    StderrError::new(ErrorCode::IoError, message.to_string())
+        .subcode("wizard_lint_stage")
+        .cause("wyvern wizard lint could not read or parse the wizard package")
+        .recovery("Verify the path contains wizard.json and all referenced pages exist")
+        .recovery("Run `wyvern wizard lint --help` for usage")
+        .docs(".claude/skills/creating-wyvern-wizard/references/core/validation-and-lint.md")
+        .to_json_string()
+        .map_err(EmitError::Serialize)
 }
 
 /// Serialize a workflow / chain failure as stderr JSON (`WORKFLOW_ERROR`, exit 9).

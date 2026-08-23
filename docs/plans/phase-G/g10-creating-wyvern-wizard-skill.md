@@ -1,7 +1,7 @@
 ---
 id: g.10
 title: creating-wyvern-wizard Layer 0 skill router
-status: in-review
+status: complete (integrate)
 branch: feature/phase-G-g10-wizard-skill
 worktree: ../wyvern-worktrees/feature/phase-G-g10-wizard-skill
 target: integrate/phase-G
@@ -142,7 +142,7 @@ the lint branch; dataflow 005–008 wait for g.9.
    `wyvern path/to/wizard.json --viewer none`.
 4. `references/core/validation-and-lint.md` documents
    `wyvern wizard lint path/to/wizard-dir`, exit 0/1/2, nav codes 001–004, and
-   reserved dataflow codes 005–008 (g.9).
+   dataflow codes 005–008 (implemented in g.9).
 5. `.cursor/skills/creating-wyvern-wizard/SKILL.md` exists and points at
    `.claude/skills/creating-wyvern-wizard/SKILL.md` (stub, not a second router).
 6. No file under `crates/` is added, modified, or deleted on this branch vs

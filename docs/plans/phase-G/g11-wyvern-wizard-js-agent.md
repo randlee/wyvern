@@ -1,7 +1,7 @@
 ---
 id: g.11
 title: Vanilla-chrome wizard JS authoring agent
-status: in-review
+status: complete (integrate)
 branch: feature/phase-G-g11-wizard-js-agent
 worktree: ../wyvern-worktrees/feature/phase-G-g11-wizard-js-agent
 target: integrate/phase-G

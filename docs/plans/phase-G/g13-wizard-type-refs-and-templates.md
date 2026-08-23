@@ -1,7 +1,7 @@
 ---
 id: g.13
 title: Wizard type refs (template, hook, welcome-bridge) + sc-compose snippets
-status: in-review
+status: complete (integrate)
 branch: feature/phase-G-g13-wizard-refs
 worktree: ../wyvern-worktrees/feature/phase-G-g13-wizard-refs
 target: integrate/phase-G

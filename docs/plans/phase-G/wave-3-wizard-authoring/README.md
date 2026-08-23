@@ -6,7 +6,7 @@
 **PR target:** `integrate/phase-G`  
 **Sprint docs are sole authority** for deliverables, acceptance criteria, and required validation.
 
-Nav lint WIZARD-LINT-001–004 already landed on `feature/phase-G-wizard-lint` (`0578ebe`). Dataflow rules ship on a **new** g.9 branch so sprint ownership stays clean.
+Nav lint WIZARD-LINT-001–004 landed on `feature/phase-G-wizard-lint` (`0578ebe`). Dataflow rules **g.9** merged (#110); type refs **g.13** (#111); CI gate **g.14** (#112).
 
 ## Sprint map
 

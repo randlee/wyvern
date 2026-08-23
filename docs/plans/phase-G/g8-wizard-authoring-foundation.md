@@ -1,7 +1,7 @@
 ---
 id: g.8
 title: Wizard authoring foundation (dataflow spec + stack registry)
-status: in-review
+status: complete (integrate)
 branch: feature/phase-G-g8-authoring-foundation
 worktree: ../wyvern-worktrees/feature/phase-G-g8-authoring-foundation
 target: integrate/phase-G

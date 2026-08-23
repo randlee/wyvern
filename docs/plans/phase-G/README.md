@@ -6,7 +6,7 @@ Phase G has **three waves**. Implementation PRs target **`integrate/phase-G`**. 
 |------|---------|-------|
 | **1 — CLI surfaces** | g.1–g.3 | `--help`, error-teaches, skill catalog |
 | **2 — Welcome & examples** | g.4–g.7 | `wyvern guide` + workflow runner + three examples |
-| **3 — Authoring platform** | g.8–g.14 (bundle: g.8+g.10+g.11+g.12 on PR #109) | authoring platform — skill router, wyvern-wizard-js, wyvern-dag-wizard-js, stack registry |
+| **3 — Authoring platform** | g.8–g.14 | authoring skill, JS page agents, dataflow lint, CI gate |
 
 **Review Wave 2 one example at a time:** [examples-walkthrough.md](examples-walkthrough.md) (review order only; not a second AC list).
 
@@ -129,18 +129,28 @@ Each sprint's **Required validation** is the only command list. Do not copy comm
 
 | Sprint | Doc | Status |
 |--------|-----|--------|
-| g.8 | [g8-wizard-authoring-foundation.md](g8-wizard-authoring-foundation.md) | in-review (bundle PR #109) |
-| g.10 | [g10-creating-wyvern-wizard-skill.md](g10-creating-wyvern-wizard-skill.md) | in-review (bundle PR #109) |
-| g.11 | [g11-wyvern-wizard-js-agent.md](g11-wyvern-wizard-js-agent.md) | in-review (bundle PR #109) |
-| g.12 | [g12-wyvern-dag-wizard-js-agent.md](g12-wyvern-dag-wizard-js-agent.md) | in-review (bundle PR #109) |
+| g.8 | [g8-wizard-authoring-foundation.md](g8-wizard-authoring-foundation.md) | complete (integrate) |
+| g.9 | [g9-wizard-lint-dataflow.md](g9-wizard-lint-dataflow.md) | complete (integrate) |
+| g.10 | [g10-creating-wyvern-wizard-skill.md](g10-creating-wyvern-wizard-skill.md) | complete (integrate) |
+| g.11 | [g11-wyvern-wizard-js-agent.md](g11-wyvern-wizard-js-agent.md) | complete (integrate) |
+| g.12 | [g12-wyvern-dag-wizard-js-agent.md](g12-wyvern-dag-wizard-js-agent.md) | complete (integrate) |
+| g.13 | [g13-wizard-type-refs-and-templates.md](g13-wizard-type-refs-and-templates.md) | complete (integrate) |
+| g.14 | [g14-wizard-authoring-ci-and-fixes.md](g14-wizard-authoring-ci-and-fixes.md) | complete (integrate) |
 
-Wave 3 bundle on `feature/phase-G-wave3-authoring` does **not** use `rust-developer` and does not change `crates/**`. Each sprint's **Required validation** is the only command list.
+Wave 3 bundle landed via PR #109 (g.8+g.10+g.11+g.12); g.9, g.13, g.14 merged individually (#110–#112).
+
+### Wave 3 phase acceptance (smoke)
+
+```bash
+wyvern wizard lint share/wyvern/examples/welcome
+wyvern wizard lint share/wyvern/examples/agent-dag
+cargo test -p wyvern wizard_lint_dataflow
+cargo test -p wyvern-cli wizard_lint
+```
+
+Each sprint's **Required validation** is the only command list. Do not copy commands here.
 
 ### What Wave 3 does not close
-
-- **g.9** — `wyvern wizard lint` dataflow rules (WIZARD-LINT-005–008) implementation
-- **g.13** — template / hook / welcome-bridge type refs + sc-compose snippets
-- **g.14** — CI `wyvern wizard lint` gate + known nav-lint HTML fixes
 - Replacing `share/wyvern/templates/wizard/*` catalog skeletons wholesale
 - React / Svelte live in-repo builds; turbo-flow stays vendored dist for DAG demo
 - Workflow script authoring beyond pointing at `workflow.pre` / `workflow.post`

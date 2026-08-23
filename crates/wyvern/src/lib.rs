@@ -35,7 +35,8 @@ pub use cli_args::{apply_host_overrides, parse_cli_args, usage_message, CliArgs}
 #[doc(inline)]
 pub use error::{
     emit_extension_error, emit_fatal_internal, emit_host_error, emit_io_error, emit_parse_error,
-    emit_stdout, emit_usage_error, emit_usage_message, emit_validation_error, emit_workflow_error,
+    emit_stdout, emit_usage_error, emit_usage_message, emit_validation_error,
+    emit_wizard_lint_stage_error, emit_workflow_error,
     BuiltinDomain, EmitError, LoadError, UsageErrorKind,
 };
 #[doc(inline)]

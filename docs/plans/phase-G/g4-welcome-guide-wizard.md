@@ -1,7 +1,7 @@
 ---
 id: g.4
 title: Welcome guide wizard (`wyvern guide`)
-status: in-review
+status: complete (integrate)
 branch: feature/phase-G-g4-welcome-guide
 worktree: ../wyvern-worktrees/feature/phase-G-g4-welcome-guide
 target: integrate/phase-G

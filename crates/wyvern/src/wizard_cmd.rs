@@ -16,13 +16,17 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::{Component, Path, PathBuf};
 
+use wyvern_schema::{WizardPageHtml, WizardPageId};
 use wyvern_wizard::{
-    add_edge, extract_local_script_srcs, extract_next_hops, lint_dataflow, lint_page,
-    merge_html_dataflow_overlay, parse_dataflow_from_json, DataflowLintInput, GraphPage,
-    LintFinding, PageInfo, PageRole, WizardPageGraph,
+    add_edge, extract_local_script_srcs, extract_next_hops, extract_next_wizard_refs,
+    lint_dataflow, lint_page, merge_html_dataflow_overlay, parse_dataflow_from_json,
+    DataflowLintInput, DataflowSpec, GraphPage, LintFinding, PageInfo, PageRole,
+    WizardPageGraph,
 };
 
 use crate::error::{BuiltinDomain, EmitError, UsageErrorKind};
+use crate::extensions::resolve_wyvern_share;
+use crate::workflow::Allowlist;
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
@@ -45,10 +49,10 @@ pub enum WizardCmdError {
         /// Plain-text usage message.
         message: String,
     },
-    /// I/O or parse failure with a human-readable stderr message (exit 1).
+    /// I/O or parse failure (exit 1) — emit via [`emit_wizard_lint_stage_error`].
     Stage {
-        /// Plain-text stderr.
-        stderr: String,
+        /// Human-readable detail (one or more lines).
+        message: String,
         /// Process exit code (typically 1).
         exit_code: i32,
     },
@@ -159,9 +163,8 @@ fn run_lint(args: &[String]) -> Result<WizardCmdResult, WizardCmdError> {
 
     // I/O errors are reported on stderr and set exit 1.
     if !errors.is_empty() {
-        let stderr = errors.join("\n");
         return Err(WizardCmdError::Stage {
-            stderr,
+            message: errors.join("\n"),
             exit_code: 1,
         });
     }
@@ -202,8 +205,7 @@ fn lint_package(path_str: &str) -> Result<(Vec<LintFinding>, usize), String> {
         .map_err(|msg| format!("error: '{}': {msg}", wizard_json_path.display()))?;
 
     // BFS to build the reachable page graph.
-    let (pages, graph) = build_page_graph(&wizard_dir, &entry_id, &entry_html);
-    let page_count = pages.len();
+    let (pages, graph) = build_page_graph(&wizard_dir, &entry_id, &entry_html)?;
 
     // Nav lint for each page.
     let mut findings: Vec<LintFinding> = pages
@@ -225,7 +227,7 @@ fn lint_package(path_str: &str) -> Result<(Vec<LintFinding>, usize), String> {
         }
         let js_files = collect_local_js_files(&wizard_dir, &pages);
         let has_workflow_post = wizard_json_has_workflow_post(&json_content);
-        let next_wizard_targets = HashMap::new();
+        let next_wizard_targets = build_next_wizard_targets(&wizard_dir, &js_files);
         findings.extend(lint_dataflow(&DataflowLintInput {
             spec: &spec,
             graph: &graph,
@@ -235,6 +237,7 @@ fn lint_package(path_str: &str) -> Result<(Vec<LintFinding>, usize), String> {
         }));
     }
 
+    let page_count = pages.len();
     Ok((findings, page_count))
 }
 
@@ -269,19 +272,23 @@ fn parse_wizard_json_entry(json: &str) -> Result<(String, String), String> {
         .get("page")
         .ok_or("missing 'page' field in wizard.json")?;
 
-    let id = page
-        .get("id")
-        .and_then(|v| v.as_str())
-        .ok_or("wizard.json page.id must be a string")?
-        .to_string();
+    let id = WizardPageId::try_new(
+        page
+            .get("id")
+            .and_then(|v| v.as_str())
+            .ok_or("wizard.json page.id must be a string")?,
+    )
+    .map_err(|_| "wizard.json page.id must be non-empty".to_string())?;
 
-    let html = page
-        .get("html")
-        .and_then(|v| v.as_str())
-        .ok_or("wizard.json page.html must be a string")?
-        .to_string();
+    let html = WizardPageHtml::try_new(
+        page
+            .get("html")
+            .and_then(|v| v.as_str())
+            .ok_or("wizard.json page.html must be a string")?,
+    )
+    .map_err(|_| "wizard.json page.html must be non-empty".to_string())?;
 
-    Ok((id, html))
+    Ok((id.into_inner(), html.into_inner()))
 }
 
 // ── BFS page graph ────────────────────────────────────────────────────────────
@@ -301,7 +308,7 @@ fn build_page_graph(
     wizard_dir: &Path,
     entry_id: &str,
     entry_html: &str,
-) -> (Vec<PageNode>, WizardPageGraph) {
+) -> Result<(Vec<PageNode>, WizardPageGraph), String> {
     let mut visited: HashSet<String> = HashSet::new();
     let mut queue: VecDeque<(String, String, PageRole, Option<String>)> = VecDeque::new();
     let mut pages: Vec<PageNode> = Vec::new();
@@ -329,9 +336,12 @@ fn build_page_graph(
         }
 
         let html_abs = wizard_dir.join(&html_rel);
-        let Ok(html_content) = std::fs::read_to_string(&html_abs) else {
-            continue;
-        };
+        let html_content = std::fs::read_to_string(&html_abs).map_err(|e| {
+            format!(
+                "error: cannot read page '{}': {e}",
+                html_abs.display()
+            )
+        })?;
 
         // Discover next-page hops from linked local JS files.
         let html_dir = html_abs.parent().unwrap_or(wizard_dir);
@@ -370,7 +380,39 @@ fn build_page_graph(
         });
     }
 
-    (pages, graph)
+    Ok((pages, graph))
+}
+
+fn build_next_wizard_targets(
+    wizard_dir: &Path,
+    js_files: &HashMap<String, String>,
+) -> HashMap<String, DataflowSpec> {
+    let allowlist = Allowlist {
+        share_root: resolve_wyvern_share(),
+        cwd: std::env::current_dir().unwrap_or_else(|_| wizard_dir.to_path_buf()),
+        wizard_dir: wizard_dir.to_path_buf(),
+    };
+
+    let mut paths = HashSet::new();
+    for (file, js) in js_files {
+        for nw in extract_next_wizard_refs(js, file) {
+            paths.insert(nw.path);
+        }
+    }
+
+    let mut targets = HashMap::new();
+    for path in paths {
+        let Ok(wizard_json) = allowlist.resolve_allowed(&path) else {
+            continue;
+        };
+        let Ok(json) = std::fs::read_to_string(&wizard_json) else {
+            continue;
+        };
+        if let Some(spec) = parse_dataflow_from_json(&json) {
+            targets.insert(path, spec);
+        }
+    }
+    targets
 }
 
 fn collect_local_js_files(wizard_dir: &Path, pages: &[PageNode]) -> HashMap<String, String> {
