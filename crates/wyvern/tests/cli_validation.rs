@@ -492,7 +492,10 @@ fn dialog_base_url(dialog_url: &str) -> String {
 }
 
 fn wait_for_http(url: &str) -> reqwest::blocking::Client {
-    let client = reqwest::blocking::Client::new();
+    let client = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(5))
+        .build()
+        .expect("http client");
     let start = std::time::Instant::now();
     let budget = Duration::from_secs(15);
     loop {
