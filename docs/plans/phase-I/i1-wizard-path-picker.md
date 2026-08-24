@@ -34,14 +34,14 @@ and CI.
 | `docs/plans/phase-C/http-post-schema.md` | Picker routes available for wizard sessions |
 | `.claude/skills/creating-wyvern-wizard/references/wizard-types/path-picker.md` | Type recipe (new) |
 | `.claude/skills/creating-wyvern-wizard/SKILL.md` | Link path-picker type in wizard type picker |
-| `crates/wyvern-host/src/routes/picker.rs` | Accept `Command::Wizard` on file + folder routes; request-body defaults |
+| `crates/wyvern-host/src/routes/picker.rs` | Accept `Command::Wizard`; request-body defaults; preserve picker-slot RAII + structured `ApiError` envelope |
 | `share/wyvern/examples/path-picker/wizard.json` | 2-page vanilla-chrome wizard entry |
 | `share/wyvern/examples/path-picker/pages/sources.html` | Browse file (multi) + folder; in-page list |
 | `share/wyvern/examples/path-picker/pages/review.html` | Summary before Finish |
 | `share/wyvern/examples/path-picker/app.js` | Picker calls, stack/`collectCurrentPageData` |
 | `share/wyvern/examples/path-picker/README.md` | Run instructions (GUI + headless mock) |
 | `crates/wyvern/share/wyvern/examples/path-picker/` | Packaged parity (share-sync) |
-| `crates/wyvern-host/tests/wizard_path_picker.rs` | Wizard session + mock picker; input regression |
+| `crates/wyvern-host/tests/wizard_path_picker.rs` | Wizard session + mock picker; input regression; 400 `cause`/`recovery`/`docs` on rejections |
 | `crates/wyvern/tests/examples_path_picker.rs` | CLI smoke `--viewer none` + finish JSON shape |
 | `.github/workflows/ci.yml` | `wyvern wizard lint share/wyvern/examples/path-picker` |
 
@@ -71,6 +71,17 @@ Amends REQ-0113 scope (wizard allowed); input merge unchanged.
 **Unchanged:** `Command::Input` arms merge body with dialog fields as today.
 **Still 400:** `message`, `report`, `markdown`, `question`, `chrome`, wrong input mode.
 
+**Error envelope (normative):** Wizard and input rejection paths must continue using
+`picker_bad_request`, `picker_unavailable`, and `picker_timeout` helpers so HTTP 400/503
+responses include structured `message`, `cause`, `recovery`, and `docs` (not status code
+alone). Non-eligible commands must mention both input (matching mode) and wizard sessions
+in recovery text (REQ-HOST-0151).
+
+**Picker slot (normative):** Wizard arms call `acquire_picker_slot()`, hold
+`OwnedSemaphorePermit` in the **async handler** through timeout/join (never inside
+`spawn_blocking`), and drop before returning — same lifecycle as existing input arms
+(ADR-0026 §3; RSH-002).
+
 ### Example finish JSON (normative)
 
 ```json
@@ -93,11 +104,14 @@ Page JS collects path strings only — no filesystem reads/writes in the browser
 3. Wizard session: `POST /api/picker/file` with `WYVERN_MOCK_PICKER_PATH` returns `{ok:true, paths:[...]}`.
 4. Wizard session: `POST /api/picker/folder` mock returns paths JSON.
 5. Input file/folder picker tests in `http_input.rs` unchanged (regression).
-6. `message` / `report` sessions still get HTTP 400 from picker routes.
+6. `message` / `report` sessions still get HTTP 400 from picker routes with structured
+   `cause`, `recovery`, and `docs` fields (not bare status).
 7. `wyvern wizard lint share/wyvern/examples/path-picker` exits 0.
 8. Headless: `WYVERN_VIEWER=none` + mock picker runs example wizard and stdout finish includes `file_paths` / `folder_paths`.
 9. `scripts/check-share-sync.sh` passes (canonical + packaged example trees match).
 10. Example README documents GUI and headless commands using `{wyvern_share}` paths.
+11. `wizard_path_picker.rs` asserts `ApiError` JSON shape on wrong-mode and non-eligible
+    command rejections (mirror `http_input.rs` success regression scope).
 
 ## Required validation
 
