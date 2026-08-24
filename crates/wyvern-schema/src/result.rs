@@ -226,4 +226,28 @@ mod tests {
         let json = serde_json::to_string(&result).expect("serialize");
         assert_eq!(json, r#"{"button":"dismissed"}"#);
     }
+
+    #[test]
+    fn command_result_report_finish_wire_shape() {
+        use crate::{
+            ManifestPanelPath, PanelRole, ReportFinishData, ReportPanelEntry, ReportResult,
+        };
+        let result = CommandResult::Report(ReportResult::finished(ReportFinishData {
+            approved: true,
+            comments: crate::ReviewComments::new("notes"),
+            panels: vec![ReportPanelEntry {
+                path: ManifestPanelPath::new("panels/fail.xhtml"),
+                label: Some("Fail 1".into()),
+                role: Some(PanelRole::Failure),
+            }],
+        }));
+        let value: serde_json::Value =
+            serde_json::from_str(&serde_json::to_string(&result).expect("serialize"))
+                .expect("json");
+        assert_eq!(value["button"], "finish");
+        assert_eq!(value["data"]["approved"], true);
+        assert_eq!(value["data"]["comments"], "notes");
+        assert_eq!(value["data"]["panels"][0]["label"], "Fail 1");
+        assert_eq!(value["data"]["panels"][0]["role"], "failure");
+    }
 }

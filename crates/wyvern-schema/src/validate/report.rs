@@ -7,7 +7,7 @@ use crate::error::ValidationError;
 use crate::field_name::FieldName;
 use crate::report::{
     ManifestPanelPath, PanelRole, ReportCommand, ReportMode, ReportPagePath, ReportPanelEntry,
-    ReportTitle,
+    ReportTitle, MAX_REPORT_PANELS,
 };
 
 use super::helpers::{
@@ -111,6 +111,12 @@ fn optional_panels(
     match obj.get("panels") {
         None => Ok(None),
         Some(Value::Array(items)) => {
+            if items.len() > MAX_REPORT_PANELS {
+                return Err(ValidationError::validation(
+                    "panels",
+                    format!("field 'panels' must have at most {MAX_REPORT_PANELS} items"),
+                ));
+            }
             let mut panels = Vec::with_capacity(items.len());
             for (index, item) in items.iter().enumerate() {
                 panels.push(validate_panel_entry(index, item)?);

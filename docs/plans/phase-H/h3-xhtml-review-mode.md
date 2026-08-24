@@ -1,7 +1,7 @@
 ---
 id: h.3
 title: XHTML review mode (--review)
-status: planning
+status: implemented
 branch: feature/phase-H-h3-xhtml-review
 worktree: ../wyvern-worktrees/feature/phase-H-h3-xhtml-review
 target: integrate/phase-H

@@ -50,6 +50,7 @@ pub use media::MediaRef;
 pub use report::{
     ManifestPanelPath, PanelRole, ReportCommand, ReportFieldError, ReportFinishData, ReportMode,
     ReportPagePath, ReportPanelEntry, ReportResult, ReportTerminalButton, ReportTitle,
+    ReviewComments, MAX_REPORT_PANELS, MAX_REVIEW_COMMENTS_CHARS,
 };
 #[doc(inline)]
 pub use result::{

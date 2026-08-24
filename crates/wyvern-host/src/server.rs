@@ -4,6 +4,10 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::time::Duration;
 
+use axum::extract::Request;
+use axum::http::header::{HeaderValue, CONNECTION};
+use axum::middleware::{from_fn, Next};
+use axum::response::Response;
 use axum::routing::{get, post};
 use axum::Router;
 use tokio::net::TcpListener;
@@ -25,6 +29,15 @@ const API_BODY_LIMIT_BYTES: usize = 256 * 1024;
 /// Per-request HTTP budget — above [`crate::session::PICKER_TIMEOUT`] so native
 /// pickers are not cut off by the tower timeout layer (RSH-001).
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(310);
+
+/// Quiet window after the last in-flight terminal POST so a concurrent
+/// sibling already written by the client can still be accepted (ATM-QA-001).
+///
+/// 0 ms flakes ~40–60% (`Connection reset by peer` instead of HTTP 409).
+/// 400 ms covers thread-spawn plus a new TCP connect in CI. The 2 s cap
+/// prevents a stuck handler from holding the process open.
+const TERMINAL_QUIET: Duration = Duration::from_millis(400);
+const TERMINAL_DRAIN_CAP: Duration = Duration::from_secs(2);
 
 /// Header name for request correlation (RSH-003).
 const REQUEST_ID_HEADER: &str = "x-request-id";
@@ -179,18 +192,19 @@ pub(crate) fn build_router(session: SessionState, roots: StaticRoots) -> Router 
         }
     };
 
-    app.layer(TimeoutLayer::with_status_code(
-        axum::http::StatusCode::GATEWAY_TIMEOUT,
-        REQUEST_TIMEOUT,
-    ))
-    .layer(TraceLayer::new_for_http().make_span_with(RequestIdMakeSpan))
-    .layer(PropagateRequestIdLayer::new(
-        axum::http::HeaderName::from_static(REQUEST_ID_HEADER),
-    ))
-    .layer(SetRequestIdLayer::new(
-        axum::http::HeaderName::from_static(REQUEST_ID_HEADER),
-        MakeRequestUuid,
-    ))
+    app.layer(from_fn(close_http_connection))
+        .layer(TimeoutLayer::with_status_code(
+            axum::http::StatusCode::GATEWAY_TIMEOUT,
+            REQUEST_TIMEOUT,
+        ))
+        .layer(TraceLayer::new_for_http().make_span_with(RequestIdMakeSpan))
+        .layer(PropagateRequestIdLayer::new(
+            axum::http::HeaderName::from_static(REQUEST_ID_HEADER),
+        ))
+        .layer(SetRequestIdLayer::new(
+            axum::http::HeaderName::from_static(REQUEST_ID_HEADER),
+            MakeRequestUuid,
+        ))
 }
 
 /// Include `x-request-id` on every HTTP span (RSH-008).
@@ -257,7 +271,9 @@ pub(crate) async fn serve_until_result(
         }
     };
 
-    // Stop accepting connections and drain in-flight requests before returning.
+    // Keep accepting until terminal POSTs drain and stay quiet so a concurrent
+    // finish/dismiss can write HTTP 409 before shutdown (ATM-QA-001).
+    drain_terminal_requests(&session).await;
     let _ = shutdown_tx.send(());
     if let Err(e) = server.await {
         if outcome.is_ok() {
@@ -270,6 +286,38 @@ pub(crate) async fn serve_until_result(
     }
 
     outcome
+}
+
+/// Disable HTTP/1 keep-alive so a completed winner's socket is not reused
+/// and then reset when graceful shutdown starts (ATM-QA-001).
+async fn close_http_connection(request: Request, next: Next) -> Response {
+    let mut response = next.run(request).await;
+    response
+        .headers_mut()
+        .insert(CONNECTION, HeaderValue::from_static("close"));
+    response
+}
+
+/// Keep the listener open until in-flight terminal POSTs finish and a quiet
+/// window elapses, so a concurrent loser can still receive HTTP 409.
+async fn drain_terminal_requests(session: &SessionState) {
+    let started = tokio::time::Instant::now();
+    let mut quiet_since = tokio::time::Instant::now();
+    let mut last = session.terminal_in_flight();
+    loop {
+        tokio::time::sleep(Duration::from_millis(5)).await;
+        let count = session.terminal_in_flight();
+        if count != last {
+            quiet_since = tokio::time::Instant::now();
+            last = count;
+        }
+        if count == 0 && quiet_since.elapsed() >= TERMINAL_QUIET {
+            break;
+        }
+        if started.elapsed() >= TERMINAL_DRAIN_CAP {
+            break;
+        }
+    }
 }
 
 /// Timeout/dismiss path: consume the result token first so in-flight

@@ -321,6 +321,8 @@ Panel authoring guidance ships in **`wyvern-reporting`** skill refs — not here
 | Host | `POST /api/report/finish` in view mode | HTTP **404** (route unregistered) | use review mode or dismiss window |
 | Host | Finish unknown top-level keys | HTTP 400 `REPORT_FINISH_UNKNOWN_FIELD` | remove extra keys |
 | Host | Finish `panels` mismatch authoritative command | HTTP 400 `REPORT_FINISH_PANELS_MISMATCH` | resubmit embedded manifest panels |
+| Host | Finish `panels` parse/shape invalid | HTTP 400 `REPORT_FINISH_PANELS_INVALID` | fix panels[] object shape |
+| Host | Finish without review manifest token | HTTP 400 `REPORT_FINISH_MANIFEST_REQUIRED` | open with mode review |
 | Host | Finish `comments` > 32_768 chars | HTTP 400 `REPORT_FINISH_COMMENTS_TOO_LONG` | shorten comments |
 | Host | Malformed finish JSON body | HTTP 400 `REPORT_FINISH_INVALID_JSON` | resubmit valid JSON |
 | Host | Duplicate finish POST | HTTP 409 `REPORT_FINISH_ALREADY_COMPLETE` | single terminal action per session |

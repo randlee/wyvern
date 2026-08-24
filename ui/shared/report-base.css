@@ -90,3 +90,87 @@ html[data-wyvern-theme="dark"] .pane--proposal {
 html[data-wyvern-theme="dark"] .pane--proposal .pane-label {
   color: #5eead4;
 }
+
+.report-review {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem 1rem;
+  margin: 0;
+  padding: 0.85rem 1.5rem 1rem;
+  border-top: 1px solid #cbd5e1;
+  background: #fff;
+}
+
+.report-review label {
+  flex: 0 0 100%;
+  font-size: 0.85rem;
+  font-weight: 650;
+  color: #334155;
+}
+
+.report-review textarea {
+  flex: 1 1 16rem;
+  min-height: 4.5rem;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid #94a3b8;
+  border-radius: 0.4rem;
+  font: inherit;
+  resize: vertical;
+}
+
+.report-review nav {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.report-review button {
+  min-width: 6.5rem;
+  padding: 0.45rem 0.9rem;
+  border: 1px solid #64748b;
+  border-radius: 0.4rem;
+  background: #f1f5f9;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.report-review button[data-report-approve] {
+  border-color: #0f766e;
+  background: #0d9488;
+  color: #fff;
+}
+
+.report-review button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+html[data-wyvern-theme="dark"] .report-review {
+  background: #1e293b;
+  border-top-color: #334155;
+}
+
+html[data-wyvern-theme="dark"] .report-review label {
+  color: #cbd5e1;
+}
+
+html[data-wyvern-theme="dark"] .report-review textarea {
+  background: #0f172a;
+  border-color: #475569;
+  color: #e2e8f0;
+}
+
+html[data-wyvern-theme="dark"] .report-review button {
+  background: #334155;
+  border-color: #64748b;
+  color: #e2e8f0;
+}
+
+html[data-wyvern-theme="dark"] .report-review button[data-report-approve] {
+  background: #0d9488;
+  border-color: #2dd4bf;
+  color: #042f2e;
+}
