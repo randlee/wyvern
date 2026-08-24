@@ -83,6 +83,25 @@
         { "agent": "arch-qa", "task_id": "41c4861c-2a87-47e7-8a1e-6fc041fb5f3a" },
         { "agent": "rust-qa-agent", "task_id": "426b6b0e-ab24-4c22-bf87-fcd5f835ca79" }
       ]
+    },
+    {
+      "qa_pass": "qa-h3-1",
+      "commit": "b38cde9b1bd31a03ba2c458da084e4118d39a3a9",
+      "verdict": "FAIL",
+      "pr_comment_url": "https://github.com/randlee/wyvern/pull/121#issuecomment-5391313125",
+      "reviewer_spawn_gate": "pass",
+      "coordinator_task_id": "10d25a74-98a3-469a-ba82-f7f40a183124",
+      "finding_counts": { "blocking": 1, "important": 2, "minor": 3 },
+      "deliverables": "24/27 (88.9%)",
+      "open_finding_ids": ["ATM-QA-001", "RBP-F001", "RBP-F002", "ATM-QA-002", "RBP-F003", "RSH-001"],
+      "next_action": "triage_and_fix",
+      "reviewer_manifest": [
+        { "agent": "req-qa", "task_id": "074c0414-633f-4199-b7fd-ff013996d4d2", "spawn_actor": "parent-orchestrator" },
+        { "agent": "arch-qa", "task_id": "bad54022-ea50-4aba-b5fb-9fbd9c1da018", "spawn_actor": "parent-orchestrator" },
+        { "agent": "rust-qa-agent", "task_id": "d7fad7f6-2014-4fdb-a2c9-8d7b535f7195", "spawn_actor": "parent-orchestrator" },
+        { "agent": "rust-best-practices-agent", "task_id": "9e5b97ac-67aa-4429-883a-6fe1eba3e2c1", "spawn_actor": "parent-orchestrator" },
+        { "agent": "rust-service-hardening-agent", "task_id": "4ca6e52b-3bfa-468c-ae6d-161ce7fc5d5a", "spawn_actor": "parent-orchestrator" }
+      ]
     }
   ],
   "sprints": {
@@ -125,7 +144,7 @@
       "worktree": "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-H-h3-xhtml-review",
       "sprint_doc": "docs/plans/phase-H/h3-xhtml-review-mode.md",
       "pr_target": "integrate/phase-H",
-      "status": "qa_in_progress",
+      "status": "fix_in_progress",
       "dev_commit": "b38cde9b1bd31a03ba2c458da084e4118d39a3a9",
       "pr_number": 121,
       "pr_url": "https://github.com/randlee/wyvern/pull/121",
