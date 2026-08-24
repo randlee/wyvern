@@ -1,0 +1,79 @@
+{
+  "phase": "H",
+  "integration_branch": "integrate/phase-H",
+  "created": "2026-08-24T00:50:00Z",
+  "active_sprint": "h.1",
+  "dev_model": "cursor-grok-4.6-high-fast",
+  "qa_models": {
+    "cursor-quality-mgr": "composer-2.5-fast",
+    "req-qa": "composer-2.5-fast",
+    "arch-qa": "cursor-grok-4.6-high-fast",
+    "rust-qa-agent": "cursor-grok-4.6-high-fast",
+    "rust-best-practices-agent": "composer-2.5-fast",
+    "rust-service-hardening-agent": "composer-2.5-fast",
+    "flaky-test-qa": "composer-2.5-fast"
+  },
+  "status": "ready",
+  "baseline_commit": "73ec107adc939f0bc29081f9c1975c1384acbe20",
+  "plan_qa": {
+    "pass_commit": "3165bd042327196afb815b1acf0636b12b57303a",
+    "pr": 118,
+    "qa_pass": "qa-plan-h-7"
+  },
+  "qa_rounds": [],
+  "sprints": {
+    "h.1": {
+      "id": "h.1",
+      "title": "Report host + single XHTML panel (basic frame)",
+      "branch": "feature/phase-H-h1-xhtml-single",
+      "worktree": "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-H-h1-xhtml-single",
+      "sprint_doc": "docs/plans/phase-H/h1-xhtml-single-panel.md",
+      "pr_target": "integrate/phase-H",
+      "status": "pending",
+      "pr_number": null,
+      "pr_url": null,
+      "qa_gate": null
+    },
+    "h.2": {
+      "id": "h.2",
+      "title": "XHTML panel array + report-xhtml",
+      "branch": "feature/phase-H-h2-xhtml-panel-array",
+      "worktree": "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-H-h2-xhtml-panel-array",
+      "sprint_doc": "docs/plans/phase-H/h2-xhtml-panel-array.md",
+      "pr_target": "integrate/phase-H",
+      "status": "pending",
+      "depends_on": ["h.1"]
+    },
+    "h.3": {
+      "id": "h.3",
+      "title": "XHTML review mode (--review)",
+      "branch": "feature/phase-H-h3-xhtml-review",
+      "worktree": "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-H-h3-xhtml-review",
+      "sprint_doc": "docs/plans/phase-H/h3-xhtml-review-mode.md",
+      "pr_target": "integrate/phase-H",
+      "status": "pending",
+      "depends_on": ["h.2"]
+    },
+    "h.4": {
+      "id": "h.4",
+      "title": "wyvern-reporting skill",
+      "branch": "feature/phase-H-h4-wyvern-reporting-skill",
+      "worktree": "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-H-h4-wyvern-reporting-skill",
+      "sprint_doc": "docs/plans/phase-H/h4-wyvern-reporting-skill.md",
+      "pr_target": "integrate/phase-H",
+      "status": "pending",
+      "depends_on": ["h.3"],
+      "note": "May start after h.2 contract stable; merge after h.3"
+    },
+    "h.5": {
+      "id": "h.5",
+      "title": "Synthetic XHTML example + CI",
+      "branch": "feature/phase-H-h5-xhtml-example",
+      "worktree": "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-H-h5-xhtml-example",
+      "sprint_doc": "docs/plans/phase-H/h5-synthetic-xhtml-example.md",
+      "pr_target": "integrate/phase-H",
+      "status": "pending",
+      "depends_on": ["h.1", "h.2", "h.3"]
+    }
+  }
+}
