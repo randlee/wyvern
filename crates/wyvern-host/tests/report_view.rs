@@ -121,3 +121,55 @@ fn report_view_bind_url_resolves_page_and_shared_css() {
     let _ = handle.viewer_exited_without_result();
     let _ = std::fs::remove_file(&url_file);
 }
+
+#[test]
+fn report_view_invalid_result_recovery_mentions_dismissed() {
+    let url_file = unique_path("wyvern-report-result-url");
+    let ui_root = write_report_ui_root();
+    let options = HostOptions {
+        bind: SocketAddr::from(([127, 0, 0, 1], 0)),
+        ui_root,
+        shared_ui_root: workspace_ui_root(),
+        viewer: ViewerMode::None,
+        dialog_url_env: true,
+        dialog_url_file: Some(url_file.clone()),
+        allow_non_loopback: false,
+        session_timeout: Duration::from_secs(30),
+        mock_picker: None,
+    };
+    let handle = begin(report_command(), options).expect("begin");
+    let dialog_url = wait_for_url_file(&url_file);
+    let base = dialog_url
+        .split_once("/report/")
+        .map(|(b, _)| b.to_string())
+        .expect("report path");
+
+    let client = http_client();
+    let response = client
+        .post(format!("{base}/api/result"))
+        .json(&serde_json::json!({}))
+        .send()
+        .expect("POST result");
+    assert_eq!(response.status(), reqwest::StatusCode::BAD_REQUEST);
+    let body: serde_json::Value = response.json().expect("error json");
+    let recovery = body["recovery"].as_array().expect("recovery");
+    assert!(
+        recovery.iter().any(|s| {
+            s.as_str()
+                .is_some_and(|step| step.contains(r#"{"button":"dismissed"}"#))
+        }),
+        "report dismiss recovery missing: {body}"
+    );
+
+    let _ = client
+        .post(format!("{base}/api/result"))
+        .json(&serde_json::json!({"button": "dismissed"}))
+        .send()
+        .expect("POST dismiss");
+    let result = handle.await_result().expect("await result");
+    assert_eq!(
+        serde_json::to_string(&result).expect("serialize"),
+        r#"{"button":"dismissed"}"#
+    );
+    let _ = std::fs::remove_file(&url_file);
+}

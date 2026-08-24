@@ -5,13 +5,26 @@ use std::ops::Deref;
 
 use serde::{Deserialize, Serialize};
 
-/// Error when a report identity field is empty.
+/// Error when a report identity or path field is invalid.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ReportFieldError;
+pub enum ReportFieldError {
+    /// Value is empty.
+    Empty,
+    /// [`ReportPagePath`] does not end with `.html` or `.xhtml`.
+    InvalidPageSuffix,
+    /// [`ManifestPanelPath`] does not end with `.xhtml`.
+    InvalidPanelSuffix,
+}
 
 impl fmt::Display for ReportFieldError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("report field must be a non-empty string")
+        match self {
+            Self::Empty => f.write_str("report field must be a non-empty string"),
+            Self::InvalidPageSuffix => {
+                f.write_str("report page path must end with .html or .xhtml")
+            }
+            Self::InvalidPanelSuffix => f.write_str("manifest panel path must end with .xhtml"),
+        }
     }
 }
 
@@ -35,19 +48,6 @@ macro_rules! report_newtype {
             /// already-validated values (e.g. after [`crate::validate`]).
             pub fn new(value: impl Into<String>) -> Self {
                 Self(value.into())
-            }
-
-            /// Construct from a non-empty string.
-            ///
-            /// # Errors
-            ///
-            /// Returns [`ReportFieldError`] when `value` is empty.
-            pub fn try_new(value: impl Into<String>) -> Result<Self, ReportFieldError> {
-                let value = value.into();
-                if value.is_empty() {
-                    return Err(ReportFieldError);
-                }
-                Ok(Self(value))
             }
 
             /// Borrow as a string slice.
@@ -97,13 +97,77 @@ macro_rules! report_newtype {
 
 report_newtype!(
     ReportPagePath,
-    "Validated report page path relative to `--ui-root` (non-empty)."
+    "Validated report page path relative to `--ui-root` (`.html` or `.xhtml`)."
 );
 report_newtype!(ReportTitle, "Validated report window title (non-empty).");
 report_newtype!(
     ManifestPanelPath,
     "Validated manifest panel path (non-empty `.xhtml` relative path)."
 );
+
+impl ReportTitle {
+    /// Construct from a non-empty string.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ReportFieldError::Empty`] when `value` is empty.
+    pub fn try_new(value: impl Into<String>) -> Result<Self, ReportFieldError> {
+        let value = value.into();
+        if value.is_empty() {
+            return Err(ReportFieldError::Empty);
+        }
+        Ok(Self(value))
+    }
+}
+
+impl ReportPagePath {
+    /// Construct from a non-empty `.html` or `.xhtml` path.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ReportFieldError::Empty`] when `value` is empty, or
+    /// [`ReportFieldError::InvalidPageSuffix`] when the path does not end with
+    /// `.html` or `.xhtml` (ASCII case-insensitive).
+    pub fn try_new(value: impl Into<String>) -> Result<Self, ReportFieldError> {
+        let value = value.into();
+        if value.is_empty() {
+            return Err(ReportFieldError::Empty);
+        }
+        if !has_html_or_xhtml_suffix(&value) {
+            return Err(ReportFieldError::InvalidPageSuffix);
+        }
+        Ok(Self(value))
+    }
+}
+
+impl ManifestPanelPath {
+    /// Construct from a non-empty `.xhtml` relative path.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ReportFieldError::Empty`] when `value` is empty, or
+    /// [`ReportFieldError::InvalidPanelSuffix`] when the path does not end with
+    /// `.xhtml` (ASCII case-insensitive).
+    pub fn try_new(value: impl Into<String>) -> Result<Self, ReportFieldError> {
+        let value = value.into();
+        if value.is_empty() {
+            return Err(ReportFieldError::Empty);
+        }
+        if !has_xhtml_suffix(&value) {
+            return Err(ReportFieldError::InvalidPanelSuffix);
+        }
+        Ok(Self(value))
+    }
+}
+
+fn has_html_or_xhtml_suffix(value: &str) -> bool {
+    let lower = value.to_ascii_lowercase();
+    lower.ends_with(".html") || lower.ends_with(".xhtml")
+}
+
+fn has_xhtml_suffix(value: &str) -> bool {
+    value.to_ascii_lowercase().ends_with(".xhtml")
+}
 
 /// Report session mode (`view` | `review`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -264,18 +328,47 @@ mod tests {
 
     #[test]
     fn report_title_try_new_rejects_empty() {
-        assert_eq!(ReportTitle::try_new(""), Err(ReportFieldError));
+        assert_eq!(ReportTitle::try_new(""), Err(ReportFieldError::Empty));
         assert_eq!(ReportTitle::try_new("ok").unwrap().as_str(), "ok");
     }
 
     #[test]
-    fn report_page_path_try_new_rejects_empty() {
-        assert_eq!(ReportPagePath::try_new(""), Err(ReportFieldError));
+    fn report_page_path_try_new_rejects_empty_and_bad_suffix() {
+        assert_eq!(ReportPagePath::try_new(""), Err(ReportFieldError::Empty));
+        assert_eq!(
+            ReportPagePath::try_new("pages/view.txt"),
+            Err(ReportFieldError::InvalidPageSuffix)
+        );
         assert_eq!(
             ReportPagePath::try_new("pages/view.xhtml")
                 .unwrap()
                 .as_str(),
             "pages/view.xhtml"
+        );
+        assert_eq!(
+            ReportPagePath::try_new("pages/view.HTML").unwrap().as_str(),
+            "pages/view.HTML"
+        );
+    }
+
+    #[test]
+    fn manifest_panel_path_try_new_requires_xhtml_suffix() {
+        assert_eq!(ManifestPanelPath::try_new(""), Err(ReportFieldError::Empty));
+        assert_eq!(
+            ManifestPanelPath::try_new("panels/fail.html"),
+            Err(ReportFieldError::InvalidPanelSuffix)
+        );
+        assert_eq!(
+            ManifestPanelPath::try_new("panels/fail-1.xhtml")
+                .unwrap()
+                .as_str(),
+            "panels/fail-1.xhtml"
+        );
+        assert_eq!(
+            ManifestPanelPath::try_new("panels/fail-1.XHTML")
+                .unwrap()
+                .as_str(),
+            "panels/fail-1.XHTML"
         );
     }
 

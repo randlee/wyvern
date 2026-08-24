@@ -78,6 +78,7 @@ fn result_bad_request(message: impl Into<String>, cause: impl Into<String>) -> A
         .recovery(
             "For markdown/message results include a string 'button' field (e.g. \"ok\" or \"dismissed\")",
         )
+        .recovery("For report view dismiss POST {\"button\":\"dismissed\"}")
         .recovery(
             "For question submit omit 'button' and include questions, non-empty answers, and response",
         )

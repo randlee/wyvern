@@ -26,7 +26,7 @@ pub(super) fn validate_report(obj: &Map<String, Value>) -> Result<Command, Valid
     }
 
     let title = ReportTitle::new(require_non_empty_string(obj, "title")?);
-    let page = ReportPagePath::new(require_page_path(obj)?);
+    let page = require_page_path(obj)?;
     let mode = optional_report_mode(obj)?.unwrap_or(ReportMode::View);
     let panels = optional_panels(obj)?;
     if mode == ReportMode::Review && panels.as_ref().is_none_or(Vec::is_empty) {
@@ -71,20 +71,14 @@ fn require_non_empty_string(
     }
 }
 
-fn require_page_path(obj: &Map<String, Value>) -> Result<String, ValidationError> {
+fn require_page_path(obj: &Map<String, Value>) -> Result<ReportPagePath, ValidationError> {
     let page = require_non_empty_string(obj, "page")?;
-    if !page_has_allowed_suffix(&page) {
-        return Err(ValidationError::validation(
+    ReportPagePath::try_new(page.clone()).map_err(|_| {
+        ValidationError::validation(
             "page",
             format!("field 'page' must end with .html or .xhtml (got '{page}')"),
-        ));
-    }
-    Ok(page)
-}
-
-fn page_has_allowed_suffix(page: &str) -> bool {
-    let lower = page.to_ascii_lowercase();
-    lower.ends_with(".html") || lower.ends_with(".xhtml")
+        )
+    })
 }
 
 fn optional_report_mode(obj: &Map<String, Value>) -> Result<Option<ReportMode>, ValidationError> {
@@ -175,15 +169,12 @@ fn require_panel_path(
             field,
             format!("panels[{index}].path must be a non-empty string"),
         )),
-        Some(Value::String(s)) => {
-            if !s.to_ascii_lowercase().ends_with(".xhtml") {
-                return Err(ValidationError::validation(
-                    field,
-                    format!("panels[{index}].path must end with .xhtml (got '{s}')"),
-                ));
-            }
-            Ok(ManifestPanelPath::new(s.clone()))
-        }
+        Some(Value::String(s)) => ManifestPanelPath::try_new(s.clone()).map_err(|_| {
+            ValidationError::validation(
+                field,
+                format!("panels[{index}].path must end with .xhtml (got '{s}')"),
+            )
+        }),
         Some(other) => Err(ValidationError::validation(
             field.clone(),
             format!("{field} expected string, got {}", json_type_name(other)),

@@ -205,3 +205,24 @@ fn report_invalid_mode_fails() {
         other => panic!("expected Validation, got {other:?}"),
     }
 }
+
+#[test]
+fn report_panel_path_must_be_xhtml() {
+    let err = validate(&json!({
+        "type": "report",
+        "title": "T",
+        "page": "pages/view.xhtml",
+        "mode": "review",
+        "panels": [
+            { "path": "panels/fail.html" }
+        ]
+    }))
+    .unwrap_err();
+    match err {
+        ValidationError::Validation { field, message } => {
+            assert_eq!(field.as_str(), "panels[0].path");
+            assert!(message.contains(".xhtml"), "{message}");
+        }
+        other => panic!("expected Validation, got {other:?}"),
+    }
+}

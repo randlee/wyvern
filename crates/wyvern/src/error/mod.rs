@@ -552,4 +552,90 @@ mod tests {
             .unwrap()
             .contains("wizard page field must be a non-empty string"));
     }
+
+    #[test]
+    fn emit_validation_unknown_type_includes_report() {
+        let err = wyvern_schema::ValidationError::Validation {
+            field: FieldName::new("type"),
+            message: "got 'unknown', expected one of: chrome, message, input, markdown, question, wizard, report"
+                .to_string(),
+        };
+        let out = emit_validation_error(&err).expect("emit");
+        let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
+        let recovery = value["recovery"].as_array().unwrap();
+        assert!(recovery.iter().any(|s| {
+            s.as_str()
+                .is_some_and(|step| step.contains("wizard, report"))
+        }));
+        assert!(recovery.iter().any(|s| {
+            s.as_str()
+                .is_some_and(|step| step.contains("\"type\":\"report\""))
+        }));
+    }
+
+    #[test]
+    fn emit_validation_report_page_is_string_path_not_wizard_object() {
+        let err = wyvern_schema::ValidationError::Validation {
+            field: FieldName::new("page"),
+            message: "field 'page' must end with .html or .xhtml (got 'pages/view.txt')"
+                .to_string(),
+        };
+        let out = emit_validation_error(&err).expect("emit");
+        let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
+        let recovery = value["recovery"].as_array().unwrap();
+        assert!(recovery.iter().any(|s| {
+            s.as_str()
+                .is_some_and(|step| step.contains("pages/view.xhtml"))
+        }));
+        assert!(!recovery.iter().any(|s| {
+            s.as_str()
+                .is_some_and(|step| step.contains("\"id\":\"start\""))
+        }));
+
+        let missing = wyvern_schema::ValidationError::Validation {
+            field: FieldName::new("page"),
+            message: "missing required field 'page'".to_string(),
+        };
+        let missing_out = emit_validation_error(&missing).expect("emit");
+        let missing_value: serde_json::Value =
+            serde_json::from_str(&missing_out).expect("valid JSON");
+        let missing_recovery = missing_value["recovery"].as_array().unwrap();
+        assert!(missing_recovery
+            .iter()
+            .any(|s| { s.as_str().is_some_and(|step| step.contains("path string")) }));
+    }
+
+    #[test]
+    fn emit_host_ui_not_found_mentions_report_page() {
+        let err = wyvern_host::HostError::UiNotFound {
+            path: std::path::PathBuf::from("pages/view.xhtml"),
+            source: None,
+        };
+        let out = emit_host_error(&err).expect("emit");
+        let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
+        assert!(value["cause"]
+            .as_str()
+            .is_some_and(|s| s.contains("report page")));
+        let recovery = value["recovery"].as_array().unwrap();
+        assert!(recovery
+            .iter()
+            .any(|s| { s.as_str().is_some_and(|step| step.contains("/report/**")) }));
+    }
+
+    #[test]
+    fn emit_host_unsupported_type_includes_report() {
+        let err = wyvern_host::HostError::UnsupportedType {
+            type_name: wyvern_host::DialogTypeName::Chrome,
+        };
+        let out = emit_host_error(&err).expect("emit");
+        let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
+        assert!(value["cause"]
+            .as_str()
+            .is_some_and(|s| s.contains("report")));
+        let recovery = value["recovery"].as_array().unwrap();
+        assert!(recovery.iter().any(|s| {
+            s.as_str()
+                .is_some_and(|step| step.contains("wizard, report"))
+        }));
+    }
 }
