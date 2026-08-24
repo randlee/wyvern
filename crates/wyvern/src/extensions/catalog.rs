@@ -47,7 +47,7 @@ pub struct SkillRecord {
     pub requires: Vec<SkillRequire>,
     /// Declared `{arg:*}` flags.
     pub args: Vec<SkillArg>,
-    /// Expand command `type`, or `"wizard"` when using `command_from_file`.
+    /// Expand command `type` from inline JSON, `command_type`, or file contents.
     pub expands_to: String,
     /// One-line agent-facing summary from the registry, if present.
     pub description: Option<String>,
@@ -187,13 +187,101 @@ pub fn format_skill_card(record: &SkillRecord) -> String {
 }
 
 fn expands_to(ext: &ExtensionDef) -> String {
-    ext.expand
+    if let Some(ty) = ext
+        .expand
         .as_ref()
         .and_then(|spec| spec.command.as_ref())
         .and_then(|command| command.get("type"))
         .and_then(Value::as_str)
-        .unwrap_or("wizard")
-        .to_string()
+        .filter(|ty| !ty.is_empty())
+    {
+        return ty.to_string();
+    }
+    let spec = ext.expand.as_ref();
+    let hint = spec
+        .and_then(|expand| expand.command_type.as_deref())
+        .map(str::trim)
+        .filter(|ty| !ty.is_empty());
+    if let Some(path_tmpl) = spec.and_then(|expand| expand.command_from_file.as_deref()) {
+        return type_from_command_from_file(path_tmpl, hint);
+    }
+    hint.unwrap_or("wizard").to_string()
+}
+
+/// Read `type` from resolvable `command_from_file` JSON, a registry hint, or
+/// the emitted filename.
+///
+/// Catalog listing cannot wait for preexec to write `{tmpdir}/…`. Prefer
+/// `expand.command_type`; fall back to `report-command.json` → `report`.
+/// Read/parse failures must not silently become `wizard`.
+fn type_from_command_from_file(path_tmpl: &str, hint: Option<&str>) -> String {
+    if let Some(path) = resolve_static_command_path(path_tmpl) {
+        match read_command_type(&path) {
+            Ok(Some(ty)) => return ty,
+            Ok(None) => {
+                tracing::warn!(
+                    path = %path.display(),
+                    "catalog command_from_file JSON has no type field"
+                );
+                return fallback_command_type(path_tmpl, hint);
+            }
+            Err(err) => {
+                tracing::warn!(
+                    path = %path.display(),
+                    error = %err,
+                    "catalog could not read command_from_file type"
+                );
+                return fallback_command_type(path_tmpl, hint);
+            }
+        }
+    }
+    if let Some(ty) = hint {
+        return ty.to_string();
+    }
+    filename_command_type(path_tmpl).unwrap_or_else(|| "wizard".to_string())
+}
+
+fn fallback_command_type(path_tmpl: &str, hint: Option<&str>) -> String {
+    if let Some(ty) = hint {
+        return ty.to_string();
+    }
+    filename_command_type(path_tmpl).unwrap_or_else(|| "unknown".to_string())
+}
+
+fn filename_command_type(path_tmpl: &str) -> Option<String> {
+    let name = path_tmpl.rsplit(['/', '\\']).next().unwrap_or(path_tmpl);
+    (name == "report-command.json").then(|| "report".to_string())
+}
+
+fn resolve_static_command_path(path_tmpl: &str) -> Option<std::path::PathBuf> {
+    const SHARE: &str = "{wyvern_share}";
+    let open_braces = path_tmpl.chars().filter(|ch| *ch == '{').count();
+    if let Some(rest) = path_tmpl.strip_prefix(SHARE) {
+        if open_braces > 1 {
+            return None;
+        }
+        let mut path = super::resolve_wyvern_share();
+        let rest = rest.trim_start_matches(['/', '\\']);
+        if !rest.is_empty() {
+            path.push(rest);
+        }
+        return path.is_file().then_some(path);
+    }
+    if open_braces > 0 {
+        return None;
+    }
+    let path = std::path::PathBuf::from(path_tmpl);
+    path.is_file().then_some(path)
+}
+
+fn read_command_type(path: &std::path::Path) -> Result<Option<String>, String> {
+    let text = std::fs::read_to_string(path).map_err(|err| err.to_string())?;
+    let value: Value = serde_json::from_str(&text).map_err(|err| err.to_string())?;
+    Ok(value
+        .get("type")
+        .and_then(Value::as_str)
+        .filter(|ty| !ty.is_empty())
+        .map(ToOwned::to_owned))
 }
 
 fn invocation_line(ext: &ExtensionDef, args: &[SkillArg]) -> String {
@@ -476,6 +564,101 @@ mod tests {
         let args = declared_skill_args(&registry.extensions()[0]);
         assert_eq!(args.len(), 1, "{args:?}");
         assert_eq!(args[0].name.as_str(), "root");
+    }
+
+    #[test]
+    fn expands_to_reads_type_from_command_json_file() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let path = tmp.path().join("emitted.json");
+        std::fs::write(
+            &path,
+            r#"{"type":"report","title":"t","page":"pages/view.xhtml"}"#,
+        )
+        .expect("write");
+        let json = serde_json::json!({
+            "version": 1,
+            "extensions": [{
+                "id": "from-file",
+                "match": { "argv_prefix": ["from-file"] },
+                "expand": { "command_from_file": path }
+            }]
+        });
+        let registry = ExtensionRegistry::from_json_str(&json.to_string()).expect("parse");
+        let record = build_skill_record(&registry.extensions()[0], &Absent);
+        assert_eq!(record.expands_to, "report");
+    }
+
+    #[test]
+    fn expands_to_uses_command_type_hint_without_magic_filename() {
+        let json = r#"{
+          "version": 1,
+          "extensions": [{
+            "id": "hinted",
+            "match": { "argv_prefix": ["hinted"] },
+            "expand": {
+              "command_from_file": "{tmpdir}/custom-out.json",
+              "command_type": "report"
+            }
+          }]
+        }"#;
+        let registry = ExtensionRegistry::from_json_str(json).expect("parse");
+        let record = build_skill_record(&registry.extensions()[0], &Absent);
+        assert_eq!(record.expands_to, "report");
+    }
+
+    #[test]
+    fn expands_to_unknown_when_command_file_unreadable() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let path = tmp.path().join("broken-command.json");
+        std::fs::write(&path, "not-json").expect("write");
+        let json = serde_json::json!({
+            "version": 1,
+            "extensions": [{
+                "id": "from-file",
+                "match": { "argv_prefix": ["from-file"] },
+                "expand": { "command_from_file": path }
+            }]
+        });
+        let registry = ExtensionRegistry::from_json_str(&json.to_string()).expect("parse");
+        let record = build_skill_record(&registry.extensions()[0], &Absent);
+        assert_eq!(record.expands_to, "unknown");
+        assert_ne!(record.expands_to, "wizard");
+    }
+
+    #[test]
+    fn resolve_static_command_path_trims_windows_separators() {
+        let unix = resolve_static_command_path("{wyvern_share}/extensions.json");
+        let windows = resolve_static_command_path("{wyvern_share}\\extensions.json");
+        assert!(unix.is_some(), "unix share path should resolve");
+        assert_eq!(unix, windows);
+    }
+
+    #[test]
+    fn expands_to_report_command_json_template_is_report() {
+        let json = r#"{
+          "version": 1,
+          "extensions": [{
+            "id": "report-from-file",
+            "match": { "argv_prefix": ["report-xhtml"], "arg_suffix": ".json" },
+            "expand": { "command_from_file": "{tmpdir}/report-command.json" }
+          }]
+        }"#;
+        let registry = ExtensionRegistry::from_json_str(json).expect("parse");
+        let record = build_skill_record(&registry.extensions()[0], &Absent);
+        assert_eq!(record.expands_to, "report");
+    }
+
+    #[test]
+    fn shipped_report_xhtml_expands_to_report() {
+        let registry = ExtensionRegistry::from_json_str(SHIPPED_EXTENSIONS_JSON).expect("shipped");
+        let ext = registry
+            .extensions()
+            .iter()
+            .find(|e| e.id.as_str() == "report-xhtml")
+            .expect("report-xhtml");
+        let record = build_skill_record(ext, &Absent);
+        assert_eq!(record.expands_to, "report");
+        assert_ne!(record.expands_to, "wizard");
     }
 
     #[test]

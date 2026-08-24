@@ -202,6 +202,9 @@ pub struct ExpandSpec {
     /// Load Command JSON from this path template.
     #[serde(default)]
     pub command_from_file: Option<String>,
+    /// Catalog hint for `expands_to` when `command_from_file` is a template.
+    #[serde(default)]
+    pub command_type: Option<String>,
     /// Host overrides (`ui_root` only in Phase F).
     #[serde(default)]
     pub host: Option<HostExpandSpec>,
