@@ -29,7 +29,8 @@ Cancel / Approve buttons; structured finish JSON for agent loops.
 | `crates/wyvern-host/src/routes/report.rs` | `POST /api/report/finish` |
 | `crates/wyvern-schema/src/result.rs` | Extend `CommandResult::Report` finish `data` shape docs/tests (review finish) |
 | `share/wyvern/extensions.json` | `report-xhtml-review` extension (longer prefix) |
-| `crates/wyvern/tests/extensions_help_parity.rs` | REQ-0137 parity for `report-xhtml` + `report-xhtml-review` |
+| `crates/wyvern/src/cli_args.rs` | `usage_message()` — `wyvern report-xhtml --review <manifest.json>` |
+| `crates/wyvern/tests/extensions_catalog.rs` | REQ-0137 parity for `report-xhtml-review` only |
 | `crates/wyvern/tests/extensions_xhtml_review.rs` | Review expand + finish integration |
 | `crates/wyvern-host/tests/report_review_finish.rs` | API contract tests |
 
@@ -50,9 +51,26 @@ Cancel / Approve buttons; structured finish JSON for agent loops.
 }
 ```
 
-Unknown top-level keys rejected (HTTP 400). `comments` max 32_768 chars. Preexec embeds
-the input manifest as `<script id="manifest-data" type="application/json">…</script>`;
-`report-review.js` reads it and includes the `panels` array in the POST body.
+Unknown top-level keys rejected (HTTP 400). `comments` max 32_768 chars.
+
+**`panels` authority (normative):** preexec writes manifest `panels` into
+`{tmpdir}/report-command.json` (review-mode command JSON). The host treats that list as
+**authoritative** — POST `panels` must match paths/metadata from the embedded manifest;
+mismatch → HTTP 400. Preexec embeds manifest as
+`<script id="manifest-data" type="application/json">…</script>`; `report-review.js`
+copies embedded `panels` into the POST body (not free-form client input).
+
+### Review session completion (normative)
+
+| Event | Route | stdout shape |
+|-------|-------|----------------|
+| Approve / Cancel button | `POST /api/report/finish` | `{ "button": "finish", "data": { … } }` |
+| OS-close / viewer exit / session timeout | `POST /api/result` | `{ "button": "dismissed" }` — **no** `data`; not a finish approval |
+| View mode (h.1/h.2) | `POST /api/result` | unchanged `{ "button": "dismissed" }` |
+
+While `mode=review`, `/api/result` remains enabled for OS-close only; it does **not**
+race finish — session completes on first terminal action (finish or dismiss). Duplicate
+finish POST → HTTP 409 (existing).
 
 ### Finish response (stdout)
 
@@ -88,11 +106,13 @@ wyvern report-xhtml path/to/review.json   # when manifest.mode is "review"
 6. `wyvern extensions list --json | jq -e '.[] | select(.id=="report-xhtml-review")'` succeeds (sole registry owner for review prefix).
 7. Finish POST acknowledged before host shutdown (RSH-007 `SessionState::complete` / consume-before-shutdown).
 8. `report-review.js` disables Approve/Cancel after first finish POST; no automatic retry on 409/5xx.
+9. Review OS-close / timeout emits `{ "button": "dismissed" }` via `/api/result` (host test).
 
 ## Required validation
 
 ```bash
-cargo test -p wyvern-cli extensions_xhtml_review
+cargo test -p wyvern-cli --test extensions_xhtml_review
+cargo test -p wyvern-cli --test extensions_catalog req_0137
 cargo test -p wyvern-host report_review_finish
 rg -n 'wizard-nav' ui/shared/report-review.js share/wyvern/extensions.json  # expect no wizard-nav on report path
 ```

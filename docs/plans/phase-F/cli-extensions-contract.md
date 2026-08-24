@@ -1,6 +1,8 @@
 # CLI Extensions Contract (Phase F)
 
-Authoritative contract for declarative argv → `Command` JSON expansion. Extensions add **no** new host dialog types; they produce validated commands for the existing pipeline.
+Authoritative contract for declarative argv → `Command` JSON expansion. Extensions add
+**no per-extension host handlers**; they produce validated commands for the existing
+pipeline. Phase H may expand to the ADR-0025 **`report`** variant via shared host routes.
 
 ## Principles
 
@@ -181,8 +183,11 @@ Phase H adds **`type: "report"`** (ADR-0025). Extensions still use match → pre
 | Extension | Match | Expand pattern |
 |-----------|-------|----------------|
 | `xhtml-suffix` | `.xhtml` suffix | Inline `expand.command` (`type: "report"`, `mode: "view"`) |
-| `report-xhtml` | `report-xhtml` + `.json` suffix | **`command_from_file`:** `{tmpdir}/report-command.json` written by preexec |
-| `report-xhtml-review` | `report-xhtml --review` + `.json` suffix | Same; preexec `--force-mode review` |
+| `report-xhtml` | `report-xhtml` + `arg_suffix: ".json"` | **`command_from_file`:** `{tmpdir}/report-command.json` written by preexec |
+| `report-xhtml-review` | `report-xhtml --review` + `arg_suffix: ".json"` | Same; preexec `--force-mode review` |
+
+`SkillRecord::expands_to` for `command_from_file` entries MUST read `type` from the
+emitted command JSON (h.2) — default `"wizard"` is incorrect for report extensions.
 
 Preexec script `scripts/ext/xhtml_report.py` reads manifest, stitches frame HTML, emits validated command JSON. **`report-xhtml-review` must register before `report-xhtml`** (longer prefix wins).
 

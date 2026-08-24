@@ -182,8 +182,8 @@ Boundary rules are encoded in `boundaries/` and enforced in CI.
 **Decision:**
 
 1. Add **`type: "report"`** to `wyvern-schema` — fields: `title`, `page`, optional `mode` (`view` \| `review`), optional viewer hints. No `config`, `workflow`, or stack fields.
-2. **`wyvern-host`** serves static pages under `/report/*` from `--ui-root`; mounts `/shared/*` for report CSS/JS during report sessions; registers `POST /api/report/finish` only when `mode: "review"`.
-3. **Extensions** (`xhtml-suffix`, `report-xhtml`, `report-xhtml-review`) expand via existing Phase F runtime. Multi-panel flows use preexec → **`command_from_file`** (`{tmpdir}/report-command.json`); no new template placeholder vars.
+2. **`wyvern-host`** binds report via `Command::Report` arm: `require_report_page` (not packaged dialog dirs), dialog URL `/report/{page}`, `ServeDir` at `/report` from `--ui-root`; mounts `/shared/*` for report CSS/JS; registers `POST /api/report/finish` only when `mode: "review"`. `GET /api/dialog` rejected for report sessions.
+3. **Extensions** (`xhtml-suffix`, `report-xhtml`, `report-xhtml-review`) expand via existing Phase F runtime. Multi-panel flows use preexec → **`command_from_file`** (`{tmpdir}/report-command.json`); match uses `arg_suffix: ".json"` with `argv_prefix` (same as `table`/`md` CSV extensions). No new template placeholder vars.
 4. Report surfaces are **not** wizard lint targets. Authoring guidance lives in **`wyvern-reporting`** skill (not `creating-wyvern-wizard`).
 
 **Consequences:** Amends ADR-0022 §2 (see below). MCP Phase E still accepts pre-expanded `Command` JSON including `report`. Contract: [xhtml-reporting-contract.md](plans/phase-H/xhtml-reporting-contract.md).

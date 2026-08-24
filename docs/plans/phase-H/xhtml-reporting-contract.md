@@ -49,6 +49,34 @@ host canonicalization (same path rules as wizard `page.html`).
 **Not allowed on report commands:** `config`, `workflow`, wizard `page.id`,
 stack descriptors, `next_wizard`.
 
+Review-mode commands written by preexec **include** manifest `panels` in
+`report-command.json` so the host can validate finish POST `panels` against an
+authoritative list (see § Review finish JSON).
+
+### Rust types (normative — implemented h.1/h.3)
+
+See sprint h.1 for `ReportCommand`, `ReportMode`, page/title newtypes, and
+`ReportResult` / `ReportFinishData` wire shapes. `Command::Report(ReportCommand)` is
+the sole new `Command` variant; `CommandResult::Report(ReportResult)` covers both
+view dismiss and review finish on stdout.
+
+---
+
+## Host bind (`Command::Report`)
+
+Report sessions use a **dedicated bind arm** (wizard-class, not packaged dialog dirs):
+
+| Step | Behavior |
+|------|----------|
+| Validate page | `require_report_page(ui_root, page)` — file must exist under `ui_root` |
+| Forbidden | `require_type_dir` / `{ui_root}/report/index.html` packaged layout |
+| Dialog URL | `/report/{page}` where `{page}` is command `page` (e.g. `pages/view.xhtml`) |
+| Static mount | `ServeDir` nest at `/report` from session `ui_root` override |
+| GET `/api/dialog` | Rejected (report is static `/report/{page}` only) |
+
+Preexec writes generated HTML to `{tmpdir}/pages/view.xhtml`; expand sets
+`host.ui_root: "{tmpdir}"` and `page: "pages/view.xhtml"`.
+
 ---
 
 ## Host HTTP surface
@@ -86,9 +114,14 @@ Review mode (`mode: "review"`): page POSTs finish payload; host emits result JSO
 |-------|------|---------|
 | `approved` | bool | `true` = Approve; `false` = Cancel |
 | `comments` | string | Free text (may be empty) |
-| `panels` | array | Echo of manifest panel entries (paths + metadata) |
+| `panels` | array | Echo of manifest panel entries — **host-validated** against `report-command.json` |
 
 Cancel MUST set `approved: false`. Approve MUST set `approved: true`.
+
+**OS-close / timeout (review mode):** viewer OS-close and session timeout use the
+shared `POST /api/result` path and emit `{ "button": "dismissed" }` with **no** `data`
+(semantically distinct from Approve/Cancel finish). Finish and dismiss are mutually
+exclusive terminal actions per session.
 
 ---
 
@@ -192,7 +225,7 @@ Preexec reads the manifest, stitches panes, and writes **`{tmpdir}/report-comman
   "id": "report-xhtml",
   "description": "Open an ordered array of XHTML panels as one report view.",
   "examples": ["wyvern report-xhtml path/to/review.json"],
-  "match": { "argv_prefix": ["report-xhtml"], "positional_suffix": ".json" },
+  "match": { "argv_prefix": ["report-xhtml"], "arg_suffix": ".json" },
   "preexec": {
     "cmd": "python3",
     "args": [
@@ -218,7 +251,7 @@ no new `{arg:*:flag}` template syntax is required:
   "id": "report-xhtml-review",
   "description": "Open XHTML panels in review mode (comments + Approve/Cancel).",
   "examples": ["wyvern report-xhtml --review path/to/review.json"],
-  "match": { "argv_prefix": ["report-xhtml", "--review"], "positional_suffix": ".json" },
+  "match": { "argv_prefix": ["report-xhtml", "--review"], "arg_suffix": ".json" },
   "extends": "report-xhtml",
   "preexec": {
     "args": [
@@ -276,9 +309,10 @@ Panel authoring guidance ships in **`wyvern-reporting`** skill refs — not here
 | Extension match | Unknown suffix / prefix | `ParseError` near-miss (REQ-0136) | `wyvern extensions list` |
 | Preexec | Missing manifest panel path | preexec non-zero → `ExtensionError::PreexecFailed` | stderr names missing file |
 | Preexec | Invalid manifest JSON / schema | preexec non-zero | fix manifest; schema in `review-manifest.schema.json` |
+| Preexec | Panel count > 32 or stitched HTML > 4 MiB | preexec non-zero | reduce panels or panel size per schema |
 | Validate | `report-command.json` missing after preexec | `ExtensionError::InvalidCommand` | preexec must write `{tmpdir}/report-command.json` |
 | Host | `page` not under `ui_root` | validation before bind | fix preexec output path |
-| Host | `POST /api/report/finish` in view mode | HTTP 404 or `405` | use review mode or dismiss window |
+| Host | `POST /api/report/finish` in view mode | HTTP **404** (route unregistered) | use review mode or dismiss window |
 | Host | Malformed finish body | HTTP 400 + structured error | resubmit valid JSON |
 | Host | Duplicate finish POST | HTTP 409; session already complete | single terminal action per session |
 

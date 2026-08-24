@@ -31,16 +31,17 @@ fragments.
 | `docs/wyvern/requirements.md` | **REQ-0140–REQ-0143** (report command, xhtml suffix, host options) |
 | `docs/wyvern-host/requirements.md` | **REQ-HOST-0140–0141** (`/report/*`, `/shared/*` mount) |
 | `docs/requirements.md` | Command-surface index: `.xhtml`, `report-xhtml` |
-| `crates/wyvern-schema/src/report.rs` | `ReportCommand` types |
+| `crates/wyvern-schema/src/report.rs` | `ReportMode`, `ReportPagePath`, `ReportTitle`, `ReportCommand` |
 | `crates/wyvern-schema/src/validate/report.rs` | Report validator module (wired via `validate/mod.rs`) |
-| `crates/wyvern-schema/src/command.rs` | `Command::Report { … }` variant |
-| `crates/wyvern-schema/src/result.rs` | `CommandResult::Report` with `{ "button": "dismissed" }` (view mode) |
+| `crates/wyvern-schema/src/command.rs` | `Command::Report(ReportCommand)` variant + exhaustive match sites |
+| `crates/wyvern-schema/src/result.rs` | `ReportResult` / `CommandResult::Report` (view dismiss + review finish) |
 | `crates/wyvern-host/src/routes/report.rs` | Static `/report/*` routes |
-| `crates/wyvern-host/src/server.rs` | Report router + **`/shared/*`** for report sessions |
+| `crates/wyvern-host/src/server.rs` | `Command::Report` bind arm: `/report/{page}` URL + router nest |
+| `crates/wyvern-host/src/static_files.rs` | `require_report_page(ui_root, page)` — **not** `require_type_dir` |
 | `crates/wyvern-host/src/handle.rs` | `DialogTypeName::Report` exhaustive arm |
 | `crates/wyvern-host/src/options.rs` | Report title from command |
-| `crates/wyvern-host/src/routes/result.rs` | Report dismiss via shared `/api/result` path |
-| `crates/wyvern-host/src/routes/dialog.rs` | Report dialog route registration |
+| `crates/wyvern-host/src/routes/result.rs` | View-mode dismiss via shared `/api/result` |
+| `crates/wyvern/src/cli_args.rs` | `usage_message()` — `.xhtml` suffix on Extensions list (REQ-0137) |
 | `boundaries/wyvern-host/host.toml` | `report_routes` / `report_session` in `io_owns` |
 | `docs/wyvern-schema/architecture.md` | Command / CommandResult enum samples include `report` |
 | `docs/wyvern-host/architecture.md` | Module shape includes `routes/report.rs` |
@@ -50,8 +51,9 @@ fragments.
 | `share/wyvern/extensions.json` | `xhtml-suffix` entry |
 | `crates/wyvern/embedded/…` | Parity for extensions + ui |
 | `crates/wyvern/tests/extensions_xhtml_single.rs` | Expand + frame smoke |
-| `crates/wyvern/tests/extensions_help_parity.rs` | REQ-0137 parity for `xhtml-suffix` (extend existing test) |
-| `crates/wyvern-host/tests/report_view.rs` | Headless URL resolves |
+| `crates/wyvern/tests/extensions_catalog.rs` | Extend `req_0137_registry_help_parity` for `xhtml-suffix` |
+| `crates/wyvern-host/tests/report_view.rs` | Headless URL + bind URL `/report/{page}` resolves |
+| `crates/wyvern-host/tests/report_bind.rs` | `require_report_page` rejects packaged `ui/report/index.html` pattern |
 
 ### REQ traceability (h.1 lands)
 
@@ -63,6 +65,46 @@ fragments.
 | REQ-0143 | View mode dismiss → `{"button":"dismissed"}` |
 
 Host REQ text: REQ-HOST-0140 (`/report/*`), REQ-HOST-0141 (`/shared/*` during report sessions).
+
+### Host bind (normative — ADR-0025)
+
+Report uses a **third bind arm** analogous to wizard (not packaged dialog dirs):
+
+1. `require_report_page(ui_root, page)` validates `{ui_root}/{page}` exists — **forbidden:**
+   `require_type_dir` / `{ui_root}/report/index.html` packaged layout.
+2. Dialog URL: `/report/{page}` (page path relative to `ui_root`, e.g. `/report/pages/view.xhtml`).
+3. `ServeDir` nest at `/report` from session `ui_root` override.
+4. `GET /api/dialog` returns wizard-class rejection for report sessions (static page only).
+
+### Rust types (normative samples — h.1 lands)
+
+```rust
+pub enum ReportMode { View, Review }
+
+pub struct ReportPagePath(String); // relative to ui_root, validated
+pub struct ReportTitle(String);
+
+pub struct ReportCommand {
+    pub title: ReportTitle,
+    pub page: ReportPagePath,
+    pub mode: ReportMode,
+    pub width: Option<u32>,
+    pub height: Option<u32>,
+}
+
+// command.rs
+pub enum Command { /* … */ Report(ReportCommand), }
+
+// result.rs — one untagged ReportResult for both wire shapes
+pub struct ReportResult {
+    pub button: String, // "dismissed" | "finish"
+    pub data: Option<ReportFinishData>, // None in view dismiss
+}
+```
+
+Exhaustive match sites that gain a `Report` arm in h.1: `command.rs` parse/validate,
+`pipeline.rs`, `wyvern-host` `handle.rs`, `options.rs`, `server.rs` bind, `result.rs`
+emit path (view dismiss only until h.3 finish).
 
 ### `xhtml-suffix` registry (normative)
 
@@ -103,8 +145,10 @@ Host REQ text: REQ-HOST-0140 (`/report/*`), REQ-HOST-0141 (`/shared/*` during re
 
 ```bash
 cargo test -p wyvern-schema report_
-cargo test -p wyvern-cli extensions_xhtml_single
+cargo test -p wyvern-cli --test extensions_xhtml_single
+cargo test -p wyvern-cli --test extensions_catalog req_0137
 cargo test -p wyvern-host report_view
+cargo test -p wyvern-host report_bind
 scripts/check-share-sync.sh
 python3 scripts/ext/xhtml_report.py --mode single --input /path/to/fixture.xhtml --title t --out /tmp/xhtml-test
 ```

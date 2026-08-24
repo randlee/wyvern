@@ -63,6 +63,7 @@ how agents author sc-compose XHTML panels, build review manifests, and run
 ```bash
 test -f .claude/skills/wyvern-reporting/SKILL.md
 test -f .claude/skills/wyvern-reporting/references/core/panel-authoring.md
+python3 scripts/ext/xhtml_report.py --validate-manifest .claude/skills/wyvern-reporting/templates/review.json
 rg -n 'creating-wyvern-wizard' .claude/skills/wyvern-reporting/  # expect zero or explicit "use instead" negation
 rg -n 'wizard-nav' .claude/skills/wyvern-reporting/  # expect zero
 ```

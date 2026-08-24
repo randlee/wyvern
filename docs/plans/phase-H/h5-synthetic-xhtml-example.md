@@ -34,6 +34,9 @@ Ship a **working** synthetic example (atm-core-style benchmark panels) under
 | `crates/wyvern/embedded/share/wyvern/examples/xhtml-review/` | Parity |
 | `.github/workflows/ci.yml` | `report-xhtml` smoke job steps |
 | `crates/wyvern/tests/examples_xhtml_review.rs` | Integration against synthetic tree |
+| `.claude/skills/wyvern-reporting/SKILL.md` | Link `share/wyvern/examples/xhtml-review/` paths (h.5 owner) |
+| `.claude/skills/wyvern-reporting/references/core/review-manifest.md` | Example manifest paths under `share/` |
+| `.cursor/skills/wyvern-reporting/SKILL.md` | Cursor stub — same example links |
 | `docs/plans/phase-H/h5-synthetic-xhtml-example.md` | This sprint doc |
 
 ### Synthetic data rules
@@ -50,7 +53,7 @@ After `cargo build -p wyvern-cli`:
 ```bash
 # Report examples MUST NOT use wizard-nav (contract § Boundaries)
 test -z "$(rg -n 'wizard-nav' share/wyvern/examples/xhtml-review/ || true)"
-wyvern report-xhtml share/wyvern/examples/xhtml-review/review-view.json  # expand-only or --viewer none smoke
+WYVERN_VIEWER=none wyvern report-xhtml share/wyvern/examples/xhtml-review/review-view.json
 python3 scripts/ext/xhtml_report.py --validate-manifest share/wyvern/examples/xhtml-review/review-view.json
 ```
 
@@ -65,7 +68,8 @@ no `wizard-nav` references under `share/wyvern/examples/xhtml-review/`.
    API exercised in host integration test with synthetic HTML fixture.
 3. README documents single-panel shortcut:
    `wyvern share/wyvern/examples/xhtml-review/panels/fail-1.xhtml`.
-4. h.4 skill links to this example tree.
+4. h.5 updates `wyvern-reporting` skill refs to this example tree (h.4 AC #1 may cite
+   conceptual/template paths only until h.5 lands).
 5. Embedded share sync check passes.
 6. `rg wizard-nav share/wyvern/examples/xhtml-review/` returns no matches (report ≠ wizard boundary).
 

@@ -24,6 +24,9 @@ for ad-hoc agent review (failures + proposed fix side-by-side).
 |------|---------|
 | `docs/plans/phase-H/h2-xhtml-panel-array.md` | This sprint doc |
 | `share/wyvern/extensions.json` | `report-xhtml` extension only |
+| `crates/wyvern/src/extensions/catalog.rs` | `expands_to` reads `type` from emitted command JSON (not default `wizard`) |
+| `crates/wyvern/src/cli_args.rs` | `usage_message()` — `wyvern report-xhtml <manifest.json>` line |
+| `crates/wyvern/tests/extensions_catalog.rs` | REQ-0137 parity for `report-xhtml` (`description`, `examples`, prefix) |
 | `scripts/ext/xhtml_report.py` | Extends h.1 script: `--mode array`, manifest reader, `--validate-manifest`; writes `{tmpdir}/report-command.json` |
 | `docs/plans/phase-H/review-manifest.schema.json` | JSON schema for manifests |
 | `crates/wyvern/tests/fixtures/xhtml-review/view.json` | Minimal 2-panel **test-only** fixture (h.5 ships separate examples under `share/`) |
@@ -52,14 +55,18 @@ using **basic-array** frame profile.
 3. Missing panel path → preexec non-zero; stderr names missing file; no host launch.
 4. Single-panel manifest works (degenerate array of 1).
 5. `wyvern report-xhtml --help` documents manifest path + manifest fields.
+6. `extensions list --json` for `report-xhtml` shows `expands_to: "report"` (never `wizard`).
+7. `{path}` binds manifest file via `arg_suffix: ".json"`; non-`.json` token after prefix does not match.
 
 ## Required validation
 
 ```bash
-cargo test -p wyvern-cli extensions_xhtml_array
+cargo test -p wyvern-cli --test extensions_xhtml_array
+cargo test -p wyvern-cli --test extensions_catalog req_0137
 python3 -m json.tool docs/plans/phase-H/review-manifest.schema.json >/dev/null
 python3 scripts/ext/xhtml_report.py --validate-manifest crates/wyvern/tests/fixtures/xhtml-review/view.json
 WYVERN_VIEWER=none wyvern report-xhtml crates/wyvern/tests/fixtures/xhtml-review/view.json
+wyvern extensions list --json | jq -e '.[] | select(.id=="report-xhtml") | .expands_to == "report"'
 ```
 
 ## Non-closure
