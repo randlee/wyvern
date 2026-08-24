@@ -88,6 +88,16 @@ Host remains domain-agnostic (ADR-0006). CLI owns execution (ADR-0023, ADR-0024)
 
 ---
 
+## Report host (Phase H — h.1/h.3)
+
+**REQ-HOST-0140** — Report sessions serve static pages at `/report/{page}` from session `ui_root` via a **report** bind arm (not wizard `/wizard/` URLs). `GET /api/dialog` is rejected for report sessions.
+
+**REQ-HOST-0141** — Report sessions mount packaged shared assets at `/shared/*` during view and review modes (`report-base.css`; `report-review.js` in review mode).
+
+**REQ-HOST-0142** — When `mode: "review"`, register `POST /api/report/finish` and validate finish bodies against authoritative `panels` from the report command JSON. View mode does not register the finish route (HTTP 404). Duplicate terminal POSTs return HTTP 409 per `SessionState::complete`.
+
+---
+
 ## Deprecated (do not implement in `wyvern-host`)
 
 | IDs | Former owner | Reason |

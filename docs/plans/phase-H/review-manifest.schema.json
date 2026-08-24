@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/randlee/wyvern/docs/plans/phase-H/review-manifest.schema.json",
+  "title": "XHTML review manifest",
+  "description": "Manifest for wyvern report-xhtml (view or review mode). See xhtml-reporting-contract.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["title", "panels"],
+  "properties": {
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Report window title"
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["view", "review"],
+      "default": "view",
+      "description": "Frame profile; CLI --review overrides to review"
+    },
+    "panels": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "description": "Ordered panes; preexec rejects stitched HTML over 4 MiB total",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "pattern": "\\.xhtml$",
+            "description": "Panel path relative to manifest directory"
+          },
+          "label": {
+            "type": "string",
+            "description": "Optional pane heading (defaults to basename)"
+          },
+          "role": {
+            "type": "string",
+            "enum": ["failure", "proposal", "info"],
+            "description": "CSS role hint only"
+          }
+        }
+      }
+    }
+  }
+}

@@ -114,7 +114,7 @@ Boundary rules are encoded in `boundaries/` and enforced in CI.
 **Decision (Path A):**
 
 1. Extension engine lives in **`wyvern` crate** as public `wyvern::extensions` module; used by `wyvern` binary and Phase E `--interactive` loop.
-2. Extensions produce existing `Command` JSON only — **no new schema variants**.
+2. Extensions produce validated `Command` JSON; **Phase F shipped variants only** — no new schema variants until Phase H (see Amendment below).
 3. **`wyvern-mcp` boundary unchanged:** MCP tools accept **pre-expanded `Command` JSON** (compose in tool handler or subprocess `wyvern` for expand-only). No `wyvern-mcp → wyvern-cli` dependency.
 
 **Consequences:** Phase F f.1 lands ADR-0022 + contract. Phase E e.3 documents MCP tool pattern for CSV/HTML. Path B (mcp → wyvern lib) deferred unless explicitly re-opened.
@@ -132,6 +132,20 @@ Boundary rules are encoded in `boundaries/` and enforced in CI.
 3. **README / plan docs** are informative for humans; they are not acceptance gates for agent discoverability.
 
 **Consequences:** New or changed extensions in any phase must update `usage_message()`, registry prose fields, and help/catalog tests in the same PR. Phase G g.1–g.3 land REQ-0134–REQ-0137. Phase E `--interactive` inherits the same argv surfaces.
+
+**Amendment (Phase H — ADR-0025):**
+
+**Status:** Accepted (planning — Phase H h.1)
+
+**Context:** Phase H adds static XHTML/HTML report viewing via a new `Command::Report` variant (ADR-0025). Extensions still expand to validated JSON; MCP Path A unchanged.
+
+**Decision:**
+
+1. Extensions may expand to **`type: "report"`** — the sole Phase-H-added `Command` variant.
+2. Report uses shared host routes in `wyvern-host` (`/report/*`, optional `/api/report/finish`) — **no per-extension host handlers**.
+3. **`wyvern-mcp` boundary unchanged:** MCP tools accept pre-expanded `Command` JSON including `report`.
+
+**Consequences:** Amends pre-H Decision point 2. Full report semantics: [ADR-0025](#adr-0025-report-command-static-xhtmlhtml-review-surfaces).
 
 ---
 
@@ -171,6 +185,25 @@ Boundary rules are encoded in `boundaries/` and enforced in CI.
 6. No `wyvern chain` subcommand. `wyvern guide` is an argv-prefix **extension** (`id: "guide"`, REQ-0127), not a built-in early return.
 
 **Consequences:** Chaining is data-driven. Host remains a single-session server but **must passthrough** `next_wizard` on finish (g.4 `wyvern-host` deliverable) or the CLI loop never sees page-supplied hops. DAG *execution* stays out of Wyvern (g.7 export only). Full text: [wizard-workflow-architecture.md](plans/phase-G/wizard-workflow-architecture.md), [workflow-chain-contract.md](plans/phase-G/workflow-chain-contract.md).
+
+---
+
+### ADR-0025: Report command (static XHTML/HTML review surfaces)
+
+**Status:** Accepted (planning — Phase H h.1)
+
+**Context:** Agents need ad-hoc sc-compose XHTML panel review (single pane, arrays, optional Approve/Cancel) outside wizard stack semantics. Overloading `type: "wizard"` confuses authoring skills and WIZARD-LINT profiles. Phase F ADR-0022 forbade new schema variants; Phase H is the first deliberate exception.
+
+**Decision:**
+
+1. Add **`type: "report"`** to `wyvern-schema` — fields: `title`, `page`, optional `mode` (`view` \| `review`), optional `panels` (required when `mode: "review"` — manifest panel list for finish validation), optional viewer hints. No `config`, `workflow`, or stack fields.
+2. **`wyvern-host`** binds report via a **third bind discriminant** (`dialog` \| `wizard` \| `report`) — **not** `is_wizard=true`. Report arm: `require_report_page`, dialog URL `/report/{page}`, `ServeDir` at `/report`; **forbidden:** `/wizard/` URLs or wizard static mounts for report sessions. Mounts `/shared/*` for report CSS/JS; registers `POST /api/report/finish` only when `mode: "review"`. `GET /api/dialog` rejected for report sessions.
+3. **Extensions** (`xhtml-suffix`, `report-xhtml`, `report-xhtml-review`) expand via existing Phase F runtime. Multi-panel flows use preexec → **`command_from_file`** (`{tmpdir}/report-command.json`); match uses `arg_suffix: ".json"` with `argv_prefix` (same as `table`/`md` CSV extensions). No new template placeholder vars.
+4. Report surfaces are **not** wizard lint targets. Authoring guidance lives in **`wyvern-reporting`** skill (not `creating-wyvern-wizard`).
+
+**Consequences:** Amends ADR-0022 §2 (see below). MCP Phase E still accepts pre-expanded `Command` JSON including `report`. Contract: [xhtml-reporting-contract.md](plans/phase-H/xhtml-reporting-contract.md).
+
+**Amendment to ADR-0022 (Phase H):** Point 2 now reads: extensions produce validated `Command` JSON; **`report` is the only Phase-H-added variant**. No per-extension host handlers; report uses the shared report route family in `wyvern-host`.
 
 ---
 
@@ -283,6 +316,8 @@ load → validate(value) → Command → host bind → DialogHandle
 Parse is owned by `load`; dispatch is internal to host bind + await. Viewer spawn for **`embedded`** is owned by **`wyvern` CLI** — not `HostSession`. System/named open is owned by **`wyvern-host`**. `wyvern-host::run` covers none/system/named only; embedded uses DialogHandle composition in the CLI.
 
 **Amendment (Phase F / ADR-0022):** The CLI inserts an **argv preprocessor** before `load_command_input`. Host-only flags are stripped; `ExtensionRegistry::match_argv` may expand the remainder to validated `Command` JSON and optional `host.ui_root`. That expanded value then enters this same `validate → host → emit` chain — no new `Command` variants and no per-extension host handlers. See [ADR-0022](#adr-0022-cli-extension-registry-as-argv-preprocessor-phase-f) and the local pipeline note in [`docs/wyvern/architecture.md`](wyvern/architecture.md).
+
+**Amendment (Phase H / ADR-0025):** Phase H adds **`Command::Report`** as the sole new dialog variant after Phase F. Report uses the shared host static-route family (`/report/*`, optional `/api/report/finish`) — not per-extension host handlers. Extension preexec still expands to validated report JSON via `command_from_file`.
 
 **Consequences:**
 - Phase A validates and executes only `chrome`

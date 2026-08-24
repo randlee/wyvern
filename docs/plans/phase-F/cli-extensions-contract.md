@@ -1,6 +1,8 @@
 # CLI Extensions Contract (Phase F)
 
-Authoritative contract for declarative argv → `Command` JSON expansion. Extensions add **no** new host dialog types; they produce validated commands for the existing pipeline.
+Authoritative contract for declarative argv → `Command` JSON expansion. Extensions add
+**no per-extension host handlers**; they produce validated commands for the existing
+pipeline. Phase H may expand to the ADR-0025 **`report`** variant via shared host routes.
 
 ## Principles
 
@@ -173,3 +175,20 @@ f.1 deliverables include `docs/architecture.md` ADR-0022 entry (Path A — no mc
 Phase G does not change match/expand semantics above. It adds **in-binary discoverability** requirements (REQ-0134–REQ-0137): global and extension `--help`, skill catalog (`extensions list --json`, `extensions show`), near-miss diagnostics, and registry/help parity tests.
 
 Normative amendment: [agent-usability-contract.md](../phase-G/agent-usability-contract.md). Help surface (g.1): [g1-help-surface.md](../phase-G/g1-help-surface.md) — global `--help` / `-h` / `help` (exit 0) and match-time extension skill cards via `match_extension_help`. Principal REQ text: [docs/wyvern/requirements.md](../../wyvern/requirements.md). ADR-0022 Phase G consequence: new shipped extensions must update help, catalog, and parity tests in the same change.
+
+## Phase H — XHTML report extensions
+
+Phase H adds **`type: "report"`** (ADR-0025). Extensions still use match → preexec → expand → validate; **no new expand template vars**.
+
+| Extension | Match | Expand pattern |
+|-----------|-------|----------------|
+| `xhtml-suffix` | `.xhtml` suffix | Inline `expand.command` (`type: "report"`, `mode: "view"`) |
+| `report-xhtml` | `report-xhtml` + `arg_suffix: ".json"` | **`command_from_file`:** `{tmpdir}/report-command.json` written by preexec |
+| `report-xhtml-review` | `report-xhtml --review` + `arg_suffix: ".json"` | Same; preexec `--force-mode review` |
+
+`SkillRecord::expands_to` for `command_from_file` entries MUST read `type` from the
+emitted command JSON (h.2) — default `"wizard"` is incorrect for report extensions.
+
+Preexec script `scripts/ext/xhtml_report.py` reads manifest, stitches frame HTML, emits validated command JSON. **`report-xhtml-review` must register before `report-xhtml`** (longer prefix wins).
+
+Contract: [xhtml-reporting-contract.md](../phase-H/xhtml-reporting-contract.md). REQ-0140–0144 land in h.1/h.3.

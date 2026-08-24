@@ -85,3 +85,17 @@ CLI-owned. Host and page JS do not execute these scripts and must not read or wr
 ## Welcome guide extension (Phase G Wave 2 — g.4)
 
 **REQ-0127** — `wyvern guide` is a shipped argv-prefix extension (`id: "guide"`) that expands to the bundled welcome wizard (`{wyvern_share}/welcome/wizard.json`, `ui_root` `{wyvern_share}/welcome`). It is **not** `wyvern help` / `--help` (those stay stdout). The extension is listed in shipped `extensions.json` and mentioned on the global `--help` surface (g.1). Sprint: [g4-welcome-guide-wizard.md](../plans/phase-G/g4-welcome-guide-wizard.md).
+
+---
+
+## XHTML report extensions (Phase H — h.1/h.2/h.3)
+
+**REQ-0140** — `type: "report"` command JSON is validated in `wyvern-schema` with fields `title`, `page`, optional `mode` (`view` \| `review`), optional `panels` (required when `mode: "review"`), optional viewer hints. No wizard `config`, `workflow`, or stack fields.
+
+**REQ-0141** — `.xhtml` suffix expands via `xhtml-suffix` registry entry to `type: "report"`, `mode: "view"` (not wizard).
+
+**REQ-0142** — `report-xhtml` and `report-xhtml-review` extensions expand via Phase F `command_from_file` from preexec-written `{tmpdir}/report-command.json`; match uses `argv_prefix` + `arg_suffix: ".json"`.
+
+**REQ-0143** — View-mode report dismiss completes with stdout `{"button":"dismissed"}` via shared `POST /api/result` semantics.
+
+**REQ-0144** — Review-mode finish completes with stdout JSON `{ "button": "finish", "data": { "approved", "comments", "panels" } }` from `POST /api/report/finish`. Contract: [xhtml-reporting-contract.md](../plans/phase-H/xhtml-reporting-contract.md).
