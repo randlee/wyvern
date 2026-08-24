@@ -26,11 +26,16 @@ and CI.
 
 | Path | Purpose |
 |------|---------|
-| `crates/wyvern-host/src/routes/picker.rs` | Accept `Command::Wizard` on file + folder routes; request-body defaults |
-| `docs/plans/phase-C/http-post-schema.md` | Picker routes available for wizard sessions (not input-only) |
+| `docs/plans/phase-I/i1-wizard-path-picker.md` | This sprint doc |
+| `docs/architecture.md` | **ADR-0026** (wizard picker routes) |
+| `docs/wyvern-host/requirements.md` | **REQ-HOST-0150–0151** (wizard picker + 400 guard) |
+| `docs/wyvern/requirements.md` | **REQ-0145** (bundled path-picker example) |
+| `docs/requirements.md` | Phase I index (ADR-0026, REQ-0145) |
+| `docs/plans/phase-C/http-post-schema.md` | Picker routes available for wizard sessions |
 | `.claude/skills/creating-wyvern-wizard/references/wizard-types/path-picker.md` | Type recipe (new) |
 | `.claude/skills/creating-wyvern-wizard/SKILL.md` | Link path-picker type in wizard type picker |
-| `share/wyvern/examples/path-picker/wizard.json` | 2-page vanilla-chrome wizard |
+| `crates/wyvern-host/src/routes/picker.rs` | Accept `Command::Wizard` on file + folder routes; request-body defaults |
+| `share/wyvern/examples/path-picker/wizard.json` | 2-page vanilla-chrome wizard entry |
 | `share/wyvern/examples/path-picker/pages/sources.html` | Browse file (multi) + folder; in-page list |
 | `share/wyvern/examples/path-picker/pages/review.html` | Summary before Finish |
 | `share/wyvern/examples/path-picker/app.js` | Picker calls, stack/`collectCurrentPageData` |
@@ -39,6 +44,17 @@ and CI.
 | `crates/wyvern-host/tests/wizard_path_picker.rs` | Wizard session + mock picker; input regression |
 | `crates/wyvern/tests/examples_path_picker.rs` | CLI smoke `--viewer none` + finish JSON shape |
 | `.github/workflows/ci.yml` | `wyvern wizard lint share/wyvern/examples/path-picker` |
+
+### REQ traceability (i.1 lands)
+
+| REQ / ADR | Summary |
+|-----------|---------|
+| ADR-0026 | Wizard sessions may call picker routes; request-body defaults |
+| REQ-HOST-0150 | Wizard session picker POST succeeds with body params |
+| REQ-HOST-0151 | Non-wizard/non-input picker calls remain HTTP 400 |
+| REQ-0145 | Bundled `path-picker` example + CI smoke |
+
+Amends REQ-0113 scope (wizard allowed); input merge unchanged.
 
 ### Host behavior (normative)
 
