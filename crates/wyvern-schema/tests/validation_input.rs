@@ -309,6 +309,45 @@ fn validation_input_multiple_with_folder_fails_req0059() {
 }
 
 #[test]
+fn validation_input_empty_filter_pattern_fails() {
+    let err = validate(&json!({
+        "type": "input",
+        "title": "T",
+        "message": "M",
+        "mode": "file",
+        "filter": [""]
+    }))
+    .expect_err("empty filter pattern");
+    match err {
+        ValidationError::Validation { field, message } => {
+            assert_eq!(field, "filter");
+            assert!(message.contains("filter[0]"));
+            assert!(message.contains("non-empty"));
+        }
+        other => panic!("expected Validation, got {other:?}"),
+    }
+}
+
+#[test]
+fn validation_input_empty_start_path_fails() {
+    let err = validate(&json!({
+        "type": "input",
+        "title": "T",
+        "message": "M",
+        "mode": "file",
+        "start_path": ""
+    }))
+    .expect_err("empty start_path");
+    match err {
+        ValidationError::Validation { field, message } => {
+            assert_eq!(field, "start_path");
+            assert!(message.contains("non-empty"));
+        }
+        other => panic!("expected Validation, got {other:?}"),
+    }
+}
+
+#[test]
 fn validation_input_start_path_with_text_mode_fails_req0059() {
     let err = validate(&json!({
         "type": "input",

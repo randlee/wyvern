@@ -137,6 +137,8 @@ Same shape as `message`:
 
 **When:** Page needs native file picker during an **`input`** dialog with `mode: file`, or during a **`wizard`** session (ADR-0026 / REQ-HOST-0150). Not a final result — returns paths for the page to include in `/api/result` or wizard finish data.
 
+Other command types (`message`, `report`, `markdown`, `question`, `chrome`) and wrong input modes → **400**.
+
 **Request:**
 
 ```json
@@ -177,6 +179,8 @@ Page stays open; user may retry or press Cancel → `POST /api/result` with `{ "
 ### `POST /api/picker/folder` — native folder picker (c.11; wizard — Phase I i.1)
 
 **When:** Page needs native folder picker during an **`input`** dialog with `mode: folder`, or during a **`wizard`** session (ADR-0026 / REQ-HOST-0150).
+
+Other command types and wrong input modes → **400**.
 
 **Request:**
 

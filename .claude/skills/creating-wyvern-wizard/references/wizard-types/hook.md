@@ -17,6 +17,7 @@ changes. Page JS toggles UI only — no disk I/O.
 |--------|------------|
 | Enable/disable hook files from pre-filled config | Yes |
 | Template catalog + output path | No — [template.md](template.md) |
+| Browse native file/folder paths in-page | No — [path-picker.md](path-picker.md) |
 | Welcome hub chain hop | No — [welcome-bridge.md](welcome-bridge.md) |
 | Agent DAG canvas | No — [dag-wizards.md](dag-wizards.md) |
 
