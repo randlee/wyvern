@@ -51,14 +51,17 @@ paths last (below). Do not load every reference up front.
 
 | Path | Role |
 |------|------|
+| `share/wyvern/examples/xhtml-review/` | Packaged synthetic tree (operator walkthrough) |
+| `share/wyvern/examples/xhtml-review/review-view.json` | View-mode manifest (3 failures + proposal) |
+| `share/wyvern/examples/xhtml-review/review-review.json` | Review-mode manifest |
+| `share/wyvern/examples/xhtml-review/panels/fail-1.xhtml` | Single-panel shortcut target |
 | `.claude/skills/wyvern-reporting/templates/panel.xhtml.j2` | Minimal fragment starter |
 | `.claude/skills/wyvern-reporting/templates/review.json` | Manifest starter (schema-valid) |
 | `fixtures/xhtml/panel.xhtml` | Single-panel fragment fixture |
 | `crates/wyvern/tests/fixtures/xhtml-review/` | Host/CLI review fixtures |
-| `share/wyvern/examples/xhtml-review/` | Packaged example tree (lands in h.5) |
 
-Until the share example tree exists, copy the skill templates and the
-`xhtml-review` test fixtures. Do not invent a second manifest schema.
+Prefer the share example tree for demos and CI. Copy skill templates only when
+starting a new tree. Do not invent a second manifest schema.
 
 ## Authority
 

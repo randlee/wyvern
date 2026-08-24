@@ -21,4 +21,5 @@ instructions in this stub.
 Templates: `.claude/skills/wyvern-reporting/templates/panel.xhtml.j2`,
 `.claude/skills/wyvern-reporting/templates/review.json`.
 
-Example tree (h.5): `share/wyvern/examples/xhtml-review/`.
+Example tree: `share/wyvern/examples/xhtml-review/`
+(`review-view.json`, `review-review.json`, `panels/fail-1.xhtml`).
