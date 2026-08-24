@@ -4,15 +4,12 @@
 //! bodies. Posted `panels` must match the session's [`ValidatedReportManifest`].
 
 use serde_json::Value;
-use wyvern_schema::{ManifestPanelPath, PanelRole, ReportFinishData, ReportPanelEntry};
+use wyvern_schema::{
+    ManifestPanelPath, PanelRole, ReportFinishData, ReportPanelEntry, ReviewComments,
+    MAX_REVIEW_COMMENTS_CHARS,
+};
 
 use crate::report_session::ValidatedReportManifest;
-
-/// Maximum review comments length (Unicode scalar values).
-///
-/// Bound from [xhtml-reporting-contract.md](../../../docs/plans/phase-H/xhtml-reporting-contract.md)
-/// so finish JSON stays small and textarea input cannot balloon the session payload.
-pub(crate) const MAX_REVIEW_COMMENTS_CHARS: usize = 32_768;
 
 /// Allowed top-level finish POST keys (unknown keys → 400).
 const FINISH_KEYS: &[&str] = &["approved", "comments", "panels"];
@@ -31,6 +28,8 @@ pub(crate) enum ReportFinishErrorKind {
     UnknownField,
     /// Posted `panels` do not match the validated command list.
     PanelsMismatch,
+    /// Posted `panels` JSON is not a well-formed panel array.
+    PanelsInvalid,
     /// `comments` exceeds [`MAX_REVIEW_COMMENTS_CHARS`].
     CommentsTooLong,
     /// Body is not an object or required fields have the wrong type.
@@ -80,10 +79,11 @@ impl ReportFinishErrorKind {
         match self {
             Self::UnknownField => "REPORT_FINISH_UNKNOWN_FIELD",
             Self::PanelsMismatch => "REPORT_FINISH_PANELS_MISMATCH",
+            Self::PanelsInvalid => "REPORT_FINISH_PANELS_INVALID",
             Self::CommentsTooLong => "REPORT_FINISH_COMMENTS_TOO_LONG",
             Self::InvalidJson => "REPORT_FINISH_INVALID_JSON",
             Self::AlreadyComplete => "REPORT_FINISH_ALREADY_COMPLETE",
-            Self::ManifestRequired => "REPORT_FINISH_INVALID_JSON",
+            Self::ManifestRequired => "REPORT_FINISH_MANIFEST_REQUIRED",
         }
     }
 
@@ -92,6 +92,9 @@ impl ReportFinishErrorKind {
             Self::UnknownField => "POST /api/report/finish rejects unknown top-level keys",
             Self::PanelsMismatch => {
                 "posted panels must echo the authoritative report-command.json list"
+            }
+            Self::PanelsInvalid => {
+                "each posted panel must be an object with path and optional label/role"
             }
             Self::CommentsTooLong => "comments exceeded the 32768-character contract bound",
             Self::InvalidJson => {
@@ -112,6 +115,9 @@ impl ReportFinishErrorKind {
                 "POST only approved, comments, and panels (copy panels from #manifest-data)"
             }
             Self::PanelsMismatch => "Resubmit the embedded manifest panels without edits",
+            Self::PanelsInvalid => {
+                "Fix panels[] shape (path string ending in .xhtml; optional string label/role)"
+            }
             Self::CommentsTooLong => "Shorten comments to at most 32768 characters",
             Self::InvalidJson => "POST {\"approved\":true|false,\"comments\":\"…\",\"panels\":[…]}",
             Self::AlreadyComplete => {
@@ -180,16 +186,13 @@ pub(crate) fn validate_finish_body(
     };
 
     let comments = match obj.get("comments") {
-        None | Some(Value::Null) => String::new(),
-        Some(Value::String(text)) => {
-            if text.chars().count() > MAX_REVIEW_COMMENTS_CHARS {
-                return Err(ReportFinishError::new(
-                    ReportFinishErrorKind::CommentsTooLong,
-                    format!("comments must be at most {MAX_REVIEW_COMMENTS_CHARS} characters"),
-                ));
-            }
-            text.clone()
-        }
+        None | Some(Value::Null) => ReviewComments::new(""),
+        Some(Value::String(text)) => ReviewComments::try_new(text.clone()).map_err(|_| {
+            ReportFinishError::new(
+                ReportFinishErrorKind::CommentsTooLong,
+                format!("comments must be at most {MAX_REVIEW_COMMENTS_CHARS} characters"),
+            )
+        })?,
         Some(other) => {
             return Err(ReportFinishError::new(
                 ReportFinishErrorKind::InvalidJson,
@@ -245,14 +248,14 @@ fn parse_posted_panels(items: &[Value]) -> Result<Vec<ReportPanelEntry>, ReportF
 fn parse_posted_panel(index: usize, value: &Value) -> Result<ReportPanelEntry, ReportFinishError> {
     let obj = value.as_object().ok_or_else(|| {
         ReportFinishError::new(
-            ReportFinishErrorKind::PanelsMismatch,
+            ReportFinishErrorKind::PanelsInvalid,
             format!("panels[{index}] must be an object"),
         )
     })?;
     for key in obj.keys() {
         if !matches!(key.as_str(), "path" | "label" | "role") {
             return Err(ReportFinishError::new(
-                ReportFinishErrorKind::PanelsMismatch,
+                ReportFinishErrorKind::PanelsInvalid,
                 format!("panels[{index}] unknown field '{key}'"),
             ));
         }
@@ -260,13 +263,13 @@ fn parse_posted_panel(index: usize, value: &Value) -> Result<ReportPanelEntry, R
     let path = match obj.get("path") {
         Some(Value::String(s)) => ManifestPanelPath::try_new(s.clone()).map_err(|_| {
             ReportFinishError::new(
-                ReportFinishErrorKind::PanelsMismatch,
+                ReportFinishErrorKind::PanelsInvalid,
                 format!("panels[{index}].path is not a valid .xhtml path"),
             )
         })?,
         _ => {
             return Err(ReportFinishError::new(
-                ReportFinishErrorKind::PanelsMismatch,
+                ReportFinishErrorKind::PanelsInvalid,
                 format!("panels[{index}].path must be a string"),
             ));
         }
@@ -276,7 +279,7 @@ fn parse_posted_panel(index: usize, value: &Value) -> Result<ReportPanelEntry, R
         Some(Value::String(s)) => Some(s.clone()),
         Some(_) => {
             return Err(ReportFinishError::new(
-                ReportFinishErrorKind::PanelsMismatch,
+                ReportFinishErrorKind::PanelsInvalid,
                 format!("panels[{index}].label must be a string"),
             ));
         }
@@ -285,13 +288,13 @@ fn parse_posted_panel(index: usize, value: &Value) -> Result<ReportPanelEntry, R
         None | Some(Value::Null) => None,
         Some(Value::String(s)) => Some(PanelRole::parse(s).ok_or_else(|| {
             ReportFinishError::new(
-                ReportFinishErrorKind::PanelsMismatch,
+                ReportFinishErrorKind::PanelsInvalid,
                 format!("panels[{index}].role is not a known panel role"),
             )
         })?),
         Some(_) => {
             return Err(ReportFinishError::new(
-                ReportFinishErrorKind::PanelsMismatch,
+                ReportFinishErrorKind::PanelsInvalid,
                 format!("panels[{index}].role must be a string"),
             ));
         }
@@ -415,5 +418,38 @@ mod tests {
         let err = validate_finish_body(&manifest(), &body).expect_err("mismatch");
         assert_eq!(err.kind(), ReportFinishErrorKind::PanelsMismatch);
         assert_eq!(err.code(), "REPORT_FINISH_PANELS_MISMATCH");
+        assert_eq!(
+            err.recovery(),
+            "Resubmit the embedded manifest panels without edits"
+        );
+    }
+
+    #[test]
+    fn panel_shape_errors_use_panels_invalid_not_mismatch() {
+        let mut body = valid_body();
+        body["panels"] = serde_json::json!(["not-an-object"]);
+        let err = validate_finish_body(&manifest(), &body).expect_err("shape");
+        assert_eq!(err.kind(), ReportFinishErrorKind::PanelsInvalid);
+        assert_eq!(err.code(), "REPORT_FINISH_PANELS_INVALID");
+        assert_ne!(
+            err.recovery(),
+            "Resubmit the embedded manifest panels without edits"
+        );
+
+        body["panels"] = serde_json::json!([{ "path": 1 }]);
+        let err = validate_finish_body(&manifest(), &body).expect_err("path type");
+        assert_eq!(err.kind(), ReportFinishErrorKind::PanelsInvalid);
+
+        body["panels"] = serde_json::json!([{ "path": "panels/fail.html" }]);
+        let err = validate_finish_body(&manifest(), &body).expect_err("suffix");
+        assert_eq!(err.kind(), ReportFinishErrorKind::PanelsInvalid);
+    }
+
+    #[test]
+    fn manifest_required_has_dedicated_code() {
+        let err = manifest_required();
+        assert_eq!(err.kind(), ReportFinishErrorKind::ManifestRequired);
+        assert_eq!(err.code(), "REPORT_FINISH_MANIFEST_REQUIRED");
+        assert_ne!(err.code(), "REPORT_FINISH_INVALID_JSON");
     }
 }

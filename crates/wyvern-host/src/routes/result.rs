@@ -31,6 +31,7 @@ pub async fn post_result(
     State(session): State<SessionState>,
     Json(body): Json<Value>,
 ) -> Result<Json<ResultAck>, ApiError> {
+    let _inflight = session.track_terminal_request();
     let command = session.command().await;
     let result = parse_result_for_command(&command, &body).map_err(|err| {
         event!(

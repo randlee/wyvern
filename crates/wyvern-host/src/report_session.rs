@@ -5,7 +5,7 @@
 //! handler requires this token so posted `panels` are checked against the
 //! command JSON, not free-form client input (RBP-010).
 
-use wyvern_schema::{ReportCommand, ReportMode, ReportPanelEntry};
+use wyvern_schema::{ReportCommand, ReportMode, ReportPanelEntry, MAX_REPORT_PANELS};
 
 /// Proof that this session's report command has validated review panels.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -20,7 +20,7 @@ impl ValidatedReportManifest {
             return None;
         }
         let panels = command.panels.as_ref()?.clone();
-        if panels.is_empty() {
+        if panels.is_empty() || panels.len() > MAX_REPORT_PANELS {
             return None;
         }
         Some(Self { panels })
@@ -73,6 +73,16 @@ mod tests {
         assert!(
             ValidatedReportManifest::from_review_command(&review_command(Some(Vec::new())))
                 .is_none()
+        );
+        let over_cap = (0..=MAX_REPORT_PANELS)
+            .map(|i| ReportPanelEntry {
+                path: ManifestPanelPath::new(format!("panels/p{i}.xhtml")),
+                label: None,
+                role: None,
+            })
+            .collect();
+        assert!(
+            ValidatedReportManifest::from_review_command(&review_command(Some(over_cap))).is_none()
         );
     }
 }

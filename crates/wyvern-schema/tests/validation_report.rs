@@ -1,7 +1,9 @@
 //! Integration coverage for report validation rules (h.1 / REQ-0140).
 
 use serde_json::json;
-use wyvern_schema::{validate, Command, PanelRole, ReportCommand, ReportMode, ValidationError};
+use wyvern_schema::{
+    validate, Command, PanelRole, ReportCommand, ReportMode, ValidationError, MAX_REPORT_PANELS,
+};
 
 #[test]
 fn report_view_minimal_passes() {
@@ -222,6 +224,31 @@ fn report_panel_path_must_be_xhtml() {
         ValidationError::Validation { field, message } => {
             assert_eq!(field.as_str(), "panels[0].path");
             assert!(message.contains(".xhtml"), "{message}");
+        }
+        other => panic!("expected Validation, got {other:?}"),
+    }
+}
+
+#[test]
+fn report_panels_reject_more_than_max() {
+    let too_many: Vec<serde_json::Value> = (0..=MAX_REPORT_PANELS)
+        .map(|i| json!({ "path": format!("panels/p{i}.xhtml") }))
+        .collect();
+    let err = validate(&json!({
+        "type": "report",
+        "title": "T",
+        "page": "pages/view.xhtml",
+        "mode": "review",
+        "panels": too_many
+    }))
+    .unwrap_err();
+    match err {
+        ValidationError::Validation { field, message } => {
+            assert_eq!(field, "panels");
+            assert!(
+                message.contains(&MAX_REPORT_PANELS.to_string()),
+                "{message}"
+            );
         }
         other => panic!("expected Validation, got {other:?}"),
     }

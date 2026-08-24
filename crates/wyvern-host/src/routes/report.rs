@@ -26,6 +26,7 @@ pub async fn post_report_finish(
     State(session): State<SessionState>,
     body: Bytes,
 ) -> Result<Json<ResultAck>, ApiError> {
+    let _inflight = session.track_terminal_request();
     let parsed: serde_json::Value = match serde_json::from_slice(&body) {
         Ok(value) => value,
         Err(err) => {

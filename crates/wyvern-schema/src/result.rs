@@ -234,7 +234,7 @@ mod tests {
         };
         let result = CommandResult::Report(ReportResult::finished(ReportFinishData {
             approved: true,
-            comments: "notes".into(),
+            comments: crate::ReviewComments::new("notes"),
             panels: vec![ReportPanelEntry {
                 path: ManifestPanelPath::new("panels/fail.xhtml"),
                 label: Some("Fail 1".into()),

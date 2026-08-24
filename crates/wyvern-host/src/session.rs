@@ -20,6 +20,7 @@
 //! - [`BoundOrigin`] — issued once after TCP bind; navigate URL builders require it.
 //! - [`ResultSubmitToken`] — issued at session creation; `complete` consumes it.
 
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -70,6 +71,19 @@ pub(crate) struct SessionState {
     picker_slots: Arc<Semaphore>,
     /// Optional in-process picker mock (tests); env mock remains for CLI/e2e.
     mock_picker: Option<MockPickerConfig>,
+    /// In-flight terminal POSTs (`/api/report/finish` and `/api/result`).
+    terminal_in_flight: Arc<AtomicUsize>,
+}
+
+/// RAII count of a terminal POST so shutdown can wait for a sibling 409.
+pub(crate) struct TerminalRequestGuard {
+    counter: Arc<AtomicUsize>,
+}
+
+impl Drop for TerminalRequestGuard {
+    fn drop(&mut self) {
+        self.counter.fetch_sub(1, Ordering::SeqCst);
+    }
 }
 
 struct SessionInner {
@@ -112,7 +126,21 @@ impl SessionState {
             // the blocking pool (RSH-006).
             picker_slots: Arc::new(Semaphore::new(1)),
             mock_picker,
+            terminal_in_flight: Arc::new(AtomicUsize::new(0)),
         }
+    }
+
+    /// Count this terminal POST until the guard drops (ATM-QA-001).
+    pub(crate) fn track_terminal_request(&self) -> TerminalRequestGuard {
+        self.terminal_in_flight.fetch_add(1, Ordering::SeqCst);
+        TerminalRequestGuard {
+            counter: Arc::clone(&self.terminal_in_flight),
+        }
+    }
+
+    /// How many finish/result handlers are currently running.
+    pub(crate) fn terminal_in_flight(&self) -> usize {
+        self.terminal_in_flight.load(Ordering::SeqCst)
     }
 
     /// Issue the bind-phase [`BoundOrigin`] capability used to build absolute URLs.
@@ -285,8 +313,11 @@ impl SessionState {
     /// Returns `false` when the token is already gone **or** the oneshot send
     /// fails because the serve loop dropped the receiver (RSH-007).
     pub(crate) async fn complete(&self, result: wyvern_schema::CommandResult) -> bool {
-        let mut guard = self.inner.lock().await;
-        match guard.result_token.take() {
+        let token = {
+            let mut guard = self.inner.lock().await;
+            guard.result_token.take()
+        };
+        match token {
             Some(token) => token.submit(result),
             None => false,
         }

@@ -3,7 +3,20 @@
 use std::fmt;
 use std::ops::Deref;
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
+
+/// Maximum review comments length (Unicode scalar values).
+///
+/// Bound from [xhtml-reporting-contract.md](../../docs/plans/phase-H/xhtml-reporting-contract.md)
+/// so finish JSON stays small and textarea input cannot balloon the session payload.
+pub const MAX_REVIEW_COMMENTS_CHARS: usize = 32_768;
+
+/// Maximum `panels` entries on a report command (schema `maxItems`).
+///
+/// Bound from [xhtml-reporting-contract.md](../../docs/plans/phase-H/xhtml-reporting-contract.md)
+/// and `review-manifest.schema.json`. Changing this changes the preexec and
+/// validate error inventory.
+pub const MAX_REPORT_PANELS: usize = 32;
 
 /// Error when a report identity or path field is invalid.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -14,6 +27,8 @@ pub enum ReportFieldError {
     InvalidPageSuffix,
     /// [`ManifestPanelPath`] does not end with `.xhtml`.
     InvalidPanelSuffix,
+    /// [`ReviewComments`] exceeds [`MAX_REVIEW_COMMENTS_CHARS`].
+    CommentsTooLong,
 }
 
 impl fmt::Display for ReportFieldError {
@@ -24,6 +39,10 @@ impl fmt::Display for ReportFieldError {
                 f.write_str("report page path must end with .html or .xhtml")
             }
             Self::InvalidPanelSuffix => f.write_str("manifest panel path must end with .xhtml"),
+            Self::CommentsTooLong => write!(
+                f,
+                "review comments must be at most {MAX_REVIEW_COMMENTS_CHARS} characters"
+            ),
         }
     }
 }
@@ -169,6 +188,87 @@ fn has_xhtml_suffix(value: &str) -> bool {
     value.to_ascii_lowercase().ends_with(".xhtml")
 }
 
+/// Bounded review-finish comments (empty allowed, max 32 KiB scalars).
+///
+/// Construct via [`Self::try_new`] at HTTP/JSON trust boundaries so
+/// [`ReportFinishData`] cannot carry an unbounded `String`.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
+#[serde(transparent)]
+pub struct ReviewComments(String);
+
+impl ReviewComments {
+    /// Wrap already-validated comments, including the empty string.
+    ///
+    /// Prefer [`Self::try_new`] at trust boundaries.
+    pub fn new(value: impl Into<String>) -> Self {
+        Self(value.into())
+    }
+
+    /// Construct comments that fit [`MAX_REVIEW_COMMENTS_CHARS`].
+    ///
+    /// Empty comments are allowed. Length is counted in Unicode scalar values.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ReportFieldError::CommentsTooLong`] when `value` exceeds the bound.
+    pub fn try_new(value: impl Into<String>) -> Result<Self, ReportFieldError> {
+        let value = value.into();
+        if value.chars().count() > MAX_REVIEW_COMMENTS_CHARS {
+            return Err(ReportFieldError::CommentsTooLong);
+        }
+        Ok(Self(value))
+    }
+
+    /// Borrow as a string slice.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    /// Consume and return the inner string.
+    pub fn into_inner(self) -> String {
+        self.0
+    }
+}
+
+impl Deref for ReviewComments {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl AsRef<str> for ReviewComments {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl fmt::Display for ReviewComments {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl PartialEq<str> for ReviewComments {
+    fn eq(&self, other: &str) -> bool {
+        self.0 == other
+    }
+}
+
+impl PartialEq<&str> for ReviewComments {
+    fn eq(&self, other: &&str) -> bool {
+        self.0 == *other
+    }
+}
+
+impl<'de> Deserialize<'de> for ReviewComments {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let value = String::deserialize(deserializer)?;
+        Self::try_new(value).map_err(serde::de::Error::custom)
+    }
+}
+
 /// Report session mode (`view` | `review`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -296,8 +396,8 @@ impl ReportTerminalButton {
 pub struct ReportFinishData {
     /// `true` = Approve; `false` = Cancel.
     pub approved: bool,
-    /// Free-text comments (may be empty).
-    pub comments: String,
+    /// Free-text comments (may be empty; bounded by [`MAX_REVIEW_COMMENTS_CHARS`]).
+    pub comments: ReviewComments,
     /// Echo of authoritative manifest panel entries.
     pub panels: Vec<ReportPanelEntry>,
 }
@@ -333,6 +433,16 @@ impl ReportResult {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn review_comments_try_new_enforces_bound() {
+        assert_eq!(ReviewComments::try_new("").unwrap().as_str(), "");
+        assert_eq!(
+            ReviewComments::try_new("x".repeat(MAX_REVIEW_COMMENTS_CHARS + 1)),
+            Err(ReportFieldError::CommentsTooLong)
+        );
+        assert!(ReviewComments::try_new("x".repeat(MAX_REVIEW_COMMENTS_CHARS)).is_ok());
+    }
 
     #[test]
     fn report_title_try_new_rejects_empty() {
@@ -399,7 +509,7 @@ mod tests {
     fn report_result_finished_includes_data() {
         let result = ReportResult::finished(ReportFinishData {
             approved: false,
-            comments: String::new(),
+            comments: ReviewComments::new(""),
             panels: vec![ReportPanelEntry {
                 path: ManifestPanelPath::new("panels/fail.xhtml"),
                 label: Some("Fail 1".into()),
