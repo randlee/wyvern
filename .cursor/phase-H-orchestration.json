@@ -74,10 +74,7 @@
       "worktree": "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-H-h2-xhtml-panel-array",
       "sprint_doc": "docs/plans/phase-H/h2-xhtml-panel-array.md",
       "pr_target": "integrate/phase-H",
-      "status": "pending",
-      "depends_on": ["h.1"]
-    },
-    "h.3": {
+      "status": "dev_in_progress",
       "id": "h.3",
       "title": "XHTML review mode (--review)",
       "branch": "feature/phase-H-h3-xhtml-review",
