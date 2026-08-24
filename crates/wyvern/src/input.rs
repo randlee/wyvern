@@ -51,18 +51,23 @@ fn load_positional(arg: &str) -> Result<Value, LoadError> {
 }
 
 fn load_json_file(path: &Path) -> Result<Value, LoadError> {
+    let text = read_file_capped(path)?;
+    parse_json(&text)
+}
+
+/// Read a filesystem path with the CLI 1 MiB cap (RSH-001 / RSH-003).
+pub(crate) fn read_file_capped(path: &Path) -> Result<String, LoadError> {
     let file = std::fs::File::open(path).map_err(|err| LoadError::Io {
         field: FieldName::new("file"),
         message: format!("could not read path '{}': {err}", path.display()),
         source: Some(Box::new(err)),
     })?;
-    let text = read_capped(
+    read_capped(
         file,
         MAX_CLI_INPUT_BYTES,
         "file",
         &path.display().to_string(),
-    )?;
-    parse_json(&text)
+    )
 }
 
 fn load_stdin(stdin: impl Read) -> Result<Value, LoadError> {

@@ -8,15 +8,18 @@ use wyvern_schema::{ErrorCode, FieldName, SerializeError};
 pub use emit::{
     emit_extension_error, emit_fatal_internal, emit_host_error, emit_io_error, emit_parse_error,
     emit_stdout, emit_usage_error, emit_usage_message, emit_validation_error,
+    emit_wizard_lint_stage_error, emit_workflow_error,
 };
 
-/// Built-in CLI family that owns subcommands (`browsers`, `extensions`).
+/// Built-in CLI family that owns subcommands (`browsers`, `extensions`, `wizard`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BuiltinDomain {
     /// `wyvern browsers …`
     Browsers,
     /// `wyvern extensions …`
     Extensions,
+    /// `wyvern wizard …`
+    Wizard,
 }
 
 impl BuiltinDomain {
@@ -26,6 +29,7 @@ impl BuiltinDomain {
         match self {
             Self::Browsers => "browsers",
             Self::Extensions => "extensions",
+            Self::Wizard => "wizard",
         }
     }
 }
@@ -493,5 +497,59 @@ mod tests {
             "timeout recovery must name the env var: {out}"
         );
         assert!(out.contains("30"), "{out}");
+    }
+
+    #[test]
+    fn emit_wizard_lint_io_maps_to_io_error() {
+        use crate::wizard_cmd::WizardLintStageError;
+        let err = WizardLintStageError::Io {
+            path: std::path::PathBuf::from("/missing/wizard.json"),
+            message: "error: '/missing/wizard.json' not found".into(),
+        };
+        let out = emit_wizard_lint_stage_error(&err).expect("emit");
+        let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
+        assert_eq!(value["error"], "io");
+        assert_eq!(value["code"], "IO_ERROR");
+        assert_eq!(value["subcode"], "wizard_lint_io");
+        assert!(!value["recovery"].as_array().unwrap().is_empty());
+    }
+
+    #[test]
+    fn emit_wizard_lint_parse_maps_to_parse_error() {
+        use crate::wizard_cmd::WizardLintStageError;
+        let err = WizardLintStageError::Parse {
+            path: std::path::PathBuf::from("wizard.json"),
+            message: "error: 'wizard.json': invalid JSON".into(),
+        };
+        let out = emit_wizard_lint_stage_error(&err).expect("emit");
+        let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
+        assert_eq!(value["error"], "parse");
+        assert_eq!(value["code"], "PARSE_ERROR");
+        assert_eq!(value["subcode"], "wizard_lint_parse");
+        assert!(value["recovery"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|s| s.as_str().unwrap().contains("valid JSON")));
+    }
+
+    #[test]
+    fn emit_wizard_lint_validation_maps_to_validation_error() {
+        use crate::wizard_cmd::WizardLintStageError;
+        let err = WizardLintStageError::Validation {
+            path: std::path::PathBuf::from("wizard.json"),
+            field: FieldName::new("page.id"),
+            message: "error: 'wizard.json': wizard.json page.id: wizard page field must be a non-empty string".into(),
+        };
+        let out = emit_wizard_lint_stage_error(&err).expect("emit");
+        let value: serde_json::Value = serde_json::from_str(&out).expect("valid JSON");
+        assert_eq!(value["error"], "validation");
+        assert_eq!(value["code"], "VALIDATION_ERROR");
+        assert_eq!(value["subcode"], "wizard_lint_validation");
+        assert_eq!(value["field"], "page.id");
+        assert!(value["message"]
+            .as_str()
+            .unwrap()
+            .contains("wizard page field must be a non-empty string"));
     }
 }

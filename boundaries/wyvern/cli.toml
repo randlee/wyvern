@@ -7,6 +7,7 @@ name = "WyvernCli"
 allowed_dependencies = [
   "wyvern-schema",
   "wyvern-host",
+  "wyvern-wizard",
   "wyvern-viewer",
   "serde",
   "serde_json",
@@ -17,12 +18,13 @@ allowed_dependencies = [
   "dirs",
   "rust-embed",
   "tempfile",
+  "libc",
 ]
-forbidden_dependencies = ["wyvern-wizard", "wyvern-mcp", "wry", "winit", "rfd"]
+forbidden_dependencies = ["wyvern-mcp", "wry", "winit", "rfd"]
 forbidden_edges = ["wyvern-cli -> wyvern-mcp"]
 
 [ownership]
-io_owns = ["stdin_reading", "stdout_writing", "stderr_writing", "arg_parsing", "host_options", "viewer_flag", "embedded_viewer_spawn", "viewer_show_hide"]
+io_owns = ["stdin_reading", "stdout_writing", "stderr_writing", "arg_parsing", "host_options", "viewer_flag", "embedded_viewer_spawn", "viewer_show_hide", "workflow_script_spawn", "wizard_chain_loop"]
 io_forbidden = ["http_server", "webview_creation", "static_file_serve", "dialog_content_html"]
 
 [enforcement]

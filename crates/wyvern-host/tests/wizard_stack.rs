@@ -70,6 +70,7 @@ fn wizard_command() -> Command {
         }),
         width: Some(640),
         height: Some(480),
+        workflow: None,
     })
 }
 

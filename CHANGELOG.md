@@ -16,7 +16,6 @@ Patch release — completes crates.io publish for `wyvern-cli` (extension assets
 ## [0.3.0] — 2026-08-17
 
 Phase F — declarative CLI extensions. Phase G — agent-facing help, skill catalog, and error-teaches recovery on top of the extension runtime.
-
 ### Phase F — CLI extensions
 
 - Extension runtime: bundled registry, argv match (suffix + subcommand), optional Python preexec, template expand → validated `Command` JSON

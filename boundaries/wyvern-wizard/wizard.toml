@@ -11,8 +11,24 @@ io_owns = ["wizard_session", "history_cursor", "stack_snapshot", "navigation"]
 io_forbidden = ["file_io", "network_io", "window_creation", "webview", "ipc", "async_runtime", "http_routes", "browser_history_internals"]
 
 [public_api]
-# Host and tests may import only these modules (enforced by sc-lint + review):
-allowed_modules = ["wyvern_wizard::WizardSession", "wyvern_wizard::WizardSnapshot", "wyvern_wizard::WizardError", "wyvern_wizard::NavigateOutcome"]
+# Host and tests: session API. wyvern-cli (Phase G g.9/g.14): static lint/dataflow only.
+allowed_modules = [
+  "wyvern_wizard::WizardSession",
+  "wyvern_wizard::WizardSnapshot",
+  "wyvern_wizard::WizardError",
+  "wyvern_wizard::NavigateOutcome",
+  "wyvern_wizard::lint",
+  "wyvern_wizard::dataflow",
+  "wyvern_wizard::graph",
+  "wyvern_wizard::LintFinding",
+  "wyvern_wizard::PageInfo",
+  "wyvern_wizard::PageRole",
+  "wyvern_wizard::GraphPage",
+  "wyvern_wizard::WizardPageGraph",
+  "wyvern_wizard::DataflowSpec",
+  "wyvern_wizard::DataflowLintInput",
+]
+permitted_consumers = ["wyvern-host", "wyvern-cli"]
 
 [enforcement]
 lint_rules = ["LINT-BOUNDARY-WIZARD-PURE-LOGIC"]

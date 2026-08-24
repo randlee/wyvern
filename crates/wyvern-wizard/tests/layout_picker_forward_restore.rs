@@ -35,6 +35,7 @@ fn layout_picker_cmd() -> WizardCommand {
         }),
         width: None,
         height: None,
+        workflow: None,
     }
 }
 

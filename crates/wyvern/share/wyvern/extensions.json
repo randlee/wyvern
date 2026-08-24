@@ -106,6 +106,16 @@
       "expand": {
         "command": { "type": "markdown", "title": "{basename}", "content": "{preexec.stdout}" }
       }
+    },
+    {
+      "id": "guide",
+      "description": "Visual feature guide (multi-page wizard).",
+      "examples": ["wyvern guide"],
+      "match": { "argv_prefix": ["guide"] },
+      "expand": {
+        "command_from_file": "{wyvern_share}/welcome/wizard.json",
+        "host": { "ui_root": "{wyvern_share}/welcome" }
+      }
     }
   ]
 }

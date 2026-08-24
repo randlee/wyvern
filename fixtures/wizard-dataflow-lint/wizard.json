@@ -1,0 +1,32 @@
+{
+  "type": "wizard",
+  "page": {
+    "id": "one",
+    "title": "Step one",
+    "html": "pages/one.html"
+  },
+  "config": {
+    "dataflow": {
+      "version": 1,
+      "pages": {
+        "one": {
+          "exports": {
+            "label": "string"
+          }
+        },
+        "two": {
+          "requires": ["label"],
+          "terminal": true,
+          "exports": {
+            "label": "string"
+          },
+          "post_input": {
+            "label": "string"
+          }
+        }
+      }
+    }
+  },
+  "width": 640,
+  "height": 400
+}

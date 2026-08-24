@@ -287,6 +287,10 @@ pub fn emit_usage_error(err: &LoadError) -> Result<String, EmitError> {
                     "Use wyvern extensions list or wyvern extensions show <id>".into(),
                     "Run wyvern extensions --help".into(),
                 ],
+                super::BuiltinDomain::Wizard => vec![
+                    "Use wyvern wizard lint <path>".into(),
+                    "Run wyvern wizard --help".into(),
+                ],
             },
             "docs/wyvern/requirements.md (REQ-0134)",
         ),
@@ -628,7 +632,96 @@ pub fn emit_host_error(err: &wyvern_host::HostError) -> Result<String, EmitError
     };
 
     let mut envelope = StderrError::new(code, message).cause(cause).docs(docs);
+    if let HostError::Wizard { source } = err {
+        envelope = envelope.subcode(source.subcode());
+    }
     for step in recovery {
+        envelope = envelope.recovery(step);
+    }
+    envelope.to_json_string().map_err(EmitError::Serialize)
+}
+
+/// Serialize a wizard lint stage failure as stderr JSON.
+///
+/// Maps [`WizardLintStageError`] variants to `IoError`, `ParseError`, or
+/// `ValidationError` with distinct subcodes and recovery steps (RBP-F002).
+///
+/// # Errors
+///
+/// Returns [`EmitError::Serialize`] when the envelope cannot be serialized.
+pub fn emit_wizard_lint_stage_error(
+    err: &crate::wizard_cmd::WizardLintStageError,
+) -> Result<String, EmitError> {
+    use crate::wizard_cmd::WizardLintStageError;
+    const DOCS: &str =
+        ".claude/skills/creating-wyvern-wizard/references/core/validation-and-lint.md";
+    let (code, message, cause, recovery, field) = match err {
+        WizardLintStageError::Io { path, message } => (
+            ErrorCode::IoError,
+            message.clone(),
+            format!("wyvern wizard lint could not read '{}'", path.display()),
+            vec![
+                "Verify the path contains wizard.json and all referenced pages exist".into(),
+                "Run `wyvern wizard lint --help` for usage".into(),
+            ],
+            None,
+        ),
+        WizardLintStageError::Parse { path, message } => (
+            ErrorCode::ParseError,
+            message.clone(),
+            format!("wizard.json at '{}' is not valid JSON", path.display()),
+            vec![
+                "Ensure wizard.json is valid JSON".into(),
+                "Check for trailing commas, unquoted keys, or truncated input".into(),
+                "Run `wyvern wizard lint --help` for usage".into(),
+            ],
+            None,
+        ),
+        WizardLintStageError::Validation {
+            path,
+            field,
+            message,
+        } => (
+            ErrorCode::ValidationError,
+            message.clone(),
+            format!(
+                "wizard.json at '{}' failed field checks on '{field}'",
+                path.display()
+            ),
+            vec![
+                format!("Fix field '{field}' to a non-empty string"),
+                "page.id and page.html must be non-empty".into(),
+                "Run `wyvern wizard lint --help` for usage".into(),
+            ],
+            Some(field.clone()),
+        ),
+    };
+    let mut envelope = StderrError::new(code, message)
+        .subcode(err.subcode())
+        .cause(cause)
+        .docs(DOCS);
+    if let Some(field) = field {
+        envelope = envelope.field(field);
+    }
+    for step in recovery {
+        envelope = envelope.recovery(step);
+    }
+    envelope.to_json_string().map_err(EmitError::Serialize)
+}
+
+/// Serialize a workflow / chain failure as stderr JSON (`WORKFLOW_ERROR`, exit 9).
+///
+/// Always uses [`ErrorCode::WorkflowError`] — no hand-built slug.
+///
+/// # Errors
+///
+/// Returns [`EmitError::Serialize`] when the envelope cannot be serialized.
+pub fn emit_workflow_error(err: &crate::workflow::WorkflowError) -> Result<String, EmitError> {
+    let mut envelope = StderrError::new(ErrorCode::WorkflowError, err.to_string())
+        .cause(err.cause())
+        .subcode(err.subcode())
+        .docs("docs/plans/phase-G/wizard-workflow-architecture.md");
+    for step in err.recovery() {
         envelope = envelope.recovery(step);
     }
     envelope.to_json_string().map_err(EmitError::Serialize)

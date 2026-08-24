@@ -178,6 +178,7 @@ impl SessionState {
         button: WizardTerminalButton,
         data: serde_json::Value,
         stack: Vec<WizardStackEntry>,
+        next_wizard: Option<wyvern_schema::NextWizard>,
     ) -> Result<Option<WizardResult>, WizardError> {
         let prepared = {
             let mut guard = self.inner.lock().await;
@@ -185,7 +186,9 @@ impl SessionState {
                 .wizard
                 .as_ref()
                 .ok_or(WizardError::SessionNotInitialized)?;
-            let result = session.finish(button, data, stack)?;
+            // Stack validation only — do not pass next_wizard into WizardSession.
+            let validated = session.finish(button, data, stack)?;
+            let result = crate::routes::wizard::finish_to_result(next_wizard, validated);
             guard.result_token.take().map(|token| (result, token))
         };
         match prepared {
@@ -235,6 +238,7 @@ impl SessionState {
                             button: ButtonLabel::dismissed(),
                             data: serde_json::json!({}),
                             stack: derived,
+                            next_wizard: None,
                         })
                     }
                 }
@@ -356,6 +360,7 @@ mod tests {
             config: serde_json::json!({}),
             width: None,
             height: None,
+            workflow: None,
         })
     }
 
@@ -507,7 +512,7 @@ mod tests {
             let (finish_res, nav_res) = tokio::join!(
                 async move {
                     session_finish
-                        .wizard_finish(WizardTerminalButton::Finish, data, stack)
+                        .wizard_finish(WizardTerminalButton::Finish, data, stack, None)
                         .await
                 },
                 async move {

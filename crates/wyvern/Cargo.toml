@@ -24,6 +24,7 @@ path = "src/main.rs"
 
 [dependencies]
 wyvern-schema      = { workspace = true }
+wyvern-wizard      = { workspace = true }
 wyvern-host        = { workspace = true }
 serde              = { workspace = true }
 serde_json         = { workspace = true }
@@ -34,6 +35,9 @@ sc-observability-types = "1.2"
 rust-embed         = { version = "8", features = ["compression"] }
 dirs               = { workspace = true }
 tempfile           = "3"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
 
 [dev-dependencies]
 reqwest    = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "blocking"] }

@@ -22,8 +22,9 @@ use wyvern::extensions::{
 };
 use wyvern::{
     apply_host_overrides, emit_extension_error, emit_fatal_internal, emit_io_error, emit_near_miss,
-    emit_parse_error, emit_usage_error, emit_usage_message, load_command_input, parse_cli_args,
-    run_browsers_command, run_from_loaded, usage_message, BrowsersError, LoadError, PipelineError,
+    emit_parse_error, emit_usage_error, emit_usage_message, emit_wizard_lint_stage_error,
+    load_command_input, parse_cli_args, run_browsers_command, run_from_loaded, run_wizard_command,
+    usage_message, BrowsersError, LoadError, PipelineError, WizardCmdError, WizardCmdResult,
 };
 
 mod main_observability;
@@ -82,6 +83,36 @@ fn main() -> ExitCode {
         };
     }
 
+    if args.first().map(String::as_str) == Some("wizard") {
+        return match run_wizard_command(&args[1..]) {
+            Ok(WizardCmdResult::Clean(stdout)) => {
+                print!("{stdout}");
+                ExitCode::SUCCESS
+            }
+            Ok(WizardCmdResult::Findings(stdout)) => {
+                print!("{stdout}");
+                ExitCode::from(1)
+            }
+            Err(WizardCmdError::Usage { kind, message }) => {
+                match emit_usage_error(&LoadError::Usage { kind, message }) {
+                    Ok(stderr) => {
+                        eprintln!("{stderr}");
+                        ExitCode::from(2)
+                    }
+                    Err(e) => emit_fatal_internal(&e),
+                }
+            }
+            Err(WizardCmdError::Stage(err)) => match emit_wizard_lint_stage_error(&err) {
+                Ok(stderr) => {
+                    eprintln!("{stderr}");
+                    ExitCode::from(u8::try_from(err.exit_code()).unwrap_or(1))
+                }
+                Err(e) => emit_fatal_internal(&e),
+            },
+            Err(WizardCmdError::Emit(e)) => emit_fatal_internal(&e),
+        };
+    }
+
     let mut cli = match parse_cli_args(&args) {
         Ok(cli) => cli,
         Err(err) => return emit_load_stage_failure(&err),
@@ -135,7 +166,7 @@ fn main() -> ExitCode {
             Err(err) => return emit_extension_stage_failure(&err),
         };
         apply_host_overrides(&mut cli.host, &expanded.host_overrides);
-        let result = run_from_loaded(expanded.command, cli.host);
+        let result = run_from_loaded(expanded.command, cli.host, cli.workflow_dry_run);
         // `expanded.temp_guard` drops after host exit (success or stage error).
         drop(expanded.temp_guard);
         return emit_pipeline_result(result);
@@ -150,7 +181,7 @@ fn main() -> ExitCode {
         Err(err) => return emit_load_stage_failure(&err),
     };
 
-    emit_pipeline_result(run_from_loaded(value, cli.host))
+    emit_pipeline_result(run_from_loaded(value, cli.host, cli.workflow_dry_run))
 }
 
 fn emit_pipeline_result(result: Result<String, PipelineError>) -> ExitCode {

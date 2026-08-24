@@ -1,9 +1,9 @@
 ---
 id: g.4
 title: Welcome guide wizard (`wyvern guide`)
-status: planning
-branch: feature/wyvern-welcome-ui
-worktree: ../wyvern-worktrees/feature/wyvern-welcome-ui
+status: complete (integrate)
+branch: feature/phase-G-g4-welcome-guide
+worktree: ../wyvern-worktrees/feature/phase-G-g4-welcome-guide
 target: integrate/phase-G
 ---
 
@@ -31,15 +31,15 @@ Ship `wyvern guide` (REQ-0127) and the CLI workflow foundation used by g.5–g.7
 | `crates/wyvern/src/pipeline.rs` | `run_from_loaded`: every `Command::Wizard` one-shot enters `run_wizard_workflow_loop`; other types stay on the existing host path |
 | `crates/wyvern/src/cli_args.rs` | `--workflow-dry-run` on `CliArgs` (not `HostOptions`) |
 | `crates/wyvern-schema/src/error_code.rs` | Add `ErrorCode::WorkflowError` (`WORKFLOW_ERROR`, slug `workflow`, exit 9) |
-| `crates/wyvern/src/error.rs` | Emit stderr via `ErrorCode::WorkflowError` — no hand-built slug |
-| `crates/wyvern/Cargo.toml` | Incremental on f.1: keep `share/wyvern/**` + `scripts/ext/**` rust-embed; add welcome + workflow testdata — do not narrow the glob |
+| `crates/wyvern/src/error/emit.rs` | Emit stderr via `ErrorCode::WorkflowError` — no hand-built slug (`WorkflowError::subcode()` in the envelope) |
+| `crates/wyvern/Cargo.toml` | Incremental on f.1: vendor `share/wyvern/**` + `scripts/ext/**` under `crates/wyvern/embedded/` for rust-embed so `cargo publish --dry-run` can compile the tarball; keep the glob wide |
 | `boundaries/wyvern/cli.toml` | `io_owns` += `workflow_script_spawn`, `wizard_chain_loop` |
 | `boundaries/wyvern-host/host.toml` | `io_forbidden` += `workflow_script_spawn`, `wizard_chain_loop` |
 | `crates/wyvern/tests/workflow_pre_post.rs` | Pre merge; post stdin; dry-run argv; allowlist deny; cancel skips post |
 | `crates/wyvern/tests/workflow_chain.rs` | Two-fixture chain; 17th hop fails; stdout omits `next_wizard` |
 | `crates/wyvern/tests/guide_extension.rs` | `wyvern guide` expands welcome `wizard.json` |
 | `crates/wyvern-host/tests/wizard_next_wizard_passthrough.rs` | Finish request with `next_wizard` is copied onto `WizardResult` |
-| `share/wyvern/welcome/` | Hub `wizard.json`, home page, four **stub** topic pages (full copy + `next_wizard` in g.5–g.7) |
+| `share/wyvern/welcome/` | Hub `wizard.json`, home page, four topic pages — Overview is a **terminal** page with Back/Finish chrome (`data-wizard-terminal="true"`); AskUserQuestion, Template wizard, and Agent DAG are **bridge** pages with full copy, Back/Finish chrome, and `wizardNextWizard` hops to the g.5 / g.6 / g.7 example wizards |
 | `share/wyvern/extensions.json` | `guide` argv-prefix entry |
 
 ### Boundary contracts
@@ -51,18 +51,18 @@ pub const NEXT_WIZARD_MAX_DEPTH: u32 = 16;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct WorkflowSpec {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub pre: Option<String>,
+    pub pre: Option<WorkflowPath>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub post: Option<String>,
+    pub post: Option<WorkflowPath>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct NextWizard {
-    pub path: String,
+    pub path: WorkflowPath,
     #[serde(default)]
     pub input: serde_json::Value, // default {}
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub ui_root: Option<String>,
+    pub ui_root: Option<WorkflowPath>,
 }
 
 pub struct Allowlist {
@@ -109,6 +109,7 @@ pub struct NextInvocation {
     pub command: serde_json::Value,
     pub ui_root: PathBuf,
     pub wizard_dir: PathBuf,
+    pub input: serde_json::Value,
 }
 
 pub fn resolve_next_wizard(
@@ -127,7 +128,7 @@ pub fn merge_wizard_config(
 #[derive(Debug)]
 pub enum WorkflowError {
     PathDenied { path: PathBuf },
-    Timeout,
+    Timeout { stderr_tail: String },
     NonZero { status: i32, stderr_tail: String },
     InvalidStdout { cause: String },
     ChainDepth { max: u32 },
@@ -137,12 +138,13 @@ pub enum WorkflowError {
 }
 
 // ErrorCode::WorkflowError { code: WORKFLOW_ERROR, slug: workflow, exit: 9 }
-// CLI error.rs emits via that variant only.
+// crates/wyvern/src/error/emit.rs emits via that variant only and includes
+// WorkflowError::subcode() in the stderr envelope.
 
 | Variant | Cause | Recovery |
 |---------|-------|----------|
 | `PathDenied` | Path escaped allowlist | Use a path under `{wyvern_share}`, cwd, or current wizard.json directory |
-| `Timeout` | Script exceeded 30s | Shorten script or raise only via a later ADR |
+| `Timeout` | Script exceeded 30s | Shorten script or raise only via a later ADR; `stderr_tail` is in the JSON `cause` |
 | `NonZero` | Script exit ≠ 0 | Fix script; stderr_tail is in the JSON `cause` |
 | `InvalidStdout` | Pre stdout not one JSON object with object `config_patch` | Print `{ "config_patch": { ... } }` only |
 | `ChainDepth` | 17th hop | Keep chains ≤ 16 |
@@ -263,19 +265,21 @@ cargo test -p wyvern-cli --test workflow_chain
 cargo test -p wyvern-cli --test guide_extension
 cargo test -p wyvern-host --test wizard_next_wizard_passthrough
 rg -n "workflow_script_spawn|wizard_chain_loop" boundaries/wyvern/cli.toml boundaries/wyvern-host/host.toml
+# Requires wyvern-schema and wyvern-host already published to crates.io
+# (QA-002). Local path/workspace deps do not satisfy crates.io verify.
 cargo publish --dry-run -p wyvern-cli --locked
 ```
 
 ## Non-closure
 
-- Full Questions / Templates / Agent DAG page copy — g.5 / g.6 / g.7
-- Welcome topic pages emitting `next_wizard` to those examples — g.5 / g.6 / g.7
+- g.5 / g.6 / g.7 example wizards (hook installer, template picker, Agent DAG demo) — welcome bridge pages already link via `wizardNextWizard`
 - L2 Playwright tour
 - `--emit-all`
 - `wyvern chain` subcommand
 - Phase E `--interactive` / MCP auto-chain
 - Dialog type gallery (walkthrough R1)
 - `probe-destination.py` and example workflow scripts
+- `cargo publish --dry-run -p wyvern-cli` until `wyvern-schema` and `wyvern-host` are published to crates.io. Packaging of rust-embed assets is in-crate (`embedded/`); the remaining dry-run failure is the unpublished sibling crates, not a g.4 code defect (QA-002).
 
 ## Authority
 

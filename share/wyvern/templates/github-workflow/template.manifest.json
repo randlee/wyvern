@@ -1,0 +1,8 @@
+{
+  "id": "github-workflow",
+  "label": "GitHub workflow",
+  "description": "GitHub Actions workflow starter",
+  "default_output_path": ".github/workflows/ci.yml",
+  "files": ["ci.yml"],
+  "variables": [{ "name": "name", "default": "ci" }]
+}

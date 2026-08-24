@@ -184,9 +184,7 @@ Phase F sprint PRs target `integrate/phase-F`. Sprint authority: `docs/plans/pha
 
 ## Phase G — Extension Agent Usability
 
-**Phase goal (Wave 1):** CLI surfaces teach agents how to invoke Phase F extensions without checkout docs — first-class help, error-teaches near-misses, and a parseable skill catalog (REQ-0134–REQ-0137).
-
-**Phase goal (Wave 2):** Ship **`wyvern guide`** plus three examples (AskUserQuestion hook installer, template catalog, DAG demo/export). g.4 lands CLI workflow pre/post (REQ-0124–0125, ADR-0023) and `next_wizard` chaining (REQ-0126, ADR-0024); g.5–g.7 consume them.
+**Phase goal (Wave 3):** Wizard authoring platform — progressive-disclosure skill, JS page-author agents, dataflow lint (WIZARD-LINT-005–008), type refs, and CI gate.
 
 **Prerequisite:** Phase F complete on `develop`. Wave 2 after Wave 1 merged.
 
@@ -194,11 +192,15 @@ Phase F sprint PRs target `integrate/phase-F`. Sprint authority: `docs/plans/pha
 
 **Phase acceptance (Wave 1):** `wyvern --help` lists every shipped skill (exit 0); `wyvern compose render --help` prints a skill card; `wyvern extensions list --json` is valid JSON; near-miss paths name the next command.
 
-Phase G sprint PRs target `integrate/phase-G`. Sprint authority: `docs/plans/phase-G/` (sprints **g.1–g.7**).
+**Phase acceptance (Wave 3):** `wyvern wizard lint` passes on shipped welcome + agent-dag examples; dataflow lint integration tests green.
+
+Phase G sprint PRs target `integrate/phase-G`. Sprint authority: `docs/plans/phase-G/` (sprints **g.1–g.14**).
 
 **Input:** [phase-F-usability-review.md](phase-F/phase-F-usability-review.md)
 
 **Walkthrough (Wave 2 review):** [examples-walkthrough.md](phase-G/examples-walkthrough.md)
+
+**Wave 3 map:** [phase-G/wave-3-wizard-authoring/README.md](phase-G/wave-3-wizard-authoring/README.md)
 
 | Sprint | Title | Doc |
 |--------|-------|-----|
@@ -209,6 +211,13 @@ Phase G sprint PRs target `integrate/phase-G`. Sprint authority: `docs/plans/pha
 | g.5 | AskUserQuestion hook example | [g5-askuserquestion-claude-code.md](phase-G/g5-askuserquestion-claude-code.md) |
 | g.6 | Template wizard | [g6-template-wizard.md](phase-G/g6-template-wizard.md) |
 | g.7 | DAG agent demo + export | [g7-dag-agent-execution.md](phase-G/g7-dag-agent-execution.md) |
+| g.8 | Wizard authoring foundation | [g8-wizard-authoring-foundation.md](phase-G/g8-wizard-authoring-foundation.md) |
+| g.9 | Dataflow lint (WIZARD-LINT-005–008) | [g9-wizard-lint-dataflow.md](phase-G/g9-wizard-lint-dataflow.md) |
+| g.10 | `creating-wyvern-wizard` skill router | [g10-creating-wyvern-wizard-skill.md](phase-G/g10-creating-wyvern-wizard-skill.md) |
+| g.11 | `wyvern-wizard-js` page agent | [g11-wyvern-wizard-js-agent.md](phase-G/g11-wyvern-wizard-js-agent.md) |
+| g.12 | `wyvern-dag-wizard-js` page agent | [g12-wyvern-dag-wizard-js-agent.md](phase-G/g12-wyvern-dag-wizard-js-agent.md) |
+| g.13 | Wizard type refs + sc-compose snippets | [g13-wizard-type-refs-and-templates.md](phase-G/g13-wizard-type-refs-and-templates.md) |
+| g.14 | Authoring CI + known lint HTML fixes | [g14-wizard-authoring-ci-and-fixes.md](phase-G/g14-wizard-authoring-ci-and-fixes.md) |
 
 ---
 
@@ -243,7 +252,7 @@ Phase E sprint PRs target `integrate/phase-E`. Sprint authority: `docs/plans/pha
 | Phase B — Core Dialogs | 8 | **MVP — all dialog types usable** |
 | Phase D — Wizard | 8 | Multi-page wizard with branching |
 | Phase F — CLI Extensions | 4 | Suffix/subcommand argv expansion (CSV table, HTML, compose) |
-| Phase G — Extension Agent Usability | 7 | Help/catalog (g.1–g.3) + welcome guide & examples (g.4–g.7) |
+| Phase G — Extension Agent Usability | 14 | Help/catalog (g.1–g.3) + welcome guide & examples (g.4–g.7) + authoring platform (g.8–g.14) |
 | Phase E — Interactive & MCP | 4 | Agent-driveable status viewer + MCP |
 
 ## Dependency Map

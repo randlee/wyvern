@@ -1,0 +1,23 @@
+{
+  "type": "wizard",
+  "page": {
+    "id": "one",
+    "title": "Step one",
+    "html": "pages/one.html"
+  },
+  "config": {
+    "dataflow": {
+      "version": 1,
+      "pages": {
+        "one": {
+          "exports": { "label": "string" }
+        },
+        "two": {
+          "requires": ["missing_key"],
+          "terminal": true,
+          "exports": { "label": "string" }
+        }
+      }
+    }
+  }
+}

@@ -1,8 +1,9 @@
 ---
 id: g.6
 title: Template catalog wizard + apply workflow
-status: planning
+status: complete
 branch: feature/phase-G-g6-template-wizard
+worktree: ../wyvern-worktrees/feature/phase-G-g6-template-wizard
 target: integrate/phase-G
 ---
 
@@ -140,6 +141,8 @@ Welcome Templates finish (required):
 ```bash
 cargo test -p wyvern-cli --test workflow_apply_template
 cargo test -p wyvern-cli --test workflow_welcome_chain_templates
+# Requires wyvern-schema and wyvern-host already published to crates.io
+# (QA-002). Local path/workspace deps do not satisfy crates.io verify.
 cargo publish --dry-run -p wyvern-cli --locked
 ```
 
@@ -155,6 +158,7 @@ cargo publish --dry-run -p wyvern-cli --locked
 - In-browser full-file editor (customize step is form fields only)
 - User template registry outside `share/wyvern/templates/`
 - sc-compose generation
+- `cargo publish --dry-run -p wyvern-cli` until `wyvern-schema` and `wyvern-host` are published to crates.io. Packaging of rust-embed assets is in-crate (`embedded/`); the remaining dry-run failure is the unpublished sibling crates, not a g.6 code defect (QA-002).
 
 ## Authority
 
