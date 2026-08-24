@@ -1,0 +1,79 @@
+@prefix triage: <urn:atm:triage:> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<urn:atm:triage:finding/ATM-QA-001>
+  a triage:Finding ;
+  triage:findingId "ATM-QA-001" ;
+  triage:title "Flaky concurrent finish-vs-dismiss race" ;
+  triage:description "Concurrent POST /api/report/finish and POST /api/result sometimes returns connection reset instead of HTTP 409; report_review_finish_and_result_are_mutually_exclusive fails ~40-60%." ;
+  triage:category "acceptance-gap" ;
+  triage:severity "blocking" ;
+  triage:phaseId "phase-H" ;
+  triage:triageMode "initial_pass" ;
+  triage:repeatable false ;
+  triage:sweepScope "crate" ;
+  triage:status "open" ;
+  triage:dispatchReady true ;
+  triage:rootCause "graceful_shutdown_ordering" ;
+  triage:affectedCrates "wyvern-host" ;
+  triage:requirementId "REQ-HOST-0142" ;
+  triage:adrId "ADR-0025" ;
+  triage:originatingSprintDoc "docs/plans/phase-H/h3-xhtml-review-mode.md" ;
+  triage:triagedAt "2026-08-23T23:03:00Z"^^xsd:dateTime ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/ATM-QA-001/h3/1> ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/ATM-QA-001/h3/2> ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/ATM-QA-001/h3/3> ;
+  triage:openOn <urn:atm:triage:worktree/h3/b38cde9b> ;
+  triage:notes "Root cause: In serve_until_result (server.rs:217-273), when result channel receives a value, the function triggers graceful_shutdown immediately (line 261). However, concurrent POST /api/report/finish and POST /api/result handlers both call session.complete(), which holds the Mutex lock while submitting the result to the oneshot channel. If shutdown is triggered while one handler holds the lock, the server may drop the connection before the second handler's response is written. This manifests as 'Connection reset by peer' (OS error 54) instead of the expected HTTP 409 Conflict response. The fix requires: (1) Hold shutdown_tx until all in-flight requests are guaranteed flushed, or (2) Use a more granular locking strategy so the Mutex is not held during HTTP response writing, or (3) Ensure both handlers complete their response before triggering graceful shutdown. The test report_review_finish_and_result_are_mutually_exclusive (line 297-332 of tests/report_review_finish.rs) spawns two concurrent threads making POST requests; occasionally one thread gets 'Connection reset' instead of HTTP 200 or 409." ;
+  triage:evidenceBase "crates/wyvern-host/src/server.rs:230 (with_graceful_shutdown placement), crates/wyvern-host/src/session.rs:287-293 (complete method holds Mutex), crates/wyvern-host/src/routes/report.rs:73-87 (post_report_finish calls complete), crates/wyvern-host/src/routes/result.rs:52-64 (post_result calls complete), crates/wyvern-host/tests/report_review_finish.rs:297-332 (failing test)" ;
+  triage:testFlagSeed "RUST_BACKTRACE=1" .
+
+<urn:atm:triage:occurrence/ATM-QA-001/h3/1>
+  a triage:Occurrence ;
+  triage:file "crates/wyvern-host/tests/report_review_finish.rs" ;
+  triage:line 315 ;
+  triage:snippet "let finish = finish.join().expect(\"join finish\").expect(\"POST finish\");" ;
+  triage:failureMode "ConnectionReset" ;
+  triage:failureMessage "reqwest::Error { kind: Request, url: ..., source: hyper_util::client::legacy::Error(SendRequest, hyper::Error(Io, Os { code: 54, kind: ConnectionReset, message: \"Connection reset by peer\" })) }" ;
+  triage:status "open" ;
+  triage:closed false ;
+  triage:branch "feature/phase-H-h3-xhtml-review" ;
+  triage:headSha "b38cde9b1bd31a03ba2c458da084e4118d39a3a9" ;
+  triage:occursIn <urn:atm:triage:worktree/h3/b38cde9b> ;
+  triage:testName "report_review_finish_and_result_are_mutually_exclusive" ;
+  triage:failureRate "40-60 percent" ;
+  triage:reproducible true .
+
+<urn:atm:triage:occurrence/ATM-QA-001/h3/2>
+  a triage:Occurrence ;
+  triage:file "crates/wyvern-host/src/server.rs" ;
+  triage:line 230 ;
+  triage:snippet ".with_graceful_shutdown(async move { let _ = shutdown_rx.await; })" ;
+  triage:issue "Graceful shutdown triggered while handlers still writing responses" ;
+  triage:status "open" ;
+  triage:closed false ;
+  triage:branch "feature/phase-H-h3-xhtml-review" ;
+  triage:headSha "b38cde9b1bd31a03ba2c458da084e4118d39a3a9" ;
+  triage:occursIn <urn:atm:triage:worktree/h3/b38cde9b> ;
+  triage:context "Shutdown is sent on line 261 immediately after result arrives, before in-flight requests complete their response writes." .
+
+<urn:atm:triage:occurrence/ATM-QA-001/h3/3>
+  a triage:Occurrence ;
+  triage:file "crates/wyvern-host/src/session.rs" ;
+  triage:line 287 ;
+  triage:snippet "pub(crate) async fn complete(&self, result: wyvern_schema::CommandResult) -> bool { let mut guard = self.inner.lock().await; ..." ;
+  triage:issue "Mutex held across result submission, blocking concurrent requests" ;
+  triage:status "open" ;
+  triage:closed false ;
+  triage:branch "feature/phase-H-h3-xhtml-review" ;
+  triage:headSha "b38cde9b1bd31a03ba2c458da084e4118d39a3a9" ;
+  triage:occursIn <urn:atm:triage:worktree/h3/b38cde9b> ;
+  triage:context "The complete() method holds the Mutex lock while calling token.submit(result), which sends to the oneshot channel. This can serialize concurrent POST requests unfavorably relative to the graceful shutdown signal." .
+
+<urn:atm:triage:worktree/h3/b38cde9b>
+  a triage:WorktreeSnapshot ;
+  triage:branch "feature/phase-H-h3-xhtml-review" ;
+  triage:path "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-H-h3-xhtml-review" ;
+  triage:headSha "b38cde9b1bd31a03ba2c458da084e4118d39a3a9" ;
+  triage:orderIndex 3 ;
+  triage:timestamp "2026-08-23T23:03:00Z"^^xsd:dateTime .

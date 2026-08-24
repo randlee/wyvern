@@ -1,0 +1,55 @@
+@prefix triage: <urn:atm:triage:> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<urn:atm:triage:finding/RSH-001>
+  a triage:Finding ;
+  triage:findingId "RSH-001" ;
+  triage:title "Missing 32-panel cap at Rust layer" ;
+  triage:description "ValidatedReportManifest accepts any non-empty panels without maxItems:32 enforcement. Contract requires panel count ≤ 32 per xhtml-reporting-contract.md line 318." ;
+  triage:phaseId "phase-H" ;
+  triage:triageMode "initial_pass" ;
+  triage:category "RSH" ;
+  triage:severity "minor" ;
+  triage:repeatable true ;
+  triage:sweepScope "crate" ;
+  triage:status "open" ;
+  triage:dispatchReady true ;
+  triage:triagedAt "2026-08-23T23:04:00Z"^^xsd:dateTime ;
+  triage:originatingSprintDoc "docs/plans/phase-H/h3-xhtml-review-mode.md" ;
+  triage:requirementId "REQ-0144" ;
+  triage:adrId "ADR-0011" ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/RSH-001/h3/1> ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/RSH-001/h3/2> ;
+  triage:openOn <urn:atm:triage:worktree/h3/b38cde9b1bd31a03ba2c458da084e4118d39a3a9> ;
+  triage:promoteTo <urn:atm:triage:worktree/h3/b38cde9b1bd31a03ba2c458da084e4118d39a3a9> .
+
+<urn:atm:triage:occurrence/RSH-001/h3/1>
+  a triage:Occurrence ;
+  triage:file "crates/wyvern-host/src/report_session.rs" ;
+  triage:line 22 ;
+  triage:snippet "let panels = command.panels.as_ref()?.clone();" ;
+  triage:status "open" ;
+  triage:closed false ;
+  triage:branch "feature/phase-H-h3-xhtml-review" ;
+  triage:headSha "b38cde9b1bd31a03ba2c458da084e4118d39a3a9" ;
+  triage:occursIn <urn:atm:triage:worktree/h3/b38cde9b1bd31a03ba2c458da084e4118d39a3a9> ;
+  triage:notes "ValidatedReportManifest::from_review_command() accepts non-empty panels without checking maxItems:32 constraint defined in contract." .
+
+<urn:atm:triage:occurrence/RSH-001/h3/2>
+  a triage:Occurrence ;
+  triage:file "crates/wyvern-schema/src/validate/report.rs" ;
+  triage:line 108 ;
+  triage:snippet "fn optional_panels(obj: &Map<String, Value>) -> Result<Option<Vec<ReportPanelEntry>>, ValidationError>" ;
+  triage:status "open" ;
+  triage:closed false ;
+  triage:branch "feature/phase-H-h3-xhtml-review" ;
+  triage:headSha "b38cde9b1bd31a03ba2c458da084e4118d39a3a9" ;
+  triage:occursIn <urn:atm:triage:worktree/h3/b38cde9b1bd31a03ba2c458da084e4118d39a3a9> ;
+  triage:notes "Schema validation of panels array lacks maxItems:32 enforcement. Preexec error inventory (line 318) specifies: Panel count > 32 should trigger preexec error; however Rust validation layer does not enforce this boundary." .
+
+<urn:atm:triage:worktree/h3/b38cde9b1bd31a03ba2c458da084e4118d39a3a9>
+  a triage:WorktreeSnapshot ;
+  triage:branch "feature/phase-H-h3-xhtml-review" ;
+  triage:path "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-H-h3-xhtml-review" ;
+  triage:headSha "b38cde9b1bd31a03ba2c458da084e4118d39a3a9" ;
+  triage:orderIndex 3 .
