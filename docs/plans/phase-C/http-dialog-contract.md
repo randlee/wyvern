@@ -19,8 +19,8 @@ Authoritative contract between packaged UI (any HTTP client) and `wyvern-host`. 
 | `GET` | `/{type}/*` | Static assets relative to type tree |
 | `GET` | `/api/dialog` | JSON payload for active command |
 | `POST` | `/api/result` | Page submits final stdout-shaped result |
-| `POST` | `/api/picker/file` | Host opens `rfd` file picker (c.11 — `input`) |
-| `POST` | `/api/picker/folder` | Host opens `rfd` folder picker (c.11 — `input`) |
+| `POST` | `/api/picker/file` | Host opens `rfd` file picker (`input` mode file, or wizard — Phase I) |
+| `POST` | `/api/picker/folder` | Host opens `rfd` folder picker (`input` mode folder, or wizard — Phase I) |
 
 **Dialog URL (default):** `http://127.0.0.1:{port}/message/` for `type: message`.
 

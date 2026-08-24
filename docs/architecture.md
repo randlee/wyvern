@@ -207,6 +207,23 @@ Boundary rules are encoded in `boundaries/` and enforced in CI.
 
 ---
 
+### ADR-0026: Wizard sessions may use native picker routes (Phase I)
+
+**Status:** Accepted (Phase I i.1)
+
+**Context:** Phase C c.11 limited `POST /api/picker/file` and `POST /api/picker/folder` to active `input` dialogs with matching mode. Wizard pages already load `WyvernApi.postPickerFile` / `postPickerFolder` from packaged `wyvern-api.js`, but the host rejected wizard sessions ([#99](https://github.com/randlee/wyvern/issues/99)). Authors worked around with typed paths or a separate `input` command, breaking single-wizard UX.
+
+**Decision:**
+
+1. **`wyvern-host`** picker routes accept **`Command::Wizard`** in addition to matching **`Command::Input`** modes. No new routes or schema variant.
+2. For wizard sessions, picker parameters come from the **HTTP request body only** (`filter`, `multiple`, `start_path`); omitted fields default to `[]`, `false`, and `None`. Input-mode merge with dialog JSON fields is unchanged.
+3. Session-level picker concurrency (`acquire_picker_slot`), `WYVERN_MOCK_PICKER_PATH`, and `PickerResponse` shape are unchanged. Page JS collects path strings only (ADR-0006).
+4. Bundled reference example: `share/wyvern/examples/path-picker/` (ships via share-sync + `wyvern-cli` crate).
+
+**Consequences:** Amends c.11 picker gate only. Optional wizard-level opt-in flags deferred. MCP/interactive picker exposure remains Phase E.
+
+---
+
 ### ADR-0021: Minimal serde_json in wyvern-viewer for wizard dismiss
 
 **Status:** Accepted (Phase D d.8)

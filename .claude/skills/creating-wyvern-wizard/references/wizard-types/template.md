@@ -15,6 +15,7 @@ finishes with path strings and opaque variables for a `workflow.post` script.
 | Intent | This type? |
 |--------|------------|
 | Pick catalog row, customize fields, review output path | Yes |
+| Browse native file/folder paths in-page | No — [path-picker.md](path-picker.md) |
 | Toggle hook files / settings | No — [hook.md](hook.md) |
 | Hub card that chains to another wizard | No — [welcome-bridge.md](welcome-bridge.md) |
 | Canvas / agent DAG | No — [dag-wizards.md](dag-wizards.md) |
