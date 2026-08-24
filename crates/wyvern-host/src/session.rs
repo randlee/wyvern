@@ -28,6 +28,8 @@ use wyvern_schema::{
     ButtonLabel, ChromeResult, Command, CommandResult, InputResult, MarkdownResult, MessageResult,
     ReportResult, WizardPageDescriptor, WizardResult, WizardStackEntry, WizardTerminalButton,
 };
+
+use crate::report_session::ValidatedReportManifest;
 use wyvern_wizard::{NavigateOutcome, WizardError, WizardSession, WizardSnapshot};
 
 use crate::picker::MockPickerConfig;
@@ -79,6 +81,8 @@ struct SessionInner {
     bound_origin: Option<BoundOrigin>,
     /// Complete-phase capability; `None` after the one-shot result is submitted.
     result_token: Option<ResultSubmitToken>,
+    /// Review-mode panel authority; `None` unless the command is a validated review.
+    report_manifest: Option<ValidatedReportManifest>,
 }
 
 impl SessionState {
@@ -92,12 +96,17 @@ impl SessionState {
             Command::Wizard(wizard_cmd) => Some(WizardSession::new(wizard_cmd)),
             _ => None,
         };
+        let report_manifest = match &command {
+            Command::Report(report_cmd) => ValidatedReportManifest::from_review_command(report_cmd),
+            _ => None,
+        };
         Self {
             inner: Arc::new(Mutex::new(SessionInner {
                 command: Arc::new(command),
                 wizard,
                 bound_origin: None,
                 result_token: Some(ResultSubmitToken(result_tx)),
+                report_manifest,
             })),
             // Serialize picker spawn_blocking so repeated POSTs cannot exhaust
             // the blocking pool (RSH-006).
@@ -114,6 +123,11 @@ impl SessionState {
     /// Shared handle to the active command for `/api/dialog` (cheap `Arc` clone).
     pub(crate) async fn command(&self) -> Arc<Command> {
         Arc::clone(&self.inner.lock().await.command)
+    }
+
+    /// Review-mode panel authority, if this session issued [`ValidatedReportManifest`].
+    pub(crate) async fn validated_report_manifest(&self) -> Option<ValidatedReportManifest> {
+        self.inner.lock().await.report_manifest.clone()
     }
 
     /// Snapshot of the wizard session, if this is a wizard dialog.
@@ -461,6 +475,49 @@ mod tests {
                 assert!(rx.await.is_ok());
             }
         }
+    }
+
+    #[tokio::test]
+    async fn review_command_issues_validated_manifest_token() {
+        use wyvern_schema::{
+            ManifestPanelPath, ReportCommand, ReportMode, ReportPagePath, ReportPanelEntry,
+            ReportTitle,
+        };
+        let command = Command::Report(ReportCommand {
+            title: ReportTitle::new("review"),
+            page: ReportPagePath::new("pages/view.xhtml"),
+            mode: ReportMode::Review,
+            panels: Some(vec![ReportPanelEntry {
+                path: ManifestPanelPath::new("panels/fail.xhtml"),
+                label: Some("Fail 1".into()),
+                role: None,
+            }]),
+            width: None,
+            height: None,
+        });
+        let (tx, _rx) = oneshot::channel();
+        let session = SessionState::new(command, tx, None);
+        let token = session
+            .validated_report_manifest()
+            .await
+            .expect("review token");
+        assert_eq!(token.panels()[0].path.as_str(), "panels/fail.xhtml");
+    }
+
+    #[tokio::test]
+    async fn view_command_does_not_issue_report_manifest() {
+        use wyvern_schema::{ReportCommand, ReportMode, ReportPagePath, ReportTitle};
+        let command = Command::Report(ReportCommand {
+            title: ReportTitle::new("view"),
+            page: ReportPagePath::new("pages/view.xhtml"),
+            mode: ReportMode::View,
+            panels: None,
+            width: None,
+            height: None,
+        });
+        let (tx, _rx) = oneshot::channel();
+        let session = SessionState::new(command, tx, None);
+        assert!(session.validated_report_manifest().await.is_none());
     }
 
     #[tokio::test]

@@ -320,6 +320,14 @@ impl ReportResult {
             data: None,
         }
     }
+
+    /// Review-mode Approve/Cancel finish with validated `data` (REQ-0144).
+    pub fn finished(data: ReportFinishData) -> Self {
+        Self {
+            button: ReportTerminalButton::Finish,
+            data: Some(data),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -385,6 +393,26 @@ mod tests {
     fn report_result_dismissed_omits_data() {
         let json = serde_json::to_string(&ReportResult::dismissed()).expect("serialize");
         assert_eq!(json, r#"{"button":"dismissed"}"#);
+    }
+
+    #[test]
+    fn report_result_finished_includes_data() {
+        let result = ReportResult::finished(ReportFinishData {
+            approved: false,
+            comments: String::new(),
+            panels: vec![ReportPanelEntry {
+                path: ManifestPanelPath::new("panels/fail.xhtml"),
+                label: Some("Fail 1".into()),
+                role: Some(PanelRole::Failure),
+            }],
+        });
+        let value: serde_json::Value =
+            serde_json::from_str(&serde_json::to_string(&result).expect("serialize"))
+                .expect("json");
+        assert_eq!(value["button"], "finish");
+        assert_eq!(value["data"]["approved"], false);
+        assert_eq!(value["data"]["comments"], "");
+        assert_eq!(value["data"]["panels"][0]["path"], "panels/fail.xhtml");
     }
 
     #[test]

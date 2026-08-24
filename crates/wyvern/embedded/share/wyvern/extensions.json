@@ -48,6 +48,28 @@
       }
     },
     {
+      "id": "report-xhtml-review",
+      "description": "Open XHTML panels in review mode (comments + Approve/Cancel).",
+      "examples": ["wyvern report-xhtml --review path/to/review.json"],
+      "match": { "argv_prefix": ["report-xhtml", "--review"], "arg_suffix": ".json" },
+      "extends": "report-xhtml",
+      "preexec": {
+        "args": [
+          "{wyvern_share}/scripts/ext/xhtml_report.py",
+          "--mode",
+          "review",
+          "--manifest",
+          "{path}",
+          "--out",
+          "{tmpdir}/pages/view.xhtml",
+          "--command-out",
+          "{tmpdir}/report-command.json",
+          "--force-mode",
+          "review"
+        ]
+      }
+    },
+    {
       "id": "report-xhtml",
       "description": "Open an ordered array of XHTML panels as one report view. Manifest fields: title, optional mode (view|review), panels[{path, label?, role?}].",
       "examples": ["wyvern report-xhtml path/to/review.json"],

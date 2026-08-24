@@ -4,7 +4,8 @@
 Usage:
     python3 xhtml_report.py --mode single --input FILE --title TITLE --out PATH
     python3 xhtml_report.py --mode array --manifest FILE --out PATH [--command-out PATH]
-    python3 xhtml_report.py --manifest FILE --out PATH [--command-out PATH]
+    python3 xhtml_report.py --mode review --manifest FILE --out PATH [--command-out PATH]
+    python3 xhtml_report.py --manifest FILE --out PATH [--command-out PATH] [--force-mode review]
     python3 xhtml_report.py --validate-manifest FILE
 """
 
@@ -59,8 +60,7 @@ def wrap_single(title: str, fragment: str) -> str:
     )
 
 
-def wrap_array(title: str, panes: list[tuple[dict, str]]) -> str:
-    safe_title = html.escape(title, quote=True)
+def pane_sections(panes: list[tuple[dict, str]]) -> str:
     sections: list[str] = []
     for panel, fragment in panes:
         path = str(panel["path"])
@@ -75,7 +75,12 @@ def wrap_array(title: str, panes: list[tuple[dict, str]]) -> str:
             f"  {fragment}\n"
             "</section>"
         )
-    body = "\n".join(sections)
+    return "\n".join(sections)
+
+
+def wrap_array(title: str, panes: list[tuple[dict, str]]) -> str:
+    safe_title = html.escape(title, quote=True)
+    body = pane_sections(panes)
     return (
         "<!DOCTYPE html>\n"
         '<html lang="en">\n'
@@ -87,6 +92,47 @@ def wrap_array(title: str, panes: list[tuple[dict, str]]) -> str:
         "</head>\n"
         '<body class="report report--array">\n'
         f'  <main class="report-body">\n{body}\n  </main>\n'
+        "</body>\n"
+        "</html>\n"
+    )
+
+
+def embed_manifest_json(manifest: dict, mode: str) -> str:
+    payload = {
+        "title": manifest["title"],
+        "mode": mode,
+        "panels": manifest["panels"],
+    }
+    # Escape '<' so a panel label cannot break out of the script element.
+    encoded = json.dumps(payload, ensure_ascii=True).replace("<", "\\u003c")
+    return encoded
+
+
+def wrap_review(title: str, panes: list[tuple[dict, str]], manifest: dict, mode: str) -> str:
+    safe_title = html.escape(title, quote=True)
+    body = pane_sections(panes)
+    manifest_json = embed_manifest_json(manifest, mode)
+    return (
+        "<!DOCTYPE html>\n"
+        '<html lang="en">\n'
+        "<head>\n"
+        '  <meta charset="utf-8" />\n'
+        '  <meta name="viewport" content="width=device-width, initial-scale=1" />\n'
+        f"  <title>{safe_title}</title>\n"
+        '  <link rel="stylesheet" href="/shared/report-base.css" />\n'
+        "</head>\n"
+        '<body class="report report--array report--review">\n'
+        f'  <main class="report-body">\n{body}\n  </main>\n'
+        '  <footer class="report-review" data-testid="report-review">\n'
+        '    <label for="review-comments">Comments</label>\n'
+        '    <textarea id="review-comments" data-testid="review-comments"></textarea>\n'
+        "    <nav>\n"
+        '      <button type="button" data-report-cancel data-testid="report-cancel">Cancel</button>\n'
+        '      <button type="button" data-report-approve data-testid="report-approve">Approve</button>\n'
+        "    </nav>\n"
+        "  </footer>\n"
+        f'  <script id="manifest-data" type="application/json">{manifest_json}</script>\n'
+        '  <script src="/shared/report-review.js"></script>\n'
         "</body>\n"
         "</html>\n"
     )
@@ -212,12 +258,19 @@ def collect_panes(manifest: dict, manifest_dir: str) -> tuple[list[tuple[dict, s
     return panes, None
 
 
-def write_command_json(path: str, manifest: dict) -> None:
+def resolve_command_mode(manifest: dict, force_mode: str | None) -> str:
+    if force_mode:
+        return force_mode
+    mode = manifest.get("mode", "view")
+    return mode if mode in ALLOWED_MODES else "view"
+
+
+def write_command_json(path: str, manifest: dict, mode: str) -> None:
     command = {
         "type": "report",
         "title": manifest["title"],
         "page": COMMAND_PAGE,
-        "mode": manifest.get("mode", "view"),
+        "mode": mode,
         "panels": manifest["panels"],
     }
     parent = os.path.dirname(os.path.abspath(path))
@@ -238,7 +291,12 @@ def run_validate(manifest_path: str) -> int:
     if panes is None:
         print(pane_err or "xhtml_report: missing panel file", file=sys.stderr)
         return 1
-    stitched = wrap_array(manifest["title"], panes)
+    command_mode = resolve_command_mode(manifest, None)
+    stitched = (
+        wrap_review(manifest["title"], panes, manifest, command_mode)
+        if command_mode == "review"
+        else wrap_array(manifest["title"], panes)
+    )
     if len(stitched.encode("utf-8")) > MAX_HTML_BYTES:
         print(
             f"xhtml_report: stitched HTML exceeds {MAX_HTML_BYTES} bytes",
@@ -248,7 +306,13 @@ def run_validate(manifest_path: str) -> int:
     return 0
 
 
-def run_array(manifest_path: str, out_path: str, command_out: str | None) -> int:
+def run_array(
+    manifest_path: str,
+    out_path: str,
+    command_out: str | None,
+    force_mode: str | None,
+    frame_mode: str | None,
+) -> int:
     manifest, err = load_manifest(manifest_path)
     if manifest is None:
         print(err or "xhtml_report: invalid manifest", file=sys.stderr)
@@ -258,7 +322,13 @@ def run_array(manifest_path: str, out_path: str, command_out: str | None) -> int
     if panes is None:
         print(pane_err or "xhtml_report: missing panel file", file=sys.stderr)
         return 1
-    html_out = wrap_array(manifest["title"], panes)
+    command_mode = resolve_command_mode(manifest, force_mode)
+    use_review = frame_mode == "review" or command_mode == "review"
+    html_out = (
+        wrap_review(manifest["title"], panes, manifest, command_mode)
+        if use_review
+        else wrap_array(manifest["title"], panes)
+    )
     if len(html_out.encode("utf-8")) > MAX_HTML_BYTES:
         print(
             f"xhtml_report: stitched HTML exceeds {MAX_HTML_BYTES} bytes",
@@ -267,18 +337,23 @@ def run_array(manifest_path: str, out_path: str, command_out: str | None) -> int
         return 1
     write_out(out_path, html_out)
     if command_out:
-        write_command_json(command_out, manifest)
+        write_command_json(command_out, manifest, command_mode)
     return 0
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Wrap XHTML panels in a report frame.")
-    parser.add_argument("--mode", choices=("single", "array"))
+    parser.add_argument("--mode", choices=("single", "array", "review"))
     parser.add_argument("--input", help="XHTML fragment or document (single mode)")
     parser.add_argument("--title", default="", help="Report title")
     parser.add_argument("--out", help="Output HTML/XHTML path")
-    parser.add_argument("--manifest", help="Review manifest JSON (array mode)")
+    parser.add_argument("--manifest", help="Review manifest JSON (array or review mode)")
     parser.add_argument("--command-out", help="Write type=report command JSON")
+    parser.add_argument(
+        "--force-mode",
+        choices=("view", "review"),
+        help="Override manifest mode when writing report-command.json",
+    )
     parser.add_argument(
         "--validate-manifest",
         metavar="PATH",
@@ -304,9 +379,9 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         return run_single(args.input, args.title or "Report", args.out)
     if not args.manifest:
-        print("xhtml_report: --manifest is required for --mode array", file=sys.stderr)
+        print("xhtml_report: --manifest is required for --mode array/review", file=sys.stderr)
         return 1
-    return run_array(args.manifest, args.out, args.command_out)
+    return run_array(args.manifest, args.out, args.command_out, args.force_mode, mode)
 
 
 if __name__ == "__main__":
