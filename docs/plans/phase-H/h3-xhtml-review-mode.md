@@ -26,7 +26,8 @@ Cancel / Approve buttons; structured finish JSON for agent loops.
 | `scripts/ext/xhtml_report.py` | `--mode review` frame profile; embeds manifest JSON in page |
 | `ui/shared/report-review.js` | POST `/api/report/finish`; exactly one POST per button click (disable after submit) |
 | `ui/shared/report-base.css` | Review footer layout |
-| `crates/wyvern-host/src/routes/report.rs` | `POST /api/report/finish` |
+| `crates/wyvern-host/src/routes/report.rs` | `POST /api/report/finish` + finish validation errors |
+| `crates/wyvern-host/src/report_finish.rs` | `ReportFinishError` stable codes (`REPORT_FINISH_*`) |
 | `crates/wyvern-schema/src/result.rs` | Extend `CommandResult::Report` finish `data` shape docs/tests (review finish) |
 | `share/wyvern/extensions.json` | `report-xhtml-review` extension (longer prefix) |
 | `crates/wyvern/src/cli_args.rs` | `usage_message()` — `wyvern report-xhtml --review <manifest.json>` |
@@ -70,7 +71,8 @@ copies embedded `panels` into the POST body (not free-form client input).
 
 While `mode=review`, `/api/result` remains enabled for OS-close only; it does **not**
 race finish — session completes on first terminal action (finish or dismiss). Duplicate
-finish POST → HTTP 409 (existing).
+finish POST → HTTP 409; duplicate `/api/result` after terminal action → HTTP 409
+(inherit `SessionState::complete`).
 
 ### Finish response (stdout)
 

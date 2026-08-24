@@ -65,7 +65,8 @@ no `wizard-nav` references under `share/wyvern/examples/xhtml-review/`.
 1. `wyvern report-xhtml share/wyvern/examples/xhtml-review/review-view.json`
    exits 0 with `--viewer none`.
 2. `wyvern report-xhtml --review …/review-review.json` expand test passes; finish
-   API exercised in host integration test with synthetic HTML fixture.
+   API exercised by `cargo test -p wyvern-host report_review_finish` (h.3 fixture) **and**
+   `cargo test -p wyvern-cli --test examples_xhtml_review` against the share example tree (h.5).
 3. README documents single-panel shortcut:
    `wyvern share/wyvern/examples/xhtml-review/panels/fail-1.xhtml`.
 4. h.5 updates `wyvern-reporting` skill refs to this example tree (h.4 AC #1 may cite

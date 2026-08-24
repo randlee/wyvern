@@ -81,30 +81,48 @@ Report uses a **third bind arm** analogous to wizard (not packaged dialog dirs):
 ```rust
 pub enum ReportMode { View, Review }
 
-pub struct ReportPagePath(String); // relative to ui_root, validated
+pub struct ReportPagePath(String); // try_new + Deref/AsRef (wizard_page_newtype pattern)
 pub struct ReportTitle(String);
+pub enum PanelRole { Failure, Proposal, Info }
+pub struct ManifestPanelPath(String); // .xhtml relative path, validated
+
+pub struct ReportPanelEntry {
+    pub path: ManifestPanelPath,
+    pub label: Option<String>,
+    pub role: Option<PanelRole>,
+}
 
 pub struct ReportCommand {
     pub title: ReportTitle,
     pub page: ReportPagePath,
     pub mode: ReportMode,
+    pub panels: Option<Vec<ReportPanelEntry>>, // required when mode == Review
     pub width: Option<u32>,
     pub height: Option<u32>,
 }
 
-// command.rs
-pub enum Command { /* … */ Report(ReportCommand), }
+pub enum ReportTerminalButton { Dismissed, Finish }
 
-// result.rs — one untagged ReportResult for both wire shapes
+pub struct ReportFinishData {
+    pub approved: bool,
+    pub comments: String,
+    pub panels: Vec<ReportPanelEntry>,
+}
+
 pub struct ReportResult {
-    pub button: String, // "dismissed" | "finish"
+    pub button: ReportTerminalButton,
     pub data: Option<ReportFinishData>, // None in view dismiss
 }
 ```
 
 Exhaustive match sites that gain a `Report` arm in h.1: `command.rs` parse/validate,
-`pipeline.rs`, `wyvern-host` `handle.rs`, `options.rs`, `server.rs` bind, `result.rs`
+`pipeline.rs`, `wyvern-host` `handle.rs`, `options.rs`, `server.rs` three-way bind
+(`dialog` \| `wizard` \| `report` — report **must not** set `is_wizard`), `result.rs`
 emit path (view dismiss only until h.3 finish).
+
+**Session guards (normative):** review-only routes and finish validation use
+`SessionState::complete` + mode-gated registration (runtime guards); typestate deferral
+is acceptable at plan level.
 
 ### `xhtml-suffix` registry (normative)
 

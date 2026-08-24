@@ -78,6 +78,14 @@ Contract: [xhtml-reporting-contract.md](xhtml-reporting-contract.md).
 (h.4 may start after h.2 doc contract is stable; must merge after h.3 so refs
 include `--review` finish shape.)
 
+## Phase acceptance criteria
+
+1. All h.1–h.5 sprint acceptance criteria pass on `integrate/phase-H` (sprint docs are authority).
+2. Extension registry includes `xhtml-suffix`, `report-xhtml`, and `report-xhtml-review` with REQ-0137 parity.
+3. Synthetic example under `share/wyvern/examples/xhtml-review/` smoke-tested in CI (h.5).
+4. `wyvern-reporting` skill documents panel authoring, manifests, and `--review` finish parsing (h.4/h.5).
+5. Report surfaces remain outside wizard lint and `wizard-nav.js` (contract § Boundaries).
+
 ---
 
 ## Phase integration smoke (non-normative)

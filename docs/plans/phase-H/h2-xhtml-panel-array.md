@@ -28,6 +28,7 @@ for ad-hoc agent review (failures + proposed fix side-by-side).
 | `crates/wyvern/src/cli_args.rs` | `usage_message()` — `wyvern report-xhtml <manifest.json>` line |
 | `crates/wyvern/tests/extensions_catalog.rs` | REQ-0137 parity for `report-xhtml` (`description`, `examples`, prefix) |
 | `scripts/ext/xhtml_report.py` | Extends h.1 script: `--mode array`, manifest reader, `--validate-manifest`; writes `{tmpdir}/report-command.json` |
+| `crates/wyvern-schema/src/report.rs` | `ReportPanelEntry`, `PanelRole`, `ManifestPanelPath`, finish types |
 | `docs/plans/phase-H/review-manifest.schema.json` | JSON schema for manifests |
 | `crates/wyvern/tests/fixtures/xhtml-review/view.json` | Minimal 2-panel **test-only** fixture (h.5 ships separate examples under `share/`) |
 | `crates/wyvern/tests/extensions_xhtml_array.rs` | Manifest → expand tests |

@@ -29,7 +29,10 @@ validated `Command` JSON (ADR-0022 Path A unchanged for MCP).
   "type": "report",
   "title": "XHTML review",
   "page": "pages/view.xhtml",
-  "mode": "view",
+  "mode": "review",
+  "panels": [
+    { "path": "panels/fail-1.xhtml", "label": "Fail 1", "role": "failure" }
+  ],
   "width": 960,
   "height": 720
 }
@@ -41,6 +44,7 @@ validated `Command` JSON (ADR-0022 Path A unchanged for MCP).
 | `title` | yes | Window / viewer title |
 | `page` | yes | Path relative to `--ui-root` (`.html` or `.xhtml`) |
 | `mode` | no | `"view"` (default) or `"review"` |
+| `panels` | when `mode: "review"` | Manifest panel entries (path, optional label/role) — host finish validation authority |
 | `width`, `height` | no | Viewer hints (same as wizard) |
 
 **Validation:** `page` must resolve to an existing file under `ui_root` after
@@ -64,15 +68,17 @@ view dismiss and review finish on stdout.
 
 ## Host bind (`Command::Report`)
 
-Report sessions use a **dedicated bind arm** (wizard-class, not packaged dialog dirs):
+Report sessions use a **dedicated bind arm** (third discriminant — **not** `is_wizard`):
 
 | Step | Behavior |
 |------|----------|
+| Bind discriminant | `report` — **forbidden:** `is_wizard=true`, `/wizard/` dialog URL, wizard static mount |
 | Validate page | `require_report_page(ui_root, page)` — file must exist under `ui_root` |
 | Forbidden | `require_type_dir` / `{ui_root}/report/index.html` packaged layout |
 | Dialog URL | `/report/{page}` where `{page}` is command `page` (e.g. `pages/view.xhtml`) |
 | Static mount | `ServeDir` nest at `/report` from session `ui_root` override |
 | GET `/api/dialog` | Rejected (report is static `/report/{page}` only) |
+| Viewer OS-close | Uses `/api/result` dismiss path — **not** wizard finish (`/api/wizard/*`) |
 
 Preexec writes generated HTML to `{tmpdir}/pages/view.xhtml`; expand sets
 `host.ui_root: "{tmpdir}"` and `page: "pages/view.xhtml"`.
@@ -307,14 +313,18 @@ Panel authoring guidance ships in **`wyvern-reporting`** skill refs — not here
 | Stage | Condition | Exit / code | Recovery |
 |-------|-----------|-------------|----------|
 | Extension match | Unknown suffix / prefix | `ParseError` near-miss (REQ-0136) | `wyvern extensions list` |
-| Preexec | Missing manifest panel path | preexec non-zero → `ExtensionError::PreexecFailed` | stderr names missing file |
+| Preexec | Missing manifest panel path | preexec non-zero → `ExtensionError::Preexec { kind, message }` | stderr names missing file |
 | Preexec | Invalid manifest JSON / schema | preexec non-zero | fix manifest; schema in `review-manifest.schema.json` |
 | Preexec | Panel count > 32 or stitched HTML > 4 MiB | preexec non-zero | reduce panels or panel size per schema |
 | Validate | `report-command.json` missing after preexec | `ExtensionError::InvalidCommand` | preexec must write `{tmpdir}/report-command.json` |
 | Host | `page` not under `ui_root` | validation before bind | fix preexec output path |
 | Host | `POST /api/report/finish` in view mode | HTTP **404** (route unregistered) | use review mode or dismiss window |
-| Host | Malformed finish body | HTTP 400 + structured error | resubmit valid JSON |
-| Host | Duplicate finish POST | HTTP 409; session already complete | single terminal action per session |
+| Host | Finish unknown top-level keys | HTTP 400 `REPORT_FINISH_UNKNOWN_FIELD` | remove extra keys |
+| Host | Finish `panels` mismatch authoritative command | HTTP 400 `REPORT_FINISH_PANELS_MISMATCH` | resubmit embedded manifest panels |
+| Host | Finish `comments` > 32_768 chars | HTTP 400 `REPORT_FINISH_COMMENTS_TOO_LONG` | shorten comments |
+| Host | Malformed finish JSON body | HTTP 400 `REPORT_FINISH_INVALID_JSON` | resubmit valid JSON |
+| Host | Duplicate finish POST | HTTP 409 `REPORT_FINISH_ALREADY_COMPLETE` | single terminal action per session |
+| Host | Duplicate `/api/result` after terminal action | HTTP 409 (inherit `SessionState::complete`) | session already complete |
 
 Finish request schema (h.3): `approved` (required bool), `comments` (string, max
 32_768 chars), `panels` (required array, echo manifest entries). Unknown top-level
