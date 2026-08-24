@@ -13,7 +13,7 @@
     "rust-service-hardening-agent": "composer-2.5-fast",
     "flaky-test-qa": "composer-2.5-fast"
   },
-  "status": "ready",
+  "status": "dev_in_progress",
   "baseline_commit": "73ec107adc939f0bc29081f9c1975c1384acbe20",
   "integrate_head": "02454bbac329612c4358d30b0c4a12c5d7f8b1ae",
   "plan_qa": {
