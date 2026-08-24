@@ -13,7 +13,7 @@
     "rust-service-hardening-agent": "composer-2.5-fast",
     "flaky-test-qa": "composer-2.5-fast"
   },
-  "status": "dev_in_progress",
+  "status": "qa_in_progress",
   "baseline_commit": "73ec107adc939f0bc29081f9c1975c1384acbe20",
   "integrate_head": "02454bbac329612c4358d30b0c4a12c5d7f8b1ae",
   "plan_qa": {
@@ -49,6 +49,24 @@
         { "agent": "rust-qa-agent", "task_id": "957fdcde-dcbc-4784-8b2a-df4ebccbdbed" },
         { "agent": "rust-best-practices-agent", "task_id": "f92af437-1f65-48ec-82f9-810df228d28b" }
       ]
+    },
+    {
+      "qa_pass": "qa-h2-1",
+      "commit": "6353e4d026d19eabd71e5d9e7b278178eb1987c7",
+      "verdict": "FAIL",
+      "pr_comment_url": "https://github.com/randlee/wyvern/pull/120#issuecomment-5390956269",
+      "reviewer_spawn_gate": "pass",
+      "coordinator_task_id": "a37bbacd-6dfa-494e-8e3c-232b3cb10f4c",
+      "finding_counts": { "blocking": 0, "important": 1, "minor": 6 },
+      "open_finding_ids": ["QA-001", "H2-QA-001", "QA-002", "QA-003", "QA-004", "RBP-F001", "RBP-F002"],
+      "next_action": "triage_and_fix",
+      "reviewer_manifest": [
+        { "agent": "req-qa", "task_id": "0358bd31-0df8-4d76-9560-aaee288ee92e" },
+        { "agent": "arch-qa", "task_id": "fed78dc2-9a23-48aa-9153-b8b81a636f58" },
+        { "agent": "rust-qa-agent", "task_id": "15c0ef21-4c0a-4498-be1b-094346e2b31c" },
+        { "agent": "rust-best-practices-agent", "task_id": "f29eb46a-3c4d-4445-b614-e769b564ea8e" },
+        { "agent": "rust-service-hardening-agent", "task_id": "6f453fe4-0415-4d56-ae2d-38da890182e4" }
+      ]
     }
   ],
   "sprints": {
@@ -74,7 +92,13 @@
       "worktree": "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-H-h2-xhtml-panel-array",
       "sprint_doc": "docs/plans/phase-H/h2-xhtml-panel-array.md",
       "pr_target": "integrate/phase-H",
-      "status": "dev_in_progress",
+      "status": "qa_in_progress",
+      "pr_number": 120,
+      "pr_url": "https://github.com/randlee/wyvern/pull/120",
+      "dev_commit": "6353e4d026d19eabd71e5d9e7b278178eb1987c7",
+      "fix_commit": "1bfe6cf3b89d66a2704dbcabcf4bc003a377863a"
+    },
+    "h.3": {
       "id": "h.3",
       "title": "XHTML review mode (--review)",
       "branch": "feature/phase-H-h3-xhtml-review",
