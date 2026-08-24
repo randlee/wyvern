@@ -1,0 +1,120 @@
+@prefix triage: <urn:atm:triage:> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<urn:atm:triage:finding/RBP-F003>
+  a triage:Finding ;
+  triage:findingId "RBP-F003" ;
+  triage:title "Panel parse errors use PanelsMismatch recovery" ;
+  triage:description "Invalid panel JSON/path failures reuse PanelsMismatch recovery text for authoritative mismatch." ;
+  triage:phaseId "phase-H" ;
+  triage:triageMode "initial_pass" ;
+  triage:category "RBP" ;
+  triage:severity "minor" ;
+  triage:repeatable false ;
+  triage:sweepScope "file_only" ;
+  triage:status "open" ;
+  triage:dispatchReady true ;
+  triage:triagedAt "2026-08-23T06:03:00Z"^^xsd:dateTime ;
+  triage:originatingSprintDoc "docs/plans/phase-H/h3-xhtml-review-mode.md" ;
+  triage:requirementId "REQ-0144" ;
+  triage:adrId "ADR-0025" ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/RBP-F003/H3/1> ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/RBP-F003/H3/2> ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/RBP-F003/H3/3> ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/RBP-F003/H3/4> ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/RBP-F003/H3/5> ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/RBP-F003/H3/6> ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/RBP-F003/H3/7> ;
+  triage:openOn <urn:atm:triage:worktree/H3/b38cde9b> ;
+  triage:promoteTo <urn:atm:triage:worktree/H3/b38cde9b> .
+
+<urn:atm:triage:occurrence/RBP-F003/H3/1>
+  a triage:Occurrence ;
+  triage:file "crates/wyvern-host/src/report_finish.rs" ;
+  triage:line 248 ;
+  triage:snippet "ReportFinishErrorKind::PanelsMismatch, format!(\"panels[{index}] must be an object\")" ;
+  triage:status "open" ;
+  triage:closed false ;
+  triage:branch "feature/phase-H-h3-xhtml-review" ;
+  triage:headSha "b38cde9b1bd31a03ba2c458da084e4118d39a3a9" ;
+  triage:occursIn <urn:atm:triage:worktree/H3/b38cde9b> ;
+  triage:notes "Array element type validation—not a mismatch" .
+
+<urn:atm:triage:occurrence/RBP-F003/H3/2>
+  a triage:Occurrence ;
+  triage:file "crates/wyvern-host/src/report_finish.rs" ;
+  triage:line 255 ;
+  triage:snippet "ReportFinishErrorKind::PanelsMismatch, format!(\"panels[{index}] unknown field '{key}'\")" ;
+  triage:status "open" ;
+  triage:closed false ;
+  triage:branch "feature/phase-H-h3-xhtml-review" ;
+  triage:headSha "b38cde9b1bd31a03ba2c458da084e4118d39a3a9" ;
+  triage:occursIn <urn:atm:triage:worktree/H3/b38cde9b> ;
+  triage:notes "Unknown field validation—not a mismatch" .
+
+<urn:atm:triage:occurrence/RBP-F003/H3/3>
+  a triage:Occurrence ;
+  triage:file "crates/wyvern-host/src/report_finish.rs" ;
+  triage:line 263 ;
+  triage:snippet "ReportFinishErrorKind::PanelsMismatch, format!(\"panels[{index}].path is not a valid .xhtml path\")" ;
+  triage:status "open" ;
+  triage:closed false ;
+  triage:branch "feature/phase-H-h3-xhtml-review" ;
+  triage:headSha "b38cde9b1bd31a03ba2c458da084e4118d39a3a9" ;
+  triage:occursIn <urn:atm:triage:worktree/H3/b38cde9b> ;
+  triage:notes "Path validation error—not a mismatch" .
+
+<urn:atm:triage:occurrence/RBP-F003/H3/4>
+  a triage:Occurrence ;
+  triage:file "crates/wyvern-host/src/report_finish.rs" ;
+  triage:line 269 ;
+  triage:snippet "ReportFinishErrorKind::PanelsMismatch, format!(\"panels[{index}].path must be a string\")" ;
+  triage:status "open" ;
+  triage:closed false ;
+  triage:branch "feature/phase-H-h3-xhtml-review" ;
+  triage:headSha "b38cde9b1bd31a03ba2c458da084e4118d39a3a9" ;
+  triage:occursIn <urn:atm:triage:worktree/H3/b38cde9b> ;
+  triage:notes "Type validation error—not a mismatch" .
+
+<urn:atm:triage:occurrence/RBP-F003/H3/5>
+  a triage:Occurrence ;
+  triage:file "crates/wyvern-host/src/report_finish.rs" ;
+  triage:line 279 ;
+  triage:snippet "ReportFinishErrorKind::PanelsMismatch, format!(\"panels[{index}].label must be a string\")" ;
+  triage:status "open" ;
+  triage:closed false ;
+  triage:branch "feature/phase-H-h3-xhtml-review" ;
+  triage:headSha "b38cde9b1bd31a03ba2c458da084e4118d39a3a9" ;
+  triage:occursIn <urn:atm:triage:worktree/H3/b38cde9b> ;
+  triage:notes "Type validation error on label field—not a mismatch" .
+
+<urn:atm:triage:occurrence/RBP-F003/H3/6>
+  a triage:Occurrence ;
+  triage:file "crates/wyvern-host/src/report_finish.rs" ;
+  triage:line 288 ;
+  triage:snippet "ReportFinishErrorKind::PanelsMismatch, format!(\"panels[{index}].role is not a known panel role\")" ;
+  triage:status "open" ;
+  triage:closed false ;
+  triage:branch "feature/phase-H-h3-xhtml-review" ;
+  triage:headSha "b38cde9b1bd31a03ba2c458da084e4118d39a3a9" ;
+  triage:occursIn <urn:atm:triage:worktree/H3/b38cde9b> ;
+  triage:notes "Enum validation error—not a mismatch" .
+
+<urn:atm:triage:occurrence/RBP-F003/H3/7>
+  a triage:Occurrence ;
+  triage:file "crates/wyvern-host/src/report_finish.rs" ;
+  triage:line 294 ;
+  triage:snippet "ReportFinishErrorKind::PanelsMismatch, format!(\"panels[{index}].role must be a string\")" ;
+  triage:status "open" ;
+  triage:closed false ;
+  triage:branch "feature/phase-H-h3-xhtml-review" ;
+  triage:headSha "b38cde9b1bd31a03ba2c458da084e4118d39a3a9" ;
+  triage:occursIn <urn:atm:triage:worktree/H3/b38cde9b> ;
+  triage:notes "Type validation error on role field—not a mismatch" .
+
+<urn:atm:triage:worktree/H3/b38cde9b>
+  a triage:WorktreeSnapshot ;
+  triage:branch "feature/phase-H-h3-xhtml-review" ;
+  triage:path "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-H-h3-xhtml-review" ;
+  triage:headSha "b38cde9b1bd31a03ba2c458da084e4118d39a3a9" ;
+  triage:orderIndex 3 .

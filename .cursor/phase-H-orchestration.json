@@ -2,7 +2,7 @@
   "phase": "H",
   "integration_branch": "integrate/phase-H",
   "created": "2026-08-24T00:50:00Z",
-  "active_sprint": "h.2",
+  "active_sprint": "h.3",
   "dev_model": "cursor-grok-4.6-high-fast",
   "qa_models": {
     "cursor-quality-mgr": "composer-2.5-fast",
@@ -13,9 +13,9 @@
     "rust-service-hardening-agent": "composer-2.5-fast",
     "flaky-test-qa": "composer-2.5-fast"
   },
-  "status": "ready",
+  "status": "qa_in_progress",
   "baseline_commit": "73ec107adc939f0bc29081f9c1975c1384acbe20",
-  "integrate_head": "02454bbac329612c4358d30b0c4a12c5d7f8b1ae",
+  "integrate_head": "30e6bdc81aca7a091b7780534810cddc79193499",
   "plan_qa": {
     "pass_commit": "3165bd042327196afb815b1acf0636b12b57303a",
     "pr": 118,
@@ -49,6 +49,59 @@
         { "agent": "rust-qa-agent", "task_id": "957fdcde-dcbc-4784-8b2a-df4ebccbdbed" },
         { "agent": "rust-best-practices-agent", "task_id": "f92af437-1f65-48ec-82f9-810df228d28b" }
       ]
+    },
+    {
+      "qa_pass": "qa-h2-1",
+      "commit": "6353e4d026d19eabd71e5d9e7b278178eb1987c7",
+      "verdict": "FAIL",
+      "pr_comment_url": "https://github.com/randlee/wyvern/pull/120#issuecomment-5390956269",
+      "reviewer_spawn_gate": "pass",
+      "coordinator_task_id": "a37bbacd-6dfa-494e-8e3c-232b3cb10f4c",
+      "finding_counts": { "blocking": 0, "important": 1, "minor": 6 },
+      "open_finding_ids": ["QA-001", "H2-QA-001", "QA-002", "QA-003", "QA-004", "RBP-F001", "RBP-F002"],
+      "next_action": "triage_and_fix",
+      "reviewer_manifest": [
+        { "agent": "req-qa", "task_id": "0358bd31-0df8-4d76-9560-aaee288ee92e" },
+        { "agent": "arch-qa", "task_id": "fed78dc2-9a23-48aa-9153-b8b81a636f58" },
+        { "agent": "rust-qa-agent", "task_id": "15c0ef21-4c0a-4498-be1b-094346e2b31c" },
+        { "agent": "rust-best-practices-agent", "task_id": "f29eb46a-3c4d-4445-b614-e769b564ea8e" },
+        { "agent": "rust-service-hardening-agent", "task_id": "6f453fe4-0415-4d56-ae2d-38da890182e4" }
+      ]
+    },
+    {
+      "qa_pass": "qa-h2-2",
+      "commit": "1bfe6cf3b89d66a2704dbcabcf4bc003a377863a",
+      "verdict": "PASS",
+      "pr_comment_url": "https://github.com/randlee/wyvern/pull/120#issuecomment-5391209035",
+      "reviewer_spawn_gate": "pass",
+      "coordinator_task_id": "deb17217-68bb-47b8-b413-3445adccfa2c",
+      "finding_counts": { "blocking": 0, "important": 0, "minor": 0 },
+      "deliverables": "25/25 (100%)",
+      "next_action": "none",
+      "reviewer_manifest": [
+        { "agent": "req-qa", "task_id": "0750d185-4937-4328-ac34-3ce6447dda72" },
+        { "agent": "arch-qa", "task_id": "41c4861c-2a87-47e7-8a1e-6fc041fb5f3a" },
+        { "agent": "rust-qa-agent", "task_id": "426b6b0e-ab24-4c22-bf87-fcd5f835ca79" }
+      ]
+    },
+    {
+      "qa_pass": "qa-h3-1",
+      "commit": "b38cde9b1bd31a03ba2c458da084e4118d39a3a9",
+      "verdict": "FAIL",
+      "pr_comment_url": "https://github.com/randlee/wyvern/pull/121#issuecomment-5391313125",
+      "reviewer_spawn_gate": "pass",
+      "coordinator_task_id": "10d25a74-98a3-469a-ba82-f7f40a183124",
+      "finding_counts": { "blocking": 1, "important": 2, "minor": 3 },
+      "deliverables": "24/27 (88.9%)",
+      "open_finding_ids": ["ATM-QA-001", "RBP-F001", "RBP-F002", "ATM-QA-002", "RBP-F003", "RSH-001"],
+      "next_action": "triage_and_fix",
+      "reviewer_manifest": [
+        { "agent": "req-qa", "task_id": "074c0414-633f-4199-b7fd-ff013996d4d2", "spawn_actor": "parent-orchestrator" },
+        { "agent": "arch-qa", "task_id": "bad54022-ea50-4aba-b5fb-9fbd9c1da018", "spawn_actor": "parent-orchestrator" },
+        { "agent": "rust-qa-agent", "task_id": "d7fad7f6-2014-4fdb-a2c9-8d7b535f7195", "spawn_actor": "parent-orchestrator" },
+        { "agent": "rust-best-practices-agent", "task_id": "9e5b97ac-67aa-4429-883a-6fe1eba3e2c1", "spawn_actor": "parent-orchestrator" },
+        { "agent": "rust-service-hardening-agent", "task_id": "4ca6e52b-3bfa-468c-ae6d-161ce7fc5d5a", "spawn_actor": "parent-orchestrator" }
+      ]
     }
   ],
   "sprints": {
@@ -74,8 +127,15 @@
       "worktree": "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-H-h2-xhtml-panel-array",
       "sprint_doc": "docs/plans/phase-H/h2-xhtml-panel-array.md",
       "pr_target": "integrate/phase-H",
-      "status": "pending",
-      "depends_on": ["h.1"]
+      "status": "merged",
+      "pr_number": 120,
+      "pr_url": "https://github.com/randlee/wyvern/pull/120",
+      "dev_commit": "6353e4d026d19eabd71e5d9e7b278178eb1987c7",
+      "fix_commit": "1bfe6cf3b89d66a2704dbcabcf4bc003a377863a",
+      "merge_commit": "0a71ec9e6922ff0ccba29ac5f7810184b49ed7a3",
+      "qa_gate": "0B+0I+0M PASS @ 1bfe6cf",
+      "qa_commit": "1bfe6cf3b89d66a2704dbcabcf4bc003a377863a",
+      "ci_status": "pending_macos_user_override"
     },
     "h.3": {
       "id": "h.3",
@@ -84,7 +144,10 @@
       "worktree": "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-H-h3-xhtml-review",
       "sprint_doc": "docs/plans/phase-H/h3-xhtml-review-mode.md",
       "pr_target": "integrate/phase-H",
-      "status": "pending",
+      "status": "fix_in_progress",
+      "dev_commit": "b38cde9b1bd31a03ba2c458da084e4118d39a3a9",
+      "pr_number": 121,
+      "pr_url": "https://github.com/randlee/wyvern/pull/121",
       "depends_on": ["h.2"]
     },
     "h.4": {
