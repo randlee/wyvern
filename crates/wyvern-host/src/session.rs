@@ -20,14 +20,17 @@
 //! - [`BoundOrigin`] — issued once after TCP bind; navigate URL builders require it.
 //! - [`ResultSubmitToken`] — issued at session creation; `complete` consumes it.
 
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
 use tokio::sync::{oneshot, Mutex, OwnedSemaphorePermit, Semaphore};
 use wyvern_schema::{
     ButtonLabel, ChromeResult, Command, CommandResult, InputResult, MarkdownResult, MessageResult,
-    WizardPageDescriptor, WizardResult, WizardStackEntry, WizardTerminalButton,
+    ReportResult, WizardPageDescriptor, WizardResult, WizardStackEntry, WizardTerminalButton,
 };
+
+use crate::report_session::ValidatedReportManifest;
 use wyvern_wizard::{NavigateOutcome, WizardError, WizardSession, WizardSnapshot};
 
 use crate::picker::MockPickerConfig;
@@ -68,6 +71,19 @@ pub(crate) struct SessionState {
     picker_slots: Arc<Semaphore>,
     /// Optional in-process picker mock (tests); env mock remains for CLI/e2e.
     mock_picker: Option<MockPickerConfig>,
+    /// In-flight terminal POSTs (`/api/report/finish` and `/api/result`).
+    terminal_in_flight: Arc<AtomicUsize>,
+}
+
+/// RAII count of a terminal POST so shutdown can wait for a sibling 409.
+pub(crate) struct TerminalRequestGuard {
+    counter: Arc<AtomicUsize>,
+}
+
+impl Drop for TerminalRequestGuard {
+    fn drop(&mut self) {
+        self.counter.fetch_sub(1, Ordering::SeqCst);
+    }
 }
 
 struct SessionInner {
@@ -79,6 +95,8 @@ struct SessionInner {
     bound_origin: Option<BoundOrigin>,
     /// Complete-phase capability; `None` after the one-shot result is submitted.
     result_token: Option<ResultSubmitToken>,
+    /// Review-mode panel authority; `None` unless the command is a validated review.
+    report_manifest: Option<ValidatedReportManifest>,
 }
 
 impl SessionState {
@@ -92,18 +110,37 @@ impl SessionState {
             Command::Wizard(wizard_cmd) => Some(WizardSession::new(wizard_cmd)),
             _ => None,
         };
+        let report_manifest = match &command {
+            Command::Report(report_cmd) => ValidatedReportManifest::from_review_command(report_cmd),
+            _ => None,
+        };
         Self {
             inner: Arc::new(Mutex::new(SessionInner {
                 command: Arc::new(command),
                 wizard,
                 bound_origin: None,
                 result_token: Some(ResultSubmitToken(result_tx)),
+                report_manifest,
             })),
             // Serialize picker spawn_blocking so repeated POSTs cannot exhaust
             // the blocking pool (RSH-006).
             picker_slots: Arc::new(Semaphore::new(1)),
             mock_picker,
+            terminal_in_flight: Arc::new(AtomicUsize::new(0)),
         }
+    }
+
+    /// Count this terminal POST until the guard drops (ATM-QA-001).
+    pub(crate) fn track_terminal_request(&self) -> TerminalRequestGuard {
+        self.terminal_in_flight.fetch_add(1, Ordering::SeqCst);
+        TerminalRequestGuard {
+            counter: Arc::clone(&self.terminal_in_flight),
+        }
+    }
+
+    /// How many finish/result handlers are currently running.
+    pub(crate) fn terminal_in_flight(&self) -> usize {
+        self.terminal_in_flight.load(Ordering::SeqCst)
     }
 
     /// Issue the bind-phase [`BoundOrigin`] capability used to build absolute URLs.
@@ -114,6 +151,11 @@ impl SessionState {
     /// Shared handle to the active command for `/api/dialog` (cheap `Arc` clone).
     pub(crate) async fn command(&self) -> Arc<Command> {
         Arc::clone(&self.inner.lock().await.command)
+    }
+
+    /// Review-mode panel authority, if this session issued [`ValidatedReportManifest`].
+    pub(crate) async fn validated_report_manifest(&self) -> Option<ValidatedReportManifest> {
+        self.inner.lock().await.report_manifest.clone()
     }
 
     /// Snapshot of the wizard session, if this is a wizard dialog.
@@ -271,8 +313,11 @@ impl SessionState {
     /// Returns `false` when the token is already gone **or** the oneshot send
     /// fails because the serve loop dropped the receiver (RSH-007).
     pub(crate) async fn complete(&self, result: wyvern_schema::CommandResult) -> bool {
-        let mut guard = self.inner.lock().await;
-        match guard.result_token.take() {
+        let token = {
+            let mut guard = self.inner.lock().await;
+            guard.result_token.take()
+        };
+        match token {
             Some(token) => token.submit(result),
             None => false,
         }
@@ -329,6 +374,7 @@ fn dismissed_for_command(command: &Command) -> CommandResult {
             wyvern_schema::QuestionResult::dismissed(questions_raw.clone()),
         ),
         Command::Wizard(_) => CommandResult::Wizard(WizardResult::dismissed()),
+        Command::Report(_) => CommandResult::Report(ReportResult::dismissed()),
     }
 }
 
@@ -460,6 +506,49 @@ mod tests {
                 assert!(rx.await.is_ok());
             }
         }
+    }
+
+    #[tokio::test]
+    async fn review_command_issues_validated_manifest_token() {
+        use wyvern_schema::{
+            ManifestPanelPath, ReportCommand, ReportMode, ReportPagePath, ReportPanelEntry,
+            ReportTitle,
+        };
+        let command = Command::Report(ReportCommand {
+            title: ReportTitle::new("review"),
+            page: ReportPagePath::new("pages/view.xhtml"),
+            mode: ReportMode::Review,
+            panels: Some(vec![ReportPanelEntry {
+                path: ManifestPanelPath::new("panels/fail.xhtml"),
+                label: Some("Fail 1".into()),
+                role: None,
+            }]),
+            width: None,
+            height: None,
+        });
+        let (tx, _rx) = oneshot::channel();
+        let session = SessionState::new(command, tx, None);
+        let token = session
+            .validated_report_manifest()
+            .await
+            .expect("review token");
+        assert_eq!(token.panels()[0].path.as_str(), "panels/fail.xhtml");
+    }
+
+    #[tokio::test]
+    async fn view_command_does_not_issue_report_manifest() {
+        use wyvern_schema::{ReportCommand, ReportMode, ReportPagePath, ReportTitle};
+        let command = Command::Report(ReportCommand {
+            title: ReportTitle::new("view"),
+            page: ReportPagePath::new("pages/view.xhtml"),
+            mode: ReportMode::View,
+            panels: None,
+            width: None,
+            height: None,
+        });
+        let (tx, _rx) = oneshot::channel();
+        let session = SessionState::new(command, tx, None);
+        assert!(session.validated_report_manifest().await.is_none());
     }
 
     #[tokio::test]

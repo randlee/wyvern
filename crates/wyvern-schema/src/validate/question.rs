@@ -2,7 +2,7 @@
 
 use serde_json::{Map, Value};
 
-use crate::command::{Command, QuestionCard, QuestionOption};
+use crate::command::{Command, QuestionCard, QuestionOption, QuestionPrompt};
 use crate::error::ValidationError;
 use crate::field_name::FieldName;
 
@@ -89,13 +89,12 @@ pub(super) fn validate_question(obj: &Map<String, Value>) -> Result<Command, Val
                     format!("missing required field 'questions[{qi}].question'"),
                 ));
             }
-            Some(Value::String(s)) if !s.is_empty() => s.clone(),
-            Some(Value::String(_)) => {
-                return Err(ValidationError::validation(
+            Some(Value::String(s)) => QuestionPrompt::try_new(s.clone()).map_err(|_| {
+                ValidationError::validation(
                     format!("questions[{qi}].question"),
                     format!("questions[{qi}].question must be a non-empty string"),
-                ));
-            }
+                )
+            })?,
             Some(other) => {
                 return Err(ValidationError::validation(
                     format!("questions[{qi}].question"),

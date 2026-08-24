@@ -181,7 +181,7 @@ fn emit(action: &str, level: Level, outcome: Option<&str>, fields: Map<String, V
     let event = match build_event(service.clone(), action, level, outcome, fields) {
         Ok(event) => event,
         Err(err) => {
-            eprintln!("wyvern: observability event build failed: {err}");
+            emit_init_error(&err);
             return;
         }
     };
@@ -196,21 +196,41 @@ fn build_event(
     level: Level,
     outcome: Option<&str>,
     fields: Map<String, Value>,
-) -> Result<LogEvent, String> {
+) -> Result<LogEvent, ObservabilityInitError> {
     Ok(LogEvent {
-        version: SchemaVersion::new(OBSERVATION_ENVELOPE_VERSION).map_err(|e| e.to_string())?,
+        version: SchemaVersion::new(OBSERVATION_ENVELOPE_VERSION).map_err(|e| {
+            ObservabilityInitError::new(
+                "failed to construct observability SchemaVersion",
+                Some(e.to_string()),
+            )
+        })?,
         timestamp: Timestamp::now_utc(),
         level,
         service,
-        target: TargetCategory::new(TARGET).map_err(|e| e.to_string())?,
-        action: ActionName::new(action).map_err(|e| e.to_string())?,
+        target: TargetCategory::new(TARGET).map_err(|e| {
+            ObservabilityInitError::new(
+                "failed to construct observability TargetCategory",
+                Some(e.to_string()),
+            )
+        })?,
+        action: ActionName::new(action).map_err(|e| {
+            ObservabilityInitError::new(
+                "failed to construct observability ActionName",
+                Some(e.to_string()),
+            )
+        })?,
         message: Some(action.to_string()),
         identity: ProcessIdentity::default(),
         trace: None,
         request_id: None,
         correlation_id: session_correlation_id(),
         outcome: match outcome {
-            Some(label) => Some(OutcomeLabel::new(label).map_err(|e| e.to_string())?),
+            Some(label) => Some(OutcomeLabel::new(label).map_err(|e| {
+                ObservabilityInitError::new(
+                    "failed to construct observability OutcomeLabel",
+                    Some(e.to_string()),
+                )
+            })?),
             None => None,
         },
         diagnostic: None,

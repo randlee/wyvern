@@ -1,0 +1,54 @@
+@prefix triage: <urn:atm:triage:> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<urn:atm:triage:finding/RBP-F002>
+  a triage:Finding ;
+  triage:findingId "RBP-F002" ;
+  triage:title "Unbounded comments String in schema" ;
+  triage:description "ReportFinishData.comments is raw String; 32KiB bound only at HTTP parse boundary." ;
+  triage:phaseId "phase-H" ;
+  triage:triageMode "initial_pass" ;
+  triage:category "RBP" ;
+  triage:severity "important" ;
+  triage:repeatable true ;
+  triage:sweepScope "crate" ;
+  triage:status "open" ;
+  triage:dispatchReady true ;
+  triage:originatingSprintDoc "docs/plans/phase-H/h3-xhtml-review-mode.md" ;
+  triage:requirementId "REQ-0144" ;
+  triage:adrId "ADR-0011" ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/RBP-F002/H3/1> ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/RBP-F002/H3/2> ;
+  triage:openOn <urn:atm:triage:worktree/H3/b38cde9b1bd31a03ba2c458da084e4118d39a3a9> ;
+  triage:promoteTo <urn:atm:triage:worktree/H3/b38cde9b1bd31a03ba2c458da084e4118d39a3a9> ;
+  triage:triagedAt "2026-08-23T23:03:00Z"^^xsd:dateTime .
+
+<urn:atm:triage:occurrence/RBP-F002/H3/1>
+  a triage:Occurrence ;
+  triage:file "crates/wyvern-schema/src/report.rs" ;
+  triage:line 300 ;
+  triage:snippet "pub comments: String," ;
+  triage:status "open" ;
+  triage:closed false ;
+  triage:branch "feature/phase-H-h3-xhtml-review" ;
+  triage:headSha "b38cde9b1bd31a03ba2c458da084e4118d39a3a9" ;
+  triage:occursIn <urn:atm:triage:worktree/H3/b38cde9b1bd31a03ba2c458da084e4118d39a3a9> .
+
+<urn:atm:triage:occurrence/RBP-F002/H3/2>
+  a triage:Occurrence ;
+  triage:file "crates/wyvern-host/src/report_finish.rs" ;
+  triage:line 15 ;
+  triage:snippet "pub(crate) const MAX_REVIEW_COMMENTS_CHARS: usize = 32_768;" ;
+  triage:status "open" ;
+  triage:closed false ;
+  triage:branch "feature/phase-H-h3-xhtml-review" ;
+  triage:headSha "b38cde9b1bd31a03ba2c458da084e4118d39a3a9" ;
+  triage:note "Runtime validation exists but type system unbounded" ;
+  triage:occursIn <urn:atm:triage:worktree/H3/b38cde9b1bd31a03ba2c458da084e4118d39a3a9> .
+
+<urn:atm:triage:worktree/H3/b38cde9b1bd31a03ba2c458da084e4118d39a3a9>
+  a triage:WorktreeSnapshot ;
+  triage:branch "feature/phase-H-h3-xhtml-review" ;
+  triage:path "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-H-h3-xhtml-review" ;
+  triage:headSha "b38cde9b1bd31a03ba2c458da084e4118d39a3a9" ;
+  triage:orderIndex 3 .

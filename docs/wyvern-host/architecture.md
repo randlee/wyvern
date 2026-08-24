@@ -67,6 +67,7 @@ wyvern-host/
     browser_launch.rs   # system + named browser dispatch (c.15) — NOT embedded
     routes/
       wizard.rs       # GET /api/wizard/state, POST navigate/finish, GET /wizard/** (d.1–d.2)
+      report.rs       # POST /api/report/finish (review only); static /report/** via ServeDir (h.1)
     error.rs        # HostError — mapped at CLI via emit_host_error
 ```
 

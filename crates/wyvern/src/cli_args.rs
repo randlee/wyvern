@@ -255,7 +255,7 @@ pub fn default_ui_root_with(
 pub fn usage_message() -> String {
     let mut text = concat!(
         "Usage: wyvern --help | -h | help\n",
-        "       wyvern '<json>' | <file.json> | <file.md> | <page.html> | wizard.json [options]\n",
+        "       wyvern '<json>' | <file.json> | <file.md> | <page.html> | <panel.xhtml> | wizard.json [options]\n",
         "       echo '<json>' | wyvern [options]\n",
         "       wyvern browsers list|refresh\n",
         "       wyvern extensions list|show\n",
@@ -277,6 +277,9 @@ pub fn usage_message() -> String {
         "  wyvern guide                   # visual feature guide (welcome wizard)\n",
         "  wyvern doc.md\n",
         "  wyvern page.html\n",
+        "  wyvern panel.xhtml\n",
+        "  wyvern report-xhtml <manifest.json>  # title, optional mode, panels[{path,label,role}]\n",
+        "  wyvern report-xhtml --review <manifest.json>  # comments + Approve/Cancel finish\n",
         "  wyvern path/to/wizard.json\n",
         "  wyvern data.csv\n",
         "  wyvern table data.csv          # same interactive table as data.csv\n",
@@ -460,6 +463,14 @@ mod tests {
         assert!(text.contains("WYVERN_VIEWER"), "{text}");
         assert!(text.contains("wizard.json or pages/"), "{text}");
         assert!(text.contains("wyvern guide"), "{text}");
+        assert!(text.contains("panel.xhtml"), "{text}");
+        assert!(text.contains(".xhtml"), "{text}");
+        assert!(text.contains("report-xhtml <manifest.json>"), "{text}");
+        assert!(
+            text.contains("report-xhtml --review <manifest.json>"),
+            "{text}"
+        );
+        assert!(text.contains("panels["), "{text}");
         assert!(text.contains("--workflow-dry-run"), "{text}");
         assert!(text.contains("wyvern wizard lint"), "{text}");
     }

@@ -1,6 +1,7 @@
 //! Typed command surface for the current phase.
 
 use crate::chrome::{ChromeStatus, ChromeTitle};
+use crate::report::ReportCommand;
 use crate::wizard::WizardCommand;
 
 /// Standard button preset for dialog types (REQ Phase B).
@@ -243,6 +244,8 @@ pub enum Command {
     },
     /// Multi-page wizard (Phase D / REQ-0017 / REQ-0026).
     Wizard(WizardCommand),
+    /// Static XHTML/HTML report (Phase H / REQ-0140 / ADR-0025).
+    Report(ReportCommand),
 }
 
 impl Command {
@@ -255,6 +258,7 @@ impl Command {
             | Self::Markdown { width, .. }
             | Self::Question { width, .. } => *width,
             Self::Wizard(cmd) => cmd.width,
+            Self::Report(cmd) => cmd.width,
         }
     }
 
@@ -267,6 +271,7 @@ impl Command {
             | Self::Markdown { height, .. }
             | Self::Question { height, .. } => *height,
             Self::Wizard(cmd) => cmd.height,
+            Self::Report(cmd) => cmd.height,
         }
     }
 
@@ -290,11 +295,111 @@ pub struct QuestionOption {
     pub preview: Option<String>,
 }
 
+/// Why [`QuestionPrompt::try_new`] rejected a value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum QuestionPromptError {
+    /// Prompt was empty.
+    Empty,
+}
+
+impl std::fmt::Display for QuestionPromptError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Empty => f.write_str("question prompt must be a non-empty string"),
+        }
+    }
+}
+
+impl std::error::Error for QuestionPromptError {}
+
+/// Validated question-card prompt (non-empty; also the stdout `answers` key).
+///
+/// Construct via [`Self::try_new`] at the [`crate::validate`] boundary so
+/// [`QuestionCard::question`] cannot carry an unchecked `String`.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct QuestionPrompt(String);
+
+impl QuestionPrompt {
+    /// Wrap an already-validated prompt.
+    ///
+    /// Prefer [`Self::try_new`] at trust boundaries.
+    pub fn new(value: impl Into<String>) -> Self {
+        Self(value.into())
+    }
+
+    /// Construct a non-empty prompt.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`QuestionPromptError::Empty`] when `value` is empty.
+    pub fn try_new(value: impl Into<String>) -> Result<Self, QuestionPromptError> {
+        let value = value.into();
+        if value.is_empty() {
+            return Err(QuestionPromptError::Empty);
+        }
+        Ok(Self(value))
+    }
+
+    /// Borrow as a string slice.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    /// Consume and return the inner string.
+    pub fn into_inner(self) -> String {
+        self.0
+    }
+}
+
+impl std::ops::Deref for QuestionPrompt {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl AsRef<str> for QuestionPrompt {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl std::fmt::Display for QuestionPrompt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl From<String> for QuestionPrompt {
+    fn from(value: String) -> Self {
+        Self::new(value)
+    }
+}
+
+impl From<&str> for QuestionPrompt {
+    fn from(value: &str) -> Self {
+        Self::new(value)
+    }
+}
+
+impl PartialEq<str> for QuestionPrompt {
+    fn eq(&self, other: &str) -> bool {
+        self.0 == other
+    }
+}
+
+impl PartialEq<&str> for QuestionPrompt {
+    fn eq(&self, other: &&str) -> bool {
+        self.0 == *other
+    }
+}
+
 /// One question card in a `type: "question"` command (REQ-0062).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct QuestionCard {
     /// Prompt text; also the key in the stdout `answers` map.
-    pub question: String,
+    pub question: QuestionPrompt,
     /// Short card header (max 12 characters).
     pub header: String,
     /// Selectable options (2–4 entries).
@@ -345,5 +450,11 @@ mod tests {
         let custom = vec!["Save".into(), "Discard".into()];
         assert_eq!(ButtonsPreset::Custom.display_labels(Some(&custom)), custom);
         assert_eq!(ButtonsPreset::Custom.wire_labels(Some(&custom)), custom);
+    }
+
+    #[test]
+    fn question_prompt_try_new_rejects_empty() {
+        assert_eq!(QuestionPrompt::try_new(""), Err(QuestionPromptError::Empty));
+        assert_eq!(QuestionPrompt::try_new("Q?").unwrap().as_str(), "Q?");
     }
 }

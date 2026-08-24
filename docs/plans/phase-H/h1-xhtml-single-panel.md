@@ -1,7 +1,7 @@
 ---
 id: h.1
 title: Report host + single XHTML panel (basic frame)
-status: planning
+status: complete
 branch: feature/phase-H-h1-xhtml-single
 worktree: ../wyvern-worktrees/feature/phase-H-h1-xhtml-single
 target: integrate/phase-H

@@ -1,0 +1,8 @@
+{
+  "title": "XHTML review",
+  "mode": "review",
+  "panels": [
+    { "path": "panels/fail-1.xhtml", "label": "Fail 1", "role": "failure" },
+    { "path": "panels/proposed-fix.xhtml", "label": "Proposed fix", "role": "proposal" }
+  ]
+}

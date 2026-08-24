@@ -223,6 +223,12 @@ pub(crate) async fn dialog_payload(command: &Command) -> Result<Value, ApiError>
         .cause("wizard sessions expose state via /api/wizard/state only")
         .recovery("Call GET /api/wizard/state for the active wizard")
         .docs("docs/plans/phase-C/http-wizard-contract.md")),
+        Command::Report(_) => Err(ApiError::bad_request(
+            "GET /api/dialog is not used for report; load /report/{page} directly",
+        )
+        .cause("report sessions serve a static /report/{page} document only")
+        .recovery("Navigate to the dialog URL (/report/{page}); do not call GET /api/dialog")
+        .docs("docs/plans/phase-H/xhtml-reporting-contract.md")),
     }
 }
 
@@ -261,7 +267,7 @@ fn question_payload_value(questions: &[QuestionCard]) -> Value {
                 })
                 .collect();
             json!({
-                "question": card.question,
+                "question": card.question.as_str(),
                 "header": card.header,
                 "options": options,
                 "multiSelect": card.multi_select,

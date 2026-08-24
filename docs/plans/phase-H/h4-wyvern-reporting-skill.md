@@ -1,7 +1,7 @@
 ---
 id: h.4
 title: wyvern-reporting skill
-status: planning
+status: complete
 branch: feature/phase-H-h4-wyvern-reporting-skill
 worktree: ../wyvern-worktrees/feature/phase-H-h4-wyvern-reporting-skill
 target: integrate/phase-H

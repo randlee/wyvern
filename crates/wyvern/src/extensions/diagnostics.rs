@@ -166,22 +166,21 @@ pub fn emit_near_miss(kind: &NearMissKind) -> Result<String, EmitError> {
         ),
         NearMissKind::SkippedRequires { path, skipped } => {
             let (id_summary, missing) = skipped_requires_summary(skipped);
-            let example = skipped
-                .first()
-                .and_then(|s| skill_example_line(s.id.as_str()))
-                .unwrap_or_else(|| format!("wyvern {path}"));
+            let mut recovery = vec![format!("Install {missing} and retry")];
+            for skipped_ext in skipped {
+                let example = skill_example_line(skipped_ext.id.as_str())
+                    .unwrap_or_else(|| format!("wyvern {path}"));
+                recovery.push(format!("Example ({}): {example}", skipped_ext.id));
+            }
+            recovery.push("Run wyvern extensions list to see requires".into());
+            recovery.push("Run wyvern --help to list skills".into());
             (
                 ErrorCode::ValidationError,
                 format!("extension(s) '{id_summary}' skipped; missing {missing}"),
                 format!(
                     "'{path}' matched skipped extension(s) but required binaries are not on PATH"
                 ),
-                vec![
-                    format!("Install {missing} and retry"),
-                    format!("Example: {example}"),
-                    "Run wyvern extensions list to see requires".into(),
-                    "Run wyvern --help to list skills".into(),
-                ],
+                recovery,
             )
         }
     };
@@ -488,5 +487,7 @@ mod tests {
         assert!(json.contains("two-csv"), "{json}");
         assert!(json.contains("python3"), "{json}");
         assert!(json.contains("ruby"), "{json}");
+        assert!(json.contains("Example (one-csv):"), "{json}");
+        assert!(json.contains("Example (two-csv):"), "{json}");
     }
 }

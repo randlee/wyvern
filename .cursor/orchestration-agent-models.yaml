@@ -29,8 +29,8 @@ agents:
     notes: Structured deliverable checklist
 
   arch-qa:
-    model: claude-sonnet-5-thinking-high
-    notes: Precision / boundary gate; must be in Cursor Task model list
+    model: cursor-grok-4.6-high-fast
+    notes: Precision / boundary gate; Grok per team preference (Phase H orchestration)
 
   rust-qa-agent:
     model: cursor-grok-4.6-high-fast
