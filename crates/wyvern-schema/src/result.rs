@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use serde::Serialize;
 
 use crate::button::ButtonLabel;
+use crate::report::ReportResult;
 use crate::wizard::WizardResult;
 
 /// Successful command result for stdout JSON.
@@ -28,6 +29,8 @@ pub enum CommandResult {
     Question(QuestionResult),
     /// Wizard result (Phase D / REQ-0066).
     Wizard(WizardResult),
+    /// Report result (Phase H / REQ-0143 view dismiss; REQ-0144 finish in h.3).
+    Report(ReportResult),
 }
 
 /// Chrome command result payload.
@@ -215,5 +218,12 @@ mod tests {
         assert_eq!(value["button"], "dismissed");
         assert_eq!(value["answers"], serde_json::json!({}));
         assert_eq!(value["response"], "");
+    }
+
+    #[test]
+    fn command_result_report_dismissed_wire_shape() {
+        let result = CommandResult::Report(ReportResult::dismissed());
+        let json = serde_json::to_string(&result).expect("serialize");
+        assert_eq!(json, r#"{"button":"dismissed"}"#);
     }
 }

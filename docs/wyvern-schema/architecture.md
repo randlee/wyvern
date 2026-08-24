@@ -16,6 +16,8 @@ pub enum Command {
     Input { /* title, message, mode, ... */ },
     Markdown { /* file or content, title, buttons, ... */ },
     Question { /* questions: Vec<QuestionCard> */ },
+    Wizard(WizardCommand),
+    Report(ReportCommand), // Phase H — type: "report"
 }
 
 pub enum ValidationError {
@@ -31,7 +33,8 @@ pub enum CommandResult {
     Input(InputResult),
     Markdown(MarkdownResult),
     Question(QuestionResult),
-    // Phase D+: Wizard(WizardResult), etc.
+    Wizard(WizardResult),
+    Report(ReportResult), // Phase H — view dismiss { "button": "dismissed" }
 }
 
 #[derive(Serialize)]

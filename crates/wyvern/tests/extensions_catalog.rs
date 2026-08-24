@@ -229,8 +229,15 @@ fn req_0137_registry_help_parity() {
         .collect();
 
     assert!(
-        registry.extensions().len() >= 7,
-        "expected seven shipped skills"
+        registry.extensions().len() >= 8,
+        "expected eight shipped skills including xhtml-suffix"
+    );
+    assert!(
+        registry
+            .extensions()
+            .iter()
+            .any(|ext| ext.id.as_str() == "xhtml-suffix"),
+        "req_0137 must include xhtml-suffix"
     );
     for ext in registry.extensions() {
         let id = ext.id.as_str();

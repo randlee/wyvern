@@ -1,0 +1,72 @@
+/**
+ * Minimal report pane typography (Phase H h.1).
+ * Served at /shared/report-base.css during report sessions.
+ */
+
+html {
+  box-sizing: border-box;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
+}
+
+body.report {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: #0f172a;
+  background: #f8fafc;
+}
+
+.report-body {
+  max-width: 56rem;
+  margin: 0 auto;
+  padding: 1.25rem 1.5rem 2rem;
+}
+
+.report-body h1,
+.report-body h2,
+.report-body h3 {
+  margin: 0 0 0.75rem;
+  line-height: 1.25;
+  font-weight: 650;
+}
+
+.report-body p,
+.report-body li {
+  margin: 0 0 0.75rem;
+}
+
+.pane {
+  margin: 0 0 1.25rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+  background: #fff;
+}
+
+.pane-label {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  color: #334155;
+}
+
+html[data-wyvern-theme="dark"] body.report {
+  color: #e2e8f0;
+  background: #0f172a;
+}
+
+html[data-wyvern-theme="dark"] .pane {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+html[data-wyvern-theme="dark"] .pane-label {
+  color: #cbd5e1;
+}

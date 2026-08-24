@@ -28,6 +28,26 @@
       }
     },
     {
+      "id": "xhtml-suffix",
+      "description": "Open an XHTML panel as a report view (wrapped document frame).",
+      "examples": ["wyvern panel.xhtml"],
+      "match": { "positional_suffix": ".xhtml" },
+      "preexec": {
+        "cmd": "python3",
+        "args": ["{wyvern_share}/scripts/ext/xhtml_report.py", "--mode", "single", "--input", "{path}", "--title", "{basename}", "--out", "{tmpdir}/pages/view.xhtml"],
+        "requires": ["python3"]
+      },
+      "expand": {
+        "command": {
+          "type": "report",
+          "title": "{basename}",
+          "page": "pages/view.xhtml",
+          "mode": "view"
+        },
+        "host": { "ui_root": "{tmpdir}" }
+      }
+    },
+    {
       "id": "wizard-json-suffix",
       "description": "Open a wizard.json file as a multi-page wizard.",
       "examples": ["wyvern path/to/wizard.json"],

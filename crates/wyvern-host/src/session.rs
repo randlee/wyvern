@@ -26,7 +26,7 @@ use std::time::Duration;
 use tokio::sync::{oneshot, Mutex, OwnedSemaphorePermit, Semaphore};
 use wyvern_schema::{
     ButtonLabel, ChromeResult, Command, CommandResult, InputResult, MarkdownResult, MessageResult,
-    WizardPageDescriptor, WizardResult, WizardStackEntry, WizardTerminalButton,
+    ReportResult, WizardPageDescriptor, WizardResult, WizardStackEntry, WizardTerminalButton,
 };
 use wyvern_wizard::{NavigateOutcome, WizardError, WizardSession, WizardSnapshot};
 
@@ -329,6 +329,7 @@ fn dismissed_for_command(command: &Command) -> CommandResult {
             wyvern_schema::QuestionResult::dismissed(questions_raw.clone()),
         ),
         Command::Wizard(_) => CommandResult::Wizard(WizardResult::dismissed()),
+        Command::Report(_) => CommandResult::Report(ReportResult::dismissed()),
     }
 }
 
