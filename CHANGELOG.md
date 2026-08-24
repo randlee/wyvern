@@ -5,6 +5,23 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] — 2026-08-24
+
+Phase H — XHTML reporting: view and review multi-panel reports from the CLI extension runtime, with a dedicated host bind arm and agent-facing authoring skill.
+
+### Phase H — XHTML reporting
+
+- Report host bind (`Command::Report`): dedicated `/report/{page}` route, shared static assets, no wizard APIs on report surfaces
+- Extensions: `xhtml-suffix` (single panel), `report-xhtml` (manifest array), `report-xhtml-review` (`--review` finish flow)
+- Review mode: textarea + Cancel/Approve UX, `POST /api/report/finish`, stdout JSON with manifest echo and `approved` flag
+- `wyvern-reporting` skill pack: panel authoring, review manifest schema, finish parsing guidance
+- Synthetic example under `share/wyvern/examples/xhtml-review/` with CI smoke and share-sync gates
+
+### Distribution
+
+- **crates.io** — all published crates bump to 0.4.0
+- **GitHub Releases** — tag `v0.4.0` triggers matrix build (macOS/Windows/Linux)
+
 ## [0.3.1] — 2026-08-18
 
 Patch release — completes crates.io publish for `wyvern-cli` (extension assets vendored under `crates/wyvern/` in PR #90). Same feature set as 0.3.0.

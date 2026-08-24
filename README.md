@@ -6,7 +6,7 @@
 
 > A lightweight CLI tool that opens native webview windows for user interaction and returns structured JSON results — with zero browser dependency, declarative CLI extensions, and an MCP-ready JSON schema (MCP server ships in Phase E).
 
-**Current release:** [v0.3.0](CHANGELOG.md#030--2026-08-17) — Phase F extensions + Phase G agent help and skill catalog (wizard flows since v0.2.0).
+**Current release:** [v0.4.0](CHANGELOG.md#040--2026-08-24) — Phase H XHTML reporting (view + review) on the extension runtime (wizard flows since v0.2.0).
 
 ---
 
