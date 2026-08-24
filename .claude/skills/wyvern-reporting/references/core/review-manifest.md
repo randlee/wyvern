@@ -100,8 +100,9 @@ stderr near-miss recovery points at `wyvern extensions list`.
 
 | Path | Notes |
 |------|-------|
+| `share/wyvern/examples/xhtml-review/review-view.json` | Packaged view example (3+1 synthetic panels) |
+| `share/wyvern/examples/xhtml-review/review-review.json` | Packaged review example |
+| `share/wyvern/examples/xhtml-review/README.md` | Operator walkthrough + single-panel shortcut |
 | `.claude/skills/wyvern-reporting/templates/review.json` | Schema-valid starter |
 | `crates/wyvern/tests/fixtures/xhtml-review/view.json` | View-mode fixture |
 | `crates/wyvern/tests/fixtures/xhtml-review/review.json` | Review-mode fixture |
-| `share/wyvern/examples/xhtml-review/review-view.json` | Packaged view example (h.5) |
-| `share/wyvern/examples/xhtml-review/review-review.json` | Packaged review example (h.5) |

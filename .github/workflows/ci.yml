@@ -98,6 +98,71 @@ jobs:
       - name: wyvern wizard lint dataflow fixture
         run: ${WYVERN_BIN} wizard lint fixtures/wizard-dataflow-lint
 
+  report-xhtml:
+    name: report-xhtml example smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Linux build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwayland-dev \
+            pkg-config \
+            libwebkit2gtk-4.1-dev \
+            libxkbcommon-x11-0 \
+            libgl1-mesa-dri \
+            mesa-utils \
+            at-spi2-core \
+            dbus-x11 \
+            xvfb \
+            ripgrep \
+            curl
+
+      - name: cargo build -p wyvern-cli
+        run: cargo build -p wyvern-cli
+
+      - name: Set WYVERN_BIN
+        run: echo "WYVERN_BIN=${GITHUB_WORKSPACE}/target/debug/wyvern" >> "$GITHUB_ENV"
+
+      # Report examples MUST NOT use wizard-nav (contract § Boundaries)
+      - name: xhtml-review has no wizard-nav
+        run: test -z "$(rg -n 'wizard-nav' share/wyvern/examples/xhtml-review/ || true)"
+
+      - name: validate xhtml-review view manifest
+        run: python3 scripts/ext/xhtml_report.py --validate-manifest share/wyvern/examples/xhtml-review/review-view.json
+
+      # Viewer none keeps the host until dismiss; POST /api/result so CI exits 0.
+      - name: report-xhtml smoke (viewer none)
+        run: |
+          set -euo pipefail
+          URL_FILE="$(mktemp)"
+          WYVERN_VIEWER=none WYVERN_DIALOG_URL_FILE="$URL_FILE" \
+            "${WYVERN_BIN}" report-xhtml share/wyvern/examples/xhtml-review/review-view.json \
+            > /tmp/report-xhtml-stdout.txt 2>/tmp/report-xhtml-stderr.txt &
+          PID=$!
+          for _ in $(seq 1 200); do
+            if [ -s "$URL_FILE" ]; then
+              break
+            fi
+            if ! kill -0 "$PID" 2>/dev/null; then
+              echo "wyvern exited before publishing a dialog URL" >&2
+              cat /tmp/report-xhtml-stderr.txt >&2 || true
+              exit 1
+            fi
+            sleep 0.1
+          done
+          URL="$(tr -d '[:space:]' < "$URL_FILE")"
+          test -n "$URL"
+          curl -fsS "$URL" >/dev/null
+          RESULT="${URL%%/report/*}/api/result"
+          curl -fsS -X POST "$RESULT" -H 'content-type: application/json' -d '{"button":"dismissed"}'
+          wait "$PID"
+
   audit:
     name: cargo audit
     runs-on: ubuntu-latest

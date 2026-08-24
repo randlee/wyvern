@@ -1,7 +1,7 @@
 ---
 id: h.5
 title: Synthetic XHTML review example + CI
-status: planning
+status: complete
 branch: feature/phase-H-h5-xhtml-example
 worktree: ../wyvern-worktrees/feature/phase-H-h5-xhtml-example
 target: integrate/phase-H
