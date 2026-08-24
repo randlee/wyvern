@@ -72,7 +72,7 @@ Dialog **types** and stdout shapes remain as in Phase B/C (`message`, `input`, `
 
 ## File / folder picker (REQ-0113 – REQ-0114)
 
-**REQ-0113** — `input` `mode: file` and `mode: folder` use OS-native pickers via `rfd` in `wyvern-host` only (same product semantics as Phase B b.4).
+**REQ-0113** — `input` `mode: file` and `mode: folder` use OS-native pickers via `rfd` in `wyvern-host` only (same product semantics as Phase B b.4). **Phase I amendment (ADR-0026):** wizard sessions may also call the same picker routes; wizard parameters come from the POST body only (REQ-HOST-0150). Input-mode dialog-field merge is unchanged.
 
 **REQ-0114** — Picker is triggered by host API route or host-handled POST from page (see [http-dialog-contract.md](../plans/phase-C/http-dialog-contract.md)), not by wry IPC.
 

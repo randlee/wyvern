@@ -18,6 +18,7 @@ A sprint is a single testable deliverable that fits within one AI context window
 | `integrate/phase-G` | Phase G — Extension Agent Usability | `docs/plans/phase-G/` |
 | `integrate/phase-E` | Phase E — Persistent & MCP | `docs/plans/phase-E/` |
 | `integrate/phase-H` | Phase H — XHTML reporting & review | `docs/plans/phase-H/` |
+| `integrate/phase-I` | Phase I — Wizard native path picker | `docs/plans/phase-I/` |
 
 Phase A sprint PRs target `integrate/phase-A`. Sprint authority: `docs/plans/phase-A/` (sprints **a.1–a.7**).
 
@@ -308,6 +309,7 @@ See [docs/plans/phase-I/README.md](phase-I/README.md).
 | Phase G — Extension Agent Usability | 14 | Help/catalog (g.1–g.3) + welcome guide & examples (g.4–g.7) + authoring platform (g.8–g.14) |
 | Phase E — Interactive & MCP | 4 | Agent-driveable status viewer + MCP |
 | Phase H — XHTML reporting & review | 5 | Single/array XHTML panels + `--review` finish JSON |
+| Phase I — Wizard native path picker | 1 | Wizard in-page native pickers + `path-picker` example (closes #99) |
 
 ## Dependency Map
 
@@ -320,4 +322,5 @@ Phase A
                       └─ Phase G (extension agent usability + welcome examples)
                            ├─ Phase E (persistent host + MCP)
                            └─ Phase H (XHTML report surfaces — after G)
+                                └─ Phase I (wizard native path picker — after H, closes #99)
 ```

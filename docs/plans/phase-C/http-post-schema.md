@@ -133,9 +133,9 @@ Same shape as `message`:
 
 ---
 
-### `POST /api/picker/file` — `input` helper (c.11)
+### `POST /api/picker/file` — native file picker (c.11; wizard — Phase I i.1)
 
-**When:** Page needs native file picker (`mode: file`). Not a final result — returns paths for the page to include in `/api/result`.
+**When:** Page needs native file picker during an **`input`** dialog with `mode: file`, or during a **`wizard`** session (ADR-0026 / REQ-HOST-0150). Not a final result — returns paths for the page to include in `/api/result` or wizard finish data.
 
 **Request:**
 
@@ -147,7 +147,10 @@ Same shape as `message`:
 }
 ```
 
-All fields optional; host merges with dialog fields from `GET /api/dialog`.
+All fields optional.
+
+- **`input` session:** host merges with dialog fields from `GET /api/dialog`.
+- **`wizard` session:** body-only parameters; omitted fields default to `filter: []`, `multiple: false`, `start_path: null`.
 
 **Response `200`:**
 
@@ -171,7 +174,9 @@ Page stays open; user may retry or press Cancel → `POST /api/result` with `{ "
 
 ---
 
-### `POST /api/picker/folder` — `input` helper (c.11)
+### `POST /api/picker/folder` — native folder picker (c.11; wizard — Phase I i.1)
+
+**When:** Page needs native folder picker during an **`input`** dialog with `mode: folder`, or during a **`wizard`** session (ADR-0026 / REQ-HOST-0150).
 
 **Request:**
 
@@ -180,6 +185,9 @@ Page stays open; user may retry or press Cancel → `POST /api/result` with `{ "
   "start_path": "/optional/dir"
 }
 ```
+
+- **`input` session:** host merges optional `start_path` with dialog fields from `GET /api/dialog`.
+- **`wizard` session:** body-only `start_path` (optional).
 
 **Response `200`:**
 
@@ -378,6 +386,7 @@ Terminal outcomes (`finish`, `cancel`, `dismissed`) use **`POST /api/wizard/fini
 |--------|--------|
 | `message` | c.10 |
 | `input` + picker routes | c.11 |
+| picker routes wizard arm | Phase I i.1 — [i1-wizard-path-picker.md](../phase-I/i1-wizard-path-picker.md) |
 | `markdown` | c.12 |
 | `question` | c.13 |
 | `chrome` | c.14 |
