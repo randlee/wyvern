@@ -57,6 +57,16 @@ body.report {
   color: #334155;
 }
 
+.pane--proposal {
+  border-color: #0d9488;
+  background: #f0fdfa;
+  box-shadow: inset 4px 0 0 #0d9488;
+}
+
+.pane--proposal .pane-label {
+  color: #0f766e;
+}
+
 html[data-wyvern-theme="dark"] body.report {
   color: #e2e8f0;
   background: #0f172a;
@@ -69,4 +79,14 @@ html[data-wyvern-theme="dark"] .pane {
 
 html[data-wyvern-theme="dark"] .pane-label {
   color: #cbd5e1;
+}
+
+html[data-wyvern-theme="dark"] .pane--proposal {
+  background: #134e4a;
+  border-color: #2dd4bf;
+  box-shadow: inset 4px 0 0 #2dd4bf;
+}
+
+html[data-wyvern-theme="dark"] .pane--proposal .pane-label {
+  color: #5eead4;
 }

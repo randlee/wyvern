@@ -47,7 +47,7 @@ pub struct SkillRecord {
     pub requires: Vec<SkillRequire>,
     /// Declared `{arg:*}` flags.
     pub args: Vec<SkillArg>,
-    /// Expand command `type`, or `"wizard"` when using `command_from_file`.
+    /// Expand command `type` from inline JSON or `command_from_file` contents.
     pub expands_to: String,
     /// One-line agent-facing summary from the registry, if present.
     pub description: Option<String>,
@@ -187,13 +187,71 @@ pub fn format_skill_card(record: &SkillRecord) -> String {
 }
 
 fn expands_to(ext: &ExtensionDef) -> String {
-    ext.expand
+    if let Some(ty) = ext
+        .expand
         .as_ref()
         .and_then(|spec| spec.command.as_ref())
         .and_then(|command| command.get("type"))
         .and_then(Value::as_str)
-        .unwrap_or("wizard")
-        .to_string()
+        .filter(|ty| !ty.is_empty())
+    {
+        return ty.to_string();
+    }
+    if let Some(path_tmpl) = ext
+        .expand
+        .as_ref()
+        .and_then(|spec| spec.command_from_file.as_deref())
+    {
+        if let Some(ty) = type_from_command_from_file(path_tmpl) {
+            return ty;
+        }
+    }
+    "wizard".to_string()
+}
+
+/// Read `type` from resolvable `command_from_file` JSON, or the emitted filename.
+///
+/// `{tmpdir}/report-command.json` is written by report preexec (h.2) and is
+/// always `type: "report"` — catalog listing cannot wait for preexec.
+fn type_from_command_from_file(path_tmpl: &str) -> Option<String> {
+    if let Some(path) = resolve_static_command_path(path_tmpl) {
+        if let Some(ty) = read_command_type(&path) {
+            return Some(ty);
+        }
+    }
+    let name = path_tmpl.rsplit(['/', '\\']).next().unwrap_or(path_tmpl);
+    (name == "report-command.json").then(|| "report".to_string())
+}
+
+fn resolve_static_command_path(path_tmpl: &str) -> Option<std::path::PathBuf> {
+    const SHARE: &str = "{wyvern_share}";
+    let open_braces = path_tmpl.chars().filter(|ch| *ch == '{').count();
+    if let Some(rest) = path_tmpl.strip_prefix(SHARE) {
+        if open_braces > 1 {
+            return None;
+        }
+        let mut path = super::resolve_wyvern_share();
+        let rest = rest.trim_start_matches('/');
+        if !rest.is_empty() {
+            path.push(rest);
+        }
+        return path.is_file().then_some(path);
+    }
+    if open_braces > 0 {
+        return None;
+    }
+    let path = std::path::PathBuf::from(path_tmpl);
+    path.is_file().then_some(path)
+}
+
+fn read_command_type(path: &std::path::Path) -> Option<String> {
+    let text = std::fs::read_to_string(path).ok()?;
+    let value: Value = serde_json::from_str(&text).ok()?;
+    value
+        .get("type")
+        .and_then(Value::as_str)
+        .filter(|ty| !ty.is_empty())
+        .map(ToOwned::to_owned)
 }
 
 fn invocation_line(ext: &ExtensionDef, args: &[SkillArg]) -> String {
@@ -476,6 +534,59 @@ mod tests {
         let args = declared_skill_args(&registry.extensions()[0]);
         assert_eq!(args.len(), 1, "{args:?}");
         assert_eq!(args[0].name.as_str(), "root");
+    }
+
+    #[test]
+    fn expands_to_reads_type_from_command_json_file() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let path = tmp.path().join("emitted.json");
+        std::fs::write(
+            &path,
+            r#"{"type":"report","title":"t","page":"pages/view.xhtml"}"#,
+        )
+        .expect("write");
+        let json = format!(
+            r#"{{
+          "version": 1,
+          "extensions": [{{
+            "id": "from-file",
+            "match": {{ "argv_prefix": ["from-file"] }},
+            "expand": {{ "command_from_file": "{}" }}
+          }}]
+        }}"#,
+            path.display()
+        );
+        let registry = ExtensionRegistry::from_json_str(&json).expect("parse");
+        let record = build_skill_record(&registry.extensions()[0], &Absent);
+        assert_eq!(record.expands_to, "report");
+    }
+
+    #[test]
+    fn expands_to_report_command_json_template_is_report() {
+        let json = r#"{
+          "version": 1,
+          "extensions": [{
+            "id": "report-from-file",
+            "match": { "argv_prefix": ["report-xhtml"], "arg_suffix": ".json" },
+            "expand": { "command_from_file": "{tmpdir}/report-command.json" }
+          }]
+        }"#;
+        let registry = ExtensionRegistry::from_json_str(json).expect("parse");
+        let record = build_skill_record(&registry.extensions()[0], &Absent);
+        assert_eq!(record.expands_to, "report");
+    }
+
+    #[test]
+    fn shipped_report_xhtml_expands_to_report() {
+        let registry = ExtensionRegistry::from_json_str(SHIPPED_EXTENSIONS_JSON).expect("shipped");
+        let ext = registry
+            .extensions()
+            .iter()
+            .find(|e| e.id.as_str() == "report-xhtml")
+            .expect("report-xhtml");
+        let record = build_skill_record(ext, &Absent);
+        assert_eq!(record.expands_to, "report");
+        assert_ne!(record.expands_to, "wizard");
     }
 
     #[test]

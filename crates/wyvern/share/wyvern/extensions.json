@@ -48,6 +48,31 @@
       }
     },
     {
+      "id": "report-xhtml",
+      "description": "Open an ordered array of XHTML panels as one report view. Manifest fields: title, optional mode (view|review), panels[{path, label?, role?}].",
+      "examples": ["wyvern report-xhtml path/to/review.json"],
+      "match": { "argv_prefix": ["report-xhtml"], "arg_suffix": ".json" },
+      "preexec": {
+        "cmd": "python3",
+        "args": [
+          "{wyvern_share}/scripts/ext/xhtml_report.py",
+          "--mode",
+          "array",
+          "--manifest",
+          "{path}",
+          "--out",
+          "{tmpdir}/pages/view.xhtml",
+          "--command-out",
+          "{tmpdir}/report-command.json"
+        ],
+        "requires": ["python3"]
+      },
+      "expand": {
+        "command_from_file": "{tmpdir}/report-command.json",
+        "host": { "ui_root": "{tmpdir}" }
+      }
+    },
+    {
       "id": "wizard-json-suffix",
       "description": "Open a wizard.json file as a multi-page wizard.",
       "examples": ["wyvern path/to/wizard.json"],
