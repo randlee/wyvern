@@ -69,6 +69,7 @@
       },
       "expand": {
         "command_from_file": "{tmpdir}/report-command.json",
+        "command_type": "report",
         "host": { "ui_root": "{tmpdir}" }
       }
     },

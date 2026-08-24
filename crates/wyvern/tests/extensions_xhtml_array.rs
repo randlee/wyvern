@@ -10,7 +10,7 @@ use std::time::Duration;
 use test_support::{AbsentProbe, PresentProbe};
 use wyvern::extensions::{
     build_match_context, build_skill_record, expand_and_validate, ExtensionRegistry,
-    PathRequiresProbe,
+    PathRequiresProbe, RequiresProbe,
 };
 
 fn workspace_root() -> PathBuf {
@@ -111,6 +111,9 @@ fn extensions_xhtml_array_expands_to_report() {
 
 #[test]
 fn extensions_xhtml_array_expand_stitches_panes() {
+    if !PathRequiresProbe.binary_on_path("python3") {
+        return;
+    }
     let registry = load_shipped();
     let path = fixture_manifest();
     let argv = vec![
@@ -121,17 +124,7 @@ fn extensions_xhtml_array_expand_stitches_panes() {
         .match_argv_with(&argv, &PresentProbe)
         .expect("must match");
     let ctx = build_match_context(&matched, matched.extension());
-    let expanded = match expand_and_validate(matched.extension(), &ctx) {
-        Ok(expanded) => expanded,
-        Err(err) => {
-            let message = format!("{err}");
-            if message.contains("python3") || message.to_ascii_lowercase().contains("preexec") {
-                eprintln!("skipping array expand: {message}");
-                return;
-            }
-            panic!("expand_and_validate failed: {err}");
-        }
-    };
+    let expanded = expand_and_validate(matched.extension(), &ctx).expect("expand");
     assert_eq!(expanded.command["type"], "report");
     assert_eq!(expanded.command["mode"], "view");
     assert_eq!(expanded.command["page"], "pages/view.xhtml");
@@ -207,6 +200,9 @@ fn extensions_xhtml_array_missing_panel_is_nonzero() {
 
 #[test]
 fn extensions_xhtml_array_single_panel_works() {
+    if !PathRequiresProbe.binary_on_path("python3") {
+        return;
+    }
     let tmp = tempfile::tempdir().expect("tempdir");
     let panel_dir = tmp.path().join("panels");
     std::fs::create_dir_all(&panel_dir).expect("mkdir");
@@ -277,14 +273,8 @@ fn extensions_xhtml_array_help_documents_manifest() {
 fn extensions_xhtml_array_cli_exits_zero_with_viewer_none() {
     let path = fixture_manifest();
     assert!(path.is_file(), "fixture missing: {}", path.display());
-    let url_file = std::env::temp_dir().join(format!(
-        "wyvern-xhtml-array-url-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or(0)
-    ));
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let url_file = tmp.path().join("dialog-url");
     let child = wyvern()
         .args(["report-xhtml", path.to_str().expect("utf8")])
         .env("WYVERN_DIALOG_URL_FILE", &url_file)
@@ -337,7 +327,6 @@ fn extensions_xhtml_array_cli_exits_zero_with_viewer_none() {
     );
     let value: serde_json::Value = serde_json::from_str(stdout.trim()).expect("stdout JSON");
     assert_eq!(value["button"], "dismissed");
-    let _ = std::fs::remove_file(&url_file);
 }
 
 fn wait_for_url_file(path: &Path) -> String {

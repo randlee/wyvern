@@ -1,7 +1,7 @@
 ---
 id: h.2
 title: XHTML panel array (basic multi-pane frame)
-status: planning
+status: complete
 branch: feature/phase-H-h2-xhtml-panel-array
 worktree: ../wyvern-worktrees/feature/phase-H-h2-xhtml-panel-array
 target: integrate/phase-H
