@@ -278,7 +278,11 @@ pub struct ResultAck {
 
 Body **request** equals `CommandResult` wire JSON per [http-post-schema.md](http-post-schema.md).
 
-### Picker helpers (c.11 — `input` only)
+### Picker helpers (c.11; wizard — Phase I i.1)
+
+Used by **`input`** sessions (dialog-field merge) and **`wizard`** sessions (body-only
+defaults per ADR-0026 / REQ-HOST-0150). Request structs are unchanged; host selects
+merge vs body-only from `session.command()`.
 
 ```rust
 #[derive(Deserialize)]
@@ -481,6 +485,7 @@ pub struct WizardFinishRequest {
 |----------------|--------|
 | `HostOptions`, `HostError`, `run()`, `GET /api/dialog`, `POST /api/result` (`message`) | c.10 |
 | Picker request/response, `input` payload | c.11 |
+| Picker wizard arm (same types; body-only merge) | Phase I i.1 — [i1-wizard-path-picker.md](../phase-I/i1-wizard-path-picker.md) |
 | `content_html` in dialog payload | c.12 |
 | `DialogPayloadMarkdown`, `DialogPayloadQuestion` (`preview_html`) | c.12–c.13 |
 | `question` result validation | c.13 |

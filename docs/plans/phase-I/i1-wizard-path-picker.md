@@ -32,6 +32,8 @@ and CI.
 | `docs/wyvern/requirements.md` | **REQ-0145** (bundled path-picker example) |
 | `docs/requirements.md` | Phase I index (ADR-0026, REQ-0145) |
 | `docs/plans/phase-C/http-post-schema.md` | Picker routes available for wizard sessions |
+| `docs/plans/phase-C/HTTP-TYPES.md` | Picker type contract: input + wizard arms (body-only defaults) |
+| `docs/wyvern-host/architecture.md` | ADR-0017 picker row includes wizard sessions |
 | `.claude/skills/creating-wyvern-wizard/references/wizard-types/path-picker.md` | Type recipe (new) |
 | `.claude/skills/creating-wyvern-wizard/SKILL.md` | Link path-picker type in wizard type picker |
 | `crates/wyvern-host/src/routes/picker.rs` | Accept `Command::Wizard`; request-body defaults; preserve picker-slot RAII + structured `ApiError` envelope |
@@ -58,13 +60,14 @@ Amends REQ-0113 scope (wizard allowed); input merge unchanged.
 
 ### Host behavior (normative)
 
-**File route** — when `session.command()` is `Command::Wizard { .. }`:
+**File route** — when `session.command()` is `Command::Wizard(_)` (tuple variant;
+`WizardCommand` gains **no** picker fields — parameters are request-body only per ADR-0026):
 
 - `filter` = `body.filter.unwrap_or_default()`
 - `multiple` = `body.multiple.unwrap_or(false)`
 - `start_path` = `body.start_path`
 
-**Folder route** — when wizard:
+**Folder route** — when `Command::Wizard(_)`:
 
 - `start_path` = `body.start_path`
 
