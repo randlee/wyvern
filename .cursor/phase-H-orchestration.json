@@ -212,7 +212,8 @@
       "worktree": "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-H-h5-xhtml-example",
       "sprint_doc": "docs/plans/phase-H/h5-synthetic-xhtml-example.md",
       "pr_target": "integrate/phase-H",
-      "status": "pending",
+      "status": "dev_in_progress",
+      "dev_commit": "01015bd78510bee8c22e42a4c3de92127292f89e",
       "depends_on": ["h.1", "h.2", "h.3", "h.4"]
     }
   }
