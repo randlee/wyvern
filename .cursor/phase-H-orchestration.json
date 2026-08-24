@@ -13,14 +13,34 @@
     "rust-service-hardening-agent": "composer-2.5-fast",
     "flaky-test-qa": "composer-2.5-fast"
   },
-  "status": "ready",
+  "status": "fix_loop",
   "baseline_commit": "73ec107adc939f0bc29081f9c1975c1384acbe20",
   "plan_qa": {
     "pass_commit": "3165bd042327196afb815b1acf0636b12b57303a",
     "pr": 118,
     "qa_pass": "qa-plan-h-7"
   },
-  "qa_rounds": [],
+  "qa_rounds": [
+    {
+      "qa_pass": "qa-h1-1",
+      "commit": "437459ae77448743e628500d54c42ad30e455451",
+      "verdict": "FAIL",
+      "pr_comment_url": "https://github.com/randlee/wyvern/pull/119#issuecomment-5390040093",
+      "reviewer_spawn_gate": "pass",
+      "coordinator_task_id": "1209fa59-3877-4d3a-bac2-19b43218addc",
+      "finding_counts": { "blocking": 0, "important": 3, "minor": 3 },
+      "open_finding_ids": ["RBP-F001", "RBP-F002", "RBP-F003", "RBP-F004", "RBP-F005", "RBP-F006"],
+      "deliverables": "40/40 (100%)",
+      "next_action": "triage_and_fix",
+      "reviewer_manifest": [
+        { "agent": "req-qa", "task_id": "546959c4-4053-4898-8b93-a607488b505c" },
+        { "agent": "arch-qa", "task_id": "2fb9431d-9ce6-4bb5-b8e6-091ea1e046bc" },
+        { "agent": "rust-qa-agent", "task_id": "ec018e9f-8197-41ac-8a58-b787e9e51ddb" },
+        { "agent": "rust-best-practices-agent", "task_id": "93c36325-4815-4460-bcfc-70d6d234ba11" },
+        { "agent": "rust-service-hardening-agent", "task_id": "c499f518-7418-4d08-8ed6-b2ed9ec2a399" }
+      ]
+    }
+  ],
   "sprints": {
     "h.1": {
       "id": "h.1",
@@ -29,10 +49,12 @@
       "worktree": "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-H-h1-xhtml-single",
       "sprint_doc": "docs/plans/phase-H/h1-xhtml-single-panel.md",
       "pr_target": "integrate/phase-H",
-      "status": "pending",
-      "pr_number": null,
-      "pr_url": null,
-      "qa_gate": null
+      "status": "qa_fail",
+      "pr_number": 119,
+      "pr_url": "https://github.com/randlee/wyvern/pull/119",
+      "dev_commit": "437459ae77448743e628500d54c42ad30e455451",
+      "dev_task_id": "860714e4-0ede-4ca4-8ba4-3e56a567f8ed",
+      "qa_gate": "0B+3I+3M open"
     },
     "h.2": {
       "id": "h.2",
@@ -62,8 +84,7 @@
       "sprint_doc": "docs/plans/phase-H/h4-wyvern-reporting-skill.md",
       "pr_target": "integrate/phase-H",
       "status": "pending",
-      "depends_on": ["h.3"],
-      "note": "May start after h.2 contract stable; merge after h.3"
+      "depends_on": ["h.3"]
     },
     "h.5": {
       "id": "h.5",
