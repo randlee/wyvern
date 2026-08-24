@@ -13,9 +13,9 @@
     "rust-service-hardening-agent": "composer-2.5-fast",
     "flaky-test-qa": "composer-2.5-fast"
   },
-  "status": "ready",
+  "status": "dev_in_progress",
   "baseline_commit": "73ec107adc939f0bc29081f9c1975c1384acbe20",
-  "integrate_head": "0a71ec9e6922ff0ccba29ac5f7810184b49ed7a3",
+  "integrate_head": "30e6bdc81aca7a091b7780534810cddc79193499",
   "plan_qa": {
     "pass_commit": "3165bd042327196afb815b1acf0636b12b57303a",
     "pr": 118,
@@ -114,7 +114,9 @@
       "dev_commit": "6353e4d026d19eabd71e5d9e7b278178eb1987c7",
       "fix_commit": "1bfe6cf3b89d66a2704dbcabcf4bc003a377863a",
       "merge_commit": "0a71ec9e6922ff0ccba29ac5f7810184b49ed7a3",
-      "qa_gate": "0B+0I+0M PASS"
+      "qa_gate": "0B+0I+0M PASS @ 1bfe6cf",
+      "qa_commit": "1bfe6cf3b89d66a2704dbcabcf4bc003a377863a",
+      "ci_status": "pending_macos_user_override"
     },
     "h.3": {
       "id": "h.3",
@@ -123,7 +125,8 @@
       "worktree": "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-H-h3-xhtml-review",
       "sprint_doc": "docs/plans/phase-H/h3-xhtml-review-mode.md",
       "pr_target": "integrate/phase-H",
-      "status": "pending",
+      "status": "dev_in_progress",
+      "dev_commit": "b38cde9b1bd31a03ba2c458da084e4118d39a3a9",
       "depends_on": ["h.2"]
     },
     "h.4": {
