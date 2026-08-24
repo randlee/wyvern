@@ -61,10 +61,11 @@ fragments.
 |-----|---------|
 | REQ-0140 | `type: "report"` command JSON validated in `wyvern-schema` |
 | REQ-0141 | `.xhtml` suffix expands via `xhtml-suffix` to report view (not wizard) |
-| REQ-0142 | Report host serves static page under `/report/*` + shared CSS at `/shared/*` |
 | REQ-0143 | View mode dismiss → `{"button":"dismissed"}` |
+| REQ-HOST-0140 | Report static bind at `/report/{page}` (third discriminant, not wizard) |
+| REQ-HOST-0141 | `/shared/*` mount during report sessions (view + review) |
 
-Host REQ text: REQ-HOST-0140 (`/report/*`), REQ-HOST-0141 (`/shared/*` during report sessions).
+REQ-0142 (`report-xhtml` `command_from_file`) lands in **h.2**. REQ-0144 (review finish) lands in **h.3**.
 
 ### Host bind (normative — ADR-0025)
 
@@ -82,9 +83,9 @@ Report uses a **third bind arm** analogous to wizard (not packaged dialog dirs):
 pub enum ReportMode { View, Review }
 
 pub struct ReportPagePath(String); // try_new + Deref/AsRef (wizard_page_newtype pattern)
-pub struct ReportTitle(String);
+pub struct ReportTitle(String); // same try_new + Deref/AsRef pattern
 pub enum PanelRole { Failure, Proposal, Info }
-pub struct ManifestPanelPath(String); // .xhtml relative path, validated
+pub struct ManifestPanelPath(String); // try_new + Deref/AsRef; .xhtml relative path
 
 pub struct ReportPanelEntry {
     pub path: ManifestPanelPath,

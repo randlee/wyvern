@@ -28,6 +28,7 @@ Cancel / Approve buttons; structured finish JSON for agent loops.
 | `ui/shared/report-base.css` | Review footer layout |
 | `crates/wyvern-host/src/routes/report.rs` | `POST /api/report/finish` + finish validation errors |
 | `crates/wyvern-host/src/report_finish.rs` | `ReportFinishError` stable codes (`REPORT_FINISH_*`) |
+| `crates/wyvern-host/src/report_session.rs` | `ValidatedReportManifest` capability token — finish handler requires proof of validated command panels |
 | `crates/wyvern-schema/src/result.rs` | Extend `CommandResult::Report` finish `data` shape docs/tests (review finish) |
 | `share/wyvern/extensions.json` | `report-xhtml-review` extension (longer prefix) |
 | `crates/wyvern/src/cli_args.rs` | `usage_message()` — `wyvern report-xhtml --review <manifest.json>` |
