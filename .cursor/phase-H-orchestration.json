@@ -54,7 +54,7 @@
       "qa_pass": "qa-h2-1",
       "commit": "6353e4d026d19eabd71e5d9e7b278178eb1987c7",
       "verdict": "FAIL",
-      "pr_comment_url": "https://github.com/randlee/wyvern/pull/119#issuecomment-5390956269",
+      "pr_comment_url": "https://github.com/randlee/wyvern/pull/120#issuecomment-5390956269",
       "reviewer_spawn_gate": "pass",
       "coordinator_task_id": "a37bbacd-6dfa-494e-8e3c-232b3cb10f4c",
       "finding_counts": { "blocking": 0, "important": 1, "minor": 6 },
