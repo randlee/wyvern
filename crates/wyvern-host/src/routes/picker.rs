@@ -64,7 +64,7 @@ impl PickerResponse {
     }
 }
 
-/// Open a file picker; only valid while an `input` dialog with `mode: file` is active.
+/// Open a file picker for `input` mode `file` or an active wizard session.
 pub async fn post_picker_file(
     State(session): State<SessionState>,
     Json(body): Json<PickerFileRequest>,
@@ -92,6 +92,11 @@ pub async fn post_picker_file(
             let start_path = body.start_path.or_else(|| start_path.clone());
             (filter, multiple, start_path)
         }
+        Command::Wizard(_) => (
+            body.filter.unwrap_or_default(),
+            body.multiple.unwrap_or(false),
+            body.start_path,
+        ),
         Command::Input { mode, .. } => {
             return Err(picker_bad_request(
                 format!(
@@ -104,9 +109,9 @@ pub async fn post_picker_file(
         }
         _ => {
             return Err(picker_bad_request(
-                "file picker is only available for input dialogs",
-                "active dialog is not an input command",
-                "Start an input (mode: file) dialog before calling POST /api/picker/file",
+                "file picker is only available for input dialogs and wizard sessions",
+                "active dialog is not an input (mode: file) or wizard command",
+                "Start an input (mode: file) or wizard dialog before calling POST /api/picker/file",
             ));
         }
     };
@@ -169,7 +174,7 @@ pub async fn post_picker_file(
     }))
 }
 
-/// Open a folder picker; only valid while an `input` dialog with `mode: folder` is active.
+/// Open a folder picker for `input` mode `folder` or an active wizard session.
 pub async fn post_picker_folder(
     State(session): State<SessionState>,
     Json(body): Json<PickerFolderRequest>,
@@ -185,6 +190,7 @@ pub async fn post_picker_folder(
             start_path,
             ..
         } => body.start_path.or_else(|| start_path.clone()),
+        Command::Wizard(_) => body.start_path,
         Command::Input { mode, .. } => {
             return Err(picker_bad_request(
                 format!(
@@ -197,9 +203,9 @@ pub async fn post_picker_folder(
         }
         _ => {
             return Err(picker_bad_request(
-                "folder picker is only available for input dialogs",
-                "active dialog is not an input command",
-                "Start an input (mode: folder) dialog before calling POST /api/picker/folder",
+                "folder picker is only available for input dialogs and wizard sessions",
+                "active dialog is not an input (mode: folder) or wizard command",
+                "Start an input (mode: folder) or wizard dialog before calling POST /api/picker/folder",
             ));
         }
     };
@@ -320,7 +326,7 @@ fn picker_unavailable(message: impl Into<String>) -> ApiError {
     ApiError::service_unavailable(message)
         .cause("picker semaphore closed because the dialog session ended")
         .recovery("Keep the dialog session open until the picker returns")
-        .recovery("Retry after starting a new input dialog")
+        .recovery("Retry after starting a new input or wizard dialog")
         .docs(PICKER_DOCS)
 }
 

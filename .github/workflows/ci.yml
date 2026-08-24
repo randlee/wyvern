@@ -95,6 +95,9 @@ jobs:
       - name: wyvern wizard lint agent-dag
         run: ${WYVERN_BIN} wizard lint share/wyvern/examples/agent-dag
 
+      - name: wyvern wizard lint path-picker
+        run: ${WYVERN_BIN} wizard lint share/wyvern/examples/path-picker
+
       - name: wyvern wizard lint dataflow fixture
         run: ${WYVERN_BIN} wizard lint fixtures/wizard-dataflow-lint
 
