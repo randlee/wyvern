@@ -35,13 +35,6 @@ impl std::error::Error for FilterPatternError {}
 pub struct FilterPattern(String);
 
 impl FilterPattern {
-    /// Wrap an already-validated pattern.
-    ///
-    /// Prefer [`Self::try_new`] at trust boundaries.
-    pub fn new(value: impl Into<String>) -> Self {
-        Self(value.into())
-    }
-
     /// Construct a non-empty, NUL-free filter pattern.
     ///
     /// # Errors
@@ -131,13 +124,6 @@ impl std::error::Error for PickerPathError {}
 pub struct PickerPath(String);
 
 impl PickerPath {
-    /// Wrap an already-validated path.
-    ///
-    /// Prefer [`Self::try_new`] at trust boundaries.
-    pub fn new(value: impl Into<String>) -> Self {
-        Self(value.into())
-    }
-
     /// Construct a non-empty, NUL-free picker path.
     ///
     /// # Errors
