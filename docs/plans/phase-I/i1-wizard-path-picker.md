@@ -80,7 +80,16 @@ in recovery text (REQ-HOST-0151).
 **Picker slot (normative):** Wizard arms call `acquire_picker_slot()`, hold
 `OwnedSemaphorePermit` in the **async handler** through timeout/join (never inside
 `spawn_blocking`), and drop before returning — same lifecycle as existing input arms
-(ADR-0026 §3; RSH-002).
+(ADR-0026 §3; RSH-002). Concurrent wizard picker POSTs must serialize (mirror
+`http_input.rs` slot_log test).
+
+**Body validation (normative):** Wizard POST bodies use the same pre-match validation as
+input overrides: non-empty filter patterns, no NUL in filter/start_path, non-empty
+`start_path` when provided — HTTP 400 with `cause`/`recovery`/`docs` on violation.
+
+**http-post-schema contract:** Picker sections document `Command::Wizard` body-only
+parameters (no dialog merge), same `PickerResponse` shape, unchanged guards for
+non-wizard/non-input sessions.
 
 ### Example finish JSON (normative)
 
@@ -110,8 +119,10 @@ Page JS collects path strings only — no filesystem reads/writes in the browser
 8. Headless: `WYVERN_VIEWER=none` + mock picker runs example wizard and stdout finish includes `file_paths` / `folder_paths`.
 9. `scripts/check-share-sync.sh` passes (canonical + packaged example trees match).
 10. Example README documents GUI and headless commands using `{wyvern_share}` paths.
-11. `wizard_path_picker.rs` asserts `ApiError` JSON shape on wrong-mode and non-eligible
-    command rejections (mirror `http_input.rs` success regression scope).
+11. `wizard_path_picker.rs` asserts `ApiError` JSON shape on wrong-mode, non-eligible
+    command, and invalid body rejections (mirror `http_input.rs` regression scope).
+12. `wizard_path_picker.rs` includes concurrent wizard picker POST slot-serialization
+    test (mirror `picker_slot_held_until_blocking_task_finishes` in `http_input.rs`).
 
 ## Required validation
 

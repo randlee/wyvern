@@ -100,7 +100,7 @@ Host remains domain-agnostic (ADR-0006). CLI owns execution (ADR-0023, ADR-0024)
 
 ## Wizard native picker (Phase I — i.1)
 
-**REQ-HOST-0150** — While a **`Command::Wizard`** session is active, `POST /api/picker/file` and `POST /api/picker/folder` succeed when the request body is valid. Picker parameters for wizard sessions come from the request body; defaults are empty filter, `multiple: false`, and no `start_path`. Input-mode merge behavior is unchanged (REQ-0113).
+**REQ-HOST-0150** — While a **`Command::Wizard`** session is active, `POST /api/picker/file` and `POST /api/picker/folder` succeed when the request body is valid. Picker parameters for wizard sessions come from the request body; defaults are empty filter, `multiple: false`, and no `start_path`. Wizard POST bodies inherit existing picker route validation (filter/start_path guards), `PICKER_TIMEOUT`, slot acquisition, and `PickerResponse` error semantics from c.11 — no new host configuration surface. Input-mode merge behavior is unchanged (REQ-0113).
 
 **REQ-HOST-0151** — Picker routes return HTTP 400 for non-input, non-wizard command types (e.g. `message`, `report`, `markdown`). Wrong `input` mode remains HTTP 400 with mode-specific guidance.
 

@@ -37,6 +37,12 @@ and `WYVERN_MOCK_PICKER_PATH` behavior unchanged.
 Bundled reference example: **`share/wyvern/examples/path-picker/`** — ships with
 `cargo install` / repo `share/` (same pipeline as `template-picker`, `xhtml-review`).
 
+**Host hardening inheritance:** Wizard picker sessions inherit existing c.11 picker
+semantics without change: `PICKER_TIMEOUT` (300s), `REQUEST_TIMEOUT` (310s tower layer),
+`spawn_blocking` isolation for `rfd`, HTTP 504 on picker timeout, permit held in async
+handler and dropped on timeout (RSH-002), `acquire_picker_slot` serialization, and
+`validate_filter_override` / `validate_start_path_override` on request bodies.
+
 ---
 
 ## Sprint map
