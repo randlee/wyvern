@@ -1,6 +1,7 @@
 //! Typed command surface for the current phase.
 
 use crate::chrome::{ChromeStatus, ChromeTitle};
+use crate::report::ReportCommand;
 use crate::wizard::WizardCommand;
 
 /// Standard button preset for dialog types (REQ Phase B).
@@ -243,6 +244,8 @@ pub enum Command {
     },
     /// Multi-page wizard (Phase D / REQ-0017 / REQ-0026).
     Wizard(WizardCommand),
+    /// Static XHTML/HTML report (Phase H / REQ-0140 / ADR-0025).
+    Report(ReportCommand),
 }
 
 impl Command {
@@ -255,6 +258,7 @@ impl Command {
             | Self::Markdown { width, .. }
             | Self::Question { width, .. } => *width,
             Self::Wizard(cmd) => cmd.width,
+            Self::Report(cmd) => cmd.width,
         }
     }
 
@@ -267,6 +271,7 @@ impl Command {
             | Self::Markdown { height, .. }
             | Self::Question { height, .. } => *height,
             Self::Wizard(cmd) => cmd.height,
+            Self::Report(cmd) => cmd.height,
         }
     }
 

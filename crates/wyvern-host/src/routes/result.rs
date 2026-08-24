@@ -9,7 +9,7 @@ use serde_json::Value;
 use tracing::{event, Level};
 use wyvern_schema::{
     ButtonLabel, ChromeResult, Command, CommandResult, InputResult, InputValue, MarkdownResult,
-    MessageResult, QuestionCard, QuestionResult,
+    MessageResult, QuestionCard, QuestionResult, ReportResult,
 };
 
 use crate::error::HostError;
@@ -78,6 +78,7 @@ fn result_bad_request(message: impl Into<String>, cause: impl Into<String>) -> A
         .recovery(
             "For markdown/message results include a string 'button' field (e.g. \"ok\" or \"dismissed\")",
         )
+        .recovery("For report view dismiss POST {\"button\":\"dismissed\"}")
         .recovery(
             "For question submit omit 'button' and include questions, non-empty answers, and response",
         )
@@ -129,6 +130,7 @@ fn parse_result_for_command(command: &Command, body: &Value) -> Result<CommandRe
             message: "POST /api/result is not used for wizard; use POST /api/wizard/finish (d.2)"
                 .into(),
         }),
+        Command::Report(_) => parse_report_dismiss_result(body),
     }
 }
 
@@ -258,6 +260,23 @@ fn parse_question_answers(body: &Value) -> Result<HashMap<String, String>, HostE
         }
     }
     Ok(answers)
+}
+
+fn parse_report_dismiss_result(body: &Value) -> Result<CommandResult, HostError> {
+    let button =
+        body.get("button")
+            .and_then(Value::as_str)
+            .ok_or_else(|| HostError::InvalidResult {
+                message: "missing string field 'button'".into(),
+            })?;
+    if button != "dismissed" {
+        return Err(HostError::InvalidResult {
+            message: format!(
+                "report view POST /api/result accepts button 'dismissed' only (got '{button}')"
+            ),
+        });
+    }
+    Ok(CommandResult::Report(ReportResult::dismissed()))
 }
 
 fn parse_input_result(body: &Value) -> Result<CommandResult, HostError> {

@@ -135,7 +135,7 @@ Boundary rules are encoded in `boundaries/` and enforced in CI.
 
 **Amendment (Phase H — ADR-0025):**
 
-**Status:** Accepted (planning — Phase H h.1)
+**Status:** Accepted (Phase H h.1)
 
 **Context:** Phase H adds static XHTML/HTML report viewing via a new `Command::Report` variant (ADR-0025). Extensions still expand to validated JSON; MCP Path A unchanged.
 
@@ -190,7 +190,7 @@ Boundary rules are encoded in `boundaries/` and enforced in CI.
 
 ### ADR-0025: Report command (static XHTML/HTML review surfaces)
 
-**Status:** Accepted (planning — Phase H h.1)
+**Status:** Accepted (Phase H h.1)
 
 **Context:** Agents need ad-hoc sc-compose XHTML panel review (single pane, arrays, optional Approve/Cancel) outside wizard stack semantics. Overloading `type: "wizard"` confuses authoring skills and WIZARD-LINT profiles. Phase F ADR-0022 forbade new schema variants; Phase H is the first deliberate exception.
 

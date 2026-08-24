@@ -2,8 +2,8 @@
 //!
 //! Executable surface: [`Command::Chrome`], [`Command::Message`],
 //! [`Command::Input`], [`Command::Markdown`], [`Command::Question`], and
-//! [`Command::Wizard`]. Call [`validate`] on loaded JSON before opening a host
-//! session.
+//! [`Command::Wizard`], and [`Command::Report`]. Call [`validate`] on loaded
+//! JSON before opening a host session.
 
 #![cfg_attr(
     not(test),
@@ -24,6 +24,7 @@ mod error;
 mod error_code;
 mod field_name;
 mod media;
+mod report;
 mod result;
 mod stderr;
 mod validate;
@@ -45,6 +46,11 @@ pub use error_code::ErrorCode;
 pub use field_name::{FieldName, FieldNameError};
 #[doc(inline)]
 pub use media::MediaRef;
+#[doc(inline)]
+pub use report::{
+    ManifestPanelPath, PanelRole, ReportCommand, ReportFieldError, ReportFinishData, ReportMode,
+    ReportPagePath, ReportPanelEntry, ReportResult, ReportTerminalButton, ReportTitle,
+};
 #[doc(inline)]
 pub use result::{
     ChromeResult, CommandResult, InputResult, InputValue, MarkdownResult, MessageResult,

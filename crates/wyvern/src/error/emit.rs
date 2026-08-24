@@ -403,15 +403,35 @@ fn validation_recovery(field: &str, message: &str) -> Vec<String> {
     }
     if field == "type" && message.contains("expected one of") {
         return vec![
-            "Set \"type\" to one of: chrome, message, input, markdown, question, wizard".into(),
+            "Set \"type\" to one of: chrome, message, input, markdown, question, wizard, report"
+                .into(),
+            "Example: {\"type\":\"report\",\"title\":\"Panel\",\"page\":\"pages/view.xhtml\",\"mode\":\"view\"}"
+                .into(),
             "Example: {\"type\":\"wizard\",\"page\":{\"id\":\"start\",\"title\":\"Start\",\"html\":\"pages/start.html\"}}"
                 .into(),
         ];
     }
     if field == "page" && message.contains("missing required field") {
         return vec![
-            "Add required object field \"page\" with id, title, and html".into(),
+            "For report commands, set \"page\" to a .html or .xhtml path string relative to --ui-root"
+                .into(),
+            "Example: {\"type\":\"report\",\"title\":\"Panel\",\"page\":\"pages/view.xhtml\",\"mode\":\"view\"}"
+                .into(),
+            "For wizard commands, add required object field \"page\" with id, title, and html"
+                .into(),
             "Example: {\"type\":\"wizard\",\"page\":{\"id\":\"start\",\"title\":\"Start\",\"html\":\"pages/start.html\"}}"
+                .into(),
+        ];
+    }
+    if field == "page"
+        && (message.contains("must end with")
+            || message.contains("expected string")
+            || message.contains("non-empty string"))
+    {
+        return vec![
+            "Set report \"page\" to a non-empty .html or .xhtml path string relative to --ui-root"
+                .into(),
+            "Example: {\"type\":\"report\",\"title\":\"Panel\",\"page\":\"pages/view.xhtml\",\"mode\":\"view\"}"
                 .into(),
         ];
     }
@@ -546,10 +566,11 @@ pub fn emit_host_error(err: &wyvern_host::HostError) -> Result<String, EmitError
             (
                 ErrorCode::UiNotFound,
                 message,
-                "Packaged UI root, dialog template, or wizard page HTML is missing".to_string(),
+                "Packaged UI root, dialog template, wizard page HTML, or report page is missing".to_string(),
                 vec![
                     "Pass --ui-root pointing at a directory with message/, input/, markdown/, question/, and chrome/ templates".into(),
                     "For wizard commands, ensure page.html exists relative to --ui-root (served under /wizard/**)".into(),
+                    "For report commands, ensure page exists relative to --ui-root (served under /report/**)".into(),
                     "Ensure ui/{message,input,markdown,question,chrome}/ exist in the workspace for development".into(),
                 ],
                 "docs/wyvern-host/requirements.md (REQ-0093, REQ-0100)",
@@ -558,9 +579,9 @@ pub fn emit_host_error(err: &wyvern_host::HostError) -> Result<String, EmitError
         HostError::UnsupportedType { type_name } => (
             ErrorCode::UnsupportedType,
             format!("dialog type '{type_name}' is not implemented on the HTTP host yet"),
-            "Schema validation passed; host matrix supports chrome, message, input, markdown, question, and wizard".to_string(),
+            "Schema validation passed; host matrix supports chrome, message, input, markdown, question, wizard, and report".to_string(),
             vec![
-                "Use one of: chrome, message, input, markdown, question, wizard".into(),
+                "Use one of: chrome, message, input, markdown, question, wizard, report".into(),
             ],
             "docs/plans/phase-C/http-dialog-contract.md",
         ),
