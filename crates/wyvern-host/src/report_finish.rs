@@ -5,8 +5,8 @@
 
 use serde_json::Value;
 use wyvern_schema::{
-    ManifestPanelPath, PanelRole, ReportFinishData, ReportPanelEntry, ReviewComments,
-    MAX_REVIEW_COMMENTS_CHARS,
+    ManifestPanelPath, PanelLabel, PanelRole, ReportFinishData, ReportPanelEntry, ReviewComments,
+    MAX_PANEL_LABEL_CHARS, MAX_REVIEW_COMMENTS_CHARS,
 };
 
 use crate::report_session::ValidatedReportManifest;
@@ -276,7 +276,14 @@ fn parse_posted_panel(index: usize, value: &Value) -> Result<ReportPanelEntry, R
     };
     let label = match obj.get("label") {
         None | Some(Value::Null) => None,
-        Some(Value::String(s)) => Some(s.clone()),
+        Some(Value::String(s)) => Some(PanelLabel::try_new(s.clone()).map_err(|_| {
+            ReportFinishError::new(
+                ReportFinishErrorKind::PanelsInvalid,
+                format!(
+                    "panels[{index}].label must be a non-empty string of at most {MAX_PANEL_LABEL_CHARS} characters"
+                ),
+            )
+        })?),
         Some(_) => {
             return Err(ReportFinishError::new(
                 ReportFinishErrorKind::PanelsInvalid,

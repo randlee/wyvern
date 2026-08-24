@@ -100,3 +100,35 @@ fn report_bind_accepts_page_without_report_index() {
     let _ = handle.viewer_exited_without_result();
     let _ = std::fs::remove_file(url_file);
 }
+
+#[test]
+fn report_review_without_panels_fails_begin() {
+    let root = unique_path("wyvern-report-bind-review-no-panels");
+    std::fs::create_dir_all(root.join("pages")).expect("pages");
+    std::fs::write(
+        root.join("pages").join("view.xhtml"),
+        "<section>ok</section>",
+    )
+    .expect("page");
+    let err = begin(
+        Command::Report(ReportCommand {
+            title: ReportTitle::new("review"),
+            page: ReportPagePath::new("pages/view.xhtml"),
+            mode: ReportMode::Review,
+            panels: None,
+            width: None,
+            height: None,
+        }),
+        host_options(root, unique_path("wyvern-report-bind-review-url")),
+    )
+    .expect_err("review without panels must fail bind");
+    match err {
+        HostError::Internal { message } => {
+            assert!(
+                message.contains("validated panels"),
+                "unexpected internal message: {message}"
+            );
+        }
+        other => panic!("expected Internal, got {other:?}"),
+    }
+}

@@ -17,6 +17,7 @@ use tower_http::services::ServeDir;
 use wyvern_schema::{Command, CommandResult};
 
 use crate::error::{DialogTypeName, HostError};
+use crate::report_session::ValidatedReportManifest;
 use crate::routes::{dialog, picker, report, result, wizard};
 use crate::session::SessionState;
 use crate::static_files::{
@@ -91,8 +92,13 @@ pub(crate) async fn bind_server(
                 "/report/{}",
                 report_cmd.page.as_str().trim_start_matches('/')
             );
-            let review = report_cmd.mode == wyvern_schema::ReportMode::Review;
-            (root, path, BindKind::Report, review)
+            let manifest = ValidatedReportManifest::from_review_command(report_cmd);
+            if report_cmd.mode == wyvern_schema::ReportMode::Review && manifest.is_none() {
+                return Err(HostError::Internal {
+                    message: "review-mode report requires a non-empty validated panels list (at most 32 entries)".into(),
+                });
+            }
+            (root, path, BindKind::Report, manifest.is_some())
         }
         _ => {
             let root = require_type_dir(ui_root, type_name)?;

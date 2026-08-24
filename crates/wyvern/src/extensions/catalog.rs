@@ -49,6 +49,9 @@ pub struct SkillRecord {
     pub args: Vec<SkillArg>,
     /// Expand command `type` from inline JSON, `command_type`, or file contents.
     pub expands_to: String,
+    /// Present when `expands_to` was inferred or `command_from_file` was unreadable.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub catalog_warning: Option<String>,
     /// One-line agent-facing summary from the registry, if present.
     pub description: Option<String>,
     /// Copy-paste example lines.
@@ -72,6 +75,7 @@ pub fn build_skill_record(ext: &ExtensionDef, probe: &dyn RequiresProbe) -> Skil
     } else {
         ext.examples.clone()
     };
+    let expands = expands_to(ext);
     SkillRecord {
         id: ext.id.clone(),
         match_kind: match_kind_summary(&ext.match_spec),
@@ -85,7 +89,8 @@ pub fn build_skill_record(ext: &ExtensionDef, probe: &dyn RequiresProbe) -> Skil
             })
             .collect(),
         args,
-        expands_to: expands_to(ext),
+        expands_to: expands.type_name,
+        catalog_warning: expands.warning,
         description: ext
             .description
             .as_ref()
@@ -166,6 +171,11 @@ pub fn format_skill_card(record: &SkillRecord) -> String {
     out.push_str("Expands to: ");
     out.push_str(&record.expands_to);
     out.push('\n');
+    if let Some(warning) = &record.catalog_warning {
+        out.push_str("Warning: ");
+        out.push_str(warning);
+        out.push('\n');
+    }
     if let Some(parent) = &record.extends {
         out.push_str("Extends: ");
         out.push_str(parent.as_str());
@@ -186,7 +196,56 @@ pub fn format_skill_card(record: &SkillRecord) -> String {
     out
 }
 
-fn expands_to(ext: &ExtensionDef) -> String {
+/// Resolved catalog `expands_to` plus an optional degraded-path warning.
+struct ExpandsToResolution {
+    type_name: String,
+    warning: Option<String>,
+}
+
+impl ExpandsToResolution {
+    fn confirmed(type_name: impl Into<String>) -> Self {
+        Self {
+            type_name: type_name.into(),
+            warning: None,
+        }
+    }
+
+    fn degraded(type_name: impl Into<String>, warning: impl Into<String>) -> Self {
+        Self {
+            type_name: type_name.into(),
+            warning: Some(warning.into()),
+        }
+    }
+}
+
+/// Structured failure when catalog cannot read `command_from_file` JSON.
+#[derive(Debug)]
+enum CatalogCommandTypeError {
+    /// Filesystem read failed.
+    Read(std::io::Error),
+    /// File contents were not JSON.
+    Parse(serde_json::Error),
+}
+
+impl std::fmt::Display for CatalogCommandTypeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Read(err) => write!(f, "could not read command_from_file: {err}"),
+            Self::Parse(err) => write!(f, "command_from_file is not valid JSON: {err}"),
+        }
+    }
+}
+
+impl std::error::Error for CatalogCommandTypeError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Read(err) => Some(err),
+            Self::Parse(err) => Some(err),
+        }
+    }
+}
+
+fn expands_to(ext: &ExtensionDef) -> ExpandsToResolution {
     if let Some(ty) = ext
         .expand
         .as_ref()
@@ -195,7 +254,7 @@ fn expands_to(ext: &ExtensionDef) -> String {
         .and_then(Value::as_str)
         .filter(|ty| !ty.is_empty())
     {
-        return ty.to_string();
+        return ExpandsToResolution::confirmed(ty);
     }
     let spec = ext.expand.as_ref();
     let hint = spec
@@ -205,25 +264,34 @@ fn expands_to(ext: &ExtensionDef) -> String {
     if let Some(path_tmpl) = spec.and_then(|expand| expand.command_from_file.as_deref()) {
         return type_from_command_from_file(path_tmpl, hint);
     }
-    hint.unwrap_or("wizard").to_string()
+    match hint {
+        Some(ty) => ExpandsToResolution::confirmed(ty),
+        None => ExpandsToResolution::degraded(
+            "wizard",
+            "catalog defaulted expands_to to wizard; no command type was declared",
+        ),
+    }
 }
 
 /// Read `type` from resolvable `command_from_file` JSON, a registry hint, or
-/// the emitted filename.
+/// a filename heuristic marked as degraded.
 ///
 /// Catalog listing cannot wait for preexec to write `{tmpdir}/…`. Prefer
-/// `expand.command_type`; fall back to `report-command.json` → `report`.
-/// Read/parse failures must not silently become `wizard`.
-fn type_from_command_from_file(path_tmpl: &str, hint: Option<&str>) -> String {
+/// `expand.command_type`. Read/parse failures must not silently become `wizard`
+/// or a filename guess — they surface [`SkillRecord::catalog_warning`].
+fn type_from_command_from_file(path_tmpl: &str, hint: Option<&str>) -> ExpandsToResolution {
     if let Some(path) = resolve_static_command_path(path_tmpl) {
         match read_command_type(&path) {
-            Ok(Some(ty)) => return ty,
+            Ok(Some(ty)) => return ExpandsToResolution::confirmed(ty),
             Ok(None) => {
                 tracing::warn!(
                     path = %path.display(),
                     "catalog command_from_file JSON has no type field"
                 );
-                return fallback_command_type(path_tmpl, hint);
+                return ExpandsToResolution::degraded(
+                    hint.unwrap_or("unknown"),
+                    format!("command_from_file {} has no type field", path.display()),
+                );
             }
             Err(err) => {
                 tracing::warn!(
@@ -231,21 +299,23 @@ fn type_from_command_from_file(path_tmpl: &str, hint: Option<&str>) -> String {
                     error = %err,
                     "catalog could not read command_from_file type"
                 );
-                return fallback_command_type(path_tmpl, hint);
+                return ExpandsToResolution::degraded(hint.unwrap_or("unknown"), err.to_string());
             }
         }
     }
     if let Some(ty) = hint {
-        return ty.to_string();
+        return ExpandsToResolution::confirmed(ty);
     }
-    filename_command_type(path_tmpl).unwrap_or_else(|| "wizard".to_string())
-}
-
-fn fallback_command_type(path_tmpl: &str, hint: Option<&str>) -> String {
-    if let Some(ty) = hint {
-        return ty.to_string();
+    match filename_command_type(path_tmpl) {
+        Some(ty) => ExpandsToResolution::degraded(
+            ty,
+            "inferred expands_to from filename; command_from_file template is not readable yet",
+        ),
+        None => ExpandsToResolution::degraded(
+            "wizard",
+            "command_from_file type is unavailable; catalog defaulted to wizard",
+        ),
     }
-    filename_command_type(path_tmpl).unwrap_or_else(|| "unknown".to_string())
 }
 
 fn filename_command_type(path_tmpl: &str) -> Option<String> {
@@ -274,9 +344,9 @@ fn resolve_static_command_path(path_tmpl: &str) -> Option<std::path::PathBuf> {
     path.is_file().then_some(path)
 }
 
-fn read_command_type(path: &std::path::Path) -> Result<Option<String>, String> {
-    let text = std::fs::read_to_string(path).map_err(|err| err.to_string())?;
-    let value: Value = serde_json::from_str(&text).map_err(|err| err.to_string())?;
+fn read_command_type(path: &std::path::Path) -> Result<Option<String>, CatalogCommandTypeError> {
+    let text = std::fs::read_to_string(path).map_err(CatalogCommandTypeError::Read)?;
+    let value: Value = serde_json::from_str(&text).map_err(CatalogCommandTypeError::Parse)?;
     Ok(value
         .get("type")
         .and_then(Value::as_str)
@@ -623,6 +693,16 @@ mod tests {
         let record = build_skill_record(&registry.extensions()[0], &Absent);
         assert_eq!(record.expands_to, "unknown");
         assert_ne!(record.expands_to, "wizard");
+        assert!(
+            record
+                .catalog_warning
+                .as_deref()
+                .is_some_and(|w| w.contains("not valid JSON")),
+            "{:?}",
+            record.catalog_warning
+        );
+        let card = format_skill_card(&record);
+        assert!(card.contains("Warning:"), "{card}");
     }
 
     #[test]

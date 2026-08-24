@@ -18,6 +18,12 @@ pub const MAX_REVIEW_COMMENTS_CHARS: usize = 32_768;
 /// validate error inventory.
 pub const MAX_REPORT_PANELS: usize = 32;
 
+/// Maximum `panels[].label` length (Unicode scalar values).
+///
+/// Pane headings stay short (basename fallback is typically a filename). 256
+/// covers localized titles without letting finish JSON carry an unbounded string.
+pub const MAX_PANEL_LABEL_CHARS: usize = 256;
+
 /// Error when a report identity or path field is invalid.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ReportFieldError {
@@ -29,6 +35,8 @@ pub enum ReportFieldError {
     InvalidPanelSuffix,
     /// [`ReviewComments`] exceeds [`MAX_REVIEW_COMMENTS_CHARS`].
     CommentsTooLong,
+    /// [`PanelLabel`] exceeds [`MAX_PANEL_LABEL_CHARS`].
+    LabelTooLong,
 }
 
 impl fmt::Display for ReportFieldError {
@@ -42,6 +50,10 @@ impl fmt::Display for ReportFieldError {
             Self::CommentsTooLong => write!(
                 f,
                 "review comments must be at most {MAX_REVIEW_COMMENTS_CHARS} characters"
+            ),
+            Self::LabelTooLong => write!(
+                f,
+                "panel label must be at most {MAX_PANEL_LABEL_CHARS} characters"
             ),
         }
     }
@@ -269,6 +281,101 @@ impl<'de> Deserialize<'de> for ReviewComments {
     }
 }
 
+/// Bounded pane heading for a manifest panel (non-empty, max 256 scalars).
+///
+/// Construct via [`Self::try_new`] at the validation boundary so
+/// [`ReportPanelEntry::label`] cannot carry an unbounded `String`.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
+#[serde(transparent)]
+pub struct PanelLabel(String);
+
+impl PanelLabel {
+    /// Wrap an already-validated pane heading.
+    ///
+    /// Prefer [`Self::try_new`] at trust boundaries.
+    pub fn new(value: impl Into<String>) -> Self {
+        Self(value.into())
+    }
+
+    /// Construct a non-empty label that fits [`MAX_PANEL_LABEL_CHARS`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ReportFieldError::Empty`] when `value` is empty, or
+    /// [`ReportFieldError::LabelTooLong`] when it exceeds the bound.
+    pub fn try_new(value: impl Into<String>) -> Result<Self, ReportFieldError> {
+        let value = value.into();
+        if value.is_empty() {
+            return Err(ReportFieldError::Empty);
+        }
+        if value.chars().count() > MAX_PANEL_LABEL_CHARS {
+            return Err(ReportFieldError::LabelTooLong);
+        }
+        Ok(Self(value))
+    }
+
+    /// Borrow as a string slice.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    /// Consume and return the inner string.
+    pub fn into_inner(self) -> String {
+        self.0
+    }
+}
+
+impl Deref for PanelLabel {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl AsRef<str> for PanelLabel {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
+impl fmt::Display for PanelLabel {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl From<String> for PanelLabel {
+    fn from(value: String) -> Self {
+        Self::new(value)
+    }
+}
+
+impl From<&str> for PanelLabel {
+    fn from(value: &str) -> Self {
+        Self::new(value)
+    }
+}
+
+impl PartialEq<str> for PanelLabel {
+    fn eq(&self, other: &str) -> bool {
+        self.0 == other
+    }
+}
+
+impl PartialEq<&str> for PanelLabel {
+    fn eq(&self, other: &&str) -> bool {
+        self.0 == *other
+    }
+}
+
+impl<'de> Deserialize<'de> for PanelLabel {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let value = String::deserialize(deserializer)?;
+        Self::try_new(value).map_err(serde::de::Error::custom)
+    }
+}
+
 /// Report session mode (`view` | `review`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -348,7 +455,7 @@ pub struct ReportPanelEntry {
     pub path: ManifestPanelPath,
     /// Optional pane heading (defaults to basename at stitch time).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub label: Option<String>,
+    pub label: Option<PanelLabel>,
     /// Optional CSS role.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub role: Option<PanelRole>,
@@ -442,6 +549,17 @@ mod tests {
             Err(ReportFieldError::CommentsTooLong)
         );
         assert!(ReviewComments::try_new("x".repeat(MAX_REVIEW_COMMENTS_CHARS)).is_ok());
+    }
+
+    #[test]
+    fn panel_label_try_new_rejects_empty_and_enforces_bound() {
+        assert_eq!(PanelLabel::try_new(""), Err(ReportFieldError::Empty));
+        assert_eq!(
+            PanelLabel::try_new("x".repeat(MAX_PANEL_LABEL_CHARS + 1)),
+            Err(ReportFieldError::LabelTooLong)
+        );
+        assert_eq!(PanelLabel::try_new("Fail 1").unwrap().as_str(), "Fail 1");
+        assert!(PanelLabel::try_new("x".repeat(MAX_PANEL_LABEL_CHARS)).is_ok());
     }
 
     #[test]

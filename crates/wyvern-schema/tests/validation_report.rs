@@ -2,7 +2,8 @@
 
 use serde_json::json;
 use wyvern_schema::{
-    validate, Command, PanelRole, ReportCommand, ReportMode, ValidationError, MAX_REPORT_PANELS,
+    validate, Command, PanelRole, ReportCommand, ReportMode, ValidationError,
+    MAX_PANEL_LABEL_CHARS, MAX_REPORT_PANELS,
 };
 
 #[test]
@@ -247,6 +248,45 @@ fn report_panels_reject_more_than_max() {
             assert_eq!(field, "panels");
             assert!(
                 message.contains(&MAX_REPORT_PANELS.to_string()),
+                "{message}"
+            );
+        }
+        other => panic!("expected Validation, got {other:?}"),
+    }
+}
+
+#[test]
+fn report_panel_label_rejects_empty_and_over_bound() {
+    let empty = validate(&json!({
+        "type": "report",
+        "title": "T",
+        "page": "pages/view.xhtml",
+        "panels": [{ "path": "panels/fail.xhtml", "label": "" }]
+    }))
+    .unwrap_err();
+    match empty {
+        ValidationError::Validation { field, message } => {
+            assert_eq!(field, "panels[0].label");
+            assert!(message.contains("non-empty"), "{message}");
+        }
+        other => panic!("expected Validation, got {other:?}"),
+    }
+
+    let too_long = validate(&json!({
+        "type": "report",
+        "title": "T",
+        "page": "pages/view.xhtml",
+        "panels": [{
+            "path": "panels/fail.xhtml",
+            "label": "x".repeat(MAX_PANEL_LABEL_CHARS + 1)
+        }]
+    }))
+    .unwrap_err();
+    match too_long {
+        ValidationError::Validation { field, message } => {
+            assert_eq!(field, "panels[0].label");
+            assert!(
+                message.contains(&MAX_PANEL_LABEL_CHARS.to_string()),
                 "{message}"
             );
         }

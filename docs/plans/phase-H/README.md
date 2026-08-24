@@ -74,7 +74,7 @@ Contract: [xhtml-reporting-contract.md](xhtml-reporting-contract.md).
 | **h.4** | `wyvern-reporting` skill + reference docs | [h4-wyvern-reporting-skill.md](h4-wyvern-reporting-skill.md) |
 | **h.5** | Synthetic example package + CI smoke | [h5-synthetic-xhtml-example.md](h5-synthetic-xhtml-example.md) |
 
-**Merge order → `integrate/phase-H`:** h.1 → h.2 → h.3 → h.4 → h.5  
+**Merge order → `integrate/phase-H`:** h.1 → h.2 → h.3 → h.4 → h.5
 (h.4 may start after h.2 doc contract is stable; must merge after h.3 so refs
 include `--review` finish shape.)
 

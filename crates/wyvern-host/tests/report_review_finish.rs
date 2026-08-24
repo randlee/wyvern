@@ -6,6 +6,7 @@ use support::http::{http_client, wait_for_url_file};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Barrier};
 use std::thread;
 use std::time::Duration;
 
@@ -115,6 +116,60 @@ fn wait_for_get(client: &reqwest::blocking::Client, url: &str) {
             }
         }
     }
+}
+
+fn is_transient_http_send(err: &reqwest::Error) -> bool {
+    if err.is_connect() || err.is_timeout() || err.is_request() {
+        return true;
+    }
+    let msg = err.to_string();
+    msg.contains("Connection reset")
+        || msg.contains("connection reset")
+        || msg.contains("Broken pipe")
+        || msg.contains("connection closed")
+        || msg.contains("os error 54")
+        || msg.contains("os error 104")
+}
+
+/// Retry POST on connection-reset during graceful shutdown (FTQ-001 / FTQ-002).
+fn post_json_tolerate_transient(
+    client: &reqwest::blocking::Client,
+    url: &str,
+    body: &serde_json::Value,
+) -> reqwest::blocking::Response {
+    let start = std::time::Instant::now();
+    loop {
+        match client.post(url).json(body).send() {
+            Ok(resp) => return resp,
+            Err(err) if is_transient_http_send(&err) => {
+                if start.elapsed() > Duration::from_secs(2) {
+                    panic!("POST {url} failed after transient retries: {err}");
+                }
+                thread::sleep(Duration::from_millis(25));
+            }
+            Err(err) => panic!("POST {url}: {err}"),
+        }
+    }
+}
+
+/// Bind-only start for the session-timeout test (FTQ-003).
+///
+/// Skips `wait_for_get` so the 15s readiness poll cannot consume
+/// [`HostOptions::session_timeout`].
+fn start_report_skip_get(
+    mode: ReportMode,
+    panels: Option<Vec<ReportPanelEntry>>,
+    timeout: Duration,
+) -> (DialogHandle, PathBuf) {
+    let ui_root = write_report_ui_root();
+    let url_file = unique_path("wyvern-report-review-timeout-url");
+    let handle = begin(
+        report_command(mode, panels),
+        host_options(ui_root, url_file.clone(), timeout),
+    )
+    .expect("begin");
+    let _ = wait_for_url_file(&url_file);
+    (handle, url_file)
 }
 
 fn matching_finish_body(approved: bool, comments: &str) -> serde_json::Value {
@@ -266,16 +321,25 @@ fn report_review_duplicate_finish_is_409() {
     );
     let finish_url = format!("{base}/api/report/finish");
     // Concurrent POSTs so both hit the live server before graceful shutdown.
+    let ready = Arc::new(Barrier::new(2));
     let client_a = client.clone();
     let client_b = client.clone();
     let url_a = finish_url.clone();
     let url_b = finish_url;
     let body_a = matching_finish_body(true, "");
     let body_b = matching_finish_body(false, "again");
-    let first = thread::spawn(move || client_a.post(url_a).json(&body_a).send());
-    let second = thread::spawn(move || client_b.post(url_b).json(&body_b).send());
-    let a = first.join().expect("join a").expect("POST a");
-    let b = second.join().expect("join b").expect("POST b");
+    let ready_a = Arc::clone(&ready);
+    let ready_b = Arc::clone(&ready);
+    let first = thread::spawn(move || {
+        ready_a.wait();
+        post_json_tolerate_transient(&client_a, &url_a, &body_a)
+    });
+    let second = thread::spawn(move || {
+        ready_b.wait();
+        post_json_tolerate_transient(&client_b, &url_b, &body_b)
+    });
+    let a = first.join().expect("join a");
+    let b = second.join().expect("join b");
     let statuses = [a.status(), b.status()];
     assert!(
         statuses.contains(&reqwest::StatusCode::OK)
@@ -302,18 +366,23 @@ fn report_review_finish_and_result_are_mutually_exclusive() {
     );
     let finish_url = format!("{base}/api/report/finish");
     let result_url = format!("{base}/api/result");
+    let ready = Arc::new(Barrier::new(2));
     let client_finish = client.clone();
     let client_result = client;
     let finish_body = matching_finish_body(true, "");
-    let finish = thread::spawn(move || client_finish.post(finish_url).json(&finish_body).send());
-    let dismiss = thread::spawn(move || {
-        client_result
-            .post(result_url)
-            .json(&serde_json::json!({ "button": "dismissed" }))
-            .send()
+    let dismiss_body = serde_json::json!({ "button": "dismissed" });
+    let ready_finish = Arc::clone(&ready);
+    let ready_result = Arc::clone(&ready);
+    let finish = thread::spawn(move || {
+        ready_finish.wait();
+        post_json_tolerate_transient(&client_finish, &finish_url, &finish_body)
     });
-    let finish = finish.join().expect("join finish").expect("POST finish");
-    let dismiss = dismiss.join().expect("join result").expect("POST result");
+    let dismiss = thread::spawn(move || {
+        ready_result.wait();
+        post_json_tolerate_transient(&client_result, &result_url, &dismiss_body)
+    });
+    let finish = finish.join().expect("join finish");
+    let dismiss = dismiss.join().expect("join result");
     let ok = reqwest::StatusCode::OK;
     let conflict = reqwest::StatusCode::CONFLICT;
     assert!(
@@ -365,7 +434,7 @@ fn report_review_os_close_emits_dismissed() {
 
 #[test]
 fn report_review_timeout_emits_dismissed() {
-    let (handle, _base, url_file, _client) = start_report(
+    let (handle, url_file) = start_report_skip_get(
         ReportMode::Review,
         Some(review_panels()),
         Duration::from_secs(1),

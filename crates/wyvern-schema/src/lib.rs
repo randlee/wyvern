@@ -36,7 +36,8 @@ pub use button::ButtonLabel;
 pub use chrome::{ChromeStatus, ChromeTitle};
 #[doc(inline)]
 pub use command::{
-    ButtonsPreset, Command, InputMode, MessageLevel, QuestionCard, QuestionOption, WindowSizeHint,
+    ButtonsPreset, Command, InputMode, MessageLevel, QuestionCard, QuestionOption, QuestionPrompt,
+    QuestionPromptError, WindowSizeHint,
 };
 #[doc(inline)]
 pub use error::ValidationError;
@@ -48,9 +49,9 @@ pub use field_name::{FieldName, FieldNameError};
 pub use media::MediaRef;
 #[doc(inline)]
 pub use report::{
-    ManifestPanelPath, PanelRole, ReportCommand, ReportFieldError, ReportFinishData, ReportMode,
-    ReportPagePath, ReportPanelEntry, ReportResult, ReportTerminalButton, ReportTitle,
-    ReviewComments, MAX_REPORT_PANELS, MAX_REVIEW_COMMENTS_CHARS,
+    ManifestPanelPath, PanelLabel, PanelRole, ReportCommand, ReportFieldError, ReportFinishData,
+    ReportMode, ReportPagePath, ReportPanelEntry, ReportResult, ReportTerminalButton, ReportTitle,
+    ReviewComments, MAX_PANEL_LABEL_CHARS, MAX_REPORT_PANELS, MAX_REVIEW_COMMENTS_CHARS,
 };
 #[doc(inline)]
 pub use result::{

@@ -267,7 +267,7 @@ fn question_payload_value(questions: &[QuestionCard]) -> Value {
                 })
                 .collect();
             json!({
-                "question": card.question,
+                "question": card.question.as_str(),
                 "header": card.header,
                 "options": options,
                 "multiSelect": card.multi_select,

@@ -6,8 +6,8 @@ use crate::command::Command;
 use crate::error::ValidationError;
 use crate::field_name::FieldName;
 use crate::report::{
-    ManifestPanelPath, PanelRole, ReportCommand, ReportMode, ReportPagePath, ReportPanelEntry,
-    ReportTitle, MAX_REPORT_PANELS,
+    ManifestPanelPath, PanelLabel, PanelRole, ReportCommand, ReportFieldError, ReportMode,
+    ReportPagePath, ReportPanelEntry, ReportTitle, MAX_PANEL_LABEL_CHARS, MAX_REPORT_PANELS,
 };
 
 use super::helpers::{
@@ -156,7 +156,7 @@ fn validate_panel_entry(index: usize, value: &Value) -> Result<ReportPanelEntry,
         }
     }
     let path = require_panel_path(index, obj)?;
-    let label = optional_panel_string(index, obj, "label")?;
+    let label = optional_panel_label(index, obj)?;
     let role = optional_panel_role(index, obj)?;
     Ok(ReportPanelEntry { path, label, role })
 }
@@ -188,15 +188,25 @@ fn require_panel_path(
     }
 }
 
-fn optional_panel_string(
+fn optional_panel_label(
     index: usize,
     obj: &Map<String, Value>,
-    name: &str,
-) -> Result<Option<String>, ValidationError> {
-    let field = format!("panels[{index}].{name}");
-    match obj.get(name) {
+) -> Result<Option<PanelLabel>, ValidationError> {
+    let field = format!("panels[{index}].label");
+    match obj.get("label") {
         None => Ok(None),
-        Some(Value::String(s)) => Ok(Some(s.clone())),
+        Some(Value::String(s)) => PanelLabel::try_new(s.clone()).map(Some).map_err(|err| {
+            let message = match err {
+                ReportFieldError::Empty => {
+                    format!("panels[{index}].label must be a non-empty string")
+                }
+                ReportFieldError::LabelTooLong => format!(
+                    "panels[{index}].label must be at most {MAX_PANEL_LABEL_CHARS} characters"
+                ),
+                other => format!("panels[{index}].label is invalid: {other}"),
+            };
+            ValidationError::validation(field, message)
+        }),
         Some(other) => Err(ValidationError::validation(
             field.clone(),
             format!("{field} expected string, got {}", json_type_name(other)),
