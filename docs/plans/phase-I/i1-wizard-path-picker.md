@@ -1,7 +1,7 @@
 ---
 id: i.1
 title: Wizard native path picker + bundled example
-status: planned
+status: implemented
 branch: feature/phase-I-i1-wizard-path-picker
 worktree: ../wyvern-worktrees/feature/phase-I-i1-wizard-path-picker
 target: integrate/phase-I

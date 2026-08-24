@@ -6,7 +6,9 @@ use axum::extract::State;
 use axum::Json;
 use serde::{Deserialize, Serialize};
 use tracing::{event, Level};
-use wyvern_schema::{Command, InputMode};
+use wyvern_schema::{
+    Command, FilterPattern, FilterPatternError, InputMode, PickerPath, PickerPathError,
+};
 
 use crate::picker::{pick_file, pick_folder};
 use crate::routes::api_error::ApiError;
@@ -70,10 +72,12 @@ pub async fn post_picker_file(
     Json(body): Json<PickerFileRequest>,
 ) -> Result<Json<PickerResponse>, ApiError> {
     if let Some(ref filter) = body.filter {
-        validate_filter_override(filter)?;
+        for (i, pat) in filter.iter().enumerate() {
+            FilterPattern::try_new(pat.as_str()).map_err(|err| filter_pattern_error(i, err))?;
+        }
     }
     if let Some(ref start_path) = body.start_path {
-        validate_start_path_override(start_path)?;
+        PickerPath::try_new(start_path.as_str()).map_err(picker_path_error)?;
     }
 
     let command = session.command().await;
@@ -180,7 +184,7 @@ pub async fn post_picker_folder(
     Json(body): Json<PickerFolderRequest>,
 ) -> Result<Json<PickerResponse>, ApiError> {
     if let Some(ref start_path) = body.start_path {
-        validate_start_path_override(start_path)?;
+        PickerPath::try_new(start_path.as_str()).map_err(picker_path_error)?;
     }
 
     let command = session.command().await;
@@ -263,44 +267,34 @@ pub async fn post_picker_folder(
     }))
 }
 
-/// Schema-equivalent checks for POST `filter` overrides (non-empty strings, no NUL).
-fn validate_filter_override(filter: &[String]) -> Result<(), ApiError> {
-    for (i, pat) in filter.iter().enumerate() {
-        if pat.is_empty() || pat.trim().is_empty() {
-            return Err(picker_bad_request(
-                format!("filter[{i}] must be a non-empty string"),
-                format!("filter[{i}] was empty or whitespace-only"),
-                "Pass extension patterns such as '*.json' or 'txt' (see dialog filter field)",
-            ));
-        }
-        if pat.contains('\0') {
-            return Err(picker_bad_request(
-                format!("filter[{i}] must not contain NUL bytes"),
-                format!("filter[{i}] contained a NUL byte"),
-                "Remove NUL bytes from filter patterns before POSTing /api/picker/file",
-            ));
-        }
+fn filter_pattern_error(index: usize, err: FilterPatternError) -> ApiError {
+    match err {
+        FilterPatternError::Empty => picker_bad_request(
+            format!("filter[{index}] must be a non-empty string"),
+            format!("filter[{index}] was empty or whitespace-only"),
+            "Pass extension patterns such as '*.json' or 'txt' (see dialog filter field)",
+        ),
+        FilterPatternError::ContainsNul => picker_bad_request(
+            format!("filter[{index}] must not contain NUL bytes"),
+            format!("filter[{index}] contained a NUL byte"),
+            "Remove NUL bytes from filter patterns before POSTing /api/picker/file",
+        ),
     }
-    Ok(())
 }
 
-/// Schema-equivalent checks for POST `start_path` overrides.
-fn validate_start_path_override(start_path: &str) -> Result<(), ApiError> {
-    if start_path.is_empty() {
-        return Err(picker_bad_request(
+fn picker_path_error(err: PickerPathError) -> ApiError {
+    match err {
+        PickerPathError::Empty => picker_bad_request(
             "start_path must be a non-empty string when provided",
             "start_path override was an empty string",
             "Omit start_path or pass a non-empty directory path",
-        ));
-    }
-    if start_path.contains('\0') {
-        return Err(picker_bad_request(
+        ),
+        PickerPathError::ContainsNul => picker_bad_request(
             "start_path must not contain NUL bytes",
             "start_path override contained a NUL byte",
             "Remove NUL bytes from start_path before POSTing /api/picker/*",
-        ));
+        ),
     }
-    Ok(())
 }
 
 fn picker_bad_request(
