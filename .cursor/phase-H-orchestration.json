@@ -13,7 +13,7 @@
     "rust-service-hardening-agent": "composer-2.5-fast",
     "flaky-test-qa": "composer-2.5-fast"
   },
-  "status": "dev_in_progress",
+  "status": "qa_in_progress",
   "baseline_commit": "73ec107adc939f0bc29081f9c1975c1384acbe20",
   "integrate_head": "9874e58d3343631c5b300b264b2485a786854dde",
   "plan_qa": {
@@ -212,8 +212,10 @@
       "worktree": "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-H-h5-xhtml-example",
       "sprint_doc": "docs/plans/phase-H/h5-synthetic-xhtml-example.md",
       "pr_target": "integrate/phase-H",
-      "status": "dev_in_progress",
+      "status": "qa_in_progress",
       "dev_commit": "01015bd78510bee8c22e42a4c3de92127292f89e",
+      "pr_number": 123,
+      "pr_url": "https://github.com/randlee/wyvern/pull/123",
       "depends_on": ["h.1", "h.2", "h.3", "h.4"]
     }
   }
