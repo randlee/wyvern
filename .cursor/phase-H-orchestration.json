@@ -13,7 +13,9 @@
     "rust-service-hardening-agent": "composer-2.5-fast",
     "flaky-test-qa": "composer-2.5-fast"
   },
-  "status": "sprints_complete",
+  "status": "phase_end_qa_in_progress",
+  "phase_end_pr": 124,
+  "phase_end_pr_url": "https://github.com/randlee/wyvern/pull/124",
   "baseline_commit": "73ec107adc939f0bc29081f9c1975c1384acbe20",
   "integrate_head": "83b56d01bc18939ef4d0ca51553ee74f61e1d1bc",
   "plan_qa": {
