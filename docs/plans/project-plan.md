@@ -277,6 +277,26 @@ Contract: [xhtml-reporting-contract.md](phase-H/xhtml-reporting-contract.md).
 
 ---
 
+## Phase I — Wizard native path picker
+
+**Phase goal:** Wizard sessions may use native file/folder pickers in-page; bundled
+`path-picker` example ships with install.
+
+**Prerequisite:** Phase H complete on `develop`.
+
+**Related:** [GitHub #99](https://github.com/randlee/wyvern/issues/99).
+
+Phase I sprint PRs target `integrate/phase-I`. Sprint authority: `docs/plans/phase-I/`
+(sprint **i.1** only — single-sprint phase).
+
+| Sprint | Deliverable | Doc |
+|--------|-------------|-----|
+| i.1 | Wizard picker host + `share/wyvern/examples/path-picker/` | [i1-wizard-path-picker.md](phase-I/i1-wizard-path-picker.md) |
+
+See [docs/plans/phase-I/README.md](phase-I/README.md).
+
+---
+
 ## Phase Summary
 
 | Phase | Sprints | Ships |

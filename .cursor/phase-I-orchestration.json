@@ -1,0 +1,32 @@
+{
+  "phase": "I",
+  "integration_branch": "integrate/phase-I",
+  "created": "2026-08-24T20:55:00Z",
+  "active_sprint": "i.1",
+  "dev_model": "cursor-grok-4.6-high-fast",
+  "qa_models": {
+    "cursor-quality-mgr": "composer-2.5-fast",
+    "req-qa": "composer-2.5-fast",
+    "arch-qa": "cursor-grok-4.6-high-fast",
+    "rust-qa-agent": "cursor-grok-4.6-high-fast",
+    "rust-best-practices-agent": "composer-2.5-fast",
+    "rust-service-hardening-agent": "composer-2.5-fast",
+    "flaky-test-qa": "composer-2.5-fast"
+  },
+  "status": "sprint_i1_pending",
+  "baseline_commit": "5852c6b5fb346e85050931500c7b48b0d5430319",
+  "integrate_head": "5852c6b5fb346e85050931500c7b48b0d5430319",
+  "github_issue": 99,
+  "qa_rounds": [],
+  "sprints": {
+    "i.1": {
+      "id": "i.1",
+      "title": "Wizard native path picker + bundled example",
+      "branch": "feature/phase-I-i1-wizard-path-picker",
+      "worktree": "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-I-i1-wizard-path-picker",
+      "sprint_doc": "docs/plans/phase-I/i1-wizard-path-picker.md",
+      "pr_target": "integrate/phase-I",
+      "status": "pending"
+    }
+  }
+}
