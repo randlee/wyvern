@@ -52,6 +52,8 @@ Primary user: AI agents with **no checkout docs**. Authoritative contract: [agen
 
 **REQ-0137** — **Registry/help parity:** every `id` in shipped `share/wyvern/extensions.json` appears in global `--help` and in `extensions list --json`; each shipped entry has non-empty `description` and at least one `examples` string. CI tests enforce parity when the registry changes.
 
+**REQ-0146** — **`wyvern examples list`** discovers bundled examples under `{wyvern_share}/examples/` by scanning for `README.md` files with mandatory YAML frontmatter (`name`, `description`). Text output lists name, description, and readme path; `wyvern examples list --json` prints a JSON array of `{name, description, readme}`. Bare `wyvern examples` matches `list`. Global `--help` mentions the command. Sprint: [g15-examples-catalog.md](../plans/phase-G/g15-examples-catalog.md).
+
 ---
 
 ## Interactive Mode (Phase E)

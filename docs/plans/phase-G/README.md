@@ -74,6 +74,14 @@ Contracts: [agent-usability-contract.md](agent-usability-contract.md), [skills-c
 - User registry (`~/.config/wyvern/extensions.json`) — post-G
 - `wyvern skills` argv alias — P2; defer unless trivial
 
+### Follow-on — examples catalog (g.15)
+
+| Sprint | Ships | Doc |
+|--------|-------|-----|
+| **g.15** | `wyvern examples list` + README frontmatter on bundled examples | [g15-examples-catalog.md](g15-examples-catalog.md) |
+
+Progressive discovery complement: **`extensions list`** (argv skills), **`examples list`** (bundled wizards/reports), **`wyvern guide`** (interactive hub).
+
 ---
 
 ## Wave 2 — Welcome guide & agent examples (g.4–g.7)
