@@ -1,3 +1,8 @@
+---
+name: Path picker
+description: Two-page wizard with native file and folder pickers via WyvernApi; finish JSON carries path strings only.
+---
+
 # Path picker (wizard native file/folder)
 
 Two-page vanilla-chrome wizard that calls `WyvernApi.postPickerFile` and

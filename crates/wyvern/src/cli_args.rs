@@ -259,6 +259,7 @@ pub fn usage_message() -> String {
         "       echo '<json>' | wyvern [options]\n",
         "       wyvern browsers list|refresh\n",
         "       wyvern extensions list|show\n",
+        "       wyvern examples list\n",
         "       wyvern wizard lint <path> [<path>...]   Static nav-button lint for wizard packages\n",
         "       wyvern --version\n",
         "\n",
@@ -293,6 +294,7 @@ pub fn usage_message() -> String {
         "\n",
         "Pass a JSON string, .json file, or a path handled by an extension; or pipe JSON on stdin.\n",
         "  See `wyvern extensions list` for the skill index.\n",
+        "  See `wyvern examples list` for bundled example READMEs.\n",
         "  Prefix skills answer --help (example: wyvern compose render --help).\n",
     )
     .to_string();

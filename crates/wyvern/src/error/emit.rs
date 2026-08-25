@@ -287,6 +287,10 @@ pub fn emit_usage_error(err: &LoadError) -> Result<String, EmitError> {
                     "Use wyvern extensions list or wyvern extensions show <id>".into(),
                     "Run wyvern extensions --help".into(),
                 ],
+                super::BuiltinDomain::Examples => vec![
+                    "Use wyvern examples list or wyvern examples list --json".into(),
+                    "Run wyvern examples --help".into(),
+                ],
                 super::BuiltinDomain::Wizard => vec![
                     "Use wyvern wizard lint <path>".into(),
                     "Run wyvern wizard --help".into(),

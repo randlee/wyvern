@@ -18,6 +18,9 @@ mod browsers_cmd;
 mod cli_args;
 mod embedded_ui;
 mod error;
+/// Bundled example discovery from README frontmatter.
+pub mod examples;
+mod examples_cmd;
 /// CLI extension registry, match, preexec, and expand (ADR-0022).
 pub mod extensions;
 mod input;
@@ -39,6 +42,8 @@ pub use error::{
     emit_wizard_lint_stage_error, emit_workflow_error, BuiltinDomain, EmitError, LoadError,
     UsageErrorKind,
 };
+#[doc(inline)]
+pub use examples_cmd::{examples_usage_message, run_examples_command, ExamplesCmdError};
 #[doc(inline)]
 pub use extensions::{
     emit_near_miss, ExtensionError, ExtensionMatch, ExtensionRegistry, NearMissKind,
