@@ -1,40 +1,44 @@
-# Wyvern v0.3.0
+# Wyvern v0.4.0
 
 ## Summary
 
-- **version:** 0.3.0
-- **release date:** 2026-08-17
+- **version:** 0.4.0
+- **release date:** 2026-08-24
 - **release owner:** publisher
 
-Phase F ships declarative CLI extensions (suffix defaults, compose, CSV). Phase G adds agent-facing help, a skill catalog, and error-teaches recovery on top of that runtime. Builds on Phase D wizard flows (0.2.x).
+Phase H ships XHTML reporting (view + review). Phase I adds wizard native path pickers. g.15 adds `wyvern examples list` for bundled example discovery. Builds on the Phase F/G extension runtime and Phase D wizard flows (0.2.x / 0.3.x).
 
 ## Included Changes
 
-### Phase F — CLI extensions
+### Phase H — XHTML reporting
 
-- Extension runtime: bundled registry, argv match (suffix + subcommand), optional Python preexec, template expand → validated `Command` JSON
-- Positional suffix defaults — open `.html` wizard pages and `wizard.json` roots without hand-authored JSON
-- `compose render` — sc-compose preexec for slide/markdown composition workflows
-- CSV — interactive HTML table viewer (`.csv` suffix) and `wyvern md` markdown variant
+- Report host bind (`{"type":"report", ...}`): dedicated `/report/{page}` route, no wizard APIs on report surfaces
+- `.xhtml` suffix opens a single panel in view mode
+- `wyvern report-xhtml manifest.json` stitches an ordered panel array
+- `wyvern report-xhtml --review` review shell with per-panel comments, Cancel / Approve, structured finish JSON
+- `wyvern-reporting` skill pack and `share/wyvern/examples/xhtml-review/`
 
-### Phase G — Agent usability
+### Phase I — Wizard native path pickers
 
-- First-class `--help` / `-h` and `wyvern help` listing shipped skills with copy-paste examples
-- Extension-prefix `--help` skill cards at match time (`wyvern compose render --help`)
-- Skill catalog: `wyvern extensions list` (text + `--json`) and `wyvern extensions show <id>`
-- Near-miss diagnostics that name the skill and teach the next command
-- Structured preexec failure recovery (child stderr in JSON; spawn vs exit vs missing-file)
+- In-page OS file/folder choosers via `WyvernApi.postPickerFile()` / `postPickerFolder()` (ADR-0026)
+- Host routes `POST /api/picker/file` and `POST /api/picker/folder`
+- `share/wyvern/examples/path-picker/` two-page wizard — closes #99
+
+### Phase G (g.15) — Examples catalog
+
+- `wyvern examples list` / `wyvern examples list --json` discovers bundled examples from README frontmatter (`name`, `description`)
+- Shipped examples live under `share/wyvern/examples/` (path-picker, template-picker, agent-dag, askuserquestion-hook, xhtml-review)
 
 ## Operator / User Impact
 
-- Agents and operators can discover skills via `wyvern help` and `wyvern extensions list` without reading source.
-- Common file types (`.md`, `.html`, `.csv`, `wizard.json`) open via argv shorthands; JSON command strings remain supported.
-- `compose render` and CSV table viewing require optional tools (`sc-compose`, `python3`) where documented.
+- Agents can discover bundled examples via `wyvern examples list` without reading checkout docs.
+- XHTML review finish JSON is `{ "button": "finish", "data": { "approved", "comments", "panels" } }`.
+- Wizard pages can open native file/folder pickers without leaving the session.
 
 ## Packaging / Distribution Notes
 
-- **crates.io:** `wyvern-schema`, `wyvern-wizard`, `wyvern-host`, `wyvern-viewer`, `wyvern-cli` → 0.3.0 (dependency order preserved)
-- **GitHub Releases:** tag `v0.3.0` — macOS aarch64/x86_64, Windows, Linux archives (`wyvern` + `wyvern-viewer` + `share/wyvern/ui/`)
+- **crates.io:** `wyvern-schema`, `wyvern-wizard`, `wyvern-host`, `wyvern-viewer`, `wyvern-cli` → 0.4.0 (dependency order preserved)
+- **GitHub Releases:** tag `v0.4.0` — macOS aarch64/x86_64, Windows, Linux archives (`wyvern` + `wyvern-viewer` + `share/wyvern/ui/`)
 - **Homebrew:** `randlee/homebrew-tap` formula updated by release workflow
 - **winget:** automated step requires prior bootstrap of `randlee.wyvern` in `microsoft/winget-pkgs` (see `docs/WINGET_SETUP.md`)
 
