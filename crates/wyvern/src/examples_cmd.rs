@@ -1,7 +1,9 @@
 //! `wyvern examples list` — discover bundled examples from README frontmatter.
 
 use crate::error::{BuiltinDomain, EmitError, UsageErrorKind};
-use crate::examples::{discover_examples, format_examples_list, ExampleRecord, ExamplesDiscoverError};
+use crate::examples::{
+    discover_examples, format_examples_list, ExampleRecord, ExamplesDiscoverError,
+};
 use crate::extensions::resolve_wyvern_share;
 use wyvern_schema::{ErrorCode, SerializeError, StderrError};
 

@@ -45,7 +45,8 @@ pub fn parse_readme_frontmatter(content: &str) -> Option<ReadmeFrontmatter> {
 }
 
 fn parse_scalar(raw: &str) -> String {
-    if (raw.starts_with('"') && raw.ends_with('"')) || (raw.starts_with('\'') && raw.ends_with('\''))
+    if (raw.starts_with('"') && raw.ends_with('"'))
+        || (raw.starts_with('\'') && raw.ends_with('\''))
     {
         raw[1..raw.len().saturating_sub(1)].trim().to_string()
     } else {
