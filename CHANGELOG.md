@@ -7,20 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.4.0] — 2026-08-24
 
-Phase H — XHTML reporting: view and review multi-panel reports from the CLI extension runtime, with a dedicated host bind arm and agent-facing authoring skill.
+Phase H — XHTML reporting, Phase I — wizard native path picker, and g.15 `wyvern examples list` on the CLI extension runtime (wizard flows since v0.2.0).
 
-### Phase H — XHTML reporting
+### New features
 
-- Report host bind (`Command::Report`): dedicated `/report/{page}` route, shared static assets, no wizard APIs on report surfaces
-- Extensions: `xhtml-suffix` (single panel), `report-xhtml` (manifest array), `report-xhtml-review` (`--review` finish flow)
-- Review mode: textarea + Cancel/Approve UX, `POST /api/report/finish`, stdout JSON with manifest echo and `approved` flag
-- `wyvern-reporting` skill pack: panel authoring, review manifest schema, finish parsing guidance
-- Synthetic example under `share/wyvern/examples/xhtml-review/` with CI smoke and share-sync gates
+| Feature | Phase | Entry point | Description |
+|---------|-------|-------------|-------------|
+| **Report command** | H | `{"type":"report", ...}` JSON | Non-wizard host bind at `/report/{page}` — static XHTML surfaces without wizard stack APIs |
+| **Single XHTML panel** | H | `wyvern panel.xhtml` | `.xhtml` suffix opens one panel in **view** mode (document frame via preexec) |
+| **Multi-panel report** | H | `wyvern report-xhtml manifest.json` | Ordered panel array stitched into one report view; manifest: `title`, `panels[{path,label?,role?}]` |
+| **XHTML review mode** | H | `wyvern report-xhtml --review manifest.json` | Review shell with per-panel comments, **Cancel** / **Approve**, structured finish on stdout |
+| **Report finish API** | H | `POST /api/report/finish` | Review completion JSON: `{ "button": "finish", "data": { "approved", "comments", "panels" } }` |
+| **View dismiss** | H | Close report window | View mode completes with `{"button":"dismissed"}` via shared result semantics |
+| **wyvern-reporting skill** | H | `.claude/skills/wyvern-reporting/` | Agent-facing panel authoring, manifest schema, and finish-parsing guidance |
+| **xhtml-review example** | H | `share/wyvern/examples/xhtml-review/` | Synthetic atm-core-style panels; CI smoke and share-sync gates |
+| **Wizard native pickers** | I | `WyvernApi.postPickerFile()` / `postPickerFolder()` | In-page OS file/folder choosers during an active wizard session (ADR-0026) |
+| **Wizard picker routes** | I | `POST /api/picker/file`, `POST /api/picker/folder` | Host accepts picker POST bodies in wizard sessions; params from body only (filter, `multiple`, `start_path`) |
+| **path-picker example** | I | `share/wyvern/examples/path-picker/wizard.json` | Two-page wizard with seed paths, native pickers, finish JSON path strings only — closes [#99](https://github.com/randlee/wyvern/issues/99) |
+| **Examples catalog** | G (g.15) | `wyvern examples list` | Discover bundled examples from README frontmatter (`name`, `description`); `--json` emits `{name, description, readme}` |
 
 ### Distribution
 
 - **crates.io** — all published crates bump to 0.4.0
 - **GitHub Releases** — tag `v0.4.0` triggers matrix build (macOS/Windows/Linux)
+
+### Not in 0.4.0
+
+- `--interactive` argv expansion and MCP server binary — Phase E
+- User registry (`~/.config/wyvern/extensions.json`)
 
 ## [0.3.1] — 2026-08-18
 
