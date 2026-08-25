@@ -28,6 +28,7 @@ fn examples_list_includes_shipped_examples() {
     for name in [
         "Agent DAG",
         "AskUserQuestion hook",
+        "Path picker",
         "Template picker",
         "XHTML review",
     ] {
@@ -50,7 +51,7 @@ fn examples_list_json_is_array_of_records() {
     let (code, stdout, stderr) = run(&["examples", "list", "--json"]);
     assert_eq!(code, 0, "stderr={stderr}");
     let records: Vec<serde_json::Value> = serde_json::from_str(stdout.trim()).expect("json array");
-    assert!(records.len() >= 4, "length={}", records.len());
+    assert!(records.len() >= 5, "length={}", records.len());
     for record in &records {
         assert!(record["name"].is_string(), "{record}");
         assert!(record["description"].is_string(), "{record}");
@@ -113,8 +114,8 @@ fn assert_example_readme_contract(share_root: &Path, label: &str) {
         .filter(|entry| entry.file_type().map(|t| t.is_dir()).unwrap_or(false))
         .count();
     assert!(
-        dir_count >= 4,
-        "{label} must audit at least four shipped example folders; found {dir_count}"
+        dir_count >= 5,
+        "{label} must audit at least five shipped example folders; found {dir_count}"
     );
 }
 

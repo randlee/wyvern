@@ -310,12 +310,9 @@ mod tests {
 
         let violations = validate_example_folder_readmes(share).expect("audit");
         assert_eq!(violations.len(), 1);
-        assert!(
-            violations[0]
-                .readme
-                .to_string_lossy()
-                .contains("examples/missing/README.md"),
-            "{violations:?}"
+        assert_eq!(
+            relativize_share_path(&violations[0].readme, share),
+            "examples/missing/README.md"
         );
     }
 
