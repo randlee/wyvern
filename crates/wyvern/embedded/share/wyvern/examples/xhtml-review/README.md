@@ -1,3 +1,8 @@
+---
+name: XHTML review
+description: Synthetic benchmark-run panels for report-xhtml view and review modes.
+---
+
 # Synthetic XHTML review example
 
 Fabricated atm-core-style `benchmark-run` panels for `wyvern report-xhtml`.

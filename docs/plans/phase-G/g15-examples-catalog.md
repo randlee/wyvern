@@ -1,7 +1,7 @@
 ---
 id: g.15
 title: Examples catalog — `wyvern examples list`
-status: in_progress
+status: complete
 branch: feature/phase-G-g15-examples-catalog
 worktree: ../wyvern-worktrees/feature/phase-G-g15-examples-catalog
 target: develop
