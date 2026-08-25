@@ -1,6 +1,9 @@
 //! Integration tests for `wyvern examples list` (bundled example catalog).
 
+use std::path::{Path, PathBuf};
 use std::process::Command;
+
+use wyvern::examples::validate_example_folder_readmes;
 
 fn wyvern() -> Command {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_wyvern"));
@@ -75,4 +78,52 @@ fn global_help_mentions_examples_list() {
     let (code, stdout, stderr) = run(&["--help"]);
     assert_eq!(code, 0, "stderr={stderr}");
     assert!(stdout.contains("wyvern examples list"), "{stdout}");
+}
+
+fn workspace_share_root() -> PathBuf {
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    manifest
+        .join("../../share/wyvern")
+        .canonicalize()
+        .unwrap_or_else(|_| manifest.join("../../share/wyvern"))
+}
+
+fn packaged_share_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("share/wyvern")
+}
+
+fn assert_example_readme_contract(share_root: &Path, label: &str) {
+    let violations = validate_example_folder_readmes(share_root).unwrap_or_else(|err| {
+        panic!("validate_example_folder_readmes failed for {label}: {err}");
+    });
+    assert!(
+        violations.is_empty(),
+        "{label} example README contract violations:\n{}",
+        violations
+            .iter()
+            .map(|v| format!("- {v}"))
+            .collect::<Vec<_>>()
+            .join("\n")
+    );
+
+    let examples_root = share_root.join("examples");
+    let dir_count = std::fs::read_dir(&examples_root)
+        .unwrap_or_else(|err| panic!("read {label} examples dir: {err}"))
+        .filter_map(Result::ok)
+        .filter(|entry| entry.file_type().map(|t| t.is_dir()).unwrap_or(false))
+        .count();
+    assert!(
+        dir_count >= 4,
+        "{label} must audit at least four shipped example folders; found {dir_count}"
+    );
+}
+
+#[test]
+fn shipped_example_folders_have_compliant_readme_frontmatter() {
+    assert_example_readme_contract(&workspace_share_root(), "workspace share/wyvern");
+}
+
+#[test]
+fn packaged_example_folders_have_compliant_readme_frontmatter() {
+    assert_example_readme_contract(&packaged_share_root(), "crates/wyvern/share/wyvern");
 }

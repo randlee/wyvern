@@ -31,6 +31,21 @@ pub enum ExamplesDiscoverError {
     },
 }
 
+/// One README that violates the bundled example discovery contract.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExampleReadmeViolation {
+    /// Path to the README under audit (absolute or share-relative).
+    pub readme: PathBuf,
+    /// Human-readable violation detail.
+    pub message: String,
+}
+
+impl std::fmt::Display for ExampleReadmeViolation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}: {}", self.readme.display(), self.message)
+    }
+}
+
 impl std::fmt::Display for ExamplesDiscoverError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -109,6 +124,104 @@ pub fn discover_examples(share_root: &Path) -> Result<Vec<ExampleRecord>, Exampl
     Ok(records)
 }
 
+/// Audit every immediate child directory under `{share_root}/examples/` for a
+/// `README.md` whose YAML frontmatter satisfies the discovery contract
+/// (`name` + `description`).
+///
+/// Optional `examples/README.md` (base-folder doc) is validated when present.
+///
+/// # Errors
+///
+/// Returns [`ExamplesDiscoverError`] when the examples directory cannot be read.
+pub fn validate_example_folder_readmes(
+    share_root: &Path,
+) -> Result<Vec<ExampleReadmeViolation>, ExamplesDiscoverError> {
+    let examples_root = share_root.join("examples");
+    if !examples_root.is_dir() {
+        return Ok(Vec::new());
+    }
+
+    let mut violations = Vec::new();
+    let base_readme = examples_root.join("README.md");
+    if base_readme.is_file() {
+        violations.extend(audit_readme_contract(&base_readme));
+    }
+
+    let entries = std::fs::read_dir(&examples_root).map_err(|err| ExamplesDiscoverError::Io {
+        path: examples_root.clone(),
+        message: err.to_string(),
+    })?;
+    for entry in entries {
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(err) => {
+                return Err(ExamplesDiscoverError::Io {
+                    path: examples_root.clone(),
+                    message: err.to_string(),
+                });
+            }
+        };
+        let file_type = match entry.file_type() {
+            Ok(file_type) => file_type,
+            Err(err) => {
+                return Err(ExamplesDiscoverError::Io {
+                    path: entry.path(),
+                    message: err.to_string(),
+                });
+            }
+        };
+        if !file_type.is_dir() {
+            continue;
+        }
+        let readme = entry.path().join("README.md");
+        if !readme.is_file() {
+            violations.push(ExampleReadmeViolation {
+                readme: readme.clone(),
+                message: "missing README.md (each examples/<dir>/ must ship a README)".into(),
+            });
+            continue;
+        }
+        violations.extend(audit_readme_contract(&readme));
+    }
+
+    Ok(violations)
+}
+
+fn audit_readme_contract(readme: &Path) -> Vec<ExampleReadmeViolation> {
+    let content = match std::fs::read_to_string(readme) {
+        Ok(content) => content,
+        Err(err) => {
+            return vec![ExampleReadmeViolation {
+                readme: readme.to_path_buf(),
+                message: format!("could not read README: {err}"),
+            }];
+        }
+    };
+    match parse_readme_frontmatter(&content) {
+        Some(meta) => {
+            let mut violations = Vec::new();
+            if meta.name.trim().is_empty() {
+                violations.push(ExampleReadmeViolation {
+                    readme: readme.to_path_buf(),
+                    message: "frontmatter name must be non-empty".into(),
+                });
+            }
+            if meta.description.trim().is_empty() {
+                violations.push(ExampleReadmeViolation {
+                    readme: readme.to_path_buf(),
+                    message: "frontmatter description must be non-empty".into(),
+                });
+            }
+            violations
+        }
+        None => vec![ExampleReadmeViolation {
+            readme: readme.to_path_buf(),
+            message: "README must begin with YAML frontmatter containing name and description"
+                .into(),
+        }],
+    }
+}
+
 fn record_from_readme(readme: &Path, share_root: &Path) -> Option<ExampleRecord> {
     let content = std::fs::read_to_string(readme).ok()?;
     let meta = parse_readme_frontmatter(&content)?;
@@ -181,5 +294,43 @@ mod tests {
         let records = discover_examples(share).expect("discover");
         assert_eq!(records.len(), 1);
         assert_eq!(records[0].readme, "examples/README.md");
+    }
+
+    #[test]
+    fn validate_example_folder_readmes_requires_readme_per_dir() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let share = tmp.path();
+        fs::create_dir_all(share.join("examples/ok")).expect("mkdir");
+        fs::create_dir_all(share.join("examples/missing")).expect("mkdir");
+        fs::write(
+            share.join("examples/ok/README.md"),
+            "---\nname: OK\ndescription: Valid.\n---\n",
+        )
+        .expect("write");
+
+        let violations = validate_example_folder_readmes(share).expect("audit");
+        assert_eq!(violations.len(), 1);
+        assert!(
+            violations[0]
+                .readme
+                .to_string_lossy()
+                .contains("examples/missing/README.md"),
+            "{violations:?}"
+        );
+    }
+
+    #[test]
+    fn validate_example_folder_readmes_rejects_invalid_frontmatter() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let share = tmp.path();
+        fs::create_dir_all(share.join("examples/bad")).expect("mkdir");
+        fs::write(share.join("examples/bad/README.md"), "# no frontmatter\n").expect("write");
+
+        let violations = validate_example_folder_readmes(share).expect("audit");
+        assert_eq!(violations.len(), 1);
+        assert!(
+            violations[0].message.contains("frontmatter"),
+            "{violations:?}"
+        );
     }
 }
