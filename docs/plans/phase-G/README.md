@@ -1,24 +1,34 @@
 # Phase G — CLI Extension Agent Usability (`integrate/phase-G`)
 
-Phase G implementation PRs target **`integrate/phase-G`**. Sprint docs (`g.1`–`g.3`) are the **sole authority** for deliverables, acceptance criteria, and validation. `docs/plans/project-plan.md` carries phase-level goals only.
+Phase G has **three waves**. Implementation PRs target **`integrate/phase-G`**. **Sprint docs are sole authority** for deliverables, acceptance criteria, and required validation.
+
+| Wave | Sprints | Ships |
+|------|---------|-------|
+| **1 — CLI surfaces** | g.1–g.3 | `--help`, error-teaches, skill catalog |
+| **2 — Welcome & examples** | g.4–g.7 | `wyvern guide` + workflow runner + three examples |
+| **3 — Authoring platform** | g.8–g.14 | authoring skill, JS page agents, dataflow lint, CI gate |
+
+**Review Wave 2 one example at a time:** [examples-walkthrough.md](examples-walkthrough.md) (review order only; not a second AC list).
+
+**Wave 2 requirements / decisions:** REQ-0124–REQ-0127, ADR-0023, ADR-0024.
+
+---
+
+## Wave 1 — CLI surfaces (g.1–g.3)
 
 **Ordering:** Phase G runs **after Phase F** and **before Phase E**. Phase E agents benefit from discoverable extension help, skill catalog JSON, and error-teaches recovery on argv near-misses.
 
-## Input artifact
+**Input artifact:** [phase-F-usability-review.md](../phase-F/phase-F-usability-review.md) — agent-usability score 2/5; P0/P1 recommendations.
 
-Scope derives from the Phase F post-ship review:
+Phase F shipped the extension **engine**; Phase G Wave 1 makes the CLI **speak skill** so a cold agent needs no checkout docs.
 
-- [phase-F-usability-review.md](../phase-F/phase-F-usability-review.md) — agent-usability score 2/5; P0/P1 recommendations
-
-Phase F shipped the extension **engine**; Phase G makes the CLI **speak skill** so a cold agent needs no checkout docs.
-
-## Core model (unchanged engine)
+### Core model (unchanged engine)
 
 ```
 argv → match extension → optional preexec → template expand → validate → pipeline → host
 ```
 
-Phase G adds **surfaces** around that path — no new dialog types, no new host *features* (see Boundaries for the RSH-007 hardening exception):
+Phase G Wave 1 adds **surfaces** around that path — no new dialog types, no new host *features* (see Boundaries for the RSH-007 hardening exception):
 
 ```
 host flags stripped → global/extension help → match_with_diagnostics → expand → pipeline
@@ -35,74 +45,140 @@ host flags stripped → global/extension help → match_with_diagnostics → exp
 
 Registry remains declarative in `share/wyvern/extensions.json`. Phase G may add optional **`description`** and **`examples`** fields to the schema for catalog output.
 
-## Phase goal
-
-An AI agent with **zero prior documentation** can discover every Phase F extension invocation, recover from near-misses, and inspect one skill — using only `wyvern --help`, `wyvern extensions list`, and stderr JSON.
-
 **Target agent-usability score:** 4 / 5 (per review rubric in phase-F-usability-review.md).
 
-## Phase acceptance (smoke)
+### Wave 1 phase acceptance (smoke)
 
 ```bash
-# Help lists CSV, table, md, compose — exit 0
 wyvern --help
 wyvern -h
-
-# Extension-local help — exit 0, not UnexpectedArg
 wyvern compose render --help
-
-# Skill catalog — machine-readable JSON array
 wyvern extensions list --json | jq 'length >= 7'
-
-# Near-miss teaches next command — not PARSE_ERROR "not valid JSON"
 wyvern notes.txt
-PATH=/usr/bin wyvern sample.csv    # when python3 absent: names csv-suffix skip + install hint
-
-# Preexec failure — structured recovery, not "install binaries" when binary ran
+PATH=/usr/bin wyvern sample.csv
 wyvern md /nonexistent/file.csv
 ```
 
-## Sprint map
+| Sprint | Doc | Status |
+|--------|-----|--------|
+| g.1 | [g1-help-surface.md](g1-help-surface.md) | complete (integrate) |
+| g.2 | [g2-error-teaches.md](g2-error-teaches.md) | complete (integrate) |
+| g.3 | [g3-skill-catalog.md](g3-skill-catalog.md) | complete (integrate) |
 
-| Sprint | Adds | Touches |
-|--------|------|---------|
-| **g.1** | Help surface — global `--help`, `wyvern help`, enriched usage, extension `--help` skill cards, built-in subcommand `--help` | `main.rs`, `cli_args.rs`, `expand/mod.rs`, `list.rs`, `browsers` cmd |
-| **g.2** | Error-teaches — skipped-requires diagnostics, unknown suffix / incomplete prefix, MissingArgs/UnexpectedArg caller recovery, preexec stderr capture | `mod.rs`, `main.rs`, `error/mod.rs`, `error/emit.rs`, `preexec.rs`, `expand/mod.rs` |
-| **g.3** | Skill catalog — rich list text, `--json`, `extensions show <id>`, registry `description`/`examples` | `list.rs`, `extensions/mod.rs`, `extensions.json` |
+Contracts: [agent-usability-contract.md](agent-usability-contract.md), [skills-catalog-contract.md](skills-catalog-contract.md)
 
-## What Phase G does not close
+### Wave 1 non-closure
 
 - `--interactive` argv expansion — **Phase E**
 - MCP tool wrappers — **Phase E**
 - User registry (`~/.config/wyvern/extensions.json`) — post-G
 - `wyvern skills` argv alias — P2; defer unless trivial
-- `extensions dump` / `--raw` merged registry — P2; defer unless g.3 has capacity
-- README quickstart CSV lines — docs track; optional g.3 non-closure note
 
-## Boundaries
+### Follow-on — examples catalog (g.15)
 
-- All changes stay in **`wyvern` CLI crate** (`crates/wyvern/src/**`) plus `share/wyvern/extensions.json` schema fields
-- No new `Command` enum variants
-- No new `ErrorCode` variants in `wyvern-schema` (near-misses reuse `ParseError` / `ValidationError` with new message text)
-- No `wyvern-host` behavior changes, **except** phase-end integration may include minimal `wyvern-host` hardening for the session-timeout / result-token race (**RSH-007**) required for reliable preexec recovery testing. Landed in [`dc4eaae`](https://github.com/randlee/wyvern/commit/dc4eaae) (`crates/wyvern-host/src/server.rs`, `session.rs`, result/picker routes). This exception does not authorize new host features or dialog types.
-- Principal requirements: [REQ-0134–REQ-0137](../../wyvern/requirements.md) (agent CLI surfaces); amended REQ-0130, REQ-0132
-- ADR-0022 Phase G amendment in [docs/architecture.md](../../architecture.md) — registry/help parity is a merge gate for new extensions
+| Sprint | Ships | Doc |
+|--------|-------|-----|
+| **g.15** | `wyvern examples list` + README frontmatter on bundled examples | [g15-examples-catalog.md](g15-examples-catalog.md) |
 
-## Sprint index
+Progressive discovery complement: **`extensions list`** (argv skills), **`examples list`** (bundled wizards/reports), **`wyvern guide`** (interactive hub).
 
-| Sprint | Doc |
-|--------|-----|
-| g.1 | [g1-help-surface.md](g1-help-surface.md) |
-| g.2 | [g2-error-teaches.md](g2-error-teaches.md) |
-| g.3 | [g3-skill-catalog.md](g3-skill-catalog.md) |
+---
+
+## Wave 2 — Welcome guide & agent examples (g.4–g.7)
+
+**Ordering:** After Wave 1 merged to `develop`.
+
+**Goal:** Ship **`wyvern guide`** (REQ-0127) and **all three examples**. g.4 introduces workflow hooks (REQ-0124–0125, ADR-0023) and wizard chaining (REQ-0126, ADR-0024); g.5–g.7 consume them. **All sprints required** before Wave 2 closes.
+
+**Architecture:** [wizard-workflow-architecture.md](wizard-workflow-architecture.md)
+
+| Sprint | Example | Doc |
+|--------|---------|-----|
+| **g.4** | Welcome hub (`wyvern guide`) + workflow/chain Rust | [g4-welcome-guide-wizard.md](g4-welcome-guide-wizard.md) |
+| **g.5** | (a) AskUserQuestion hook installer | [g5-askuserquestion-claude-code.md](g5-askuserquestion-claude-code.md) |
+| **g.6** | (b) Template wizard starter kit | [g6-template-wizard.md](g6-template-wizard.md) |
+| **g.7** | (c) DAG agent demo + export | [g7-dag-agent-execution.md](g7-dag-agent-execution.md) |
+
+Each sprint's **Required validation** is the only command list. Do not copy commands here.
+
+### What Wave 2 does not close
+
+- Mapping `--invoke` stdout into Claude Code `hookSpecificOutput` / native tool-result (version-specific)
+- **DAG execution** — visualize + export in Wyvern; run in a separate project post-publish
+- MCP / `--interactive` auto-chain — **Phase E**
+- `--emit-all`, `wyvern chain` subcommand
+
+### Workflow docs
+
+| Doc | Topic |
+|-----|-------|
+| [wizard-workflow-architecture.md](wizard-workflow-architecture.md) | Pre/post scripts + `next_wizard` (Rust, CLI) |
+| [workflow-chain-contract.md](workflow-chain-contract.md) | Chaining overview |
+| [claude-code-hook-workflow.md](claude-code-hook-workflow.md) | g.5 Global/Repo toggles |
+| [template-catalog-workflow.md](template-catalog-workflow.md) | g.6 template inventory |
+| [agent-dag-execution-deferral.md](agent-dag-execution-deferral.md) | g.7 export-only |
+
+---
+
+## Wave 3 — Wizard authoring platform (g.8–g.14)
+
+**Sprint map:** [wave-3-wizard-authoring/README.md](wave-3-wizard-authoring/README.md) — g.8–g.14 ordering, parallel groups, and merge order.
+
+**Ordering:** After Wave 2 examples exist on `integrate/phase-G` (goldens: `template-picker`, `askuserquestion-hook`).
+
+**Goal:** End-user wizard creation via progressive-disclosure skill routing, JS page-author agents, stack registry (`vanilla-chrome` default, `workspace-canvas` supported), and (in later sprints) dataflow lint, type refs, and CI.
+
+**Page-author agents:**
+
+| Agent | Stack | Sprint |
+|-------|-------|--------|
+| `wyvern-wizard-js` | `vanilla-chrome` — dialog frames, forms, hooks, welcome bridges | g.11 |
+| `wyvern-dag-wizard-js` | `workspace-canvas` — canvas / DAG wizards | g.12 |
+
+| Sprint | Doc | Status |
+|--------|-----|--------|
+| g.8 | [g8-wizard-authoring-foundation.md](g8-wizard-authoring-foundation.md) | complete (integrate) |
+| g.9 | [g9-wizard-lint-dataflow.md](g9-wizard-lint-dataflow.md) | complete (integrate) |
+| g.10 | [g10-creating-wyvern-wizard-skill.md](g10-creating-wyvern-wizard-skill.md) | complete (integrate) |
+| g.11 | [g11-wyvern-wizard-js-agent.md](g11-wyvern-wizard-js-agent.md) | complete (integrate) |
+| g.12 | [g12-wyvern-dag-wizard-js-agent.md](g12-wyvern-dag-wizard-js-agent.md) | complete (integrate) |
+| g.13 | [g13-wizard-type-refs-and-templates.md](g13-wizard-type-refs-and-templates.md) | complete (integrate) |
+| g.14 | [g14-wizard-authoring-ci-and-fixes.md](g14-wizard-authoring-ci-and-fixes.md) | complete (integrate) |
+
+Wave 3 bundle landed via PR #109 (g.8+g.10+g.11+g.12); g.9, g.13, g.14 merged individually (#110–#112).
+
+### Wave 3 phase acceptance (smoke)
+
+```bash
+wyvern wizard lint share/wyvern/examples/welcome
+wyvern wizard lint share/wyvern/examples/agent-dag
+cargo test -p wyvern wizard_lint_dataflow
+cargo test -p wyvern-cli wizard_lint
+```
+
+Each sprint's **Required validation** is the only command list. Do not copy commands here.
+
+### What Wave 3 does not close
+- Replacing `share/wyvern/templates/wizard/*` catalog skeletons wholesale
+- React / Svelte live in-repo builds; turbo-flow stays vendored dist for DAG demo
+- Workflow script authoring beyond pointing at `workflow.pre` / `workflow.post`
+
+---
+
+## Boundaries (all waves)
+
+- Wave 1: **`wyvern` CLI crate** + `extensions.json` schema fields; REQ-0134–REQ-0137; ADR-0022 Phase G amendment
+- Wave 2: `crates/wyvern`, package `wyvern-cli` — workflow/chain + `share/wyvern/**` + `scripts/ext/**` — **no new dialog types**
+- Wave 3: both JS page-author agents (`wyvern-wizard-js`, `wyvern-dag-wizard-js`) + `creating-wyvern-wizard` skill router/refs — **no `crates/**`, no `rust-developer`**
+- `wyvern help` = stdout; `wyvern guide` = wizard extension (do not merge)
+- Host copies `next_wizard` and ignores `workflow`; host does not spawn scripts (ADR-0023, ADR-0024)
+- No new `Command` enum variants; no new `ErrorCode` variants in `wyvern-schema` for Wave 1 near-misses
 
 ## Contract reference
 
-- Extension match/expand semantics: [cli-extensions-contract.md](../phase-F/cli-extensions-contract.md)
-- Phase G amendment: [agent-usability-contract.md](agent-usability-contract.md)
-- Skills catalog JSON/text: [skills-catalog-contract.md](skills-catalog-contract.md) (g.3)
-- Usability findings and rubric: [phase-F-usability-review.md](../phase-F/phase-F-usability-review.md)
+- Extension match/expand: [cli-extensions-contract.md](../phase-F/cli-extensions-contract.md)
+- Usability rubric: [phase-F-usability-review.md](../phase-F/phase-F-usability-review.md)
 
 ## Plan hardening
 
-Round table: [plan-hardening-rounds.md](plan-hardening-rounds.md) (populated by `/plan-hardening` runs)
+Artifacts: [`.plan-hardening/`](.plan-hardening/). Round table: [plan-hardening-rounds.md](plan-hardening-rounds.md).

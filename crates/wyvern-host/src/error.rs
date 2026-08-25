@@ -22,6 +22,8 @@ pub enum DialogTypeName {
     Question,
     /// `wizard` multi-page dialog (Phase D).
     Wizard,
+    /// `report` static XHTML/HTML surface (Phase H).
+    Report,
 }
 
 impl DialogTypeName {
@@ -34,6 +36,7 @@ impl DialogTypeName {
             Self::Markdown => "markdown",
             Self::Question => "question",
             Self::Wizard => "wizard",
+            Self::Report => "report",
         }
     }
 }

@@ -47,8 +47,11 @@ pub struct SkillRecord {
     pub requires: Vec<SkillRequire>,
     /// Declared `{arg:*}` flags.
     pub args: Vec<SkillArg>,
-    /// Expand command `type`, or `"wizard"` when using `command_from_file`.
+    /// Expand command `type` from inline JSON, `command_type`, or file contents.
     pub expands_to: String,
+    /// Present when `expands_to` was inferred or `command_from_file` was unreadable.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub catalog_warning: Option<String>,
     /// One-line agent-facing summary from the registry, if present.
     pub description: Option<String>,
     /// Copy-paste example lines.
@@ -72,6 +75,7 @@ pub fn build_skill_record(ext: &ExtensionDef, probe: &dyn RequiresProbe) -> Skil
     } else {
         ext.examples.clone()
     };
+    let expands = expands_to(ext);
     SkillRecord {
         id: ext.id.clone(),
         match_kind: match_kind_summary(&ext.match_spec),
@@ -85,7 +89,8 @@ pub fn build_skill_record(ext: &ExtensionDef, probe: &dyn RequiresProbe) -> Skil
             })
             .collect(),
         args,
-        expands_to: expands_to(ext),
+        expands_to: expands.type_name,
+        catalog_warning: expands.warning,
         description: ext
             .description
             .as_ref()
@@ -166,6 +171,11 @@ pub fn format_skill_card(record: &SkillRecord) -> String {
     out.push_str("Expands to: ");
     out.push_str(&record.expands_to);
     out.push('\n');
+    if let Some(warning) = &record.catalog_warning {
+        out.push_str("Warning: ");
+        out.push_str(warning);
+        out.push('\n');
+    }
     if let Some(parent) = &record.extends {
         out.push_str("Extends: ");
         out.push_str(parent.as_str());
@@ -186,14 +196,162 @@ pub fn format_skill_card(record: &SkillRecord) -> String {
     out
 }
 
-fn expands_to(ext: &ExtensionDef) -> String {
-    ext.expand
+/// Resolved catalog `expands_to` plus an optional degraded-path warning.
+struct ExpandsToResolution {
+    type_name: String,
+    warning: Option<String>,
+}
+
+impl ExpandsToResolution {
+    fn confirmed(type_name: impl Into<String>) -> Self {
+        Self {
+            type_name: type_name.into(),
+            warning: None,
+        }
+    }
+
+    fn degraded(type_name: impl Into<String>, warning: impl Into<String>) -> Self {
+        Self {
+            type_name: type_name.into(),
+            warning: Some(warning.into()),
+        }
+    }
+}
+
+/// Structured failure when catalog cannot read `command_from_file` JSON.
+#[derive(Debug)]
+enum CatalogCommandTypeError {
+    /// Filesystem read failed.
+    Read(std::io::Error),
+    /// File contents were not JSON.
+    Parse(serde_json::Error),
+}
+
+impl std::fmt::Display for CatalogCommandTypeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Read(err) => write!(f, "could not read command_from_file: {err}"),
+            Self::Parse(err) => write!(f, "command_from_file is not valid JSON: {err}"),
+        }
+    }
+}
+
+impl std::error::Error for CatalogCommandTypeError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Read(err) => Some(err),
+            Self::Parse(err) => Some(err),
+        }
+    }
+}
+
+fn expands_to(ext: &ExtensionDef) -> ExpandsToResolution {
+    if let Some(ty) = ext
+        .expand
         .as_ref()
         .and_then(|spec| spec.command.as_ref())
         .and_then(|command| command.get("type"))
         .and_then(Value::as_str)
-        .unwrap_or("wizard")
-        .to_string()
+        .filter(|ty| !ty.is_empty())
+    {
+        return ExpandsToResolution::confirmed(ty);
+    }
+    let spec = ext.expand.as_ref();
+    let hint = spec
+        .and_then(|expand| expand.command_type.as_deref())
+        .map(str::trim)
+        .filter(|ty| !ty.is_empty());
+    if let Some(path_tmpl) = spec.and_then(|expand| expand.command_from_file.as_deref()) {
+        return type_from_command_from_file(path_tmpl, hint);
+    }
+    match hint {
+        Some(ty) => ExpandsToResolution::confirmed(ty),
+        None => ExpandsToResolution::degraded(
+            "wizard",
+            "catalog defaulted expands_to to wizard; no command type was declared",
+        ),
+    }
+}
+
+/// Read `type` from resolvable `command_from_file` JSON, a registry hint, or
+/// a filename heuristic marked as degraded.
+///
+/// Catalog listing cannot wait for preexec to write `{tmpdir}/…`. Prefer
+/// `expand.command_type`. Read/parse failures must not silently become `wizard`
+/// or a filename guess — they surface [`SkillRecord::catalog_warning`].
+fn type_from_command_from_file(path_tmpl: &str, hint: Option<&str>) -> ExpandsToResolution {
+    if let Some(path) = resolve_static_command_path(path_tmpl) {
+        match read_command_type(&path) {
+            Ok(Some(ty)) => return ExpandsToResolution::confirmed(ty),
+            Ok(None) => {
+                tracing::warn!(
+                    path = %path.display(),
+                    "catalog command_from_file JSON has no type field"
+                );
+                return ExpandsToResolution::degraded(
+                    hint.unwrap_or("unknown"),
+                    format!("command_from_file {} has no type field", path.display()),
+                );
+            }
+            Err(err) => {
+                tracing::warn!(
+                    path = %path.display(),
+                    error = %err,
+                    "catalog could not read command_from_file type"
+                );
+                return ExpandsToResolution::degraded(hint.unwrap_or("unknown"), err.to_string());
+            }
+        }
+    }
+    if let Some(ty) = hint {
+        return ExpandsToResolution::confirmed(ty);
+    }
+    match filename_command_type(path_tmpl) {
+        Some(ty) => ExpandsToResolution::degraded(
+            ty,
+            "inferred expands_to from filename; command_from_file template is not readable yet",
+        ),
+        None => ExpandsToResolution::degraded(
+            "wizard",
+            "command_from_file type is unavailable; catalog defaulted to wizard",
+        ),
+    }
+}
+
+fn filename_command_type(path_tmpl: &str) -> Option<String> {
+    let name = path_tmpl.rsplit(['/', '\\']).next().unwrap_or(path_tmpl);
+    (name == "report-command.json").then(|| "report".to_string())
+}
+
+fn resolve_static_command_path(path_tmpl: &str) -> Option<std::path::PathBuf> {
+    const SHARE: &str = "{wyvern_share}";
+    let open_braces = path_tmpl.chars().filter(|ch| *ch == '{').count();
+    if let Some(rest) = path_tmpl.strip_prefix(SHARE) {
+        if open_braces > 1 {
+            return None;
+        }
+        let mut path = super::resolve_wyvern_share();
+        let rest = rest.trim_start_matches(['/', '\\']);
+        if !rest.is_empty() {
+            path.push(rest);
+        }
+        return path.is_file().then_some(path);
+    }
+    if open_braces > 0 {
+        return None;
+    }
+    let path = std::path::PathBuf::from(path_tmpl);
+    path.is_file().then_some(path)
+}
+
+fn read_command_type(path: &std::path::Path) -> Result<Option<String>, CatalogCommandTypeError> {
+    let text = std::fs::read_to_string(path).map_err(CatalogCommandTypeError::Read)?;
+    let value: Value = serde_json::from_str(&text).map_err(CatalogCommandTypeError::Parse)?;
+    Ok(value
+        .get("type")
+        .and_then(Value::as_str)
+        .filter(|ty| !ty.is_empty())
+        .map(ToOwned::to_owned))
 }
 
 fn invocation_line(ext: &ExtensionDef, args: &[SkillArg]) -> String {
@@ -476,6 +634,111 @@ mod tests {
         let args = declared_skill_args(&registry.extensions()[0]);
         assert_eq!(args.len(), 1, "{args:?}");
         assert_eq!(args[0].name.as_str(), "root");
+    }
+
+    #[test]
+    fn expands_to_reads_type_from_command_json_file() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let path = tmp.path().join("emitted.json");
+        std::fs::write(
+            &path,
+            r#"{"type":"report","title":"t","page":"pages/view.xhtml"}"#,
+        )
+        .expect("write");
+        let json = serde_json::json!({
+            "version": 1,
+            "extensions": [{
+                "id": "from-file",
+                "match": { "argv_prefix": ["from-file"] },
+                "expand": { "command_from_file": path }
+            }]
+        });
+        let registry = ExtensionRegistry::from_json_str(&json.to_string()).expect("parse");
+        let record = build_skill_record(&registry.extensions()[0], &Absent);
+        assert_eq!(record.expands_to, "report");
+    }
+
+    #[test]
+    fn expands_to_uses_command_type_hint_without_magic_filename() {
+        let json = r#"{
+          "version": 1,
+          "extensions": [{
+            "id": "hinted",
+            "match": { "argv_prefix": ["hinted"] },
+            "expand": {
+              "command_from_file": "{tmpdir}/custom-out.json",
+              "command_type": "report"
+            }
+          }]
+        }"#;
+        let registry = ExtensionRegistry::from_json_str(json).expect("parse");
+        let record = build_skill_record(&registry.extensions()[0], &Absent);
+        assert_eq!(record.expands_to, "report");
+    }
+
+    #[test]
+    fn expands_to_unknown_when_command_file_unreadable() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let path = tmp.path().join("broken-command.json");
+        std::fs::write(&path, "not-json").expect("write");
+        let json = serde_json::json!({
+            "version": 1,
+            "extensions": [{
+                "id": "from-file",
+                "match": { "argv_prefix": ["from-file"] },
+                "expand": { "command_from_file": path }
+            }]
+        });
+        let registry = ExtensionRegistry::from_json_str(&json.to_string()).expect("parse");
+        let record = build_skill_record(&registry.extensions()[0], &Absent);
+        assert_eq!(record.expands_to, "unknown");
+        assert_ne!(record.expands_to, "wizard");
+        assert!(
+            record
+                .catalog_warning
+                .as_deref()
+                .is_some_and(|w| w.contains("not valid JSON")),
+            "{:?}",
+            record.catalog_warning
+        );
+        let card = format_skill_card(&record);
+        assert!(card.contains("Warning:"), "{card}");
+    }
+
+    #[test]
+    fn resolve_static_command_path_trims_windows_separators() {
+        let unix = resolve_static_command_path("{wyvern_share}/extensions.json");
+        let windows = resolve_static_command_path("{wyvern_share}\\extensions.json");
+        assert!(unix.is_some(), "unix share path should resolve");
+        assert_eq!(unix, windows);
+    }
+
+    #[test]
+    fn expands_to_report_command_json_template_is_report() {
+        let json = r#"{
+          "version": 1,
+          "extensions": [{
+            "id": "report-from-file",
+            "match": { "argv_prefix": ["report-xhtml"], "arg_suffix": ".json" },
+            "expand": { "command_from_file": "{tmpdir}/report-command.json" }
+          }]
+        }"#;
+        let registry = ExtensionRegistry::from_json_str(json).expect("parse");
+        let record = build_skill_record(&registry.extensions()[0], &Absent);
+        assert_eq!(record.expands_to, "report");
+    }
+
+    #[test]
+    fn shipped_report_xhtml_expands_to_report() {
+        let registry = ExtensionRegistry::from_json_str(SHIPPED_EXTENSIONS_JSON).expect("shipped");
+        let ext = registry
+            .extensions()
+            .iter()
+            .find(|e| e.id.as_str() == "report-xhtml")
+            .expect("report-xhtml");
+        let record = build_skill_record(ext, &Absent);
+        assert_eq!(record.expands_to, "report");
+        assert_ne!(record.expands_to, "wizard");
     }
 
     #[test]

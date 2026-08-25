@@ -1,0 +1,12 @@
+{
+  "task_id": "dev-h1-1",
+  "sprint": "h.1",
+  "sprint_doc": "docs/plans/phase-H/h1-xhtml-single-panel.md",
+  "description": "Phase H sprint h.1 — report host + xhtml-suffix + basic single-panel frame (ADR-0025)",
+  "worktree_path": "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-H-h1-xhtml-single",
+  "branch": "feature/phase-H-h1-xhtml-single",
+  "pr_target": "integrate/phase-H",
+  "deliverables": "- crates/wyvern-schema report types + Command::Report\n- wyvern-host third bind arm (/report/{page}, not is_wizard)\n- xhtml-suffix extension + preexec script shell\n- REQ-0140–0143 + REQ-HOST-0140/0141 prose\n- ADR-0025 + ADR-0022 Phase H amendment\n- extensions_catalog req_0137 for xhtml-suffix",
+  "acceptance_criteria": "- wyvern panel.xhtml expands to type report, mode view, exit 0 with WYVERN_VIEWER=none\n- sc-compose fragment renders in frame (not raw XML dump)\n- html-suffix unchanged\n- extensions list documents xhtml-suffix\n- invalid/missing path uses existing error paths",
+  "references": "- docs/plans/phase-H/xhtml-reporting-contract.md\n- docs/plans/phase-H/h1-xhtml-single-panel.md\n- docs/architecture.md (ADR-0025)\n- docs/requirements.md"
+}

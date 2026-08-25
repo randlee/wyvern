@@ -53,6 +53,30 @@ pub(crate) fn require_wizard_page(ui_root: &Path, page_html: &str) -> Result<Pat
     Ok(root)
 }
 
+/// Resolve `--ui-root` for a report and ensure `page` exists under it.
+///
+/// Must **not** use [`require_type_dir`] / `{ui_root}/report/index.html`
+/// packaged-dialog layout (ADR-0025 / REQ-HOST-0140).
+pub(crate) fn require_report_page(ui_root: &Path, page: &str) -> Result<PathBuf, HostError> {
+    let root = ui_root
+        .canonicalize()
+        .map_err(|source| HostError::UiNotFound {
+            path: ui_root.to_path_buf(),
+            source: Some(source),
+        })?;
+    let page_path = safe_join(&root, page).ok_or_else(|| HostError::UiNotFound {
+        path: root.join(page),
+        source: None,
+    })?;
+    if !page_path.is_file() {
+        return Err(HostError::UiNotFound {
+            path: page_path,
+            source: None,
+        });
+    }
+    Ok(root)
+}
+
 /// Canonicalize packaged `shared_ui_root` and require `shared/wyvern-api.js`.
 pub(crate) fn require_shared_ui_root(shared_ui_root: &Path) -> Result<PathBuf, HostError> {
     let root = shared_ui_root
@@ -126,5 +150,34 @@ mod tests {
             }
             other => panic!("expected UiNotFound, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn report_bind_require_report_page_rejects_packaged_index_pattern() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let root = tmp.path();
+        std::fs::create_dir_all(root.join("report")).expect("report dir");
+        std::fs::write(root.join("report").join("index.html"), "<html></html>").expect("index");
+        let err = require_report_page(root, "pages/view.xhtml").expect_err("missing page");
+        match err {
+            HostError::UiNotFound { path, .. } => {
+                assert!(
+                    path.ends_with("pages/view.xhtml"),
+                    "must fail on command page, not report/index.html: {}",
+                    path.display()
+                );
+            }
+            other => panic!("expected UiNotFound, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn report_bind_require_report_page_accepts_existing_page() {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let root = tmp.path();
+        std::fs::create_dir_all(root.join("pages")).expect("pages");
+        std::fs::write(root.join("pages").join("view.xhtml"), "<section></section>").expect("page");
+        let resolved = require_report_page(root, "pages/view.xhtml").expect("page exists");
+        assert_eq!(resolved, root.canonicalize().expect("canon"));
     }
 }

@@ -72,9 +72,37 @@ Dialog **types** and stdout shapes remain as in Phase B/C (`message`, `input`, `
 
 ## File / folder picker (REQ-0113 – REQ-0114)
 
-**REQ-0113** — `input` `mode: file` and `mode: folder` use OS-native pickers via `rfd` in `wyvern-host` only (same product semantics as Phase B b.4).
+**REQ-0113** — `input` `mode: file` and `mode: folder` use OS-native pickers via `rfd` in `wyvern-host` only (same product semantics as Phase B b.4). **Phase I amendment (ADR-0026):** wizard sessions may also call the same picker routes; wizard parameters come from the POST body only (REQ-HOST-0150). Input-mode dialog-field merge is unchanged.
 
 **REQ-0114** — Picker is triggered by host API route or host-handled POST from page (see [http-dialog-contract.md](../plans/phase-C/http-dialog-contract.md)), not by wry IPC.
+
+---
+
+## Wizard workflow fields (Phase G Wave 2 — g.4)
+
+Host remains domain-agnostic (ADR-0006). CLI owns execution (ADR-0023, ADR-0024).
+
+**REQ-H023** — Ignore optional wizard-command `workflow`. Never spawn pre/post scripts. Planned `boundaries/wyvern-host/host.toml`: `io_forbidden` includes `workflow_script_spawn`.
+
+**REQ-H024** — On `POST /api/wizard/finish`, accept optional known field `next_wizard` (not a REQ-0053 unknown-field 400). After stack validation, copy it onto `WizardResult`. Do not resolve `path`, load the next wizard, or interpret `input`. Sprint: [g4-welcome-guide-wizard.md](../plans/phase-G/g4-welcome-guide-wizard.md).
+
+---
+
+## Report host (Phase H — h.1/h.3)
+
+**REQ-HOST-0140** — Report sessions serve static pages at `/report/{page}` from session `ui_root` via a **report** bind arm (not wizard `/wizard/` URLs). `GET /api/dialog` is rejected for report sessions.
+
+**REQ-HOST-0141** — Report sessions mount packaged shared assets at `/shared/*` during view and review modes (`report-base.css`; `report-review.js` in review mode).
+
+**REQ-HOST-0142** — When `mode: "review"`, register `POST /api/report/finish` and validate finish bodies against authoritative `panels` from the report command JSON. View mode does not register the finish route (HTTP 404). Duplicate terminal POSTs return HTTP 409 per `SessionState::complete`.
+
+---
+
+## Wizard native picker (Phase I — i.1)
+
+**REQ-HOST-0150** — While a **`Command::Wizard`** session is active, `POST /api/picker/file` and `POST /api/picker/folder` succeed when the request body is valid. Picker parameters for wizard sessions come from the request body; defaults are empty filter, `multiple: false`, and no `start_path`. Wizard POST bodies inherit existing picker route validation (filter/start_path guards), `PICKER_TIMEOUT`, slot acquisition, and `PickerResponse` error semantics from c.11 — no new host configuration surface. Input-mode merge behavior is unchanged (REQ-0113).
+
+**REQ-HOST-0151** — Picker routes return HTTP 400 for non-input, non-wizard command types (e.g. `message`, `report`, `markdown`). Wrong `input` mode remains HTTP 400 with mode-specific guidance.
 
 ---
 

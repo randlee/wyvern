@@ -229,8 +229,29 @@ fn req_0137_registry_help_parity() {
         .collect();
 
     assert!(
-        registry.extensions().len() >= 7,
-        "expected seven shipped skills"
+        registry.extensions().len() >= 10,
+        "expected ten shipped skills including xhtml-suffix, report-xhtml, and report-xhtml-review"
+    );
+    assert!(
+        registry
+            .extensions()
+            .iter()
+            .any(|ext| ext.id.as_str() == "xhtml-suffix"),
+        "req_0137 must include xhtml-suffix"
+    );
+    assert!(
+        registry
+            .extensions()
+            .iter()
+            .any(|ext| ext.id.as_str() == "report-xhtml"),
+        "req_0137 must include report-xhtml"
+    );
+    assert!(
+        registry
+            .extensions()
+            .iter()
+            .any(|ext| ext.id.as_str() == "report-xhtml-review"),
+        "req_0137 must include report-xhtml-review"
     );
     for ext in registry.extensions() {
         let id = ext.id.as_str();
@@ -283,6 +304,37 @@ fn req_0137_registry_help_parity() {
             );
         }
     }
+}
+
+#[test]
+fn req_0137_report_xhtml_review_parity() {
+    let registry = shipped_registry();
+    let help = usage_message();
+    let (code, list_json, stderr) = run(&["extensions", "list", "--json"]);
+    assert_eq!(code, 0, "stderr={stderr}");
+    let listed: Vec<serde_json::Value> = serde_json::from_str(list_json.trim()).expect("list json");
+    let review = listed
+        .iter()
+        .find(|record| record["id"] == "report-xhtml-review")
+        .expect("list --json must include report-xhtml-review");
+    assert_eq!(review["extends"], "report-xhtml");
+    assert!(
+        help.contains("report-xhtml --review"),
+        "global --help missing report-xhtml --review: {help}"
+    );
+    let ext = registry
+        .extensions()
+        .iter()
+        .find(|ext| ext.id.as_str() == "report-xhtml-review")
+        .expect("shipped review skill");
+    assert!(ext
+        .description
+        .as_deref()
+        .is_some_and(|text| !text.trim().is_empty()));
+    assert!(ext
+        .examples
+        .iter()
+        .any(|example| example.contains("--review")));
 }
 
 #[test]

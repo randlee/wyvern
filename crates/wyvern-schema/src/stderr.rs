@@ -61,6 +61,9 @@ pub struct StderrError {
     /// Repo-relative docs or requirements reference.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub docs: Option<String>,
+    /// Optional machine sub-discriminator under a shared [`ErrorCode`].
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub subcode: Option<&'static str>,
 }
 
 #[cfg(test)]
@@ -100,6 +103,7 @@ impl StderrError {
             cause: None,
             recovery: Vec::new(),
             docs: None,
+            subcode: None,
         }
     }
 
@@ -124,6 +128,12 @@ impl StderrError {
     /// Attach a docs reference.
     pub fn docs(mut self, docs: impl Into<String>) -> Self {
         self.docs = Some(docs.into());
+        self
+    }
+
+    /// Attach a stable sub-discriminator (e.g. workflow `timeout`).
+    pub fn subcode(mut self, subcode: &'static str) -> Self {
+        self.subcode = Some(subcode);
         self
     }
 
@@ -163,6 +173,7 @@ mod tests {
         assert_eq!(value["code"], "PARSE_ERROR");
         assert!(value.get("field").is_none());
         assert!(value.get("docs").is_none());
+        assert!(value.get("subcode").is_none());
         assert_eq!(value["cause"], "trailing comma");
         assert_eq!(
             value["recovery"],

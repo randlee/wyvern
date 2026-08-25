@@ -9,6 +9,7 @@ use std::time::Duration;
 pub fn http_client() -> reqwest::blocking::Client {
     reqwest::blocking::Client::builder()
         .timeout(Duration::from_secs(5))
+        .pool_max_idle_per_host(0)
         .build()
         .expect("http client")
 }

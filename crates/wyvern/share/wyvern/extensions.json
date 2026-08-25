@@ -28,6 +28,74 @@
       }
     },
     {
+      "id": "xhtml-suffix",
+      "description": "Open an XHTML panel as a report view (wrapped document frame).",
+      "examples": ["wyvern panel.xhtml"],
+      "match": { "positional_suffix": ".xhtml" },
+      "preexec": {
+        "cmd": "python3",
+        "args": ["{wyvern_share}/scripts/ext/xhtml_report.py", "--mode", "single", "--input", "{path}", "--title", "{basename}", "--out", "{tmpdir}/pages/view.xhtml"],
+        "requires": ["python3"]
+      },
+      "expand": {
+        "command": {
+          "type": "report",
+          "title": "{basename}",
+          "page": "pages/view.xhtml",
+          "mode": "view"
+        },
+        "host": { "ui_root": "{tmpdir}" }
+      }
+    },
+    {
+      "id": "report-xhtml-review",
+      "description": "Open XHTML panels in review mode (comments + Approve/Cancel).",
+      "examples": ["wyvern report-xhtml --review path/to/review.json"],
+      "match": { "argv_prefix": ["report-xhtml", "--review"], "arg_suffix": ".json" },
+      "extends": "report-xhtml",
+      "preexec": {
+        "args": [
+          "{wyvern_share}/scripts/ext/xhtml_report.py",
+          "--mode",
+          "review",
+          "--manifest",
+          "{path}",
+          "--out",
+          "{tmpdir}/pages/view.xhtml",
+          "--command-out",
+          "{tmpdir}/report-command.json",
+          "--force-mode",
+          "review"
+        ]
+      }
+    },
+    {
+      "id": "report-xhtml",
+      "description": "Open an ordered array of XHTML panels as one report view. Manifest fields: title, optional mode (view|review), panels[{path, label?, role?}].",
+      "examples": ["wyvern report-xhtml path/to/review.json"],
+      "match": { "argv_prefix": ["report-xhtml"], "arg_suffix": ".json" },
+      "preexec": {
+        "cmd": "python3",
+        "args": [
+          "{wyvern_share}/scripts/ext/xhtml_report.py",
+          "--mode",
+          "array",
+          "--manifest",
+          "{path}",
+          "--out",
+          "{tmpdir}/pages/view.xhtml",
+          "--command-out",
+          "{tmpdir}/report-command.json"
+        ],
+        "requires": ["python3"]
+      },
+      "expand": {
+        "command_from_file": "{tmpdir}/report-command.json",
+        "command_type": "report",
+        "host": { "ui_root": "{tmpdir}" }
+      }
+    },
+    {
       "id": "wizard-json-suffix",
       "description": "Open a wizard.json file as a multi-page wizard.",
       "examples": ["wyvern path/to/wizard.json"],
@@ -105,6 +173,16 @@
       },
       "expand": {
         "command": { "type": "markdown", "title": "{basename}", "content": "{preexec.stdout}" }
+      }
+    },
+    {
+      "id": "guide",
+      "description": "Visual feature guide (multi-page wizard).",
+      "examples": ["wyvern guide"],
+      "match": { "argv_prefix": ["guide"] },
+      "expand": {
+        "command_from_file": "{wyvern_share}/welcome/wizard.json",
+        "host": { "ui_root": "{wyvern_share}/welcome" }
       }
     }
   ]

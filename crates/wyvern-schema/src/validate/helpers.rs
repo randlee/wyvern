@@ -56,11 +56,22 @@ pub(super) const MARKDOWN_FIELDS: &[&str] = &[
 /// Allowed fields on a `question` command object (b.7).
 pub(super) const QUESTION_FIELDS: &[&str] = &["type", "questions", "width", "height"];
 
-/// Allowed fields on a `wizard` command object (d.1).
-pub(super) const WIZARD_FIELDS: &[&str] = &["type", "page", "config", "width", "height"];
+/// Allowed fields on a `wizard` command object (d.1 + g.4 `workflow`).
+pub(super) const WIZARD_FIELDS: &[&str] =
+    &["type", "page", "config", "width", "height", "workflow"];
+
+/// Allowed fields on `wizard.workflow`.
+pub(super) const WIZARD_WORKFLOW_FIELDS: &[&str] = &["pre", "post"];
 
 /// Allowed fields on `wizard.page`.
 pub(super) const WIZARD_PAGE_FIELDS: &[&str] = &["id", "title", "html", "layout"];
+
+/// Allowed fields on a `report` command object (h.1 / REQ-0140).
+pub(super) const REPORT_FIELDS: &[&str] =
+    &["type", "title", "page", "mode", "panels", "width", "height"];
+
+/// Allowed fields on each report `panels[]` entry.
+pub(super) const REPORT_PANEL_FIELDS: &[&str] = &["path", "label", "role"];
 
 /// Allowed fields on each question card.
 pub(super) const QUESTION_CARD_FIELDS: &[&str] = &["question", "header", "options", "multiSelect"];
@@ -78,9 +89,9 @@ pub(super) const QUESTION_HEADER_MAX_CHARS: usize = 12;
 /// validation, CLI file load, and host render (defense in depth).
 pub const MARKDOWN_CONTENT_MAX_BYTES: usize = 256 * 1024;
 
-/// Executable `type` values (through Phase D d.1).
+/// Executable `type` values (through Phase H h.1).
 pub(super) const VALID_TYPES: &[&str] = &[
-    "chrome", "message", "input", "markdown", "question", "wizard",
+    "chrome", "message", "input", "markdown", "question", "wizard", "report",
 ];
 
 pub(super) fn require_string_field(

@@ -52,6 +52,8 @@ Primary user: AI agents with **no checkout docs**. Authoritative contract: [agen
 
 **REQ-0137** — **Registry/help parity:** every `id` in shipped `share/wyvern/extensions.json` appears in global `--help` and in `extensions list --json`; each shipped entry has non-empty `description` and at least one `examples` string. CI tests enforce parity when the registry changes.
 
+**REQ-0146** — **`wyvern examples list`** discovers bundled examples under `{wyvern_share}/examples/` by scanning for `README.md` files with mandatory YAML frontmatter (`name`, `description`). Text output lists name, description, and readme path; `wyvern examples list --json` prints a JSON array of `{name, description, readme}`. Bare `wyvern examples` matches `list`. Global `--help` mentions the command. Sprint: [g15-examples-catalog.md](../plans/phase-G/g15-examples-catalog.md).
+
 ---
 
 ## Interactive Mode (Phase E)
@@ -63,3 +65,41 @@ Primary user: AI agents with **no checkout docs**. Authoritative contract: [agen
 **REQ-0122** — `{"action":"show"}` and `{"action":"hide"}` toggle **`wyvern-viewer`** visibility via **`wyvern` CLI** (when embedded); return `{"action":"show|hide","ok":true}`. Host HTTP server stays up. Not `HostSession` methods.
 
 **REQ-0123** — `{"action":"exit"}` shuts down `HostSession` (host) and CLI-owned viewer, returning `{"action":"exit","ok":true}` before shutdown.
+
+---
+
+## Wizard workflow hooks (Phase G Wave 2 — g.4)
+
+CLI-owned. Host and page JS do not execute these scripts and must not read or write the files they target. Architecture: [ADR-0023](../architecture.md#adr-0023-wizard-workflow-prepost-scripts-cli-layer), [wizard-workflow-architecture.md](../plans/phase-G/wizard-workflow-architecture.md). Lands in **g.4**; consumed by **g.5–g.7**.
+
+**REQ-0124** — When a wizard command includes optional `workflow.pre`, the **`wyvern` CLI** runs that script **before** binding the host. The script writes one JSON object to stdout. The CLI deep-merges `config_patch` (object) into the wizard `config` so the first `GET /api/wizard/state` exposes the patched config. Invalid JSON, non-zero exit, timeout, or a path outside the workflow allowlist is a `workflow` / `WORKFLOW_ERROR` failure (exit `9`); the host does not start. Webview / page JS has no disk access for this step.
+
+**REQ-0125** — When a wizard command includes optional `workflow.post` and the session ends with `button: "finish"`, the **`wyvern` CLI** runs that script **after** host finish and **before** any `next_wizard` hop. The CLI writes the full finish JSON to the script's stdin. Non-zero exit, timeout, or allowlist failure is `WORKFLOW_ERROR` (exit `9`). `cancel` and `dismissed` skip post. `--workflow-dry-run` appends `--dry-run` to the post (and pre) argv; scripts must not write side effects in that mode. Webview / page JS has no disk access for this step.
+
+---
+
+## Wizard chaining (Phase G Wave 2 — g.4)
+
+**REQ-0126** — A wizard finish JSON may include optional `next_wizard`: `{ "path": "...", "input": { }, "ui_root": "..." }`. This extends the REQ-0066 envelope; `path` is required when the object is present; `input` defaults to `{}`; `ui_root` is optional. The **`wyvern` CLI** (not the host) loads the next `wizard.json`, merges `input` into that wizard's `config`, runs its `workflow.pre` (pre `config_patch` wins over `input`), and repeats. Honor `next_wizard` only when `button` is `finish`. Maximum **16** wizard sessions per CLI invocation; a 17th hop is `WORKFLOW_ERROR`. `path` must canonicalize inside the workflow allowlist (`{wyvern_share}`, process cwd, or the current wizard.json directory); reject `..` / symlink escape. Final stdout is the **last** finish JSON (omit `next_wizard` on the emitted line). Architecture: [ADR-0024](../architecture.md#adr-0024-next_wizard-chaining-cli-orchestration).
+
+---
+
+## Welcome guide extension (Phase G Wave 2 — g.4)
+
+**REQ-0127** — `wyvern guide` is a shipped argv-prefix extension (`id: "guide"`) that expands to the bundled welcome wizard (`{wyvern_share}/welcome/wizard.json`, `ui_root` `{wyvern_share}/welcome`). It is **not** `wyvern help` / `--help` (those stay stdout). The extension is listed in shipped `extensions.json` and mentioned on the global `--help` surface (g.1). Sprint: [g4-welcome-guide-wizard.md](../plans/phase-G/g4-welcome-guide-wizard.md).
+
+---
+
+## XHTML report extensions (Phase H — h.1/h.2/h.3)
+
+**REQ-0140** — `type: "report"` command JSON is validated in `wyvern-schema` with fields `title`, `page`, optional `mode` (`view` \| `review`), optional `panels` (required when `mode: "review"`), optional viewer hints. No wizard `config`, `workflow`, or stack fields.
+
+**REQ-0141** — `.xhtml` suffix expands via `xhtml-suffix` registry entry to `type: "report"`, `mode: "view"` (not wizard).
+
+**REQ-0142** — `report-xhtml` and `report-xhtml-review` extensions expand via Phase F `command_from_file` from preexec-written `{tmpdir}/report-command.json`; match uses `argv_prefix` + `arg_suffix: ".json"`.
+
+**REQ-0143** — View-mode report dismiss completes with stdout `{"button":"dismissed"}` via shared `POST /api/result` semantics.
+
+**REQ-0144** — Review-mode finish completes with stdout JSON `{ "button": "finish", "data": { "approved", "comments", "panels" } }` from `POST /api/report/finish`. Contract: [xhtml-reporting-contract.md](../plans/phase-H/xhtml-reporting-contract.md).
+
+**REQ-0145** — Bundled wizard example `share/wyvern/examples/path-picker/` demonstrates in-page native file/folder pickers via `WyvernApi` during a wizard session (ADR-0026). Example passes `wyvern wizard lint` and headless smoke in CI. Paths in finish JSON are strings only; no page-side filesystem I/O.

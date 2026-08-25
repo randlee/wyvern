@@ -7,11 +7,12 @@ use crate::error::ValidationError;
 use crate::field_name::FieldName;
 use crate::wizard::{
     WizardCommand, WizardPageDescriptor, WizardPageHtml, WizardPageId, WizardPageLayout,
-    WizardPageTitle,
+    WizardPageTitle, WorkflowPath, WorkflowSpec,
 };
 
 use super::helpers::{
     json_type_name, optional_window_size_fields, WIZARD_FIELDS, WIZARD_PAGE_FIELDS,
+    WIZARD_WORKFLOW_FIELDS,
 };
 
 pub(super) fn validate_wizard(obj: &Map<String, Value>) -> Result<Command, ValidationError> {
@@ -65,6 +66,7 @@ pub(super) fn validate_wizard(obj: &Map<String, Value>) -> Result<Command, Valid
     };
 
     let (width, height) = optional_window_size_fields(obj)?;
+    let workflow = optional_workflow(obj)?;
 
     Ok(Command::Wizard(WizardCommand {
         page: WizardPageDescriptor {
@@ -76,7 +78,52 @@ pub(super) fn validate_wizard(obj: &Map<String, Value>) -> Result<Command, Valid
         config,
         width,
         height,
+        workflow,
     }))
+}
+
+fn optional_workflow(obj: &Map<String, Value>) -> Result<Option<WorkflowSpec>, ValidationError> {
+    match obj.get("workflow") {
+        None => Ok(None),
+        Some(Value::Object(map)) => {
+            for key in map.keys() {
+                let key_str = key.as_str();
+                if !WIZARD_WORKFLOW_FIELDS.contains(&key_str) {
+                    return Err(ValidationError::validation(
+                        format!("workflow.{key_str}"),
+                        format!("unknown field '{key_str}'"),
+                    ));
+                }
+            }
+            let pre = optional_workflow_script(map, "pre")?;
+            let post = optional_workflow_script(map, "post")?;
+            Ok(Some(WorkflowSpec { pre, post }))
+        }
+        Some(other) => Err(ValidationError::validation(
+            "workflow",
+            format!(
+                "field 'workflow' expected object, got {}",
+                json_type_name(other)
+            ),
+        )),
+    }
+}
+
+fn optional_workflow_script(
+    workflow: &Map<String, Value>,
+    field: &str,
+) -> Result<Option<WorkflowPath>, ValidationError> {
+    let path = format!("workflow.{field}");
+    match workflow.get(field) {
+        None => Ok(None),
+        Some(Value::String(s)) => WorkflowPath::try_new(s.clone()).map(Some).map_err(|_| {
+            ValidationError::validation(path.clone(), format!("{path} must be a non-empty string"))
+        }),
+        Some(other) => Err(ValidationError::validation(
+            path.clone(),
+            format!("{path} expected string, got {}", json_type_name(other)),
+        )),
+    }
 }
 
 fn require_non_empty_page_string(

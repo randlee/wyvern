@@ -27,6 +27,8 @@ mod picker;
 #[cfg(target_os = "macos")]
 mod picker_dispatch;
 mod question;
+mod report_finish;
+mod report_session;
 mod routes;
 mod server;
 mod session;

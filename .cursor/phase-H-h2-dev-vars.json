@@ -1,0 +1,12 @@
+{
+  "task_id": "dev-h2-1",
+  "sprint": "h.2",
+  "sprint_doc": "docs/plans/phase-H/h2-xhtml-panel-array.md",
+  "description": "Phase H sprint h.2 — report-xhtml extension, panel-array frame, manifest schema",
+  "worktree_path": "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-H-h2-xhtml-panel-array",
+  "branch": "feature/phase-H-h2-xhtml-panel-array",
+  "pr_target": "integrate/phase-H",
+  "deliverables": "- report-xhtml extension (arg_suffix .json, command_from_file)\n- xhtml_report.py --mode array + --validate-manifest\n- review-manifest.schema.json + test fixture\n- catalog expands_to from command JSON type\n- REQ-0142, cli_args report-xhtml help, extensions_catalog req_0137\n- ReportPanelEntry types in wyvern-schema\n- basic-array CSS (.pane, .pane--proposal)",
+  "acceptance_criteria": "- ≥2 panel manifest opens one report view in document order\n- proposal role styling\n- missing panel path → preexec non-zero\n- single-panel manifest works\n- report-xhtml --help documents manifest\n- expands_to report never wizard\n- arg_suffix .json path binding",
+  "references": "- docs/plans/phase-H/h2-xhtml-panel-array.md\n- docs/plans/phase-H/xhtml-reporting-contract.md\n- docs/plans/phase-F/cli-extensions-contract.md"
+}

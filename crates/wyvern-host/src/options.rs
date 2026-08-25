@@ -183,6 +183,7 @@ fn command_window_title(command: &wyvern_schema::Command) -> Option<String> {
             .filter(|header| !header.is_empty())
             .unwrap_or("Question"),
         wyvern_schema::Command::Wizard(cmd) => cmd.page.title.as_str(),
+        wyvern_schema::Command::Report(cmd) => cmd.title.as_str(),
     };
     if title.is_empty() {
         None

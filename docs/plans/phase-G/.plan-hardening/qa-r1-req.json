@@ -1,0 +1,15 @@
+{
+  "status": "FAIL",
+  "scope": { "phase": "G Wave 2", "sprint": "g.4-g.7" },
+  "summary": {
+    "total_findings": 3,
+    "blocking_findings": 1,
+    "deliverable_completion_percent": 100.0
+  },
+  "findings": [
+    { "id": "ATM-QA-001", "severity": "Blocking", "issue": "http-post-schema.md rejects next_wizard", "fix_applied": "amended finish table + known-field exception" },
+    { "id": "ATM-QA-002", "severity": "Important", "issue": "http-wizard-contract.md finish omits next_wizard", "fix_applied": "step 6 passthrough" },
+    { "id": "ATM-QA-003", "severity": "Important", "issue": "g.7 AC 1-2 ungated", "fix_applied": "wizard_agent_dag + wizard_agent_dag_nav tests" }
+  ],
+  "gate_reason": "FAIL on ATM-QA-001 at QA-1; HTTP contracts amended after this review."
+}

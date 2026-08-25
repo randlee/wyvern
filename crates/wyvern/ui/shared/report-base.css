@@ -1,0 +1,176 @@
+/**
+ * Minimal report pane typography (Phase H h.1).
+ * Served at /shared/report-base.css during report sessions.
+ */
+
+html {
+  box-sizing: border-box;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
+}
+
+body.report {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: #0f172a;
+  background: #f8fafc;
+}
+
+.report-body {
+  max-width: 56rem;
+  margin: 0 auto;
+  padding: 1.25rem 1.5rem 2rem;
+}
+
+.report-body h1,
+.report-body h2,
+.report-body h3 {
+  margin: 0 0 0.75rem;
+  line-height: 1.25;
+  font-weight: 650;
+}
+
+.report-body p,
+.report-body li {
+  margin: 0 0 0.75rem;
+}
+
+.pane {
+  margin: 0 0 1.25rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+  background: #fff;
+}
+
+.pane-label {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  color: #334155;
+}
+
+.pane--proposal {
+  border-color: #0d9488;
+  background: #f0fdfa;
+  box-shadow: inset 4px 0 0 #0d9488;
+}
+
+.pane--proposal .pane-label {
+  color: #0f766e;
+}
+
+html[data-wyvern-theme="dark"] body.report {
+  color: #e2e8f0;
+  background: #0f172a;
+}
+
+html[data-wyvern-theme="dark"] .pane {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+html[data-wyvern-theme="dark"] .pane-label {
+  color: #cbd5e1;
+}
+
+html[data-wyvern-theme="dark"] .pane--proposal {
+  background: #134e4a;
+  border-color: #2dd4bf;
+  box-shadow: inset 4px 0 0 #2dd4bf;
+}
+
+html[data-wyvern-theme="dark"] .pane--proposal .pane-label {
+  color: #5eead4;
+}
+
+.report-review {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem 1rem;
+  margin: 0;
+  padding: 0.85rem 1.5rem 1rem;
+  border-top: 1px solid #cbd5e1;
+  background: #fff;
+}
+
+.report-review label {
+  flex: 0 0 100%;
+  font-size: 0.85rem;
+  font-weight: 650;
+  color: #334155;
+}
+
+.report-review textarea {
+  flex: 1 1 16rem;
+  min-height: 4.5rem;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid #94a3b8;
+  border-radius: 0.4rem;
+  font: inherit;
+  resize: vertical;
+}
+
+.report-review nav {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.report-review button {
+  min-width: 6.5rem;
+  padding: 0.45rem 0.9rem;
+  border: 1px solid #64748b;
+  border-radius: 0.4rem;
+  background: #f1f5f9;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.report-review button[data-report-approve] {
+  border-color: #0f766e;
+  background: #0d9488;
+  color: #fff;
+}
+
+.report-review button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+html[data-wyvern-theme="dark"] .report-review {
+  background: #1e293b;
+  border-top-color: #334155;
+}
+
+html[data-wyvern-theme="dark"] .report-review label {
+  color: #cbd5e1;
+}
+
+html[data-wyvern-theme="dark"] .report-review textarea {
+  background: #0f172a;
+  border-color: #475569;
+  color: #e2e8f0;
+}
+
+html[data-wyvern-theme="dark"] .report-review button {
+  background: #334155;
+  border-color: #64748b;
+  color: #e2e8f0;
+}
+
+html[data-wyvern-theme="dark"] .report-review button[data-report-approve] {
+  background: #0d9488;
+  border-color: #2dd4bf;
+  color: #042f2e;
+}

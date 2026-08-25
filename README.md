@@ -6,7 +6,7 @@
 
 > A lightweight CLI tool that opens native webview windows for user interaction and returns structured JSON results — with zero browser dependency, declarative CLI extensions, and an MCP-ready JSON schema (MCP server ships in Phase E).
 
-**Current release:** [v0.3.0](CHANGELOG.md#030--2026-08-17) — Phase F extensions + Phase G agent help and skill catalog (wizard flows since v0.2.0).
+**Current release:** [v0.4.0](CHANGELOG.md#040--2026-08-24) — Phase H XHTML reporting (view + review), Phase I wizard native path pickers, and `wyvern examples list` on the extension runtime (wizard flows since v0.2.0).
 
 ---
 
@@ -51,10 +51,17 @@ Each archive contains `wyvern`, `wyvern-viewer`, and `share/wyvern/ui/` (message
 wyvern help
 wyvern --help
 
+# Visual welcome guide (multi-page wizard hub)
+wyvern guide
+
 # Skill catalog (text, JSON, or detail view)
 wyvern extensions list
 wyvern extensions list --json
 wyvern extensions show csv-suffix
+
+# Bundled example catalog (README frontmatter)
+wyvern examples list
+wyvern examples list --json
 
 # Extension-specific help at match time
 wyvern compose render --help
@@ -62,11 +69,13 @@ wyvern compose render --help
 # Open a markdown file as a dialog
 wyvern doc.md
 
-# Open a custom HTML wizard page (auto-infers --ui-root)
-wyvern examples/wizards/single-page/pages/only.html
+# Bundled wizard examples (auto-infers --ui-root from wizard.json)
+wyvern share/wyvern/examples/path-picker/wizard.json
+wyvern share/wyvern/examples/template-picker/wizard.json
 
-# Load a wizard from wizard.json (auto-infers --ui-root)
-wyvern examples/wizards/turbo-flow/wizard.json
+# XHTML report panels (view or review mode)
+wyvern share/wyvern/examples/xhtml-review/panels/fail-1.xhtml
+wyvern report-xhtml share/wyvern/examples/xhtml-review/review-view.json
 
 # Interactive CSV table (sort / filter / Finish → JSON)
 # Requires `python3` on PATH. On Windows, install Python 3 and ensure the
@@ -77,6 +86,8 @@ wyvern table fixtures/sample.csv
 # CSV as a markdown pipe table
 wyvern md fixtures/sample.csv
 ```
+
+Shipped examples live under `share/wyvern/examples/` (path-picker, template-picker, agent-dag, askuserquestion-hook, xhtml-review). Each folder includes a README with launch commands.
 
 ## Optional: Compose render
 
@@ -92,11 +103,14 @@ wyvern compose render --root ./my-template-dir --file page.j2
 
 Wyvern bridges the gap between CLI tools and rich user interaction. Pass it a JSON command, get back a JSON result — or use argv shorthands for common file types and prefix skills. No Electron. No Chrome. Just the OS's built-in webview rendering your HTML.
 
-**v0.3.0** adds declarative CLI extensions and agent-facing discoverability on top of the core dialog API:
+**v0.4.0** adds XHTML reporting and wizard native pickers on top of the core dialog API and extension runtime:
 
 - Blocking dialog commands: `message`, `input`, `markdown`, `question`, `chrome`
 - Multi-page **`wizard`** flows with browser-history navigation (since v0.2.0)
-- **Extensions** — suffix and prefix argv skills (`.html`, `.csv`, `compose render`, `md`, and more via bundled registry)
+- **Wizard native pickers** — in-page file/folder choosers via `WyvernApi` during wizard sessions (Phase I)
+- **XHTML reporting** — `.xhtml` suffix, `report-xhtml` manifests, and review finish flow (Phase H)
+- **Extensions** — suffix and prefix argv skills (`.html`, `.csv`, `compose render`, `md`, `guide`, and more via bundled registry)
+- **Discoverability** — `wyvern help`, `wyvern guide`, `wyvern extensions list`, and `wyvern examples list` for agent-facing skill and example discovery (Phase G)
 
 ```bash
 # Show a dialog
@@ -134,7 +148,7 @@ wyvern my-doc.md
 - **`markdown`** — styled markdown viewer (`file`, inline `content`, or `wyvern file.md` shorthand)
 - **`question`** — blocking native renderer based on Claude's public `AskUserQuestion` API
 - **`chrome`** — foundation chrome frame and platform safe zones (used by other dialog types)
-- **`wizard`** — multi-page flows with stack navigation (`POST /api/wizard/navigate`, `finish`, visited-stack JSON on dismiss)
+- **`wizard`** — multi-page flows with stack navigation (`POST /api/wizard/navigate`, `finish`, visited-stack JSON on dismiss); in-page native file/folder pickers via `WyvernApi.postPickerFile` / `postPickerFolder` (Phase I)
 
 ---
 
@@ -153,7 +167,7 @@ wyvern my-doc.md
 - [PRD](docs/prd/wyvern-prd.md) — full product requirements and JSON schema reference
 - [CHANGELOG](CHANGELOG.md) — release history
 
-## Deferred (post–v0.3.0)
+## Deferred (post–v0.4.0)
 
 - **`--interactive`** — persistent stdin loop with `show`, `hide`, and `exit` lifecycle actions (Phase E)
 - **`wyvern --mcp`** — MCP server; JSON schema is MCP-ready today, binary ships Phase E

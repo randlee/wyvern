@@ -83,7 +83,7 @@ wyvern-schema   →  (no internal deps — pure types + logic)
 wyvern-wizard   →  wyvern-schema
 wyvern-host     →  wyvern-schema [, wyvern-wizard for Phase D wizard routes], HTTP stack (axum/tokio)
 wyvern-viewer   →  wry, winit [, serde/serde_json for OS-close dismiss JSON only — ADR-0021] (optional crate — URL navigate + dismiss)
-wyvern          →  wyvern-host, wyvern-schema  (spawns wyvern-viewer via subprocess — not a required Cargo dep)
+wyvern          →  wyvern-host, wyvern-schema [, wyvern-wizard for `wyvern wizard lint` — Phase G g.9/g.14]
 wyvern-mcp      →  wyvern-host, wyvern-schema
 ```
 
@@ -95,6 +95,7 @@ wyvern-mcp      →  wyvern-host, wyvern-schema
 - `wyvern-host` may depend on `wyvern-wizard` from Phase D (d.1) for wizard route state orchestration only — pure logic stays in `wyvern-wizard`
 - `wry` and `winit` only in `wyvern-viewer` (optional) — not in `wyvern-host`
 - **`wyvern` CLI** spawns `wyvern-viewer` as a **subprocess** for `--viewer embedded` — sibling binary discovery, not a required library dependency (dev builds may use `CARGO_BIN_EXE_wyvern-viewer`)
+- **`wyvern` CLI** may depend on **`wyvern-wizard`** from Phase G (g.9/g.14) for **static** `wyvern wizard lint` only — no session/history APIs; lint modules are allowlisted in `boundaries/wyvern-wizard/wizard.toml`
 - `wyvern-mcp` accesses dialogs only through `wyvern-host`'s public API
 - `wyvern` binary is a thin entry point — logic belongs in library crates
 - `wyvern-window` is **removed** — do not extend. Optional URL webview = **`wyvern-viewer`** (c.15).
@@ -113,7 +114,7 @@ Boundary rules are encoded in `boundaries/` and enforced in CI.
 **Decision (Path A):**
 
 1. Extension engine lives in **`wyvern` crate** as public `wyvern::extensions` module; used by `wyvern` binary and Phase E `--interactive` loop.
-2. Extensions produce existing `Command` JSON only — **no new schema variants**.
+2. Extensions produce validated `Command` JSON; **Phase F shipped variants only** — no new schema variants until Phase H (see Amendment below).
 3. **`wyvern-mcp` boundary unchanged:** MCP tools accept **pre-expanded `Command` JSON** (compose in tool handler or subprocess `wyvern` for expand-only). No `wyvern-mcp → wyvern-cli` dependency.
 
 **Consequences:** Phase F f.1 lands ADR-0022 + contract. Phase E e.3 documents MCP tool pattern for CSV/HTML. Path B (mcp → wyvern lib) deferred unless explicitly re-opened.
@@ -131,6 +132,95 @@ Boundary rules are encoded in `boundaries/` and enforced in CI.
 3. **README / plan docs** are informative for humans; they are not acceptance gates for agent discoverability.
 
 **Consequences:** New or changed extensions in any phase must update `usage_message()`, registry prose fields, and help/catalog tests in the same PR. Phase G g.1–g.3 land REQ-0134–REQ-0137. Phase E `--interactive` inherits the same argv surfaces.
+
+**Amendment (Phase H — ADR-0025):**
+
+**Status:** Accepted (Phase H h.1)
+
+**Context:** Phase H adds static XHTML/HTML report viewing via a new `Command::Report` variant (ADR-0025). Extensions still expand to validated JSON; MCP Path A unchanged.
+
+**Decision:**
+
+1. Extensions may expand to **`type: "report"`** — the sole Phase-H-added `Command` variant.
+2. Report uses shared host routes in `wyvern-host` (`/report/*`, optional `/api/report/finish`) — **no per-extension host handlers**.
+3. **`wyvern-mcp` boundary unchanged:** MCP tools accept pre-expanded `Command` JSON including `report`.
+
+**Consequences:** Amends pre-H Decision point 2. Full report semantics: [ADR-0025](#adr-0025-report-command-static-xhtmlhtml-review-surfaces).
+
+---
+
+### ADR-0023: Wizard workflow pre/post scripts (CLI layer)
+
+**Status:** Accepted (planning — Phase G Wave 2, g.4)
+
+**Context:** Wave 2 examples must query and apply on-disk state (Claude Code hooks, template copy, DAG export). Page JS in the webview must not read or write those files. Extension `preexec` already spawns trusted scripts; a second ad-hoc subprocess stack would drift. Host-side I/O would violate ADR-0006 and ADR-0011.
+
+**Decision:**
+
+1. Optional `workflow: { "pre": "<path>", "post": "<path>" }` is a **known** field on wizard command JSON (REQ-0124, REQ-0125). `wyvern-schema` validates shape and non-empty path strings; it is not a REQ-0053 unknown field. **`wyvern-host` ignores `workflow` and never spawns scripts.**
+2. The **`wyvern` CLI** owns execution in `crates/wyvern/src/workflow/`: `pre` after validate and **before** host bind; `post` after host finish when `button` is `finish`, **before** any `next_wizard` hop. `cancel` / `dismissed` skip post. Failure → `workflow` / `WORKFLOW_ERROR`, exit `9`; pre failure does not start the host.
+3. Reuse Phase F `extensions/preexec.rs` spawn and stderr-tail helpers. Do not add a second subprocess stack. Timeout is **`WORKFLOW_SCRIPT_TIMEOUT` = 30s** (g.4).
+4. **Allowlist:** resolved paths must canonicalize under `{wyvern_share}`, process cwd, or the current `wizard.json` directory. Reject `..` and symlink escape. `.py` scripts invoke `python3 <path>`; other paths execute as argv[0].
+5. Pre stdout is one JSON object `{ "config_patch": { ... } }`; CLI deep-merges object keys into wizard `config` (patch wins; arrays/scalars replace). Post receives the full finish JSON on stdin.
+6. `--workflow-dry-run` is a CLI flag (parsed with other host-adjacent flags). When set, CLI appends `--dry-run` to pre and post argv. Scripts must not apply side effects in that mode.
+7. Spawned scripts receive `WYVERN_SHARE` (canonical share root), `WYVERN_REPO_ROOT` (existing value, else process cwd), and `WYVERN_BIN` (canonical wyvern executable from `current_exe`).
+
+**Consequences:** g.4 lands the runner; g.5–g.7 only add scripts + `workflow` blocks. No new dialog types. MCP / `--interactive` auto-chain stays Phase E. Full text: [wizard-workflow-architecture.md](plans/phase-G/wizard-workflow-architecture.md).
+
+---
+
+### ADR-0024: `next_wizard` chaining (CLI orchestration)
+
+**Status:** Accepted (planning — Phase G Wave 2, g.4)
+
+**Context:** Welcome → example wizards need a full new `wizard.json` (new `ui_root`, new `workflow`), not another page inside one session. A host graph engine would violate ADR-0006 and ADR-0012.
+
+**Decision:**
+
+1. Optional `next_wizard: { "path": "<wizard.json>", "input": {}, "ui_root": "<optional>" }` is a **known** sibling of `button` / `data` / `stack` on finish request and result (REQ-0126; extends REQ-0066). `path` is required when the object is present; `input` defaults to `{}`; `ui_root` is optional. **Host copies the field through and does not resolve, load, or execute it.**
+2. The **`wyvern` CLI** owns the loop in `crates/wyvern/src/workflow/chain.rs` + `pipeline.rs`: finish → post → resolve next → load → merge `input` into next `config` → pre (**pre `config_patch` wins** over `input`) → host → repeat.
+3. Honor `next_wizard` only when `button` is `finish`. Maximum **16** wizard sessions per CLI invocation; a 17th hop is `WORKFLOW_ERROR` (exit `9`).
+4. `path` and optional `ui_root` use the ADR-0023 allowlist. Relative `path` resolves `{wyvern_share}` first, then cwd, then the current wizard.json directory. Missing `ui_root` uses existing wizard-root inference.
+5. Final stdout is the last finish JSON with `next_wizard` **omitted**. `--emit-all` is **out of scope** for Wave 2 (non-closure).
+6. No `wyvern chain` subcommand. `wyvern guide` is an argv-prefix **extension** (`id: "guide"`, REQ-0127), not a built-in early return.
+
+**Consequences:** Chaining is data-driven. Host remains a single-session server but **must passthrough** `next_wizard` on finish (g.4 `wyvern-host` deliverable) or the CLI loop never sees page-supplied hops. DAG *execution* stays out of Wyvern (g.7 export only). Full text: [wizard-workflow-architecture.md](plans/phase-G/wizard-workflow-architecture.md), [workflow-chain-contract.md](plans/phase-G/workflow-chain-contract.md).
+
+---
+
+### ADR-0025: Report command (static XHTML/HTML review surfaces)
+
+**Status:** Accepted (Phase H h.1)
+
+**Context:** Agents need ad-hoc sc-compose XHTML panel review (single pane, arrays, optional Approve/Cancel) outside wizard stack semantics. Overloading `type: "wizard"` confuses authoring skills and WIZARD-LINT profiles. Phase F ADR-0022 forbade new schema variants; Phase H is the first deliberate exception.
+
+**Decision:**
+
+1. Add **`type: "report"`** to `wyvern-schema` — fields: `title`, `page`, optional `mode` (`view` \| `review`), optional `panels` (required when `mode: "review"` — manifest panel list for finish validation), optional viewer hints. No `config`, `workflow`, or stack fields.
+2. **`wyvern-host`** binds report via a **third bind discriminant** (`dialog` \| `wizard` \| `report`) — **not** `is_wizard=true`. Report arm: `require_report_page`, dialog URL `/report/{page}`, `ServeDir` at `/report`; **forbidden:** `/wizard/` URLs or wizard static mounts for report sessions. Mounts `/shared/*` for report CSS/JS; registers `POST /api/report/finish` only when `mode: "review"`. `GET /api/dialog` rejected for report sessions.
+3. **Extensions** (`xhtml-suffix`, `report-xhtml`, `report-xhtml-review`) expand via existing Phase F runtime. Multi-panel flows use preexec → **`command_from_file`** (`{tmpdir}/report-command.json`); match uses `arg_suffix: ".json"` with `argv_prefix` (same as `table`/`md` CSV extensions). No new template placeholder vars.
+4. Report surfaces are **not** wizard lint targets. Authoring guidance lives in **`wyvern-reporting`** skill (not `creating-wyvern-wizard`).
+
+**Consequences:** Amends ADR-0022 §2 (see below). MCP Phase E still accepts pre-expanded `Command` JSON including `report`. Contract: [xhtml-reporting-contract.md](plans/phase-H/xhtml-reporting-contract.md).
+
+**Amendment to ADR-0022 (Phase H):** Point 2 now reads: extensions produce validated `Command` JSON; **`report` is the only Phase-H-added variant**. No per-extension host handlers; report uses the shared report route family in `wyvern-host`.
+
+---
+
+### ADR-0026: Wizard sessions may use native picker routes (Phase I)
+
+**Status:** Accepted (Phase I i.1)
+
+**Context:** Phase C c.11 limited `POST /api/picker/file` and `POST /api/picker/folder` to active `input` dialogs with matching mode. Wizard pages already load `WyvernApi.postPickerFile` / `postPickerFolder` from packaged `wyvern-api.js`, but the host rejected wizard sessions ([#99](https://github.com/randlee/wyvern/issues/99)). Authors worked around with typed paths or a separate `input` command, breaking single-wizard UX.
+
+**Decision:**
+
+1. **`wyvern-host`** picker routes accept **`Command::Wizard`** in addition to matching **`Command::Input`** modes. No new routes or schema variant.
+2. For wizard sessions, picker parameters come from the **HTTP request body only** (`filter`, `multiple`, `start_path`); omitted fields default to `[]`, `false`, and `None`. Input-mode merge with dialog JSON fields is unchanged.
+3. Session-level picker concurrency (`acquire_picker_slot`), `WYVERN_MOCK_PICKER_PATH`, and `PickerResponse` shape are unchanged. Page JS collects path strings only (ADR-0006).
+4. Bundled reference example: `share/wyvern/examples/path-picker/` (ships via share-sync + `wyvern-cli` crate).
+
+**Consequences:** Amends c.11 picker gate only. Optional wizard-level opt-in flags deferred. MCP/interactive picker exposure remains Phase E.
 
 ---
 
@@ -243,6 +333,8 @@ load → validate(value) → Command → host bind → DialogHandle
 Parse is owned by `load`; dispatch is internal to host bind + await. Viewer spawn for **`embedded`** is owned by **`wyvern` CLI** — not `HostSession`. System/named open is owned by **`wyvern-host`**. `wyvern-host::run` covers none/system/named only; embedded uses DialogHandle composition in the CLI.
 
 **Amendment (Phase F / ADR-0022):** The CLI inserts an **argv preprocessor** before `load_command_input`. Host-only flags are stripped; `ExtensionRegistry::match_argv` may expand the remainder to validated `Command` JSON and optional `host.ui_root`. That expanded value then enters this same `validate → host → emit` chain — no new `Command` variants and no per-extension host handlers. See [ADR-0022](#adr-0022-cli-extension-registry-as-argv-preprocessor-phase-f) and the local pipeline note in [`docs/wyvern/architecture.md`](wyvern/architecture.md).
+
+**Amendment (Phase H / ADR-0025):** Phase H adds **`Command::Report`** as the sole new dialog variant after Phase F. Report uses the shared host static-route family (`/report/*`, optional `/api/report/finish`) — not per-extension host handlers. Extension preexec still expands to validated report JSON via `command_from_file`.
 
 **Consequences:**
 - Phase A validates and executes only `chrome`

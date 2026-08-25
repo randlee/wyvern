@@ -1,5 +1,5 @@
 //! Validate JSON input against the executable command surface
-//! (`chrome`, `message`, `input`, `markdown`, `question`, `wizard`).
+//! (`chrome`, `message`, `input`, `markdown`, `question`, `wizard`, `report`).
 
 mod chrome;
 mod helpers;
@@ -7,6 +7,7 @@ mod input;
 mod markdown;
 mod message;
 mod question;
+mod report;
 mod wizard;
 
 #[cfg(test)]
@@ -23,6 +24,7 @@ use input::validate_input;
 use markdown::validate_markdown;
 use message::validate_message;
 use question::validate_question;
+use report::validate_report;
 use wizard::validate_wizard;
 
 #[doc(inline)]
@@ -77,6 +79,7 @@ pub fn validate(value: &Value) -> Result<Command, ValidationError> {
         "markdown" => validate_markdown(obj),
         "question" => validate_question(obj),
         "wizard" => validate_wizard(obj),
+        "report" => validate_report(obj),
         other => Err(unknown_type_error(other)),
     }
 }

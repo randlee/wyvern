@@ -64,8 +64,8 @@ pub use match_logic::{
 };
 #[doc(inline)]
 pub use preexec::{
-    binary_on_path, create_tmpdir, run_preexec, PathRequiresProbe, PreexecFailureKind,
-    RequiresProbe,
+    binary_on_path, create_tmpdir, run_preexec, run_script, PathRequiresProbe, PreexecFailureKind,
+    RequiresProbe, ScriptError, ScriptOutput, ScriptRequest,
 };
 
 pub(crate) use match_logic::ends_with_suffix;
@@ -202,6 +202,9 @@ pub struct ExpandSpec {
     /// Load Command JSON from this path template.
     #[serde(default)]
     pub command_from_file: Option<String>,
+    /// Catalog hint for `expands_to` when `command_from_file` is a template.
+    #[serde(default)]
+    pub command_type: Option<String>,
     /// Host overrides (`ui_root` only in Phase F).
     #[serde(default)]
     pub host: Option<HostExpandSpec>,

@@ -1,0 +1,53 @@
+@prefix triage: <urn:atm:triage:> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<urn:atm:triage:finding/RBP-F001>
+  a triage:Finding ;
+  triage:findingId "RBP-F001" ;
+  triage:title "ManifestRequired reuses INVALID_JSON code" ;
+  triage:description "ReportFinishErrorKind::ManifestRequired maps to REPORT_FINISH_INVALID_JSON colliding with malformed-JSON class." ;
+  triage:phaseId "phase-H" ;
+  triage:triageMode "initial_pass" ;
+  triage:category "RBP" ;
+  triage:severity "important" ;
+  triage:repeatable false ;
+  triage:sweepScope "file_only" ;
+  triage:status "open" ;
+  triage:dispatchReady true ;
+  triage:originatingSprintDoc "docs/plans/phase-H/h3-xhtml-review-mode.md" ;
+  triage:requirementId "REQ-0144" ;
+  triage:adrId "ADR-0025" ;
+  triage:triagedAt "2026-08-23T23:03:00Z"^^xsd:dateTime ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/RBP-F001/H3/1> ;
+  triage:hasOccurrence <urn:atm:triage:occurrence/RBP-F001/H3/2> ;
+  triage:openOn <urn:atm:triage:worktree/H3/b38cde9b1bd31a03ba2c458da084e4118d39a3a9> ;
+  triage:promoteTo <urn:atm:triage:worktree/H3/b38cde9b1bd31a03ba2c458da084e4118d39a3a9> .
+
+<urn:atm:triage:occurrence/RBP-F001/H3/1>
+  a triage:Occurrence ;
+  triage:file "crates/wyvern-host/src/report_finish.rs" ;
+  triage:line 86 ;
+  triage:snippet "Self::ManifestRequired => \"REPORT_FINISH_INVALID_JSON\"," ;
+  triage:status "open" ;
+  triage:closed false ;
+  triage:branch "feature/phase-H-h3-xhtml-review" ;
+  triage:headSha "b38cde9b1bd31a03ba2c458da084e4118d39a3a9" ;
+  triage:occursIn <urn:atm:triage:worktree/H3/b38cde9b1bd31a03ba2c458da084e4118d39a3a9> .
+
+<urn:atm:triage:occurrence/RBP-F001/H3/2>
+  a triage:Occurrence ;
+  triage:file "crates/wyvern-host/tests/report_review_finish.rs" ;
+  triage:line 255 ;
+  triage:snippet "assert_eq!(err[\"code\"], \"REPORT_FINISH_INVALID_JSON\");" ;
+  triage:status "open" ;
+  triage:closed false ;
+  triage:branch "feature/phase-H-h3-xhtml-review" ;
+  triage:headSha "b38cde9b1bd31a03ba2c458da084e4118d39a3a9" ;
+  triage:occursIn <urn:atm:triage:worktree/H3/b38cde9b1bd31a03ba2c458da084e4118d39a3a9> .
+
+<urn:atm:triage:worktree/H3/b38cde9b1bd31a03ba2c458da084e4118d39a3a9>
+  a triage:WorktreeSnapshot ;
+  triage:branch "feature/phase-H-h3-xhtml-review" ;
+  triage:path "/Volumes/Extreme Pro/github/wyvern-worktrees/feature/phase-H-h3-xhtml-review" ;
+  triage:headSha "b38cde9b1bd31a03ba2c458da084e4118d39a3a9" ;
+  triage:orderIndex 3 .

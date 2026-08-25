@@ -17,6 +17,8 @@ A sprint is a single testable deliverable that fits within one AI context window
 | `integrate/phase-F` | Phase F — CLI Extensions | `docs/plans/phase-F/` |
 | `integrate/phase-G` | Phase G — Extension Agent Usability | `docs/plans/phase-G/` |
 | `integrate/phase-E` | Phase E — Persistent & MCP | `docs/plans/phase-E/` |
+| `integrate/phase-H` | Phase H — XHTML reporting & review | `docs/plans/phase-H/` |
+| `integrate/phase-I` | Phase I — Wizard native path picker | `docs/plans/phase-I/` |
 
 Phase A sprint PRs target `integrate/phase-A`. Sprint authority: `docs/plans/phase-A/` (sprints **a.1–a.7**).
 
@@ -184,25 +186,40 @@ Phase F sprint PRs target `integrate/phase-F`. Sprint authority: `docs/plans/pha
 
 ## Phase G — Extension Agent Usability
 
-**Phase goal:** CLI surfaces teach agents how to invoke Phase F extensions without checkout docs — first-class help, error-teaches near-misses, and a parseable skill catalog.
+**Phase goal (Wave 3):** Wizard authoring platform — progressive-disclosure skill, JS page-author agents, dataflow lint (WIZARD-LINT-005–008), type refs, and CI gate.
 
-**Prerequisite:** Phase F complete on `develop`.
+**Prerequisite:** Phase F complete on `develop`. Wave 2 after Wave 1 merged.
 
-**Recommended before Phase E** so interactive/MCP agents inherit discoverable argv help.
+**Recommended before Phase E** so interactive/MCP agents inherit discoverable argv help and welcome examples.
 
-**Phase acceptance criteria:** Meets REQ-0134–REQ-0137 — `wyvern --help` lists every shipped skill (exit 0); `wyvern compose render --help` prints a skill card; `wyvern extensions list --json` is valid JSON; near-miss paths name the next command — not misleading parse text.
+**Phase acceptance (Wave 1):** `wyvern --help` lists every shipped skill (exit 0); `wyvern compose render --help` prints a skill card; `wyvern extensions list --json` is valid JSON; near-miss paths name the next command.
 
-Phase G sprint PRs target `integrate/phase-G`. Sprint authority: `docs/plans/phase-G/` (sprints **g.1–g.3**, sequential).
+**Phase acceptance (Wave 3):** `wyvern wizard lint` passes on shipped welcome + agent-dag examples; dataflow lint integration tests green.
+
+Phase G sprint PRs target `integrate/phase-G`. Sprint authority: `docs/plans/phase-G/` (sprints **g.1–g.14**).
 
 **Input:** [phase-F-usability-review.md](phase-F/phase-F-usability-review.md)
 
-**Sprints:** three active (**g.1–g.3**). See [docs/plans/phase-G/README.md](phase-G/README.md).
+**Walkthrough (Wave 2 review):** [examples-walkthrough.md](phase-G/examples-walkthrough.md)
+
+**Wave 3 map:** [phase-G/wave-3-wizard-authoring/README.md](phase-G/wave-3-wizard-authoring/README.md)
 
 | Sprint | Title | Doc |
 |--------|-------|-----|
 | g.1 | Help surface — global and extension-local | [g1-help-surface.md](phase-G/g1-help-surface.md) |
 | g.2 | Error-teaches — near-miss diagnostics and preexec recovery | [g2-error-teaches.md](phase-G/g2-error-teaches.md) |
 | g.3 | Skill catalog — list, JSON, show | [g3-skill-catalog.md](phase-G/g3-skill-catalog.md) |
+| g.4 | Welcome guide wizard + workflow foundation | [g4-welcome-guide-wizard.md](phase-G/g4-welcome-guide-wizard.md) |
+| g.5 | AskUserQuestion hook example | [g5-askuserquestion-claude-code.md](phase-G/g5-askuserquestion-claude-code.md) |
+| g.6 | Template wizard | [g6-template-wizard.md](phase-G/g6-template-wizard.md) |
+| g.7 | DAG agent demo + export | [g7-dag-agent-execution.md](phase-G/g7-dag-agent-execution.md) |
+| g.8 | Wizard authoring foundation | [g8-wizard-authoring-foundation.md](phase-G/g8-wizard-authoring-foundation.md) |
+| g.9 | Dataflow lint (WIZARD-LINT-005–008) | [g9-wizard-lint-dataflow.md](phase-G/g9-wizard-lint-dataflow.md) |
+| g.10 | `creating-wyvern-wizard` skill router | [g10-creating-wyvern-wizard-skill.md](phase-G/g10-creating-wyvern-wizard-skill.md) |
+| g.11 | `wyvern-wizard-js` page agent | [g11-wyvern-wizard-js-agent.md](phase-G/g11-wyvern-wizard-js-agent.md) |
+| g.12 | `wyvern-dag-wizard-js` page agent | [g12-wyvern-dag-wizard-js-agent.md](phase-G/g12-wyvern-dag-wizard-js-agent.md) |
+| g.13 | Wizard type refs + sc-compose snippets | [g13-wizard-type-refs-and-templates.md](phase-G/g13-wizard-type-refs-and-templates.md) |
+| g.14 | Authoring CI + known lint HTML fixes | [g14-wizard-authoring-ci-and-fixes.md](phase-G/g14-wizard-authoring-ci-and-fixes.md) |
 
 ---
 
@@ -229,6 +246,58 @@ Phase E sprint PRs target `integrate/phase-E`. Sprint authority: `docs/plans/pha
 
 ---
 
+## Phase H — XHTML reporting & review
+
+**Phase goal:** Non-wizard surfaces for sc-compose XHTML panels — single panel, panel
+arrays, and optional **`--review`** (comments + Approve/Cancel) with structured finish
+JSON for agent loops.
+
+**Prerequisite:** Phase G complete on `integrate/phase-G` (extension runtime, help,
+skill catalog, wizard lint — merge via [#117](https://github.com/randlee/wyvern/pull/117)).
+Phase H does **not** require Phase E.
+
+**Transport:** `type: "report"` on `wyvern-host` — static `/report/*`, optional
+`/api/report/finish`. **Not** wizard (`wizard-nav.js`, stack, `/api/wizard/*`).
+
+Phase H sprint PRs target `integrate/phase-H`. Sprint authority: `docs/plans/phase-H/`
+(sprints **h.1–h.5**, sequential).
+
+**Sprints:** five active (**h.1–h.5**). See [docs/plans/phase-H/README.md](phase-H/README.md).
+
+| Sprint | Deliverable | Doc |
+|--------|-------------|-----|
+| h.1 | `report` host + `xhtml-suffix` + basic single-panel frame | [h1-xhtml-single-panel.md](phase-H/h1-xhtml-single-panel.md) |
+| h.2 | `report-xhtml` extension + panel-array basic frame | [h2-xhtml-panel-array.md](phase-H/h2-xhtml-panel-array.md) |
+| h.3 | `--review` frame + finish JSON contract | [h3-xhtml-review-mode.md](phase-H/h3-xhtml-review-mode.md) |
+| h.4 | `wyvern-reporting` skill + reference docs | [h4-wyvern-reporting-skill.md](phase-H/h4-wyvern-reporting-skill.md) |
+| h.5 | Synthetic example package + CI smoke | [h5-synthetic-xhtml-example.md](phase-H/h5-synthetic-xhtml-example.md) |
+
+**Related:** [GitHub #115](https://github.com/randlee/wyvern/issues/115) — closed by h.1.
+
+Contract: [xhtml-reporting-contract.md](phase-H/xhtml-reporting-contract.md).
+
+---
+
+## Phase I — Wizard native path picker
+
+**Phase goal:** Wizard sessions may use native file/folder pickers in-page; bundled
+`path-picker` example ships with install.
+
+**Prerequisite:** Phase H complete on `develop`.
+
+**Related:** [GitHub #99](https://github.com/randlee/wyvern/issues/99).
+
+Phase I sprint PRs target `integrate/phase-I`. Sprint authority: `docs/plans/phase-I/`
+(sprint **i.1** only — single-sprint phase).
+
+| Sprint | Deliverable | Doc |
+|--------|-------------|-----|
+| i.1 | Wizard picker host + `share/wyvern/examples/path-picker/` | [i1-wizard-path-picker.md](phase-I/i1-wizard-path-picker.md) |
+
+See [docs/plans/phase-I/README.md](phase-I/README.md).
+
+---
+
 ## Phase Summary
 
 | Phase | Sprints | Ships |
@@ -237,8 +306,10 @@ Phase E sprint PRs target `integrate/phase-E`. Sprint authority: `docs/plans/pha
 | Phase B — Core Dialogs | 8 | **MVP — all dialog types usable** |
 | Phase D — Wizard | 8 | Multi-page wizard with branching |
 | Phase F — CLI Extensions | 4 | Suffix/subcommand argv expansion (CSV table, HTML, compose) |
-| Phase G — Extension Agent Usability | 3 | Help, error-teaches, skill catalog (`list --json`, `show`) |
+| Phase G — Extension Agent Usability | 14 | Help/catalog (g.1–g.3) + welcome guide & examples (g.4–g.7) + authoring platform (g.8–g.14) |
 | Phase E — Interactive & MCP | 4 | Agent-driveable status viewer + MCP |
+| Phase H — XHTML reporting & review | 5 | Single/array XHTML panels + `--review` finish JSON |
+| Phase I — Wizard native path picker | 1 | Wizard in-page native pickers + `path-picker` example (closes #99) |
 
 ## Dependency Map
 
@@ -248,6 +319,8 @@ Phase A
        └─ Phase C (c.9–c.16 HTTP delivery + wyvern-viewer + v0.1.0)
             └─ Phase D (wizard — HTTP on same host)
                  └─ Phase F (CLI extension registry)
-                      └─ Phase G (extension agent usability — recommended)
-                           └─ Phase E (persistent host + MCP)
+                      └─ Phase G (extension agent usability + welcome examples)
+                           ├─ Phase E (persistent host + MCP)
+                           └─ Phase H (XHTML report surfaces — after G)
+                                └─ Phase I (wizard native path picker — after H, closes #99)
 ```

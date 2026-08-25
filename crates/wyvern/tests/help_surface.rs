@@ -41,6 +41,8 @@ fn assert_global_help(stdout: &str) {
     assert!(stdout.contains("md data.csv"), "{stdout}");
     assert!(stdout.contains("compose render"), "{stdout}");
     assert!(stdout.contains("--env-prefix"), "{stdout}");
+    assert!(stdout.contains("wyvern guide"), "{stdout}");
+    assert!(stdout.contains("wyvern examples list"), "{stdout}");
 }
 
 #[test]

@@ -24,6 +24,7 @@ fn single_page_cmd() -> WizardCommand {
         config: serde_json::json!({"note": "N=1"}),
         width: Some(480),
         height: Some(320),
+        workflow: None,
     }
 }
 

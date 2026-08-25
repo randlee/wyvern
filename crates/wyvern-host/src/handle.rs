@@ -261,6 +261,7 @@ pub(crate) fn dialog_type_name(command: &Command) -> DialogTypeName {
         Command::Markdown { .. } => DialogTypeName::Markdown,
         Command::Question { .. } => DialogTypeName::Question,
         Command::Wizard(_) => DialogTypeName::Wizard,
+        Command::Report(_) => DialogTypeName::Report,
     }
 }
 
@@ -303,6 +304,9 @@ fn clone_host_error_message(err: &HostError) -> HostError {
 /// Extract `http://host:port` from a dialog URL for absolute wizard navigate links.
 fn public_origin_from_dialog_url(dialog_url: &str) -> String {
     if let Some((base, _)) = dialog_url.split_once("/wizard/") {
+        return base.to_string();
+    }
+    if let Some((base, _)) = dialog_url.split_once("/report/") {
         return base.to_string();
     }
     // Blocking dialogs: `http://host:port/message/` → `http://host:port`

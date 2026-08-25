@@ -20,6 +20,7 @@ fn validation_wizard_minimal_passes() {
             config,
             width,
             height,
+            workflow,
         }) => {
             assert_eq!(page.id, "start");
             assert_eq!(page.title, "Start");
@@ -28,6 +29,7 @@ fn validation_wizard_minimal_passes() {
             assert_eq!(config, json!({}));
             assert!(width.is_none());
             assert!(height.is_none());
+            assert!(workflow.is_none());
         }
         other => panic!("expected Wizard, got {other:?}"),
     }
@@ -116,6 +118,41 @@ fn validation_wizard_invalid_layout_fails() {
         }
         other => panic!("unexpected {other:?}"),
     }
+}
+
+#[test]
+fn validation_wizard_workflow_optional_and_populated() {
+    let missing = validate(&json!({
+        "type": "wizard",
+        "page": { "id": "a", "title": "T", "html": "a.html" }
+    }))
+    .expect("valid without workflow");
+    let Command::Wizard(without) = missing else {
+        panic!("expected Wizard");
+    };
+    assert!(without.workflow.is_none());
+
+    let with = validate(&json!({
+        "type": "wizard",
+        "page": { "id": "a", "title": "T", "html": "a.html" },
+        "workflow": {
+            "pre": "{wyvern_share}/scripts/ext/pre.py",
+            "post": "{wyvern_share}/scripts/ext/post.py"
+        }
+    }))
+    .expect("valid with workflow");
+    let Command::Wizard(with) = with else {
+        panic!("expected Wizard");
+    };
+    let workflow = with.workflow.expect("workflow present");
+    assert_eq!(
+        workflow.pre.as_deref(),
+        Some("{wyvern_share}/scripts/ext/pre.py")
+    );
+    assert_eq!(
+        workflow.post.as_deref(),
+        Some("{wyvern_share}/scripts/ext/post.py")
+    );
 }
 
 #[test]

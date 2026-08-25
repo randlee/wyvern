@@ -13,7 +13,7 @@ Related: [http-dialog-contract.md](http-dialog-contract.md) (routes), Phase B [i
 | `Content-Type` | `application/json` |
 | Charset | UTF-8 |
 | Discriminator | Active dialog `type` from `GET /api/dialog` — host knows expected result shape |
-| Extra fields | Unknown keys → **400** validation error (mirror REQ-0053) |
+| Extra fields | Unknown keys → **400** validation error (mirror REQ-0053). Known optional fields (Phase G: `next_wizard` on wizard finish) are not unknown. |
 | Success response | `200` `{ "ok": true }` — host then completes `run()` and exits |
 
 **No `kind` wrapper** on simple dialogs (c.10+). POST body **is** the stdout result object.
@@ -133,9 +133,11 @@ Same shape as `message`:
 
 ---
 
-### `POST /api/picker/file` — `input` helper (c.11)
+### `POST /api/picker/file` — native file picker (c.11; wizard — Phase I i.1)
 
-**When:** Page needs native file picker (`mode: file`). Not a final result — returns paths for the page to include in `/api/result`.
+**When:** Page needs native file picker during an **`input`** dialog with `mode: file`, or during a **`wizard`** session (ADR-0026 / REQ-HOST-0150). Not a final result — returns paths for the page to include in `/api/result` or wizard finish data.
+
+Other command types (`message`, `report`, `markdown`, `question`, `chrome`) and wrong input modes → **400**.
 
 **Request:**
 
@@ -147,7 +149,10 @@ Same shape as `message`:
 }
 ```
 
-All fields optional; host merges with dialog fields from `GET /api/dialog`.
+All fields optional.
+
+- **`input` session:** host merges with dialog fields from `GET /api/dialog`.
+- **`wizard` session:** body-only parameters; omitted fields default to `filter: []`, `multiple: false`, `start_path: null`.
 
 **Response `200`:**
 
@@ -171,7 +176,11 @@ Page stays open; user may retry or press Cancel → `POST /api/result` with `{ "
 
 ---
 
-### `POST /api/picker/folder` — `input` helper (c.11)
+### `POST /api/picker/folder` — native folder picker (c.11; wizard — Phase I i.1)
+
+**When:** Page needs native folder picker during an **`input`** dialog with `mode: folder`, or during a **`wizard`** session (ADR-0026 / REQ-HOST-0150).
+
+Other command types and wrong input modes → **400**.
 
 **Request:**
 
@@ -180,6 +189,9 @@ Page stays open; user may retry or press Cancel → `POST /api/result` with `{ "
   "start_path": "/optional/dir"
 }
 ```
+
+- **`input` session:** host merges optional `start_path` with dialog fields from `GET /api/dialog`.
+- **`wizard` session:** body-only `start_path` (optional).
 
 **Response `200`:**
 
@@ -339,7 +351,11 @@ Terminal outcomes (`finish`, `cancel`, `dismissed`) use **`POST /api/wizard/fini
   "stack": [
     { "page": { "id": "start" }, "data": { "choice": "a" } },
     { "page": { "id": "step-2" }, "data": { "final": "values" } }
-  ]
+  ],
+  "next_wizard": {
+    "path": "{wyvern_share}/examples/askuserquestion-hook/wizard.json",
+    "input": { "from": "welcome" }
+  }
 }
 ```
 
@@ -348,8 +364,11 @@ Terminal outcomes (`finish`, `cancel`, `dismissed`) use **`POST /api/wizard/fini
 | `button` | `"finish"` \| `"cancel"` \| `"dismissed"` | yes |
 | `data` | object | yes (may be `{}`) |
 | `stack` | array | yes |
+| `next_wizard` | object (`path` required; `input` default `{}`; `ui_root` optional) | no (Phase G g.4 — REQ-0126, ADR-0024) |
 
 **Stack validation:** when host validates client `stack`, it must equal the session-derived **full visited stack** (`entries[0..=cursor]`, includes current page). Mismatch → HTTP 400 (`StackMismatch`). See d.2 finish algorithm.
+
+**`next_wizard`:** known optional field — **not** a 400 unknown key. Host **copies** it onto `WizardResult` without resolving, loading, or executing (ADR-0024). CLI chain loop consumes it. Types: [HTTP-TYPES.md](HTTP-TYPES.md) `NextWizard`.
 
 **Stdout `data` mapping:** `finish` → request `data`; `cancel` / `dismissed` → `{}`. Full wizard HTTP contract: [http-wizard-contract.md](http-wizard-contract.md) (implemented in d.2).
 
@@ -371,10 +390,12 @@ Terminal outcomes (`finish`, `cancel`, `dismissed`) use **`POST /api/wizard/fini
 |--------|--------|
 | `message` | c.10 |
 | `input` + picker routes | c.11 |
+| picker routes wizard arm | Phase I i.1 — [i1-wizard-path-picker.md](../phase-I/i1-wizard-path-picker.md) |
 | `markdown` | c.12 |
 | `question` | c.13 |
 | `chrome` | c.14 |
 | `wizard` navigate/finish | Phase D — [http-wizard-contract.md](http-wizard-contract.md) |
+| Optional finish `next_wizard` | Phase G g.4 — [g4-welcome-guide-wizard.md](../phase-G/g4-welcome-guide-wizard.md) |
 | Interactive / MCP | Phase E — [http-interactive-mcp-contract.md](http-interactive-mcp-contract.md) |
 
 **Rust types:** [HTTP-TYPES.md](HTTP-TYPES.md).

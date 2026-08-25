@@ -4,6 +4,10 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::time::Duration;
 
+use axum::extract::Request;
+use axum::http::header::{HeaderValue, CONNECTION};
+use axum::middleware::{from_fn, Next};
+use axum::response::Response;
 use axum::routing::{get, post};
 use axum::Router;
 use tokio::net::TcpListener;
@@ -13,9 +17,12 @@ use tower_http::services::ServeDir;
 use wyvern_schema::{Command, CommandResult};
 
 use crate::error::{DialogTypeName, HostError};
-use crate::routes::{dialog, picker, result, wizard};
+use crate::report_session::ValidatedReportManifest;
+use crate::routes::{dialog, picker, report, result, wizard};
 use crate::session::SessionState;
-use crate::static_files::{require_shared_ui_root, require_type_dir, require_wizard_page};
+use crate::static_files::{
+    require_report_page, require_shared_ui_root, require_type_dir, require_wizard_page,
+};
 
 /// Max JSON body size for `/api/*` routes (dialog payloads are small).
 const API_BODY_LIMIT_BYTES: usize = 256 * 1024;
@@ -23,6 +30,15 @@ const API_BODY_LIMIT_BYTES: usize = 256 * 1024;
 /// Per-request HTTP budget — above [`crate::session::PICKER_TIMEOUT`] so native
 /// pickers are not cut off by the tower timeout layer (RSH-001).
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(310);
+
+/// Quiet window after the last in-flight terminal POST so a concurrent
+/// sibling already written by the client can still be accepted (ATM-QA-001).
+///
+/// 0 ms flakes ~40–60% (`Connection reset by peer` instead of HTTP 409).
+/// 400 ms covers thread-spawn plus a new TCP connect in CI. The 2 s cap
+/// prevents a stuck handler from holding the process open.
+const TERMINAL_QUIET: Duration = Duration::from_millis(400);
+const TERMINAL_DRAIN_CAP: Duration = Duration::from_secs(2);
 
 /// Header name for request correlation (RSH-003).
 const REQUEST_ID_HEADER: &str = "x-request-id";
@@ -33,11 +49,24 @@ pub(crate) struct BoundServer {
     pub(crate) dialog_url: String,
 }
 
+/// Third bind discriminant — report must not reuse the wizard arm (ADR-0025).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum BindKind {
+    /// Packaged `{ui_root}/{type}/index.html` dialogs.
+    Dialog,
+    /// Wizard pages under `/wizard/{page}`.
+    Wizard,
+    /// Report pages under `/report/{page}`.
+    Report,
+}
+
 /// Resolved static roots for the router.
 pub(crate) struct StaticRoots {
     pub(crate) ui_root: PathBuf,
     pub(crate) shared_ui_root: PathBuf,
-    pub(crate) is_wizard: bool,
+    pub(crate) bind_kind: BindKind,
+    /// Register `POST /api/report/finish` only for review-mode report sessions.
+    pub(crate) register_report_finish: bool,
 }
 
 /// Bind TCP and build the dialog URL for the active command.
@@ -51,16 +80,30 @@ pub(crate) async fn bind_server(
 ) -> Result<(BoundServer, StaticRoots), HostError> {
     enforce_bind_policy(bind, allow_non_loopback)?;
     let shared = require_shared_ui_root(shared_ui_root)?;
-    let (ui_root, dialog_url_path, is_wizard) = match command {
+    let (ui_root, dialog_url_path, bind_kind, register_report_finish) = match command {
         Command::Wizard(wizard_cmd) => {
             let root = require_wizard_page(ui_root, &wizard_cmd.page.html)?;
             let path = format!("/wizard/{}", wizard_cmd.page.html.trim_start_matches('/'));
-            (root, path, true)
+            (root, path, BindKind::Wizard, false)
+        }
+        Command::Report(report_cmd) => {
+            let root = require_report_page(ui_root, report_cmd.page.as_str())?;
+            let path = format!(
+                "/report/{}",
+                report_cmd.page.as_str().trim_start_matches('/')
+            );
+            let manifest = ValidatedReportManifest::from_review_command(report_cmd);
+            if report_cmd.mode == wyvern_schema::ReportMode::Review && manifest.is_none() {
+                return Err(HostError::Internal {
+                    message: "review-mode report requires a non-empty validated panels list (at most 32 entries)".into(),
+                });
+            }
+            (root, path, BindKind::Report, manifest.is_some())
         }
         _ => {
             let root = require_type_dir(ui_root, type_name)?;
             let path = format!("/{}/", type_name.as_str());
-            (root, path, false)
+            (root, path, BindKind::Dialog, false)
         }
     };
     let listener = TcpListener::bind(bind).await.map_err(|e| HostError::Bind {
@@ -80,7 +123,8 @@ pub(crate) async fn bind_server(
         StaticRoots {
             ui_root,
             shared_ui_root: shared,
-            is_wizard,
+            bind_kind,
+            register_report_finish,
         },
     ))
 }
@@ -112,46 +156,61 @@ pub(crate) fn build_router(session: SessionState, roots: StaticRoots) -> Router 
     use tower_http::trace::TraceLayer;
 
     let shared_dir = ServeDir::new(roots.shared_ui_root.join("shared"));
-    let api = Router::new()
+    let mut api = Router::new()
         .route("/api/dialog", get(dialog::get_dialog))
         .route("/api/result", post(result::post_result))
         .route("/api/picker/file", post(picker::post_picker_file))
         .route("/api/picker/folder", post(picker::post_picker_folder))
         .route("/api/wizard/state", get(wizard::get_wizard_state))
         .route("/api/wizard/navigate", post(wizard::post_wizard_navigate))
-        .route("/api/wizard/finish", post(wizard::post_wizard_finish))
-        .layer(RequestBodyLimitLayer::new(API_BODY_LIMIT_BYTES));
+        .route("/api/wizard/finish", post(wizard::post_wizard_finish));
+    if roots.register_report_finish {
+        api = api.route("/api/report/finish", post(report::post_report_finish));
+    }
+    let api = api.layer(RequestBodyLimitLayer::new(API_BODY_LIMIT_BYTES));
 
-    let app = if roots.is_wizard {
-        let wizard_pages = ServeDir::new(roots.ui_root);
-        Router::new()
-            .merge(api)
-            .nest_service("/wizard", wizard_pages)
-            .nest_service("/shared", shared_dir)
-            .with_state(session)
-    } else {
-        let static_files = ServeDir::new(roots.ui_root).append_index_html_on_directories(true);
-        // Dual-mount `/shared` from packaged root so `--ui-root` overrides cannot
-        // hide `wyvern-api.js` (wizard contract; harmless for blocking dialogs).
-        Router::new()
-            .merge(api)
-            .nest_service("/shared", shared_dir)
-            .fallback_service(static_files)
-            .with_state(session)
+    let app = match roots.bind_kind {
+        BindKind::Wizard => {
+            let wizard_pages = ServeDir::new(roots.ui_root);
+            Router::new()
+                .merge(api)
+                .nest_service("/wizard", wizard_pages)
+                .nest_service("/shared", shared_dir)
+                .with_state(session)
+        }
+        BindKind::Report => {
+            let report_pages = ServeDir::new(roots.ui_root);
+            Router::new()
+                .merge(api)
+                .nest_service("/report", report_pages)
+                .nest_service("/shared", shared_dir)
+                .with_state(session)
+        }
+        BindKind::Dialog => {
+            let static_files = ServeDir::new(roots.ui_root).append_index_html_on_directories(true);
+            // Dual-mount `/shared` from packaged root so `--ui-root` overrides cannot
+            // hide `wyvern-api.js` (wizard contract; harmless for blocking dialogs).
+            Router::new()
+                .merge(api)
+                .nest_service("/shared", shared_dir)
+                .fallback_service(static_files)
+                .with_state(session)
+        }
     };
 
-    app.layer(TimeoutLayer::with_status_code(
-        axum::http::StatusCode::GATEWAY_TIMEOUT,
-        REQUEST_TIMEOUT,
-    ))
-    .layer(TraceLayer::new_for_http().make_span_with(RequestIdMakeSpan))
-    .layer(PropagateRequestIdLayer::new(
-        axum::http::HeaderName::from_static(REQUEST_ID_HEADER),
-    ))
-    .layer(SetRequestIdLayer::new(
-        axum::http::HeaderName::from_static(REQUEST_ID_HEADER),
-        MakeRequestUuid,
-    ))
+    app.layer(from_fn(close_http_connection))
+        .layer(TimeoutLayer::with_status_code(
+            axum::http::StatusCode::GATEWAY_TIMEOUT,
+            REQUEST_TIMEOUT,
+        ))
+        .layer(TraceLayer::new_for_http().make_span_with(RequestIdMakeSpan))
+        .layer(PropagateRequestIdLayer::new(
+            axum::http::HeaderName::from_static(REQUEST_ID_HEADER),
+        ))
+        .layer(SetRequestIdLayer::new(
+            axum::http::HeaderName::from_static(REQUEST_ID_HEADER),
+            MakeRequestUuid,
+        ))
 }
 
 /// Include `x-request-id` on every HTTP span (RSH-008).
@@ -218,7 +277,9 @@ pub(crate) async fn serve_until_result(
         }
     };
 
-    // Stop accepting connections and drain in-flight requests before returning.
+    // Keep accepting until terminal POSTs drain and stay quiet so a concurrent
+    // finish/dismiss can write HTTP 409 before shutdown (ATM-QA-001).
+    drain_terminal_requests(&session).await;
     let _ = shutdown_tx.send(());
     if let Err(e) = server.await {
         if outcome.is_ok() {
@@ -231,6 +292,38 @@ pub(crate) async fn serve_until_result(
     }
 
     outcome
+}
+
+/// Disable HTTP/1 keep-alive so a completed winner's socket is not reused
+/// and then reset when graceful shutdown starts (ATM-QA-001).
+async fn close_http_connection(request: Request, next: Next) -> Response {
+    let mut response = next.run(request).await;
+    response
+        .headers_mut()
+        .insert(CONNECTION, HeaderValue::from_static("close"));
+    response
+}
+
+/// Keep the listener open until in-flight terminal POSTs finish and a quiet
+/// window elapses, so a concurrent loser can still receive HTTP 409.
+async fn drain_terminal_requests(session: &SessionState) {
+    let started = tokio::time::Instant::now();
+    let mut quiet_since = tokio::time::Instant::now();
+    let mut last = session.terminal_in_flight();
+    loop {
+        tokio::time::sleep(Duration::from_millis(5)).await;
+        let count = session.terminal_in_flight();
+        if count != last {
+            quiet_since = tokio::time::Instant::now();
+            last = count;
+        }
+        if count == 0 && quiet_since.elapsed() >= TERMINAL_QUIET {
+            break;
+        }
+        if started.elapsed() >= TERMINAL_DRAIN_CAP {
+            break;
+        }
+    }
 }
 
 /// Timeout/dismiss path: consume the result token first so in-flight
