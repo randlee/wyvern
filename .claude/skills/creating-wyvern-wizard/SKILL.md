@@ -75,6 +75,7 @@ a g.10 failure — use the golden and stay on Layer 1–2.
 | Type | Stack | Type doc | Golden |
 |------|-------|----------|--------|
 | template | vanilla-chrome | `references/wizard-types/template.md` | `share/wyvern/examples/template-picker/` |
+| path-picker | vanilla-chrome | `references/wizard-types/path-picker.md` | `share/wyvern/examples/path-picker/` |
 | hook | vanilla-chrome | `references/wizard-types/hook.md` | `share/wyvern/examples/askuserquestion-hook/` |
 | welcome-bridge | vanilla-chrome | `references/wizard-types/welcome-bridge.md` | `share/wyvern/welcome/` |
 | dag | workspace-canvas | `references/wizard-types/dag-wizards.md` | `share/wyvern/examples/agent-dag/` |

@@ -99,3 +99,5 @@ CLI-owned. Host and page JS do not execute these scripts and must not read or wr
 **REQ-0143** — View-mode report dismiss completes with stdout `{"button":"dismissed"}` via shared `POST /api/result` semantics.
 
 **REQ-0144** — Review-mode finish completes with stdout JSON `{ "button": "finish", "data": { "approved", "comments", "panels" } }` from `POST /api/report/finish`. Contract: [xhtml-reporting-contract.md](../plans/phase-H/xhtml-reporting-contract.md).
+
+**REQ-0145** — Bundled wizard example `share/wyvern/examples/path-picker/` demonstrates in-page native file/folder pickers via `WyvernApi` during a wizard session (ADR-0026). Example passes `wyvern wizard lint` and headless smoke in CI. Paths in finish JSON are strings only; no page-side filesystem I/O.

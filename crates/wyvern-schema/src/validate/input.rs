@@ -6,6 +6,7 @@ use crate::chrome::{ChromeStatus, ChromeTitle};
 use crate::command::{ButtonsPreset, Command, InputMode};
 use crate::error::ValidationError;
 use crate::field_name::FieldName;
+use crate::picker::{FilterPattern, PickerPath};
 
 use super::helpers::{
     closest_match, json_type_name, optional_bool_field, optional_media_ref_field,
@@ -93,7 +94,12 @@ pub(super) fn validate_input(obj: &Map<String, Value>) -> Result<Command, Valida
             let mut patterns = Vec::with_capacity(items.len());
             for (i, item) in items.iter().enumerate() {
                 match item {
-                    Value::String(s) => patterns.push(s.clone()),
+                    Value::String(s) => {
+                        let pattern = FilterPattern::try_new(s.as_str()).map_err(|err| {
+                            ValidationError::validation("filter", format!("filter[{i}]: {err}"))
+                        })?;
+                        patterns.push(pattern.into_inner());
+                    }
                     other => {
                         return Err(ValidationError::validation(
                             "filter",
@@ -144,7 +150,11 @@ pub(super) fn validate_input(obj: &Map<String, Value>) -> Result<Command, Valida
                 "start_path is only valid when mode is 'file' or 'folder'",
             ));
         }
-        Some(Value::String(s)) => Some(s.clone()),
+        Some(Value::String(s)) => {
+            let path = PickerPath::try_new(s.as_str())
+                .map_err(|err| ValidationError::validation("start_path", err.to_string()))?;
+            Some(path.into_inner())
+        }
         Some(other) => {
             return Err(ValidationError::validation(
                 "start_path",

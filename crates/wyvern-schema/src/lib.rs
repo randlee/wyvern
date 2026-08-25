@@ -24,6 +24,7 @@ mod error;
 mod error_code;
 mod field_name;
 mod media;
+mod picker;
 mod report;
 mod result;
 mod stderr;
@@ -47,6 +48,8 @@ pub use error_code::ErrorCode;
 pub use field_name::{FieldName, FieldNameError};
 #[doc(inline)]
 pub use media::MediaRef;
+#[doc(inline)]
+pub use picker::{FilterPattern, FilterPatternError, PickerPath, PickerPathError};
 #[doc(inline)]
 pub use report::{
     ManifestPanelPath, PanelLabel, PanelRole, ReportCommand, ReportFieldError, ReportFinishData,
