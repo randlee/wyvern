@@ -5,6 +5,30 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] — 2026-08-26
+
+Headless CI and agent ergonomics — fail fast when blocking dialogs are undriven, shorter idle budget for `--viewer none`, and Playwright harness hardening.
+
+### New features & fixes
+
+| Feature | Area | Entry point | Description |
+|---------|------|-------------|-------------|
+| **Headless idle timeout** | Host / CLI | `WYVERN_VIEWER=none` | **30s** session idle budget (embedded viewer keeps **600s**); undriven blocking dialogs exit **6** with `SESSION_TIMEOUT_ERROR` instead of `{"button":"dismissed"}` |
+| **Headless test contract** | Docs | `docs/plans/phase-C/c9-testing-headless.md` | L2 specs must actively drive dialogs (~1s); Playwright/session timeouts are hang detectors only |
+| **Input picker e2e** | Tests | `tests/e2e/input.spec.ts` | Mock file picker specs wait for field value after browse before OK (flaky-test fix) |
+| **Wizard timeout L1 test** | Tests | `wizard_dismiss.rs` | Session-timeout product test uses setup-safe idle budget |
+
+### Distribution
+
+- **crates.io** — all published crates bump to 0.5.0
+- **GitHub Releases** — tag `v0.5.0` triggers matrix build (macOS/Windows/Linux)
+
+### Not in 0.5.0
+
+- `--interactive` argv expansion and MCP server binary — Phase E
+- User registry (`~/.config/wyvern/extensions.json`)
+- **winget** automated publish — still requires one-time bootstrap in `microsoft/winget-pkgs` (see `docs/WINGET_SETUP.md`)
+
 ## [0.4.0] — 2026-08-24
 
 Phase H — XHTML reporting, Phase I — wizard native path picker, and g.15 `wyvern examples list` on the CLI extension runtime (wizard flows since v0.2.0).
