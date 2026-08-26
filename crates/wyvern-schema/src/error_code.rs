@@ -76,7 +76,10 @@ impl ErrorCode {
             Self::WindowCreateError => "window_create",
             Self::EventLoopError => "event_loop",
             Self::InternalError => "internal",
-            Self::HostError | Self::UiNotFound | Self::UnsupportedType | Self::SessionTimeoutError => "host_error",
+            Self::HostError
+            | Self::UiNotFound
+            | Self::UnsupportedType
+            | Self::SessionTimeoutError => "host_error",
             Self::HostBindError => "host_bind",
             Self::HostViewerError => "host_viewer",
             Self::WorkflowError => "workflow",

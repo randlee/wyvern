@@ -150,7 +150,10 @@ fn run_none_mode_session_timeout_is_failure_not_dismissed() {
     let handle = thread::spawn(move || run(message_command(), options));
     let _dialog_url = wait_for_url_file(&url_file);
 
-    let err = handle.join().expect("host thread").expect_err("timeout fail");
+    let err = handle
+        .join()
+        .expect("host thread")
+        .expect_err("timeout fail");
     assert!(matches!(err, HostError::SessionTimeout { .. }));
 
     let _ = std::fs::remove_file(&url_file);
