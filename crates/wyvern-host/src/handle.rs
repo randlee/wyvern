@@ -8,7 +8,7 @@ use wyvern_schema::Command;
 
 use crate::error::{DialogTypeName, HostError};
 use crate::options::{HostOptions, ViewerLaunchOptions, ViewerMode};
-use crate::server::{bind_server, publish_dialog_url, serve_until_result};
+use crate::server::{bind_server, publish_dialog_url, serve_until_result, IdleTimeoutPolicy};
 use crate::session::SessionState;
 use wyvern_schema::CommandResult;
 
@@ -196,6 +196,7 @@ fn run_begin_worker(
             result_rx,
             options.session_timeout,
             dismiss_rx,
+            IdleTimeoutPolicy::Dismiss,
         )
         .await
     })
@@ -242,6 +243,12 @@ pub(crate) async fn run_owned_async(
         }
     }
 
+    let idle_timeout_policy = if matches!(options.viewer, ViewerMode::None) {
+        IdleTimeoutPolicy::Fail
+    } else {
+        IdleTimeoutPolicy::Dismiss
+    };
+
     serve_until_result(
         bound,
         session,
@@ -249,6 +256,7 @@ pub(crate) async fn run_owned_async(
         result_rx,
         options.session_timeout,
         dismiss_rx,
+        idle_timeout_policy,
     )
     .await
 }
@@ -298,6 +306,7 @@ fn clone_host_error_message(err: &HostError) -> HostError {
         HostError::Wizard { source } => HostError::Wizard {
             source: source.clone(),
         },
+        HostError::SessionTimeout { timeout } => HostError::SessionTimeout { timeout: *timeout },
     }
 }
 

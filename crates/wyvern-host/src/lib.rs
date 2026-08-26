@@ -42,8 +42,8 @@ pub use browser_registry::{
 pub use error::{DialogTypeName, HostError};
 pub use handle::{begin, DialogHandle};
 pub use options::{
-    BrowserId, HostOptions, ViewerLaunchOptions, ViewerMode, DEFAULT_SESSION_TIMEOUT,
-    MIN_SESSION_TIMEOUT,
+    BrowserId, HostOptions, ViewerLaunchOptions, ViewerMode, DEFAULT_HEADLESS_SESSION_TIMEOUT,
+    DEFAULT_SESSION_TIMEOUT, MIN_SESSION_TIMEOUT,
 };
 pub use picker::{MockPickerConfig, MockPickerSlotEvent, MockPickerSlotLog};
 #[cfg(target_os = "macos")]

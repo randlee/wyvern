@@ -148,6 +148,7 @@ test("input file mode with WYVERN_MOCK_PICKER_PATH", async ({ page }) => {
     await expect(page.getByTestId("input-field")).toBeVisible();
     await expect(page.getByTestId("btn-browse")).toBeVisible();
     await page.getByTestId("btn-browse").click();
+    await expect(page.getByTestId("input-field")).toHaveValue(fixture);
     await page.getByTestId("btn-ok").click();
 
     const exitCode = await exitPromise;
@@ -348,6 +349,9 @@ test("input multi-file mode returns paths array stdout", async ({ page }) => {
     await expect(page.getByTestId("input-field")).toBeVisible();
     await expect(page.getByTestId("btn-browse")).toBeVisible();
     await page.getByTestId("btn-browse").click();
+    await expect(page.getByTestId("input-field")).toHaveValue(
+      `${fixtureA}\n${fixtureB}`,
+    );
     await page.getByTestId("btn-ok").click();
 
     const exitCode = await exitPromise;

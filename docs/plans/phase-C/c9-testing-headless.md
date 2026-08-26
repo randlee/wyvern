@@ -42,13 +42,31 @@ Use for: schema/host contract, error paths, bind edge cases.
 
 **Alternative: Puppeteer** — acceptable if repo already has Node harness.
 
+### Design rules
+
+- **We do not design tests that block until test infrastructure shuts them down.** No spec should spawn a dialog and wait for Playwright timeout (60s) or session idle timeout (30s) to finish the run. Every L2 test **actively drives** the dialog to completion (~1s).
+- A **blocking message** (or any blocking dialog) **must be closed by clicking a button** (or equivalent submit). Wyvern does not auto-complete blocking dialogs in headless mode.
+- Playwright `timeout: 60_000` and headless `session_timeout: 30s` are **hang detectors / misconfiguration fuses** — if they fire, the run failed; they are never the designed completion path.
+- When headless idle timeout fires, Wyvern exits **non-zero** (`SESSION_TIMEOUT_ERROR`, exit **6**) — CI must treat this as **test FAIL**.
+
+### Anti-patterns (do not write)
+
+| Anti-pattern | Why |
+|--------------|-----|
+| Spawn blocking JSON, no harness, assert after timeout | Not a test — infrastructure cleanup |
+| Use Playwright timeout as the pass condition | Hung test masked as pass |
+| Use `WYVERN_AUTO_DISMISS` as primary CI strategy | Bypasses real user flow |
+| L2 spec with no `goto` + click / POST | Undriven dialog |
+
+L1 host tests may use a **short** explicit `session_timeout` plus HTTP-only polling to verify **product** idle-dismiss semantics (embedded viewer). That is not an L2 e2e pattern — never copy it into Playwright specs.
+
 ### Flow
 
 ```text
 1. wyvern '{"type":"message",...}' --viewer none &
 2. Read dialog URL from WYVERN_DIALOG_URL (host sets when --viewer none) or parse stderr
 3. Headless browser → page.goto(url)
-4. page.click('#btn-ok')   // stable selectors in ui/message/
+4. page.getByTestId("btn-ok").click()   // ~1s end-to-end when wired correctly
 5. Wait for wyvern process exit 0
 6. Assert stdout {"button":"ok"}
 ```

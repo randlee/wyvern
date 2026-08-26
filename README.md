@@ -6,7 +6,7 @@
 
 > A lightweight CLI tool that opens native webview windows for user interaction and returns structured JSON results — with zero browser dependency, declarative CLI extensions, and an MCP-ready JSON schema (MCP server ships in Phase E).
 
-**Current release:** [v0.4.0](CHANGELOG.md#040--2026-08-24) — Phase H XHTML reporting (view + review), Phase I wizard native path pickers, and `wyvern examples list` on the extension runtime (wizard flows since v0.2.0).
+**Current release:** [v0.5.0](CHANGELOG.md#050--2026-08-26) — headless CI/agent hardening (30s idle timeout, fail-fast undriven dialogs), plus Phase H/I/G features from v0.4.0.
 
 ---
 
@@ -28,9 +28,14 @@ wyvern '{"type":"markdown","content":"# Hello\n\nFrom **Wyvern**."}'
 - Dialogs are served by an ephemeral local HTTP host (`wyvern-host`) from packaged `share/wyvern/ui/`.
 - Product default: `--viewer embedded` (optional `wyvern-viewer` sibling binary).
 - CI / agents / headless: set `WYVERN_VIEWER=none` or pass `--viewer none` (no native window).
+- **Blocking dialogs** must be driven to completion by the test harness (click a button / submit) in **~1 second**. We do not design tests that block until Playwright or session timeout shuts them down — those limits are hang detectors only.
 
 ```bash
-WYVERN_VIEWER=none wyvern '{"type":"message","title":"CI","message":"headless","buttons":"ok"}'
+# Instant headless smoke (no dialog host)
+WYVERN_VIEWER=none wyvern examples list
+
+# Blocking message in CI: spawn wyvern, read WYVERN_DIALOG_URL, click btn-ok (~1s)
+# See docs/plans/phase-C/c9-testing-headless.md and tests/e2e/message.spec.ts
 ```
 
 Release artifacts (no clone required):
@@ -103,7 +108,7 @@ wyvern compose render --root ./my-template-dir --file page.j2
 
 Wyvern bridges the gap between CLI tools and rich user interaction. Pass it a JSON command, get back a JSON result — or use argv shorthands for common file types and prefix skills. No Electron. No Chrome. Just the OS's built-in webview rendering your HTML.
 
-**v0.4.0** adds XHTML reporting and wizard native pickers on top of the core dialog API and extension runtime:
+**v0.5.0** hardens headless/CI paths (`WYVERN_VIEWER=none`): shorter idle budget, non-zero exit when agents fail to drive blocking dialogs, and clearer test harness rules. **v0.4.0** added XHTML reporting and wizard native pickers on top of the core dialog API and extension runtime:
 
 - Blocking dialog commands: `message`, `input`, `markdown`, `question`, `chrome`
 - Multi-page **`wizard`** flows with browser-history navigation (since v0.2.0)
@@ -167,7 +172,7 @@ wyvern my-doc.md
 - [PRD](docs/prd/wyvern-prd.md) — full product requirements and JSON schema reference
 - [CHANGELOG](CHANGELOG.md) — release history
 
-## Deferred (post–v0.4.0)
+## Deferred (post–v0.5.0)
 
 - **`--interactive`** — persistent stdin loop with `show`, `hide`, and `exit` lifecycle actions (Phase E)
 - **`wyvern --mcp`** — MCP server; JSON schema is MCP-ready today, binary ships Phase E
