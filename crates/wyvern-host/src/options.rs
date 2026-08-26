@@ -9,6 +9,12 @@ use crate::picker::MockPickerConfig;
 /// Default one-shot session idle timeout before dismissed semantics (REQ-0097).
 pub const DEFAULT_SESSION_TIMEOUT: Duration = Duration::from_secs(600);
 
+    /// Headless / CI backstop when [`ViewerMode::None`] and no harness clicks a button.
+    ///
+    /// Normal headless e2e completes in ~1s (spawn → `WYVERN_DIALOG_URL` → click → exit).
+    /// Expiry returns [`HostError::SessionTimeout`] (CLI exit 6) — CI must fail the test.
+    pub const DEFAULT_HEADLESS_SESSION_TIMEOUT: Duration = Duration::from_secs(30);
+
 /// Minimum allowed [`HostOptions::session_timeout`] (rejects zero / sub-second).
 pub const MIN_SESSION_TIMEOUT: Duration = Duration::from_secs(1);
 
@@ -219,5 +225,10 @@ mod tests {
     #[test]
     fn validate_accepts_default_session_timeout() {
         HostOptions::default().validate().expect("default ok");
+    }
+
+    #[test]
+    fn headless_session_timeout_is_thirty_seconds() {
+        assert_eq!(DEFAULT_HEADLESS_SESSION_TIMEOUT, Duration::from_secs(30));
     }
 }

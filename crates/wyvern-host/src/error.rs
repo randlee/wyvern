@@ -2,6 +2,7 @@
 
 use std::fmt;
 use std::path::PathBuf;
+use std::time::Duration;
 
 use wyvern_wizard::WizardError;
 
@@ -115,6 +116,11 @@ pub enum HostError {
         /// Structured wizard error from `wyvern-wizard`.
         source: WizardError,
     },
+    /// Headless session idle timeout with no `POST /api/result` (CI harness must drive the dialog).
+    SessionTimeout {
+        /// Configured idle budget before this failure.
+        timeout: Duration,
+    },
 }
 
 impl fmt::Display for HostError {
@@ -145,6 +151,11 @@ impl fmt::Display for HostError {
             Self::Registry { message } => write!(f, "browser registry error: {message}"),
             Self::Internal { message } => write!(f, "internal host error: {message}"),
             Self::Wizard { source } => write!(f, "wizard error: {source}"),
+            Self::SessionTimeout { timeout } => write!(
+                f,
+                "session idle timeout after {}s: no result posted",
+                timeout.as_secs()
+            ),
         }
     }
 }

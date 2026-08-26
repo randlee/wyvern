@@ -42,6 +42,8 @@ pub enum ErrorCode {
     UnsupportedType,
     /// Workflow pre/post or `next_wizard` chain failure (`workflow` / exit 9).
     WorkflowError,
+    /// Headless idle timeout with no harness result (`host_error` / exit 6).
+    SessionTimeoutError,
 }
 
 impl ErrorCode {
@@ -56,7 +58,8 @@ impl ErrorCode {
             | Self::HostError
             | Self::HostViewerError
             | Self::UiNotFound
-            | Self::UnsupportedType => 6,
+            | Self::UnsupportedType
+            | Self::SessionTimeoutError => 6,
             Self::EventLoopError | Self::HostBindError => 7,
             Self::InternalError => 8,
             Self::WorkflowError => 9,
@@ -73,7 +76,7 @@ impl ErrorCode {
             Self::WindowCreateError => "window_create",
             Self::EventLoopError => "event_loop",
             Self::InternalError => "internal",
-            Self::HostError | Self::UiNotFound | Self::UnsupportedType => "host_error",
+            Self::HostError | Self::UiNotFound | Self::UnsupportedType | Self::SessionTimeoutError => "host_error",
             Self::HostBindError => "host_bind",
             Self::HostViewerError => "host_viewer",
             Self::WorkflowError => "workflow",
@@ -101,6 +104,7 @@ mod tests {
             (ErrorCode::UiNotFound, "UI_NOT_FOUND"),
             (ErrorCode::UnsupportedType, "UNSUPPORTED_TYPE"),
             (ErrorCode::WorkflowError, "WORKFLOW_ERROR"),
+            (ErrorCode::SessionTimeoutError, "SESSION_TIMEOUT_ERROR"),
         ];
         for (code, expected) in cases {
             let json = serde_json::to_string(&code).expect("serialize");

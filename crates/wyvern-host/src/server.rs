@@ -233,6 +233,15 @@ impl<B> tower_http::trace::MakeSpan<B> for RequestIdMakeSpan {
     }
 }
 
+/// How an idle session timeout is surfaced to callers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum IdleTimeoutPolicy {
+    /// Product path: map timeout to dismissed semantics (embedded viewer / system browser).
+    Dismiss,
+    /// Headless CI path: undriven dialog is a harness failure, not success.
+    Fail,
+}
+
 /// Serve until a result arrives, session timeout, viewer-exit signal, or server failure.
 pub(crate) async fn serve_until_result(
     bound: BoundServer,
@@ -241,6 +250,7 @@ pub(crate) async fn serve_until_result(
     result_rx: oneshot::Receiver<CommandResult>,
     session_timeout: Duration,
     mut dismiss_rx: oneshot::Receiver<()>,
+    idle_timeout_policy: IdleTimeoutPolicy,
 ) -> Result<CommandResult, HostError> {
     use std::future::IntoFuture;
 
@@ -262,7 +272,13 @@ pub(crate) async fn serve_until_result(
             })
         }
         () = &mut timeout => {
-            dismissed_if_session_open(&session, &mut result_rx).await
+            if idle_timeout_policy == IdleTimeoutPolicy::Fail {
+                Err(HostError::SessionTimeout {
+                    timeout: session_timeout,
+                })
+            } else {
+                dismissed_if_session_open(&session, &mut result_rx).await
+            }
         }
         _ = &mut dismiss_rx => {
             dismissed_if_session_open(&session, &mut result_rx).await

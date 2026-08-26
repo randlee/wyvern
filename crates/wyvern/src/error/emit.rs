@@ -654,11 +654,27 @@ pub fn emit_host_error(err: &wyvern_host::HostError) -> Result<String, EmitError
                 "docs/plans/phase-C/http-wizard-contract.md",
             )
         }
+        HostError::SessionTimeout { timeout } => (
+            ErrorCode::SessionTimeoutError,
+            format!(
+                "session idle timeout after {}s: no result posted",
+                timeout.as_secs()
+            ),
+            "Headless blocking dialog was not driven — harness must open WYVERN_DIALOG_URL and click a button (~1s when wired correctly)".to_string(),
+            vec![
+                "Drive WYVERN_DIALOG_URL in CI (Playwright/curl) and POST /api/result".into(),
+                "Use `wyvern examples list` for instant headless smoke without a blocking dialog".into(),
+            ],
+            "docs/plans/phase-C/c9-testing-headless.md",
+        ),
     };
 
     let mut envelope = StderrError::new(code, message).cause(cause).docs(docs);
     if let HostError::Wizard { source } = err {
         envelope = envelope.subcode(source.subcode());
+    }
+    if matches!(err, HostError::SessionTimeout { .. }) {
+        envelope = envelope.subcode("session_timeout");
     }
     for step in recovery {
         envelope = envelope.recovery(step);
