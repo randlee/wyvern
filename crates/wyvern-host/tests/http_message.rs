@@ -140,6 +140,25 @@ fn begin_viewer_exit_yields_dismissed_stdout_shape() {
     );
 }
 
+/// Headless undriven dialog must fail fast (L1 product contract — not an L2 e2e pattern).
+#[test]
+fn run_none_mode_session_timeout_is_failure_not_dismissed() {
+    let url_file = unique_path("wyvern-host-timeout");
+    let mut options = host_options(url_file.clone());
+    options.session_timeout = Duration::from_secs(1);
+
+    let handle = thread::spawn(move || run(message_command(), options));
+    let _dialog_url = wait_for_url_file(&url_file);
+
+    let err = handle
+        .join()
+        .expect("host thread")
+        .expect_err("timeout fail");
+    assert!(matches!(err, HostError::SessionTimeout { .. }));
+
+    let _ = std::fs::remove_file(&url_file);
+}
+
 #[test]
 fn run_rejects_missing_ui_root() {
     let tmp = tempfile::tempdir().expect("temp dir");

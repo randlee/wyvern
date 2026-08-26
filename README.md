@@ -28,9 +28,14 @@ wyvern '{"type":"markdown","content":"# Hello\n\nFrom **Wyvern**."}'
 - Dialogs are served by an ephemeral local HTTP host (`wyvern-host`) from packaged `share/wyvern/ui/`.
 - Product default: `--viewer embedded` (optional `wyvern-viewer` sibling binary).
 - CI / agents / headless: set `WYVERN_VIEWER=none` or pass `--viewer none` (no native window).
+- **Blocking dialogs** must be driven to completion by the test harness (click a button / submit) in **~1 second**. We do not design tests that block until Playwright or session timeout shuts them down — those limits are hang detectors only.
 
 ```bash
-WYVERN_VIEWER=none wyvern '{"type":"message","title":"CI","message":"headless","buttons":"ok"}'
+# Instant headless smoke (no dialog host)
+WYVERN_VIEWER=none wyvern examples list
+
+# Blocking message in CI: spawn wyvern, read WYVERN_DIALOG_URL, click btn-ok (~1s)
+# See docs/plans/phase-C/c9-testing-headless.md and tests/e2e/message.spec.ts
 ```
 
 Release artifacts (no clone required):

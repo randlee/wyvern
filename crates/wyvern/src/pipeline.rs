@@ -392,6 +392,9 @@ fn host_error_exit_code(err: &HostError) -> i32 {
         | HostError::Registry { .. }
         | HostError::Internal { .. }
         | HostError::Wizard { .. } => wyvern_schema::ErrorCode::HostError.exit_code(),
+        HostError::SessionTimeout { .. } => {
+            wyvern_schema::ErrorCode::SessionTimeoutError.exit_code()
+        }
     }
 }
 

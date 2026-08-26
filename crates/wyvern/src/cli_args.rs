@@ -104,11 +104,11 @@ pub fn parse_cli_args(args: &[String]) -> Result<CliArgs, LoadError> {
             bind,
             ui_root,
             shared_ui_root,
-            viewer,
+            viewer: viewer.clone(),
             dialog_url_env,
             dialog_url_file: std::env::var_os("WYVERN_DIALOG_URL_FILE").map(PathBuf::from),
             allow_non_loopback,
-            session_timeout: wyvern_host::DEFAULT_SESSION_TIMEOUT,
+            session_timeout: session_timeout_for_viewer(&viewer),
             mock_picker: None,
         },
         positionals,
@@ -120,6 +120,14 @@ pub fn parse_cli_args(args: &[String]) -> Result<CliArgs, LoadError> {
 pub fn apply_host_overrides(host: &mut HostOptions, overrides: &crate::extensions::HostOverrides) {
     if let Some(ui_root) = &overrides.ui_root {
         host.ui_root = ui_root.clone();
+    }
+}
+
+fn session_timeout_for_viewer(viewer: &ViewerMode) -> std::time::Duration {
+    if matches!(viewer, ViewerMode::None) {
+        wyvern_host::DEFAULT_HEADLESS_SESSION_TIMEOUT
+    } else {
+        wyvern_host::DEFAULT_SESSION_TIMEOUT
     }
 }
 
@@ -370,6 +378,21 @@ mod tests {
             parse_cli_args(&args(&[r#"{"type":"message"}"#, "--viewer", "none"])).expect("parse");
         assert_eq!(parsed.host.viewer, ViewerMode::None);
         assert!(parsed.host.dialog_url_env);
+        assert_eq!(
+            parsed.host.session_timeout,
+            wyvern_host::DEFAULT_HEADLESS_SESSION_TIMEOUT
+        );
+    }
+
+    #[test]
+    fn parse_viewer_embedded_uses_product_session_timeout() {
+        let parsed = parse_cli_args(&args(&[r#"{"type":"message"}"#, "--viewer", "embedded"]))
+            .expect("parse");
+        assert_eq!(parsed.host.viewer, ViewerMode::Embedded);
+        assert_eq!(
+            parsed.host.session_timeout,
+            wyvern_host::DEFAULT_SESSION_TIMEOUT
+        );
     }
 
     #[test]

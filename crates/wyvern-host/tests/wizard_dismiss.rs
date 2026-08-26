@@ -219,22 +219,22 @@ fn wizard_dismiss_viewer_exit_uses_full_visited_stack() {
     let _ = std::fs::remove_dir_all(&ui_root);
 }
 
-/// Session timeout fallback also derives the full visited stack.
+/// Session timeout fallback also derives the full visited stack (embedded `begin()` path).
 ///
-/// FTQ-001: anchor the idle clock after the server is ready (post-`start_wizard`),
-/// use a generous session_timeout, and poll `try_recv_result` instead of a single
-/// sleep that races with slow CI setup.
+/// L1 **product contract** only — not an L2 e2e pattern. Uses a generous idle
+/// budget because the host timer starts at `begin()` ready (before URL polling and
+/// navigate); a 1s budget races setup under parallel `cargo test`.
 #[test]
 fn wizard_dismiss_session_timeout_uses_full_visited_stack() {
-    let session_timeout = Duration::from_secs(15);
+    let session_timeout = Duration::from_secs(10);
     let (mut handle, base, url_file, ui_root, client) = start_wizard(session_timeout);
-    // Timeout budget starts when the host begins serving — after begin()/ready.
-    let idle_started = std::time::Instant::now();
     navigate_to_b(&client, &base);
     let state = wait_for_wizard_state(&client, &base);
     assert_eq!(state["page"]["id"], "b");
 
-    let deadline = idle_started + session_timeout + Duration::from_secs(10);
+    // Poll for idle dismiss after setup — do not count setup against this deadline.
+    let idle_started = std::time::Instant::now();
+    let deadline = idle_started + session_timeout + Duration::from_secs(5);
     let result = loop {
         if let Some(result) = handle.try_recv_result() {
             handle.join_host_worker();
@@ -243,7 +243,7 @@ fn wizard_dismiss_session_timeout_uses_full_visited_stack() {
         assert!(
             std::time::Instant::now() < deadline,
             "session timeout did not fire within {:?}; elapsed {:?}",
-            session_timeout + Duration::from_secs(10),
+            session_timeout + Duration::from_secs(5),
             idle_started.elapsed()
         );
         std::thread::sleep(Duration::from_millis(50));
