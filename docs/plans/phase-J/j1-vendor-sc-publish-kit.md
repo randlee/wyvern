@@ -103,7 +103,7 @@ Full file is authoritative at `release/install.json`.
 test "$(git -C "$(git rev-parse --git-common-dir | xargs dirname)/../sc-publish" rev-parse HEAD)" = "6aace27b78aa6487c9185d831e1ae70f407fded9"
 python3 .github/scripts/release_artifacts.py validate-manifest \
   --manifest release/publish-artifacts.toml --workspace-toml Cargo.toml
-! git grep -n 'scripts/release_artifacts.py' -- ':!docs/' ':!.github/scripts/tests/'
+! git grep -nE '(^|[^./])scripts/release_artifacts.py' -- ':!docs/' ':!.github/scripts/'
 test ! -f scripts/release_gate.sh
 test ! -f .github/workflows/release-retry-distribution.yml
 ```
