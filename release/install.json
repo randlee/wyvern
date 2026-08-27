@@ -129,6 +129,16 @@
       "dispatch_inputs": {},
       "identifier": "randlee.wyvern",
       "installer_target": "x86_64-pc-windows-msvc"
+    },
+    "scoop": {
+      "workflow": "scoop-publish.yml",
+      "dispatch_inputs": {},
+      "bucket_repository": "randlee/scoop-bucket",
+      "manifest_path": "bucket/wyvern.json",
+      "manifest_template": "release/scoop/manifest.json.j2",
+      "installer_target": "x86_64-pc-windows-msvc",
+      "binary": "bin/wyvern.exe",
+      "renderer_target": "x86_64-unknown-linux-gnu"
     }
   }
 }

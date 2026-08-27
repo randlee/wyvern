@@ -304,7 +304,7 @@ See [docs/plans/phase-I/README.md](phase-I/README.md).
 **Phase goal:** Replace bespoke publish workflows/agents with the shared
 **[`sc-publish`](https://github.com/randlee/sc-publish)** kit for consistency
 across Rust repos — manifest-driven releases, per-channel retries, and fixed
-winget/Homebrew semantics.
+winget/Homebrew/Scoop semantics.
 
 **Prerequisite:** Current release line on `main` (v0.5.0+). Tooling-only phase.
 
@@ -334,7 +334,7 @@ See [docs/plans/phase-J/README.md](phase-J/README.md). Tag-push release removed 
 | Phase E — Interactive & MCP | 4 | Agent-driveable status viewer + MCP |
 | Phase H — XHTML reporting & review | 5 | Single/array XHTML panels + `--review` finish JSON |
 | Phase I — Wizard native path picker | 1 | Wizard in-page native pickers + `path-picker` example (closes #99) |
-| Phase J — sc-publish migration | 4 | Kit vendored publish; winget/Homebrew/crates retry legs; tag-push retired |
+| Phase J — sc-publish migration | 4 | Kit vendored publish; crates/GitHub/Homebrew/Scoop/winget legs; PyPI omitted (no Python bindings); tag-push retired |
 
 ## Dependency Map
 

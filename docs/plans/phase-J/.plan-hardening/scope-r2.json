@@ -1,0 +1,12 @@
+{
+  "status": "PASS",
+  "mode": "plan-scope-review",
+  "reviewer": "plan-scope-reviewer",
+  "round_id": "STEP2-R2",
+  "round_index": 2,
+  "reviewed_commit": "6d50753",
+  "previous_reviewed_commit": "69e3ecf",
+  "findings_hash": "phase-j-r2-clean",
+  "finding_count": { "blocking": 0, "important": 0, "minor": 0 },
+  "supersedes": "STEP2-R1"
+}

@@ -28,6 +28,10 @@ other Rust repos.
    used for winget submit.
 6. **Product gates:** `ci.yml` retains wyvern-only checks (boundaries, ui-sync,
    share-sync). Kit preflight does not replace them.
+7. **Distribution channels:** Wyvern publishes to crates.io, GitHub Releases,
+   Homebrew, Scoop, and winget. **PyPI is excluded** until Python bindings exist;
+   `install.json` omits `channels.pypi` and leaves Python package lists empty so
+   rendered manifests and preflight skip PyPI credential checks.
 
 ## Consequences
 

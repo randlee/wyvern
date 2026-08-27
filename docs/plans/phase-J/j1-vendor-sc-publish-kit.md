@@ -31,6 +31,7 @@ entrypoint. Remove legacy bespoke publish files.
 | `.github/workflows/release-candidate.yml` | Kit candidate tag (vendored) |
 | `.github/workflows/crates-publish.yml` | Per-channel crates retry (vendored) |
 | `.github/workflows/homebrew-publish.yml` | Per-channel Homebrew retry (vendored) |
+| `.github/workflows/scoop-publish.yml` | Per-channel Scoop retry (vendored) |
 | `.github/workflows/winget-publish.yml` | Per-channel winget retry (vendored) |
 | `.github/scripts/release_artifacts.py` | Manifest CLI (vendored) |
 | `.github/scripts/release_gate.sh` | Release gate (vendored) |
@@ -64,19 +65,25 @@ entrypoint. Remove legacy bespoke publish files.
     "workspace_toml": "Cargo.toml",
     "rust_toolchain": "stable"
   },
+  "python_packages": [],
+  "python_distributions": [],
   "channels": {
     "homebrew": { "tap_repository": "randlee/homebrew-tap", "...": "..." },
-    "winget": { "identifier": "randlee.wyvern", "installer_target": "x86_64-pc-windows-msvc" }
+    "winget": { "identifier": "randlee.wyvern", "installer_target": "x86_64-pc-windows-msvc" },
+    "scoop": { "bucket_repository": "randlee/scoop-bucket", "manifest_path": "bucket/wyvern.json", "...": "..." }
   }
 }
 ```
+
+Wyvern declares **no PyPI channel** (`python_packages` / `python_distributions`
+empty; no `channels.pypi`) until Python bindings exist.
 
 Full file is authoritative at `release/install.json`.
 
 ## Acceptance criteria
 
 1. `./scripts/sync-sc-publish.sh` checks out pinned `SC_PUBLISH_REF` (default `6aace27`) at exact SHA `SC_PUBLISH_EXPECTED_SHA` (default `6aace27a…`); no pull to `main` after checkout; dry-run exit **0**.
-2. `release/install.json` declares five publishable crates (orders 1–5), `wyvern-mcp` unpublished, four release targets, binaries `wyvern` + `wyvern-viewer`, bundled `ui/`, channels **homebrew** + **winget** only.
+2. `release/install.json` declares five publishable crates (orders 1–5), `wyvern-mcp` unpublished, four release targets, binaries `wyvern` + `wyvern-viewer`, bundled `ui/`, channels **homebrew**, **scoop**, and **winget**; **no** `channels.pypi` and empty Python package lists.
 3. Every deliverable path in the table above exists after sync (kit byte-for-byte copies).
 4. Every path in **Paths to delete** is absent from the branch.
 5. `python3 .github/scripts/release_artifacts.py validate-manifest --manifest release/publish-artifacts.toml --workspace-toml Cargo.toml` exits **0**.

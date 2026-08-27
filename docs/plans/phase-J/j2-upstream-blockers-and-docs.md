@@ -24,7 +24,8 @@ Resolve CR-001 and CR-002 **before** j.3. Update consumer docs and provision
 | Path | Purpose |
 |------|---------|
 | `release/install.json` | Homebrew UI path; renderer field updated when CR-002 resolved |
-| `docs/RELEASE_SECRETS.md` | Kit secrets incl. `WINGET_GITHUB_TOKEN` + PAT scope note |
+| `docs/RELEASE_SECRETS.md` | Kit secrets incl. `WINGET_GITHUB_TOKEN`, `SCOOP_BUCKET_TOKEN` + PAT scope notes |
+| `docs/SCOOP_SETUP.md` | Scoop bucket repo, manifest leg, token model |
 | `docs/WINGET_SETUP.md` | sc-publish winget leg, bootstrap, token model |
 | `README.md` | Kit archive naming |
 | `docs/plans/phase-J/publish-architecture-decision.md` | ADR-linked decision record |
@@ -41,12 +42,14 @@ Resolve CR-001 and CR-002 **before** j.3. Update consumer docs and provision
 1. `release/install.json` sets `homebrew_destination_components` to `["share","wyvern","ui"]`; re-sync dry-run exit **0**.
 2. CR-001 **resolved**: sc-publish PR merged; Linux webview apt packages run in kit release/preflight/crates jobs — link in upstream-tracking.
 3. CR-002 **resolved**: sc-publish PR merged; Homebrew leg bootstraps sc-compose on runner; `release/install.json` **does not** use product binary as renderer (`renderer_archive_path` removed or names kit renderer path per upstream contract).
-4. `docs/RELEASE_SECRETS.md` documents `CARGO_REGISTRY_TOKEN`, `HOMEBREW_TAP_TOKEN`, `WINGET_GITHUB_TOKEN` (classic or fine-grained PAT; minimum: fork `microsoft/winget-pkgs`, open PRs).
+4. `docs/RELEASE_SECRETS.md` documents `CARGO_REGISTRY_TOKEN`, `HOMEBREW_TAP_TOKEN`, `WINGET_GITHUB_TOKEN` (classic or fine-grained PAT; minimum: fork `microsoft/winget-pkgs`, open PRs), and `SCOOP_BUCKET_TOKEN` (push to `randlee/scoop-bucket`).
 5. `docs/WINGET_SETUP.md` matches kit: post-release dispatch, token, asset pattern, bootstrap requirement, review lag.
-6. `README.md` artifact table uses `wyvern_<version>_<target>.*` and `bin/` layout.
-7. `gh secret list` includes **`WINGET_GITHUB_TOKEN`** (j.2 **cannot** close without it).
-8. If `randlee.wyvern` absent from `winget-pkgs`, owner completes one-time bootstrap **before** j.3 (document completion in closeout).
-9. upstream-tracking shows CR-001 and CR-002 both **`resolved`** (not waived).
+6. `docs/SCOOP_SETUP.md` documents bucket layout (`bucket/wyvern.json`), post-release `scoop-publish.yml` dispatch, and `SCOOP_BUCKET_TOKEN`.
+7. `README.md` artifact table uses `wyvern_<version>_<target>.*` and `bin/` layout.
+8. `gh secret list` includes **`WINGET_GITHUB_TOKEN`** and **`SCOOP_BUCKET_TOKEN`** (j.2 **cannot** close without them).
+9. If `randlee.wyvern` absent from `winget-pkgs`, owner completes one-time bootstrap **before** j.3 (document completion in closeout).
+10. If `randlee/scoop-bucket` absent or empty, owner creates bucket repo and initial manifest **before** j.3 (document in closeout).
+11. upstream-tracking shows CR-001 and CR-002 both **`resolved`** (not waived).
 
 ## Non-closure (explicit)
 
@@ -59,7 +62,8 @@ Resolve CR-001 and CR-002 **before** j.3. Update consumer docs and provision
 ./scripts/sync-sc-publish.sh
 python3 .github/scripts/release_artifacts.py validate-manifest \
   --manifest release/publish-artifacts.toml --workspace-toml Cargo.toml
-gh secret list | rg 'WINGET_GITHUB_TOKEN'
+gh secret list | rg 'WINGET_GITHUB_TOKEN|SCOOP_BUCKET_TOKEN'
 test ! -f scripts/validate_release.py
 rg 'WINGET_GITHUB_TOKEN' docs/RELEASE_SECRETS.md docs/WINGET_SETUP.md
+rg 'SCOOP_BUCKET_TOKEN' docs/RELEASE_SECRETS.md docs/SCOOP_SETUP.md
 ```

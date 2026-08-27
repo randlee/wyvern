@@ -1,0 +1,21 @@
+{
+  "status": "FAIL",
+  "mode": "critical-plan-review",
+  "reviewer": "critical-plan-reviewer",
+  "model": "grok",
+  "round_id": "STEP3-R2",
+  "round_index": 2,
+  "reviewed_commit": "6d50753",
+  "previous_reviewed_commit": "69e3ecf",
+  "findings_hash": "STEP3-R2-001",
+  "finding_count": { "blocking": 0, "important": 1, "minor": 3 },
+  "supersedes": "STEP3-R1",
+  "findings": [
+    {
+      "id": "PLAN-CRIT-001",
+      "severity": "Important",
+      "summary": "sync-sc-publish.sh fetched and fast-forwarded to main after pin, defeating SHA gate",
+      "remediation": "Checkout pin only; verify SC_PUBLISH_EXPECTED_SHA; no pull to main"
+    }
+  ]
+}

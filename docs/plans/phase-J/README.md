@@ -30,7 +30,7 @@ Wyvern today ships with a **one-off** publish surface:
 | Manifest | Hand-edited `release/publish-artifacts.toml` | Rendered from caller-owned `release/install.json` |
 | Agents | Single bespoke `publisher.md` | Kit publisher + channel playbooks (ATM + Cursor inline) |
 | Winget | Inline step; `GITHUB_TOKEN`; asset `wyvern-windows.zip` | `winget-publish.yml`; **`WINGET_GITHUB_TOKEN`**; manifest asset pattern |
-| Retry | `release-retry-distribution.yml` | `crates-publish.yml`, `homebrew-publish.yml`, `winget-publish.yml`, … |
+| Retry | `release-retry-distribution.yml` | `crates-publish.yml`, `homebrew-publish.yml`, `scoop-publish.yml`, `winget-publish.yml`, … |
 
 This drift blocks **consistent publish ops** across Rust repos and is why v0.5.0
 winget failed (no bootstrap + wrong token model).
@@ -43,7 +43,12 @@ winget failed (no bootstrap + wrong token model).
 2. Retire bespoke publish workflows/agents without forking kit YAML.
 3. Adopt the kit **release state machine** (candidate tag → `main` → dispatch).
 4. Cut the **first kit-managed production release** with all declared channels
-   verified (crates.io, GitHub Release assets, Homebrew, winget post-dispatch).
+   verified (crates.io, GitHub Release assets, Homebrew, Scoop, winget post-dispatch).
+
+**Supported distribution channels (Wyvern):** crates.io, GitHub Releases, Homebrew,
+Scoop, winget. **PyPI is not declared** — wyvern has no Python bindings yet; kit
+PyPI legs remain vendored for upstream parity but are inactive when `install.json`
+omits `channels.pypi` and leaves `python_packages` / `python_distributions` empty.
 
 ---
 
@@ -179,7 +184,9 @@ python3 .github/scripts/release_artifacts.py validate-manifest \
 curl -fsS -A wyvern-check "https://crates.io/api/v1/crates/wyvern-cli/X.Y.Z"
 gh release view vX.Y.Z --json assets
 curl -fsS "https://raw.githubusercontent.com/randlee/homebrew-tap/main/Formula/wyvern.rb" | rg version
+curl -fsS "https://raw.githubusercontent.com/randlee/scoop-bucket/main/bucket/wyvern.json" | rg version
 gh workflow run winget-publish.yml -f tag=vX.Y.Z --ref main
+gh workflow run scoop-publish.yml -f tag=vX.Y.Z --ref main
 ```
 
 ---
