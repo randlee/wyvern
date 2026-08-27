@@ -1,0 +1,11 @@
+{
+  "status": "FAIL",
+  "mode": "critical-plan-review",
+  "reviewer": "critical-plan-reviewer",
+  "model": "grok",
+  "round_id": "STEP3-R3",
+  "round_index": 3,
+  "reviewed_commit": "5f6b508",
+  "finding_count": { "blocking": 0, "important": 6, "minor": 2 },
+  "findings_hash": "STEP3-R3-wt-001:006"
+}

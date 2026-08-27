@@ -47,8 +47,9 @@ winget failed (no bootstrap + wrong token model).
 
 **Supported distribution channels (Wyvern):** crates.io, GitHub Releases, Homebrew,
 Scoop, winget. **PyPI is not declared** — wyvern has no Python bindings yet; kit
-PyPI legs remain vendored for upstream parity but are inactive when `install.json`
-omits `channels.pypi` and leaves `python_packages` / `python_distributions` empty.
+PyPI legs remain vendored for upstream parity but are **inactive** when
+`install.json` omits `channels.pypi` (no `[channels.pypi]` in
+`publish-artifacts.toml`; preflight skips PyPI secrets/environments).
 
 ---
 
@@ -66,8 +67,8 @@ Source of truth: sibling repo `../sc-publish` (`plugins/sc-publish`).
 | Asset | Role |
 |-------|------|
 | `release/install.json` | **Only** hand-maintained publish contract (crates, targets, channels) |
-| `release/publish-artifacts.toml` | Rendered — repo-specific artifacts & destinations |
-| `release/publish-channel-contracts.toml` | Rendered (channel-filtered) |
+| `release/publish-artifacts.toml` | Rendered from `install.json` — **wyvern channel set** (no PyPI section when omitted) |
+| `release/publish-channel-contracts.toml` | Vendored kit protocol (full channel table incl. PyPI reference); preflight filters checks via `publish-artifacts.toml` |
 | `.github/workflows/release*.yml` | Root + preflight + candidate |
 | `.github/workflows/*-publish.yml` | Post-release per-channel retries |
 | `.claude/agents/*-publisher.md` | ATM channel workers + coordinator |
@@ -129,11 +130,12 @@ Findings below are **in scope** for Phase J sprints.
 | ID | Finding | Plan response | Sprint |
 |----|---------|---------------|--------|
 | CR-001 | Linux webview deps missing from kit jobs | **Must resolve** upstream before j.3; waiver blocks phase | j.2 |
-| CR-002 | Homebrew renderer uses product binary | **Must resolve** upstream; update `install.json` renderer field | j.2 |
+| CR-002 | Homebrew/Scoop renderer uses product binary | **Must resolve** upstream for **both** `homebrew-publish.yml` and `scoop-publish.yml`; keep valid `renderer_archive_path` in `install.json` | j.2 |
 | CR-003 | Homebrew UI path flattening | `homebrew_destination_components` → `["share","wyvern","ui"]` | j.2 |
 | CR-004 | Tag-push vs kit dispatch | Tag-push removed when j.1 lands on `integrate/phase-J` | j.1, [ADR](publish-architecture-decision.md) |
 | CR-005 | Archive rename | Update README in j.2; release notes in j.3 | j.2, j.3 |
 | CR-006 | `WINGET_GITHUB_TOKEN` required | Provision in j.2; bootstrap before j.3 if needed | j.2 |
+| CR-010 | `SCOOP_BUCKET_TOKEN` required | Provision in j.2; bucket bootstrap before j.3 if needed | j.2 |
 | CR-007 | Wyvern gates stay in `ci.yml` | j.1 zero-diff on `ci.yml` | j.1 |
 | CR-008 | Legacy `validate_release.py` | Delete in j.2 | j.2 |
 | CR-009 | Moving sc-publish head | Pin `SC_PUBLISH_REF` in sync script | j.1 |
@@ -197,3 +199,4 @@ gh workflow run scoop-publish.yml -f tag=vX.Y.Z --ref main
 - [`scripts/sync-sc-publish.sh`](../../../scripts/sync-sc-publish.sh) — vendor entrypoint
 - [docs/RELEASE_SECRETS.md](../../../docs/RELEASE_SECRETS.md) — updated j.2
 - [docs/WINGET_SETUP.md](../../../WINGET_SETUP.md) — updated j.2
+- [docs/SCOOP_SETUP.md](../../../docs/SCOOP_SETUP.md) — updated j.2

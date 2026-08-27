@@ -37,8 +37,8 @@ entrypoint. Remove legacy bespoke publish files.
 | `.github/scripts/release_gate.sh` | Release gate (vendored) |
 | `.claude/agents/publisher.md` + channel publishers | ATM publish profile (vendored) |
 | `.cursor/agents/publisher.md` + publish skill/command | Cursor inline profile (vendored) |
-| `release/publish-artifacts.toml` | Rendered from `install.json` |
-| `release/publish-channel-contracts.toml` | Rendered from `install.json` (channel-filtered) |
+| `release/publish-artifacts.toml` | Rendered from `install.json` (wyvern channel set) |
+| `release/publish-channel-contracts.toml` | Vendored kit protocol (full table; preflight filters via artifacts manifest) |
 | `README.sc-publish.md` | Kit README (does not replace Wyvern `README.md`) |
 | `.gitignore` | Entry `.sc-publish-venv/` |
 

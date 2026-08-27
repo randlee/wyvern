@@ -5,7 +5,7 @@ Each blocker is exactly one state:
 | Blocker | State | PR link | Signed waiver | Effect |
 |---------|-------|---------|---------------|--------|
 | CR-001 Linux webview deps | open | | | j.3/j.4 **not startable** until resolved |
-| CR-002 Homebrew renderer | open | | | j.3/j.4 **not startable** until resolved |
+| CR-002 Homebrew/Scoop renderer | open | | | j.3/j.4 **not startable** until resolved |
 
 **Rules:**
 

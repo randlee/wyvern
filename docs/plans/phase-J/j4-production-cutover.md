@@ -47,7 +47,6 @@ None — j.1 removed legacy publish files; kit `release.yml` has no tag-push tri
 ```bash
 ! rg -l 'tags:\s*\n\s*-\s*"v\*"' .github/workflows/ 2>/dev/null
 ! rg 'push:' .github/workflows/*.yml -A2 | rg 'tags:'
+brew info wyvern | rg 'X\.Y\.Z'
+curl -fsS "https://raw.githubusercontent.com/randlee/scoop-bucket/main/bucket/wyvern.json" | jq -e '.version == "X.Y.Z"'
 ```
-
-If Homebrew channel active: `brew info wyvern` shows j.3 version.
-If Scoop channel active: `curl -fsS "https://raw.githubusercontent.com/randlee/scoop-bucket/main/bucket/wyvern.json" | rg '"version"'` matches j.3 version.
