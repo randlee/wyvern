@@ -86,7 +86,7 @@ required validation. This README is the phase index only.
 |--------|-------|-----|
 | **j.1** | Vendor kit, `install.json`, sync script | [j1-vendor-sc-publish-kit.md](j1-vendor-sc-publish-kit.md) |
 | **j.2** | Upstream blockers, secrets, winget/docs | [j2-upstream-blockers-and-docs.md](j2-upstream-blockers-and-docs.md) |
-| **j.3** | First kit-managed release (`vX.Y.Z`) | [j3-release-rehearsal.md](j3-release-rehearsal.md) |
+| **j.3** | First kit-managed release (`vX.Y.Z`) | [j3-first-kit-release.md](j3-first-kit-release.md) |
 | **j.4** | Merge `integrate/phase-J` → `develop` | [j4-production-cutover.md](j4-production-cutover.md) |
 
 **Merge order → `integrate/phase-J`:** j.1 → j.2 → j.3 → j.4.
@@ -179,7 +179,7 @@ python3 .github/scripts/release_artifacts.py validate-manifest \
 curl -fsS -A wyvern-check "https://crates.io/api/v1/crates/wyvern-cli/X.Y.Z"
 gh release view vX.Y.Z --json assets
 curl -fsS "https://raw.githubusercontent.com/randlee/homebrew-tap/main/Formula/wyvern.rb" | rg version
-gh workflow run winget-publish.yml -f tag=vX.Y.Z   # when token provisioned
+gh workflow run winget-publish.yml -f tag=vX.Y.Z --ref main
 ```
 
 ---

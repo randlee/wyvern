@@ -17,11 +17,21 @@ if [[ ! -d "${sc_publish_root}/.git" ]]; then
 fi
 
 SC_PUBLISH_REF="${SC_PUBLISH_REF:-6aace27}"
+SC_PUBLISH_EXPECTED_SHA="${SC_PUBLISH_EXPECTED_SHA:-6aace27b78aa6487c9185d831e1ae70f407fded9}"
 
 (
   cd "${sc_publish_root}"
   git fetch origin
-  git checkout "${SC_PUBLISH_REF}" 2>/dev/null || git checkout main && git pull --ff-only origin main
+  if ! git checkout "${SC_PUBLISH_REF}"; then
+    echo "sc-publish ref ${SC_PUBLISH_REF} not found" >&2
+    exit 1
+  fi
+  actual="$(git rev-parse HEAD)"
+  expected="$(git rev-parse "${SC_PUBLISH_EXPECTED_SHA}^{commit}" 2>/dev/null || true)"
+  if [[ -z "${expected}" || "${actual}" != "${expected}" ]]; then
+    echo "sc-publish HEAD ${actual} != expected ${SC_PUBLISH_EXPECTED_SHA}" >&2
+    exit 1
+  fi
 )
 
 if [[ ! -f "${input}" ]]; then

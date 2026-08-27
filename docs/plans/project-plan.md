@@ -315,10 +315,10 @@ Phase J sprint PRs target `integrate/phase-J`. Sprint authority:
 |--------|-------------|-----|
 | j.1 | Vendor kit + `install.json` + sync script | [j1-vendor-sc-publish-kit.md](phase-J/j1-vendor-sc-publish-kit.md) |
 | j.2 | Upstream blockers, secrets, winget/docs | [j2-upstream-blockers-and-docs.md](phase-J/j2-upstream-blockers-and-docs.md) |
-| j.3 | Full release rehearsal (kit state machine) | [j3-release-rehearsal.md](phase-J/j3-release-rehearsal.md) |
-| j.4 | Production cutover; retire tag-push release | [j4-production-cutover.md](phase-J/j4-production-cutover.md) |
+| j.3 | First kit-managed production release | [j3-first-kit-release.md](phase-J/j3-first-kit-release.md) |
+| j.4 | Merge integrate/phase-J → develop | [j4-production-cutover.md](phase-J/j4-production-cutover.md) |
 
-See [docs/plans/phase-J/README.md](phase-J/README.md).
+See [docs/plans/phase-J/README.md](phase-J/README.md). Tag-push release removed in **j.1** when kit lands on `integrate/phase-J`.
 
 ---
 

@@ -75,7 +75,7 @@ Full file is authoritative at `release/install.json`.
 
 ## Acceptance criteria
 
-1. `./scripts/sync-sc-publish.sh` uses pinned `SC_PUBLISH_REF` (default `6aace27`), installs with `--input release/install.json`, dry-run exit **0**.
+1. `./scripts/sync-sc-publish.sh` checks out pinned `SC_PUBLISH_REF` (default `6aace27`) at exact SHA `SC_PUBLISH_EXPECTED_SHA` (default `6aace27a…`); no pull to `main` after checkout; dry-run exit **0**.
 2. `release/install.json` declares five publishable crates (orders 1–5), `wyvern-mcp` unpublished, four release targets, binaries `wyvern` + `wyvern-viewer`, bundled `ui/`, channels **homebrew** + **winget** only.
 3. Every deliverable path in the table above exists after sync (kit byte-for-byte copies).
 4. Every path in **Paths to delete** is absent from the branch.
@@ -92,6 +92,7 @@ Full file is authoritative at `release/install.json`.
 
 ```bash
 ./scripts/sync-sc-publish.sh
+test "$(git -C "$(git rev-parse --git-common-dir | xargs dirname)/../sc-publish" rev-parse HEAD)" = "6aace27b78aa6487c9185d831e1ae70f407fded9"
 python3 .github/scripts/release_artifacts.py validate-manifest \
   --manifest release/publish-artifacts.toml --workspace-toml Cargo.toml
 ! git grep -n 'scripts/release_artifacts.py' -- ':!docs/' ':!.github/scripts/tests/'

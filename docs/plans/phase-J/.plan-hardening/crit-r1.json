@@ -1,0 +1,10 @@
+{
+  "status": "FAIL",
+  "mode": "critical-plan-review",
+  "reviewer": "critical-plan-reviewer",
+  "round_id": "STEP3-R1",
+  "round_index": 1,
+  "reviewed_commit": "69e3ecf",
+  "findings_hash": "STEP3-R1-69e3ecf-001:009",
+  "finding_count": { "blocking": 3, "important": 6 }
+}
