@@ -94,6 +94,7 @@ Full file is authoritative at `release/install.json`.
 - **j.1 removes tag-push release** when merged to `integrate/phase-J` — kit `release.yml` replaces legacy trigger (see [publish-architecture-decision.md](publish-architecture-decision.md)).
 - **j.1 does not** resolve CR-001/CR-002 or provision secrets — **j.2**.
 - **j.1 does not** cut a release — **j.3**.
+- Vendored kit may include inactive **PyPI** workflows/agents for upstream parity; wyvern channel scope excludes PyPI until `install.json` declares `channels.pypi`.
 
 ## Required validation
 

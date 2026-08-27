@@ -50,3 +50,4 @@ None — j.1 removed legacy publish files; kit `release.yml` has no tag-push tri
 ```
 
 If Homebrew channel active: `brew info wyvern` shows j.3 version.
+If Scoop channel active: `curl -fsS "https://raw.githubusercontent.com/randlee/scoop-bucket/main/bucket/wyvern.json" | rg '"version"'` matches j.3 version.

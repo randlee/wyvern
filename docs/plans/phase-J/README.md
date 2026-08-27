@@ -90,7 +90,7 @@ required validation. This README is the phase index only.
 | Sprint | Ships | Doc |
 |--------|-------|-----|
 | **j.1** | Vendor kit, `install.json`, sync script | [j1-vendor-sc-publish-kit.md](j1-vendor-sc-publish-kit.md) |
-| **j.2** | Upstream blockers, secrets, winget/docs | [j2-upstream-blockers-and-docs.md](j2-upstream-blockers-and-docs.md) |
+| **j.2** | Upstream blockers, secrets, Scoop/winget docs | [j2-upstream-blockers-and-docs.md](j2-upstream-blockers-and-docs.md) |
 | **j.3** | First kit-managed release (`vX.Y.Z`) | [j3-first-kit-release.md](j3-first-kit-release.md) |
 | **j.4** | Merge `integrate/phase-J` → `develop` | [j4-production-cutover.md](j4-production-cutover.md) |
 

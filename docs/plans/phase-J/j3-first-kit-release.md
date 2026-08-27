@@ -41,8 +41,9 @@ Cut the **first production semver** using the sc-publish state machine on
 7. If `install.json` declares `homebrew`: `homebrew-publish.yml` succeeds. If channel absent, leg not dispatched (document skip).
 8. If `install.json` declares `scoop`: `scoop-publish.yml` succeeds and updates `randlee/scoop-bucket` manifest. If channel absent, leg not dispatched (document skip).
 9. `winget-publish.yml` opens submission PR (skip-probe allowed **only** when version already submitted); auth failure = fail.
-10. Re-dispatch one post-release leg; detect-and-skip works.
-11. `first-release-record.md` documents channels tested/skipped and go/no-go for j.4.
+10. When `install.json` omits `channels.pypi`: `pypi-publish.yml` is **not** dispatched during the release; record PyPI as **N/A/skipped** in `first-release-record.md` (kit may vendor inactive PyPI assets — out of wyvern channel scope).
+11. Re-dispatch one post-release leg; detect-and-skip works.
+12. `first-release-record.md` documents channels tested/skipped (including PyPI N/A when omitted) and go/no-go for j.4.
 
 ## Non-closure (explicit)
 
@@ -56,4 +57,5 @@ gh release view vX.Y.Z --json assets
 curl -fsS -A wyvern-check "https://crates.io/api/v1/crates/wyvern-cli/X.Y.Z"
 gh run list --workflow winget-publish.yml --limit 3
 gh run list --workflow scoop-publish.yml --limit 3
+! gh run list --workflow pypi-publish.yml --limit 3 | rg 'vX\.Y\.Z' || true
 ```
