@@ -348,4 +348,7 @@ Phase A
                            ├─ Phase E (persistent host + MCP)
                            └─ Phase H (XHTML report surfaces — after G)
                                 └─ Phase I (wizard native path picker — after H, closes #99)
+
+Phase J (sc-publish migration — tooling only; parallel to product feature chain;
+         gated on main @ v0.5.0+, not on any feature phase)
 ```

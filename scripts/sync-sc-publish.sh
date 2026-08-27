@@ -42,6 +42,6 @@ fi
 publish_python="$(
   python3 "${kit}/.github/scripts/bootstrap_sc_compose.py" --venv "${venv}"
 )"
-"${publish_python}" "${kit}/install.py" --input "${input}" "${repo_root}"
 "${publish_python}" "${kit}/install.py" --dry-run --input "${input}" "${repo_root}"
+"${publish_python}" "${kit}/install.py" --input "${input}" "${repo_root}"
 echo "sc-publish kit synced from ${sc_publish_root} @ $(git -C "${sc_publish_root}" rev-parse --short HEAD) (pin ${SC_PUBLISH_REF})"
