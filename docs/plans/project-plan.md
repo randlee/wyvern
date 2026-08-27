@@ -19,6 +19,7 @@ A sprint is a single testable deliverable that fits within one AI context window
 | `integrate/phase-E` | Phase E — Persistent & MCP | `docs/plans/phase-E/` |
 | `integrate/phase-H` | Phase H — XHTML reporting & review | `docs/plans/phase-H/` |
 | `integrate/phase-I` | Phase I — Wizard native path picker | `docs/plans/phase-I/` |
+| `integrate/phase-J` | Phase J — sc-publish migration | `docs/plans/phase-J/` |
 
 Phase A sprint PRs target `integrate/phase-A`. Sprint authority: `docs/plans/phase-A/` (sprints **a.1–a.7**).
 
@@ -298,6 +299,29 @@ See [docs/plans/phase-I/README.md](phase-I/README.md).
 
 ---
 
+## Phase J — sc-publish migration
+
+**Phase goal:** Replace bespoke publish workflows/agents with the shared
+**[`sc-publish`](https://github.com/randlee/sc-publish)** kit for consistency
+across Rust repos — manifest-driven releases, per-channel retries, and fixed
+winget/Homebrew/Scoop semantics.
+
+**Prerequisite:** Current release line on `main` (v0.5.0+). Tooling-only phase.
+
+Phase J sprint PRs target `integrate/phase-J`. Sprint authority:
+`docs/plans/phase-J/` (sprints **j.1–j.4**, sequential with j.3 rehearsal gate).
+
+| Sprint | Deliverable | Doc |
+|--------|-------------|-----|
+| j.1 | Vendor kit + `install.json` + sync script | [j1-vendor-sc-publish-kit.md](phase-J/j1-vendor-sc-publish-kit.md) |
+| j.2 | Upstream blockers, secrets, Scoop/winget docs | [j2-upstream-blockers-and-docs.md](phase-J/j2-upstream-blockers-and-docs.md) |
+| j.3 | First kit-managed production release | [j3-first-kit-release.md](phase-J/j3-first-kit-release.md) |
+| j.4 | Merge integrate/phase-J → develop | [j4-production-cutover.md](phase-J/j4-production-cutover.md) |
+
+See [docs/plans/phase-J/README.md](phase-J/README.md). Tag-push release removed in **j.1** when kit lands on `integrate/phase-J`.
+
+---
+
 ## Phase Summary
 
 | Phase | Sprints | Ships |
@@ -310,6 +334,7 @@ See [docs/plans/phase-I/README.md](phase-I/README.md).
 | Phase E — Interactive & MCP | 4 | Agent-driveable status viewer + MCP |
 | Phase H — XHTML reporting & review | 5 | Single/array XHTML panels + `--review` finish JSON |
 | Phase I — Wizard native path picker | 1 | Wizard in-page native pickers + `path-picker` example (closes #99) |
+| Phase J — sc-publish migration | 4 | Kit vendored publish; crates/GitHub/Homebrew/Scoop/winget legs; PyPI omitted (no Python bindings); tag-push retired |
 
 ## Dependency Map
 
@@ -323,4 +348,7 @@ Phase A
                            ├─ Phase E (persistent host + MCP)
                            └─ Phase H (XHTML report surfaces — after G)
                                 └─ Phase I (wizard native path picker — after H, closes #99)
+
+Phase J (sc-publish migration — tooling only; parallel to product feature chain;
+         gated on main @ v0.5.0+, not on any feature phase)
 ```
