@@ -12,9 +12,8 @@ depends_on: j.1
 
 ## Goal
 
-Close or **explicitly waive** Grok blockers before j.3 rehearsal. Update Wyvern
-consumer docs and secret inventory for sc-publish (especially winget). Fix
-`install.json` manifest issues without forking kit YAML.
+Resolve CR-001 and CR-002 **before** j.3. Update consumer docs and provision
+`WINGET_GITHUB_TOKEN`. Waivers **block** j.3/j.4 (see upstream-tracking).
 
 ## Hard dependencies
 
@@ -24,41 +23,35 @@ consumer docs and secret inventory for sc-publish (especially winget). Fix
 
 | Path | Purpose |
 |------|---------|
-| `release/install.json` | Homebrew UI path fix (`homebrew_destination_components`) |
-| `docs/RELEASE_SECRETS.md` | Kit secret names incl. `WINGET_GITHUB_TOKEN` |
-| `docs/WINGET_SETUP.md` | sc-publish winget leg + bootstrap + token model |
-| `README.md` | Kit archive naming (`wyvern_<ver>_<target>.*`, `bin/` layout) |
-| `docs/plans/phase-J/.plan-hardening/upstream-tracking.md` | Links to sc-publish PRs/issues for CR-001/CR-002 |
-| GitHub repo secrets (owner) | `WINGET_GITHUB_TOKEN` provisioned or documented gap |
+| `release/install.json` | Homebrew UI path; renderer field updated when CR-002 resolved |
+| `docs/RELEASE_SECRETS.md` | Kit secrets incl. `WINGET_GITHUB_TOKEN` + PAT scope note |
+| `docs/WINGET_SETUP.md` | sc-publish winget leg, bootstrap, token model |
+| `README.md` | Kit archive naming |
+| `docs/plans/phase-J/publish-architecture-decision.md` | ADR-linked decision record |
+| `docs/plans/phase-J/.plan-hardening/upstream-tracking.md` | CR-001/CR-002 disposition table |
 
 ## Paths to delete
 
 | Path | Reason |
 |------|--------|
-| `scripts/validate_release.py` | Or rewrite to kit CLI only; must not reference removed subcommands |
-
-## Upstream outcomes (choose one per blocker — document in closeout)
-
-| Blocker | Resolved | Waived |
-|---------|----------|--------|
-| CR-001 Linux webview deps | sc-publish PR merged; kit jobs install apt packages | j.3/j.4 blocked; emergency tag-push retained on `develop` until merged |
-| CR-002 Homebrew renderer | sc-publish PR: bootstrap sc-compose on runner | `channels.homebrew` removed from `install.json`; tap manual until upstream |
+| `scripts/validate_release.py` | Superseded by kit preflight + manifest CLI |
 
 ## Acceptance criteria
 
-1. `release/install.json` sets `homebrew_destination_components` to `["share","wyvern","ui"]` for bundled UI; re-sync dry-run exit **0**.
-2. `docs/RELEASE_SECRETS.md` documents `CARGO_REGISTRY_TOKEN`, `HOMEBREW_TAP_TOKEN`, **`WINGET_GITHUB_TOKEN`** with purpose (no secret values).
-3. `docs/WINGET_SETUP.md` documents: `winget-publish.yml` dispatch, `WINGET_GITHUB_TOKEN`, asset pattern `wyvern_*_x86_64-pc-windows-msvc.zip`, one-time bootstrap, Microsoft review lag.
-4. `README.md` artifact table matches kit archive names and `bin/` layout.
-5. `scripts/validate_release.py` deleted **or** rewritten to use `.github/scripts/release_artifacts.py` subcommands that exist in kit @ synced version.
-6. `upstream-tracking.md` records CR-001/CR-002 disposition (resolved PR link **or** signed waiver text).
-7. `gh secret list` shows `WINGET_GITHUB_TOKEN` **or** sprint closeout documents owner provisioning as gate before j.3.
+1. `release/install.json` sets `homebrew_destination_components` to `["share","wyvern","ui"]`; re-sync dry-run exit **0**.
+2. CR-001 **resolved**: sc-publish PR merged; Linux webview apt packages run in kit release/preflight/crates jobs — link in upstream-tracking.
+3. CR-002 **resolved**: sc-publish PR merged; Homebrew leg bootstraps sc-compose on runner; `release/install.json` **does not** use product binary as renderer (`renderer_archive_path` removed or names kit renderer path per upstream contract).
+4. `docs/RELEASE_SECRETS.md` documents `CARGO_REGISTRY_TOKEN`, `HOMEBREW_TAP_TOKEN`, `WINGET_GITHUB_TOKEN` (classic or fine-grained PAT; minimum: fork `microsoft/winget-pkgs`, open PRs).
+5. `docs/WINGET_SETUP.md` matches kit: post-release dispatch, token, asset pattern, bootstrap requirement, review lag.
+6. `README.md` artifact table uses `wyvern_<version>_<target>.*` and `bin/` layout.
+7. `gh secret list` includes **`WINGET_GITHUB_TOKEN`** (j.2 **cannot** close without it).
+8. If `randlee.wyvern` absent from `winget-pkgs`, owner completes one-time bootstrap **before** j.3 (document completion in closeout).
+9. upstream-tracking shows CR-001 and CR-002 both **`resolved`** (not waived).
 
 ## Non-closure (explicit)
 
-- **j.2 does not** execute release rehearsal — **j.3**.
-- **j.2 does not** submit winget bootstrap PR to `microsoft/winget-pkgs` unless owner chooses to do so as prep; j.3 AC covers submission attempt.
-- If CR-001 **and** CR-002 are both waived, j.3 must not merge until waiver is signed in closeout.
+- **j.2 does not** run kit release — **j.3**.
+- **Waivers block the phase** — do not sign waivers to “unblock” j.3.
 
 ## Required validation
 
@@ -66,6 +59,7 @@ consumer docs and secret inventory for sc-publish (especially winget). Fix
 ./scripts/sync-sc-publish.sh
 python3 .github/scripts/release_artifacts.py validate-manifest \
   --manifest release/publish-artifacts.toml --workspace-toml Cargo.toml
+gh secret list | rg 'WINGET_GITHUB_TOKEN'
+test ! -f scripts/validate_release.py
 rg 'WINGET_GITHUB_TOKEN' docs/RELEASE_SECRETS.md docs/WINGET_SETUP.md
-rg 'wyvern_.*_x86_64-pc-windows-msvc' docs/WINGET_SETUP.md README.md
 ```

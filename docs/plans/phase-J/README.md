@@ -54,7 +54,7 @@ Source of truth: sibling repo `../sc-publish` (`plugins/sc-publish`).
 ```bash
 # From wyvern repo root (any worktree):
 ./scripts/sync-sc-publish.sh
-# → pulls ../sc-publish @ main, bootstraps sc-compose 1.5.0, runs install.py
+# → pulls ../sc-publish @ pinned SHA (default 6aace27), bootstraps sc-compose, runs install.py
 # → copies agents/workflows/scripts verbatim; renders two manifests only
 ```
 
@@ -62,7 +62,7 @@ Source of truth: sibling repo `../sc-publish` (`plugins/sc-publish`).
 |-------|------|
 | `release/install.json` | **Only** hand-maintained publish contract (crates, targets, channels) |
 | `release/publish-artifacts.toml` | Rendered — repo-specific artifacts & destinations |
-| `release/publish-channel-contracts.toml` | Vendored unchanged — secret names, liveness checks |
+| `release/publish-channel-contracts.toml` | Rendered (channel-filtered) |
 | `.github/workflows/release*.yml` | Root + preflight + candidate |
 | `.github/workflows/*-publish.yml` | Post-release per-channel retries |
 | `.claude/agents/*-publisher.md` | ATM channel workers + coordinator |
@@ -86,8 +86,8 @@ required validation. This README is the phase index only.
 |--------|-------|-----|
 | **j.1** | Vendor kit, `install.json`, sync script | [j1-vendor-sc-publish-kit.md](j1-vendor-sc-publish-kit.md) |
 | **j.2** | Upstream blockers, secrets, winget/docs | [j2-upstream-blockers-and-docs.md](j2-upstream-blockers-and-docs.md) |
-| **j.3** | Release rehearsal on kit state machine | [j3-release-rehearsal.md](j3-release-rehearsal.md) |
-| **j.4** | Production cutover; retire tag-push | [j4-production-cutover.md](j4-production-cutover.md) |
+| **j.3** | First kit-managed release (`vX.Y.Z`) | [j3-release-rehearsal.md](j3-release-rehearsal.md) |
+| **j.4** | Merge `integrate/phase-J` → `develop` | [j4-production-cutover.md](j4-production-cutover.md) |
 
 **Merge order → `integrate/phase-J`:** j.1 → j.2 → j.3 → j.4.
 
@@ -123,15 +123,15 @@ Findings below are **in scope** for Phase J sprints.
 
 | ID | Finding | Plan response | Sprint |
 |----|---------|---------------|--------|
-| CR-001 | Linux webview deps missing from kit release/preflight/crates jobs | Upstream sc-publish hook **or** documented waiver + CI-only gate until landed | j.2 |
-| CR-002 | `renderer_archive_path = bin/wyvern` invalid for Homebrew formula render | Upstream kit must bootstrap sc-compose on runner; do not use product binary as renderer | j.2 |
-| CR-003 | Homebrew UI path may flatten `share/wyvern/ui` | Fix `install.json` `homebrew_destination_components` → `["share","wyvern","ui"]` | j.2 |
-| CR-004 | Tag-push trigger vs kit `workflow_dispatch` | j.4 retires tag-push; until then keep old workflow on `develop` if emergency ship needed | j.4 |
-| CR-005 | Archive rename breaks README/tap/docs | Update consumer docs in j.2; call out breaking URL change in j.4 release notes | j.2, j.4 |
-| CR-006 | `WINGET_GITHUB_TOKEN` required | Provision secret; update `docs/RELEASE_SECRETS.md` | j.2 |
-| CR-007 | Wyvern-only gates stay in `ci.yml` | Explicit boundary — kit preflight does not replace ui-sync/boundaries | j.1 |
-| CR-008 | `scripts/validate_release.py` half-migrated | Delete or rewrite against kit CLI; not wired into kit workflows | j.2 |
-| CR-009 | `sync-sc-publish.sh` mutates sibling repo checkout | Document; optional pin to SHA instead of `main` | j.1 |
+| CR-001 | Linux webview deps missing from kit jobs | **Must resolve** upstream before j.3; waiver blocks phase | j.2 |
+| CR-002 | Homebrew renderer uses product binary | **Must resolve** upstream; update `install.json` renderer field | j.2 |
+| CR-003 | Homebrew UI path flattening | `homebrew_destination_components` → `["share","wyvern","ui"]` | j.2 |
+| CR-004 | Tag-push vs kit dispatch | Tag-push removed when j.1 lands on `integrate/phase-J` | j.1, [ADR](publish-architecture-decision.md) |
+| CR-005 | Archive rename | Update README in j.2; release notes in j.3 | j.2, j.3 |
+| CR-006 | `WINGET_GITHUB_TOKEN` required | Provision in j.2; bootstrap before j.3 if needed | j.2 |
+| CR-007 | Wyvern gates stay in `ci.yml` | j.1 zero-diff on `ci.yml` | j.1 |
+| CR-008 | Legacy `validate_release.py` | Delete in j.2 | j.2 |
+| CR-009 | Moving sc-publish head | Pin `SC_PUBLISH_REF` in sync script | j.1 |
 
 **Hardening gate:** Each sprint doc passes plan-scope review and critical-plan
 review (Grok) before implementation merge.
@@ -143,7 +143,9 @@ review (Grok) before implementation merge.
 1. j.1–j.4 sprint acceptance criteria pass on `integrate/phase-J` (see sprint docs).
 2. Plan hardening: `plan-scope-reviewer` + `critical-plan-reviewer` PASS; `quality-mgr` plan QA PASS.
 3. `./scripts/sync-sc-publish.sh` dry-run exit **0** on final branch.
-4. First kit-managed production release verified per j.4.
+4. First kit-managed production release verified per **j.3**; `develop` integration per **j.4**.
+
+Architecture: [publish-architecture-decision.md](publish-architecture-decision.md).
 
 ---
 

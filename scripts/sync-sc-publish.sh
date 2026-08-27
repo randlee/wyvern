@@ -16,11 +16,12 @@ if [[ ! -d "${sc_publish_root}/.git" ]]; then
   exit 1
 fi
 
+SC_PUBLISH_REF="${SC_PUBLISH_REF:-6aace27}"
+
 (
   cd "${sc_publish_root}"
   git fetch origin
-  git checkout main
-  git pull --ff-only origin main
+  git checkout "${SC_PUBLISH_REF}" 2>/dev/null || git checkout main && git pull --ff-only origin main
 )
 
 if [[ ! -f "${input}" ]]; then
@@ -33,4 +34,4 @@ publish_python="$(
 )"
 "${publish_python}" "${kit}/install.py" --input "${input}" "${repo_root}"
 "${publish_python}" "${kit}/install.py" --dry-run --input "${input}" "${repo_root}"
-echo "sc-publish kit synced from ${sc_publish_root} @ $(git -C "${sc_publish_root}" rev-parse --short HEAD)"
+echo "sc-publish kit synced from ${sc_publish_root} @ $(git -C "${sc_publish_root}" rev-parse --short HEAD) (pin ${SC_PUBLISH_REF})"

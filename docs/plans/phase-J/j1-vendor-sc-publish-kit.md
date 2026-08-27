@@ -37,7 +37,7 @@ entrypoint. Remove legacy bespoke publish files.
 | `.claude/agents/publisher.md` + channel publishers | ATM publish profile (vendored) |
 | `.cursor/agents/publisher.md` + publish skill/command | Cursor inline profile (vendored) |
 | `release/publish-artifacts.toml` | Rendered from `install.json` |
-| `release/publish-channel-contracts.toml` | Vendored channel protocol |
+| `release/publish-channel-contracts.toml` | Rendered from `install.json` (channel-filtered) |
 | `README.sc-publish.md` | Kit README (does not replace Wyvern `README.md`) |
 | `.gitignore` | Entry `.sc-publish-venv/` |
 
@@ -75,18 +75,18 @@ Full file is authoritative at `release/install.json`.
 
 ## Acceptance criteria
 
-1. `./scripts/sync-sc-publish.sh` resolves `../sc-publish` via git common dir, fetches `main`, installs with `--input release/install.json`, ends with dry-run exit **0**.
+1. `./scripts/sync-sc-publish.sh` uses pinned `SC_PUBLISH_REF` (default `6aace27`), installs with `--input release/install.json`, dry-run exit **0**.
 2. `release/install.json` declares five publishable crates (orders 1–5), `wyvern-mcp` unpublished, four release targets, binaries `wyvern` + `wyvern-viewer`, bundled `ui/`, channels **homebrew** + **winget** only.
 3. Every deliverable path in the table above exists after sync (kit byte-for-byte copies).
 4. Every path in **Paths to delete** is absent from the branch.
 5. `python3 .github/scripts/release_artifacts.py validate-manifest --manifest release/publish-artifacts.toml --workspace-toml Cargo.toml` exits **0**.
-6. `.github/workflows/ci.yml` is unchanged except documented path references (product gates stay in CI, not kit preflight).
+6. `.github/workflows/ci.yml` has **zero diff** from pre-j.1 baseline (product gates unchanged).
 
 ## Non-closure (explicit)
 
-- **j.1 does not** resolve upstream Linux deps (CR-001), Homebrew renderer (CR-002), or provision secrets — **j.2**.
-- **j.1 does not** cut a release or retire tag-push workflow — **j.4**.
-- Hand-editing vendored kit YAML is **forbidden**; fixes go to `install.json` or upstream sc-publish.
+- **j.1 removes tag-push release** when merged to `integrate/phase-J` — kit `release.yml` replaces legacy trigger (see [publish-architecture-decision.md](publish-architecture-decision.md)).
+- **j.1 does not** resolve CR-001/CR-002 or provision secrets — **j.2**.
+- **j.1 does not** cut a release — **j.3**.
 
 ## Required validation
 

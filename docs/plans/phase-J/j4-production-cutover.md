@@ -1,66 +1,52 @@
 ---
 id: j.4
-title: Production cutover
+title: Integrate phase-J to develop
 status: planning
-branch: feature/phase-J-j4-cutover
-worktree: ../wyvern-worktrees/feature/phase-J-j4-cutover
-target: integrate/phase-J
+branch: feature/phase-J-j4-integrate
+worktree: ../wyvern-worktrees/feature/phase-J-j4-integrate
+target: develop
 depends_on: j.3
 ---
 
-# Sprint j.4 — Production cutover
+# Sprint j.4 — Integrate phase-J to develop
 
 ## Goal
 
-Merge `integrate/phase-J` → `develop`. Cut first **production** release fully on
-sc-publish. Retire tag-push release workflow.
+Merge `integrate/phase-J` → `develop` after first kit release (j.3). Verify no
+legacy tag-push release triggers remain. Open `main` → `develop` back-merge.
 
 ## Hard dependencies
 
-- j.3 `rehearsal-record.md` go/no-go = **go**
-- No open CR-001/CR-002 waivers unless explicitly re-signed
+- j.3 `first-release-record.md` go/no-go = **go**
+- CR-001/CR-002 **resolved** (never waived)
 
 ## Deliverables
 
 | Path | Purpose |
 |------|---------|
-| `.github/workflows/release.yml` (kit) | Sole release entry; tag-push trigger removed |
-| `release/release-notes.md` | Breaking archive URL change called out |
-| `docs/plans/phase-J/.plan-hardening/cutover-record.md` | Production run IDs, channel verification |
+| `docs/plans/phase-J/.plan-hardening/integrate-record.md` | Merge PR, workflow grep evidence |
 
 ## Paths to delete
 
-| Path | Reason |
-|------|--------|
-| Tag-push `on.push.tags: v*` trigger | Replaced by kit `workflow_dispatch` on `main` |
-
-Implementation: remove legacy trigger from any remaining bespoke release workflow file; kit `release.yml` must be the only root release workflow.
-
-## Breaking change (normative)
-
-| Old (v0.5.0) | New (kit) |
-|--------------|-----------|
-| `wyvern-macos-aarch64.tar.gz` | `wyvern_X.Y.Z_aarch64-apple-darwin.tar.gz` |
-| `wyvern-windows.zip` | `wyvern_X.Y.Z_x86_64-pc-windows-msvc.zip` |
-| Binaries at archive root | `bin/wyvern`, `bin/wyvern-viewer` |
+None — j.1 removed legacy publish files; kit `release.yml` has no tag-push trigger.
 
 ## Acceptance criteria
 
 1. `integrate/phase-J` merged to `develop` after phase-end QA PASS.
-2. No workflow on `develop` triggers release on tag push alone.
-3. Production `vX.Y.Z` shipped via kit state machine (same steps as j.3).
-4. Release notes document archive rename and winget review lag.
-5. Verified: crates.io, GitHub Release (four targets), Homebrew tap bump (unless j.2 Homebrew waiver still active — then **fail**), winget submission success.
-6. `main` → `develop` back-merge PR opened post-release (publisher policy).
+2. **No** file in `.github/workflows/` on `develop` contains `push:` + `tags:` release trigger (grep all workflows).
+3. j.3 production tag and channels remain verified (no regression).
+4. Release notes on j.3 tag document archive rename (if not already).
+5. `main` → `develop` back-merge PR opened (publisher policy).
 
 ## Non-closure (explicit)
 
-- **j.4 does not** merge back-merge PR — publisher/owner after CI green.
+- **j.4 does not** merge back-merge PR.
 
 ## Required validation
 
 ```bash
-! gh workflow view release.yml --yaml | rg 'push:\s*$' -A1 | rg 'tags:'
-gh release view vX.Y.Z --json assets
-brew info wyvern  # tap version matches X.Y.Z when Homebrew channel active
+! rg -l 'tags:\s*\n\s*-\s*"v\*"' .github/workflows/ 2>/dev/null
+! rg 'push:' .github/workflows/*.yml -A2 | rg 'tags:'
 ```
+
+If Homebrew channel active: `brew info wyvern` shows j.3 version.

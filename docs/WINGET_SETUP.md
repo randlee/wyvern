@@ -31,9 +31,13 @@ Declared in `release/install.json` → rendered `release/publish-artifacts.toml`
 
 | Secret | Purpose |
 |--------|---------|
-| **`WINGET_GITHUB_TOKEN`** | PAT that can fork `microsoft/winget-pkgs` and open submission PRs |
+| **`WINGET_GITHUB_TOKEN`** | PAT that can **fork** `microsoft/winget-pkgs` and **open PRs** |
 
-The repository **`GITHUB_TOKEN` is not sufficient** for this external channel.
+Recommended: classic PAT with `public_repo` (or fine-grained equivalent on fork
+target). Preflight checks token liveness via GitHub `GET /user`; fork capability
+is validated at submit time by `winget-releaser`.
+
+The repository **`GITHUB_TOKEN` is not sufficient** for winget submit.
 Preflight fails closed if `WINGET_GITHUB_TOKEN` is missing or not live.
 
 See also: [docs/RELEASE_SECRETS.md](RELEASE_SECRETS.md),
