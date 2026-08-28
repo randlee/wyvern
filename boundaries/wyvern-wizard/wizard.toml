@@ -5,18 +5,18 @@ name = "WyvernWizard"
 [dependencies]
 allowed_dependencies = ["wyvern-schema", "serde_json"]
 forbidden_edges = [
-  "wyvern-wizard -> wyvern",
-  "wyvern-wizard -> wyvern-window",
-  "wyvern-wizard -> wyvern-host",
-  "wyvern-wizard -> wyvern-mcp",
-  "wyvern-wizard -> wry",
-  "wyvern-wizard -> winit",
-  "wyvern-wizard -> rfd",
-  "wyvern-wizard -> axum",
-  "wyvern-wizard -> tokio",
-  "wyvern-wizard -> tower",
-  "wyvern-wizard -> hyper",
-  "wyvern-wizard -> reqwest",
+  { from = "wyvern-wizard", to = "wyvern" },
+  { from = "wyvern-wizard", to = "wyvern-window" },
+  { from = "wyvern-wizard", to = "wyvern-host" },
+  { from = "wyvern-wizard", to = "wyvern-mcp" },
+  { from = "wyvern-wizard", to = "wry" },
+  { from = "wyvern-wizard", to = "winit" },
+  { from = "wyvern-wizard", to = "rfd" },
+  { from = "wyvern-wizard", to = "axum" },
+  { from = "wyvern-wizard", to = "tokio" },
+  { from = "wyvern-wizard", to = "tower" },
+  { from = "wyvern-wizard", to = "hyper" },
+  { from = "wyvern-wizard", to = "reqwest" },
 ]
 
 [ownership]

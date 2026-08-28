@@ -6,10 +6,10 @@ status = "active"
 [dependencies]
 allowed_dependencies = ["wry", "winit", "url", "tracing", "serde", "serde_json", "gtk"]
 forbidden_edges = [
-  "wyvern-viewer -> wyvern",
-  "wyvern-viewer -> wyvern-mcp",
-  "wyvern-viewer -> wyvern-host",
-  "wyvern-viewer -> wyvern-schema",
+  { from = "wyvern-viewer", to = "wyvern" },
+  { from = "wyvern-viewer", to = "wyvern-mcp" },
+  { from = "wyvern-viewer", to = "wyvern-host" },
+  { from = "wyvern-viewer", to = "wyvern-schema" },
 ]
 
 [ownership]

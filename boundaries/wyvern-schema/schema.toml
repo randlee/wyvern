@@ -5,12 +5,12 @@ name = "WyvernSchema"
 [dependencies]
 allowed_dependencies = ["serde", "serde_json", "strsim"]
 forbidden_edges = [
-  "wyvern-schema -> wyvern-cli",
-  "wyvern-schema -> wyvern-wizard",
-  "wyvern-schema -> wyvern-mcp",
-  "wyvern-schema -> wry",
-  "wyvern-schema -> winit",
-  "wyvern-schema -> rfd",
+  { from = "wyvern-schema", to = "wyvern-cli" },
+  { from = "wyvern-schema", to = "wyvern-wizard" },
+  { from = "wyvern-schema", to = "wyvern-mcp" },
+  { from = "wyvern-schema", to = "wry" },
+  { from = "wyvern-schema", to = "winit" },
+  { from = "wyvern-schema", to = "rfd" },
 ]
 
 [ownership]
