@@ -190,9 +190,13 @@ def check_one(boundary_path: Path) -> list[str]:
     allowed = set(deps.get("allowed_dependencies") or [])
     forbidden = set(deps.get("forbidden_dependencies") or [])
     for edge in deps.get("forbidden_edges") or []:
-        if "->" not in edge:
+        if isinstance(edge, dict):
+            src = str(edge.get("from", "")).strip()
+            dst = str(edge.get("to", "")).strip()
+        elif isinstance(edge, str) and "->" in edge:
+            src, dst = (part.strip() for part in edge.split("->", 1))
+        else:
             continue
-        src, dst = (part.strip() for part in edge.split("->", 1))
         if src == owner:
             forbidden.add(dst)
     if allowed or forbidden:

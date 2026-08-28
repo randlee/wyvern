@@ -5,10 +5,10 @@ name = "WyvernHost"
 [dependencies]
 allowed_dependencies = ["wyvern-schema", "serde", "serde_json", "axum", "tokio", "tower", "tower-http", "tracing", "rfd", "webbrowser", "dirs", "pulldown-cmark", "ammonia", "wyvern-wizard"]
 forbidden_edges = [
-  "wyvern-host -> wyvern-cli",
-  "wyvern-host -> wyvern-mcp",
-  "wyvern-host -> wry",
-  "wyvern-host -> winit",
+  { from = "wyvern-host", to = "wyvern-cli" },
+  { from = "wyvern-host", to = "wyvern-mcp" },
+  { from = "wyvern-host", to = "wry" },
+  { from = "wyvern-host", to = "winit" },
 ]
 
 [ownership]
