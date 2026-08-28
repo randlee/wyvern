@@ -3,7 +3,8 @@
 
 Validates each boundary that names an existing owner package:
   - every direct Cargo dependency must appear in allowed_dependencies
-  - no direct Cargo dependency may appear in forbidden_dependencies
+  - no direct Cargo dependency may appear in forbidden_dependencies or
+    forbidden_edges for the owner package
   - io_forbidden tokens receive minimal source-grep enforcement (c.15+)
 
 Ownership note:
@@ -188,6 +189,12 @@ def check_one(boundary_path: Path) -> list[str]:
     deps = data.get("dependencies") or {}
     allowed = set(deps.get("allowed_dependencies") or [])
     forbidden = set(deps.get("forbidden_dependencies") or [])
+    for edge in deps.get("forbidden_edges") or []:
+        if "->" not in edge:
+            continue
+        src, dst = (part.strip() for part in edge.split("->", 1))
+        if src == owner:
+            forbidden.add(dst)
     if allowed or forbidden:
         cargo_deps = cargo_dep_names(pkg / "Cargo.toml")
 

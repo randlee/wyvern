@@ -4,7 +4,20 @@ name = "WyvernWizard"
 
 [dependencies]
 allowed_dependencies = ["wyvern-schema", "serde_json"]
-forbidden_dependencies = ["wyvern", "wyvern-window", "wyvern-host", "wyvern-mcp", "wry", "winit", "rfd", "axum", "tokio", "tower", "hyper", "reqwest"]
+forbidden_edges = [
+  "wyvern-wizard -> wyvern",
+  "wyvern-wizard -> wyvern-window",
+  "wyvern-wizard -> wyvern-host",
+  "wyvern-wizard -> wyvern-mcp",
+  "wyvern-wizard -> wry",
+  "wyvern-wizard -> winit",
+  "wyvern-wizard -> rfd",
+  "wyvern-wizard -> axum",
+  "wyvern-wizard -> tokio",
+  "wyvern-wizard -> tower",
+  "wyvern-wizard -> hyper",
+  "wyvern-wizard -> reqwest",
+]
 
 [ownership]
 io_owns = ["wizard_session", "history_cursor", "stack_snapshot", "navigation"]

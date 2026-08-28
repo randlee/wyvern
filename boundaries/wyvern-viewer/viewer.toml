@@ -5,8 +5,12 @@ status = "active"
 
 [dependencies]
 allowed_dependencies = ["wry", "winit", "url", "tracing", "serde", "serde_json", "gtk"]
-forbidden_dependencies = ["wyvern", "wyvern-mcp", "wyvern-host", "wyvern-schema"]
-forbidden_edges = ["wyvern-viewer -> wyvern-host", "wyvern-viewer -> wyvern-schema"]
+forbidden_edges = [
+  "wyvern-viewer -> wyvern",
+  "wyvern-viewer -> wyvern-mcp",
+  "wyvern-viewer -> wyvern-host",
+  "wyvern-viewer -> wyvern-schema",
+]
 
 [ownership]
 io_owns = ["webview_open_url", "webview_show_hide", "viewer_lifecycle_stdin", "chrome_presentation_ipc"]
