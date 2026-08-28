@@ -417,7 +417,11 @@ def cmd_validate_manifest(args: argparse.Namespace) -> int:
 
 def cmd_list_publish_plan(args: argparse.Namespace) -> int:
     manifest = load_manifest(Path(args.manifest))
-    for crate in manifest["crates"]:
+    publishable = sorted(
+        (crate for crate in manifest["crates"] if crate.get("publish", True)),
+        key=lambda crate: crate.get("publish_order", 0),
+    )
+    for crate in publishable:
         print(f"{crate['package']}|{crate['wait_after_publish_seconds']}")
     return 0
 
