@@ -11,9 +11,11 @@ other Rust repos.
 
 ## Decision
 
-1. **Kit source:** Vendored byte-for-byte from `../sc-publish` at a **pinned SHA**
-   recorded in `scripts/sync-sc-publish.sh`. Local edits to copied kit files are
-   forbidden; changes go to upstream sc-publish or `release/install.json`.
+1. **Kit source:** Materialized byte-for-byte from **pinned upstream sc-publish**
+   recorded in `release/sc-publish-pin.toml`; `scripts/sync-sc-publish.sh` clones
+   into `.sc-publish-kit/` (never mutates a shared sibling checkout). Local edits
+   to copied kit files are forbidden; changes go to upstream sc-publish (org
+   qualification) or `release/install.json`.
 2. **Consumer contract:** `release/install.json` is the only wyvern-owned publish
    input; `install.py` renders `release/publish-artifacts.toml` (wyvern channel
    set). `release/publish-channel-contracts.toml` is the **full kit protocol**
@@ -38,13 +40,20 @@ other Rust repos.
    `install.json` omits `channels.pypi` so `publish-artifacts.toml` has no
    `[channels.pypi]` and preflight skips PyPI credential checks (contracts file
    may still document PyPI for kit parity).
+9. **Shared destinations:** All kit repos use the same org publish targets —
+   `randlee/homebrew-tap`, `randlee/scoop-bucket`, `microsoft/winget-pkgs`
+   (via `WINGET_GITHUB_TOKEN`), and one crates.io account. Per-repo
+   `install.json` only names the product slot (formula path, bucket manifest,
+   winget identifier, crate list). See [docs/RELEASE_SECRETS.md](../../RELEASE_SECRETS.md).
 
 ## Consequences
 
 - First kit release (j.3) uses a **real semver** and production channels; there is
   no separate “safe rehearsal” semver in the current kit.
-- CR-001 (Linux webview deps) and CR-002 (Homebrew **and Scoop** renderer via
-  sc-compose bootstrap) must be **resolved** before j.3; waivers block the phase.
+- CR-001/CR-002 and RC git-identity fix must reach **org blessed pin** via
+  [sc-publish PR #63](https://github.com/randlee/sc-publish/pull/63) and
+  multi-repo qualification before j.3; wyvern stays on `42e0fce` until then.
+  Waivers block the phase.
 
 ## References
 

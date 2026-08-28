@@ -1,38 +1,66 @@
 #!/usr/bin/env bash
-# Re-vendor publish workflows from ../sc-publish (single source of truth).
+# Materialize sc-publish kit into this consumer repo from a pinned upstream SHA.
+# Does NOT mutate a shared sibling ../sc-publish checkout (other repos may use it).
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-git_common="$(git -C "${repo_root}" rev-parse --git-common-dir)"
-main_repo="$(cd "$(dirname "${git_common}")" && pwd)"
-sc_publish_root="$(cd "${main_repo}/../sc-publish" && pwd)"
-kit="${sc_publish_root}/plugins/sc-publish"
-venv="${SC_PUBLISH_VENV:-${repo_root}/.sc-publish-venv}"
+pin_file="${repo_root}/release/sc-publish-pin.toml"
 input="${repo_root}/release/install.json"
+kit_cache="${SC_PUBLISH_CACHE:-${repo_root}/.sc-publish-kit}"
+venv="${SC_PUBLISH_VENV:-${repo_root}/.sc-publish-venv}"
 
-if [[ ! -d "${sc_publish_root}/.git" ]]; then
-  echo "Missing sc-publish checkout at ${sc_publish_root}" >&2
-  echo "Clone: git clone https://github.com/randlee/sc-publish.git ${sc_publish_root}" >&2
+if [[ ! -f "${pin_file}" ]]; then
+  echo "Missing ${pin_file}" >&2
   exit 1
 fi
 
-SC_PUBLISH_REF="${SC_PUBLISH_REF:-6aace27}"
-SC_PUBLISH_EXPECTED_SHA="${SC_PUBLISH_EXPECTED_SHA:-6aace27b78aa6487c9185d831e1ae70f407fded9}"
+readarray -t pin_values < <(
+  python3 - "${pin_file}" <<'PY'
+import sys
+import tomllib
+from pathlib import Path
+
+data = tomllib.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+repo = data.get("repository")
+rev = data.get("revision")
+if not isinstance(repo, str) or not repo.strip():
+    raise SystemExit("release/sc-publish-pin.toml: repository is required")
+if not isinstance(rev, str) or len(rev) != 40:
+    raise SystemExit("release/sc-publish-pin.toml: revision must be a 40-char commit SHA")
+print(repo.strip())
+print(rev.strip())
+PY
+)
+sc_publish_repo="${pin_values[0]}"
+expected_sha="${pin_values[1]}"
+
+SC_PUBLISH_REF="${SC_PUBLISH_REF:-${expected_sha}}"
+SC_PUBLISH_EXPECTED_SHA="${SC_PUBLISH_EXPECTED_SHA:-${expected_sha}}"
+
+if [[ "${SC_PUBLISH_EXPECTED_SHA}" != "${expected_sha}" ]]; then
+  echo "SC_PUBLISH_EXPECTED_SHA ${SC_PUBLISH_EXPECTED_SHA} != pin file ${expected_sha}" >&2
+  exit 1
+fi
+
+if [[ ! -d "${kit_cache}/.git" ]]; then
+  git clone --quiet "${sc_publish_repo}" "${kit_cache}"
+fi
 
 (
-  cd "${sc_publish_root}"
-  git fetch origin
-  if ! git checkout "${SC_PUBLISH_REF}"; then
+  cd "${kit_cache}"
+  git fetch origin --quiet
+  if ! git checkout --quiet "${SC_PUBLISH_REF}"; then
     echo "sc-publish ref ${SC_PUBLISH_REF} not found" >&2
     exit 1
   fi
   actual="$(git rev-parse HEAD)"
-  expected="$(git rev-parse "${SC_PUBLISH_EXPECTED_SHA}^{commit}" 2>/dev/null || true)"
-  if [[ -z "${expected}" || "${actual}" != "${expected}" ]]; then
+  if [[ "${actual}" != "${SC_PUBLISH_EXPECTED_SHA}" ]]; then
     echo "sc-publish HEAD ${actual} != expected ${SC_PUBLISH_EXPECTED_SHA}" >&2
     exit 1
   fi
 )
+
+kit="${kit_cache}/plugins/sc-publish"
 
 if [[ ! -f "${input}" ]]; then
   echo "Missing ${input}" >&2
@@ -42,6 +70,6 @@ fi
 publish_python="$(
   python3 "${kit}/.github/scripts/bootstrap_sc_compose.py" --venv "${venv}"
 )"
-"${publish_python}" "${kit}/install.py" --dry-run --input "${input}" "${repo_root}"
 "${publish_python}" "${kit}/install.py" --input "${input}" "${repo_root}"
-echo "sc-publish kit synced from ${sc_publish_root} @ $(git -C "${sc_publish_root}" rev-parse --short HEAD) (pin ${SC_PUBLISH_REF})"
+"${publish_python}" "${kit}/install.py" --dry-run --input "${input}" "${repo_root}"
+echo "sc-publish kit synced from ${kit_cache} @ $(git -C "${kit_cache}" rev-parse --short HEAD) (pin ${SC_PUBLISH_REF})"
