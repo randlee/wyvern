@@ -56,7 +56,7 @@ Waivers **block** j.3/j.4 (see upstream-tracking).
    `wyvern_<version>_x86_64-pc-windows-msvc.zip`; first-run may create manifest
    via workflow (empty bucket acceptable if doc states workflow seeds manifest).
 7. `README.md` artifact table uses `wyvern_<version>_<target>.*` and `bin/` layout.
-8. `gh secret list` includes **`WINGET_GITHUB_TOKEN`** and **`SCOOP_BUCKET_TOKEN`** (j.2 **cannot** close without them).
+8. `gh secret list` on `randlee/wyvern` includes **`WINGET_GITHUB_TOKEN`** and **`SCOOP_BUCKET_TOKEN`** (shared PATs — same names/values on all kit repos; j.2 **cannot** close if absent).
 9. If `randlee.wyvern` absent from `winget-pkgs`, owner completes one-time bootstrap **before** j.3 (document completion in closeout).
 10. Scoop bootstrap **closed before j.3**: `randlee/scoop-bucket` exists and is
     cloneable; `SCOOP_BUCKET_TOKEN` provisioned (j.2 AC #8); closeout records
