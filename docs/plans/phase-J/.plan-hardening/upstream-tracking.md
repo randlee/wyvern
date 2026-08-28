@@ -4,9 +4,9 @@ Each blocker is exactly one state:
 
 | Blocker | State | PR / commit | Signed waiver | Effect |
 |---------|-------|-------------|---------------|--------|
-| CR-001 Linux webview deps | **pending** | sc-publish [PR #63](https://github.com/randlee/sc-publish/pull/63) (includes #61) | | Awaiting org-wide qualification before wyvern re-pin. Wyvern stays on `42e0fce` until blessed SHA published. |
-| CR-002 Homebrew/Scoop renderer | **pending** | same as CR-001 | | Same gate. #61 `setup-renderer` path must pass atm-core AT-style qualification. |
-| CR-RC Git identity on RC tag | **pending** | PR #63 (supersedes #62) | | atm-core v1.4.4 RC failed without this; included in PR #63. |
+| CR-001 Linux webview deps | **ready** | sc-publish `main` @ `25668ec` | | Merge wyvern re-pin after atm RC receipt |
+| CR-002 Homebrew/Scoop renderer | **ready** | same | | same |
+| CR-RC Git identity on RC tag | **ready** | `release-candidate.yml` @ `25668ec` | | same |
 
 **Rules:**
 
@@ -20,9 +20,9 @@ Each blocker is exactly one state:
 | Item | Value |
 |------|-------|
 | Pin file | `release/sc-publish-pin.toml` |
-| Current revision | `42e0fcea23f730fae0ef3d08b060cd4df6a2602e` (atm-core AT.2) |
+| Current revision | `42e0fce` on `integrate/phase-J`; re-pin staged on `feature/phase-J-repin-25668ec` |
 | Sync entrypoint | `scripts/sync-sc-publish.sh` → isolated `.sc-publish-kit/` cache |
-| Target org revision | `25668ec` on `main` (PR #64) after qualification receipt |
+| Target org revision | `25668ec` — [atm-core #1069](https://github.com/randlee/atm-core/pull/1069) |
 
 **Note:** sc-publish `main` @ `25668ec` (PR #64, reconciled kit from PR #63). Wyvern stays on `42e0fce` until org pin receipt + sync dry-run at blessed SHA.
 

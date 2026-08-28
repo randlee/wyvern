@@ -1,5 +1,5 @@
 # Pinned sc-publish kit revision for wyvern (consumer-owned).
 # Must match the org-wide qualified kit SHA — do not advance unilaterally.
-# atm-core AT.2 receipt: 42e0fce (2026-08-27).
+# org-blessed kit revision (sc-publish main @ 25668ec, PR #64).
 repository = "https://github.com/randlee/sc-publish.git"
-revision = "42e0fcea23f730fae0ef3d08b060cd4df6a2602e"
+revision = "25668ecc164261be676c9414c4f603b18ab74c91"
