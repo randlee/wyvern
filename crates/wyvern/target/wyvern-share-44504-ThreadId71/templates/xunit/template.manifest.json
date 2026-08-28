@@ -1,8 +1,0 @@
-{
-  "id": "xunit",
-  "label": "xUnit",
-  "description": "xUnit test class starter",
-  "default_output_path": "ExampleTests.cs",
-  "files": ["ExampleTests.cs"],
-  "variables": [{ "name": "class_name", "default": "ExampleTests" }]
-}
