@@ -106,7 +106,7 @@ class InstallValuesTests(unittest.TestCase):
                 "homebrew": {
                     "workflow": "homebrew-publish.yml",
                     "dispatch_inputs": {},
-                    "tap_repository": "example/tap",
+                    "tap_repository": "randlee/homebrew-tap",
                     "renderer_target": "x86_64-unknown-linux-gnu",
                     "formulas": [
                         {
@@ -129,13 +129,13 @@ class InstallValuesTests(unittest.TestCase):
                 "winget": {
                     "workflow": "winget-publish.yml",
                     "dispatch_inputs": {},
-                    "identifier": "example.example",
+                    "identifier": "randlee.example",
                     "installer_target": "x86_64-pc-windows-msvc",
                 },
                 "scoop": {
                     "workflow": "scoop-publish.yml",
                     "dispatch_inputs": {},
-                    "bucket_repository": "example/scoop-bucket",
+                    "bucket_repository": "randlee/scoop-bucket",
                     "manifest_path": "bucket/example.json",
                     "manifest_template": "release/scoop/manifest.json.j2",
                     "installer_target": "x86_64-pc-windows-msvc",
@@ -199,22 +199,63 @@ class InstallValuesTests(unittest.TestCase):
             with self.assertRaisesRegex(Exception, "project.license"):
                 INSTALL.load_install_values(path)
 
-    def test_load_install_values_accepts_a_channel_subset(self) -> None:
+    def test_load_install_values_rejects_omitted_mandatory_channels(self) -> None:
         values = self.valid_values()
-        for name in ("homebrew", "winget", "scoop"):
-            del values["channels"][name]
-        # renderer_archive_path is only required for homebrew/scoop consumers.
-        del values["project"]["renderer_archive_path"]
+        del values["channels"]["scoop"]
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "input.json"
+            path.write_text(json.dumps(values), encoding="utf-8")
+            with self.assertRaisesRegex(Exception, "mandatory publish destinations"):
+                INSTALL.load_install_values(path)
+
+    def test_load_install_values_rejects_non_org_homebrew_tap(self) -> None:
+        values = self.valid_values()
+        values["channels"]["homebrew"]["tap_repository"] = "other/homebrew-tap"
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "input.json"
+            path.write_text(json.dumps(values), encoding="utf-8")
+            with self.assertRaisesRegex(Exception, "org-destinations.toml"):
+                INSTALL.load_install_values(path)
+
+    def test_load_install_values_rejects_non_org_scoop_bucket(self) -> None:
+        values = self.valid_values()
+        values["channels"]["scoop"]["bucket_repository"] = "other/scoop-bucket"
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "input.json"
+            path.write_text(json.dumps(values), encoding="utf-8")
+            with self.assertRaisesRegex(Exception, "org-destinations.toml"):
+                INSTALL.load_install_values(path)
+
+    def test_load_install_values_rejects_non_org_winget_identifier(self) -> None:
+        values = self.valid_values()
+        values["channels"]["winget"]["identifier"] = "other.example"
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "input.json"
+            path.write_text(json.dumps(values), encoding="utf-8")
+            with self.assertRaisesRegex(Exception, "publisher_id"):
+                INSTALL.load_install_values(path)
+
+    def test_load_install_values_injects_org_destinations_when_omitted(self) -> None:
+        values = self.valid_values()
+        del values["channels"]["homebrew"]["tap_repository"]
+        del values["channels"]["scoop"]["bucket_repository"]
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "input.json"
             path.write_text(json.dumps(values), encoding="utf-8")
             loaded = INSTALL.load_install_values(path)
-        self.assertEqual(set(loaded["channels"]), {"pypi"})
-        template = INSTALL.template_values(loaded)
-        self.assertTrue(template["has_channel_pypi"])
+        self.assertEqual(loaded["channels"]["homebrew"]["tap_repository"], "randlee/homebrew-tap")
+        self.assertEqual(loaded["channels"]["scoop"]["bucket_repository"], "randlee/scoop-bucket")
+
+    def test_load_install_values_accepts_pypi_only_when_not_in_required_channels(self) -> None:
+        values = self.valid_values()
         for name in ("homebrew", "winget", "scoop"):
-            self.assertFalse(template[f"has_channel_{name}"])
-            self.assertIn(name, template["channels"])
+            del values["channels"][name]
+        del values["project"]["renderer_archive_path"]
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "input.json"
+            path.write_text(json.dumps(values), encoding="utf-8")
+            with self.assertRaisesRegex(Exception, "mandatory publish destinations"):
+                INSTALL.load_install_values(path)
 
     def test_load_install_values_rejects_unknown_channel_names(self) -> None:
         values = self.valid_values()
@@ -225,30 +266,15 @@ class InstallValuesTests(unittest.TestCase):
             with self.assertRaisesRegex(Exception, "unsupported name"):
                 INSTALL.load_install_values(path)
 
-    def test_render_omits_undeclared_channel_tables(self) -> None:
-        try:
-            import sc_compose  # noqa: F401
-        except ModuleNotFoundError:
-            self.skipTest("sc-compose bindings are not provisioned in this environment")
+    def test_load_install_values_allows_omitted_optional_pypi(self) -> None:
         values = self.valid_values()
-        for name in ("homebrew", "winget", "scoop"):
-            del values["channels"][name]
-        del values["project"]["renderer_archive_path"]
+        del values["channels"]["pypi"]
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "input.json"
             path.write_text(json.dumps(values), encoding="utf-8")
             loaded = INSTALL.load_install_values(path)
-            output = Path(directory) / "publish-artifacts.toml"
-            INSTALL.render_template(
-                Path("release/publish-artifacts.toml.j2"), loaded, output
-            )
-            manifest = tomllib.loads(output.read_text(encoding="utf-8"))
-        self.assertEqual(set(manifest["channels"]), {"pypi"})
-        self.assertEqual(manifest["channels"]["pypi"]["production_repository"], "pypi")
-        self.assertEqual(
-            manifest["python_distributions"][1]["build_system"], "setuptools"
-        )
-        self.assertNotIn("renderer_archive_path", manifest["project"])
+        self.assertNotIn("pypi", loaded["channels"])
+        self.assertIn("homebrew", loaded["channels"])
 
     def test_load_install_values_rejects_ambiguous_python_distribution(self) -> None:
         values = self.valid_values()

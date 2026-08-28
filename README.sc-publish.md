@@ -30,8 +30,12 @@ python plugins/sc-publish/.github/scripts/bootstrap_sc_compose.py --venv <venv>
 
 The consumer input JSON is the single reviewable declaration of everything
 repository-specific: project identity, release targets, crates, release
-binaries, Python distributions, and the post-release channels the repository
-actually uses. Only two files are rendered from it —
+binaries, Python distributions, and **product slots** within org-wide publish
+destinations (formula path, Scoop manifest path, winget identifier suffix).
+**Mandatory channels and shared tap/bucket/winget targets** come from the
+vendored `release/org-destinations.toml`; `install.py` rejects omitted required
+channels and non-org destination overrides. Only two files are rendered from the
+JSON input —
 `release/publish-artifacts.toml` and `release/publish-channel-contracts.toml`;
 everything else is a shared verbatim copy. Re-running the installer after a
 kit upgrade re-synchronizes the copies; `--dry-run` exits 1 and prints a diff
