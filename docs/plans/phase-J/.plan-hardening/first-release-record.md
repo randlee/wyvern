@@ -15,7 +15,7 @@ See [j3-rc-runbook.md](j3-rc-runbook.md) for dispatch commands after #148 merges
 | CR-001/002 resolved | **done** | upstream-tracking |
 | Winget bootstrap submitted | **submitted** | [winget-pkgs #425477](https://github.com/microsoft/winget-pkgs/pull/425477) |
 | B4 spot-check @ blessed SHA | **pass** | sync @ `25668ec` |
-| RC workflow dispatchable | **blocked** | PR #148 CI green; review required |
+| RC workflow dispatchable | **done** | PR #148 merged; RC [33140961859](https://github.com/randlee/wyvern/actions/runs/33140961859) success |
 
 ## State machine
 
