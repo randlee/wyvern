@@ -2,9 +2,7 @@
 
 `release/publish-channel-contracts.toml` is the sole channel-contract source.
 It defines names, standard secret names, GitHub environments, public endpoints,
-and liveness checks. **`release/org-destinations.toml`** defines mandatory
-org-wide publish destinations and required channels; see
-`ref/org-destinations.md`. This document defines only the operating procedure for
+and liveness checks. This document defines only the operating procedure for
 using that contract. Copy both files unchanged when vendoring the publish kit.
 
 ## Common rules

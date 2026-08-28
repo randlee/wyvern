@@ -43,14 +43,10 @@ Do **not** create per-repo Homebrew taps or Scoop buckets. When a repo declares
 in `release/install.json` must match the shared destinations above (wyvern:
 `randlee/homebrew-tap`, `randlee/scoop-bucket`).
 
-**Enforcement:** vendored `release/org-destinations.toml` (from sc-publish kit)
-lists `required_channels` and fixed destinations. `install.py` **fails closed**
-if an agent omits a required channel or overrides a destination; omitted
-Homebrew/Scoop destination fields are injected at sync time. Agents must not
-opt out of this file when bootstrapping consumers.
-
-**sc-publish upstream:** same file ships in the kit; change org policy upstream
-only, then re-sync — never hand-edit in consumer repos.
+**Convention:** org-wide destinations are declared in each repo's
+`release/install.json` product slots. Review that file (and the rendered
+`release/publish-channel-contracts.toml`) during j.3 preflight — do not
+hand-edit vendored kit files to change destinations.
 
 ## Repository secrets
 
