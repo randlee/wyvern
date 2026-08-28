@@ -17,7 +17,7 @@ customization mechanism.
 Installation is three commands, run from the consumer repository root:
 
 ```bash
-# 1. Provision the exact pinned sc-compose 1.5.0 renderer wheel into a virtualenv.
+# 1. Provision the pinned sc-compose renderer bindings into a virtualenv.
 python plugins/sc-publish/.github/scripts/bootstrap_sc_compose.py --venv <venv>
 
 # 2. Install: copy every kit file byte-for-byte and render the two release
@@ -73,11 +73,6 @@ Each publish channel — `github_release`, `crates_io`, `pypi`, `homebrew`,
 - Channel identity, standardized secret names, and public registry endpoints
   come from the vendored `release/publish-channel-contracts.toml`; the
   repository-specific destinations come from `release/publish-artifacts.toml`.
-- The post-release workflows check out the release tag's tree for kit
-  actions/scripts and release config, so the tag must have been created
-  **after** the kit was installed in the consumer repository. Re-publishing a
-  pre-kit tag is unsupported; cut a new release from a kit-installed tree
-  instead.
 
 ## Where to look next
 

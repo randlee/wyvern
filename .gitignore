@@ -9,6 +9,7 @@ Cargo.lock
 .sc/
 .sc-compose/
 .sc-publish-venv/
+.sc-publish-kit/
 tests/e2e/node_modules/
 tests/e2e/test-results/
 tests/e2e/playwright-report/
