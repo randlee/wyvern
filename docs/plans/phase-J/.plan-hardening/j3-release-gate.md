@@ -1,6 +1,6 @@
 # j.3 release gate (Phase J)
 
-**Status:** blocked  
+**Status:** blocked (org qualification in flight)  
 **Updated:** 2026-08-28
 
 j.3 cannot start until every gate below is **green**. Do not merge
@@ -10,9 +10,10 @@ j.3 cannot start until every gate below is **green**. Do not merge
 
 | Gate | Owner | Status | Evidence |
 |------|-------|--------|----------|
-| sc-publish PR #63 merged → `develop`, `main` fast-forwarded | atm/sc-publish | **open** | [PR #63](https://github.com/randlee/sc-publish/pull/63) @ `928c8f9` (B1–B4 included) |
-| atm-core AT-style qualification @ blessed SHA | atm-core | **pending** | Receipt TBD after merge |
-| Org pin published (candidate `928c8f9`) | atm/sc-publish | **pending** | Release notes / pin bump |
+| sc-publish PR #63 merged → `develop` | atm/sc-publish | **done** | [PR #63](https://github.com/randlee/sc-publish/pull/63) merged; `develop` @ `5d7c749` |
+| sc-publish `main` fast-forwarded | atm/sc-publish | **pending** | After atm-core publish succeeds from `develop` |
+| atm-core AT-style qualification + publish from `develop` | atm-core | **in progress** | v1.4.4 RC retry |
+| Org pin published | atm/sc-publish | **pending** | Blessed SHA TBD after qualification |
 | wyvern `release/sc-publish-pin.toml` bumped + sync dry-run 0 | wyvern | **pending** | After org pin |
 
 ## Wyvern preflight gates (j.2 carryover)

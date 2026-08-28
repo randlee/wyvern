@@ -22,7 +22,7 @@ Each blocker is exactly one state:
 | Pin file | `release/sc-publish-pin.toml` |
 | Current revision | `42e0fcea23f730fae0ef3d08b060cd4df6a2602e` (atm-core AT.2) |
 | Sync entrypoint | `scripts/sync-sc-publish.sh` → isolated `.sc-publish-kit/` cache |
-| Target org revision | PR #63 @ `928c8f9` after merge + qualification |
+| Target org revision | `develop` @ `5d7c749` (PR #63 merge) after qualification + org pin |
 
 **Note:** sc-publish `main` @ `43552e4` (#61 merged unqualified) is **not** wyvern's pin. Do not re-sync to `main` until org blessed release.
 
