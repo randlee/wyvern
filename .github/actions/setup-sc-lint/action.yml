@@ -155,7 +155,7 @@ runs:
       run: |
         set -euo pipefail
         root="${GITHUB_WORKSPACE:-${PWD}}"
-        smoke_json="$(sc-lint --json --root "${root}" lint sc-boundary)"
+        smoke_json="$(sc-lint --json --root "${root}" lint sc-runtime)"
         jq -e '.ok == true and (.error.code // "") != "CLI.CONFIG_ERROR"' \
           <<<"${smoke_json}" >/dev/null || {
           echo "sc-lint setup: root discovery failed or returned CLI.CONFIG_ERROR" >&2
@@ -166,7 +166,7 @@ runs:
       shell: pwsh
       run: |
         $root = if ($env:GITHUB_WORKSPACE) { $env:GITHUB_WORKSPACE } else { (Get-Location).Path }
-        $value = sc-lint --json --root $root lint sc-boundary | ConvertFrom-Json
+        $value = sc-lint --json --root $root lint sc-runtime | ConvertFrom-Json
         if (-not $value.ok -or $value.error.code -eq 'CLI.CONFIG_ERROR') {
           throw "sc-lint root discovery failed: $($value | ConvertTo-Json -Compress)"
         }

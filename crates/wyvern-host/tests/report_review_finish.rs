@@ -142,7 +142,7 @@ fn post_json_tolerate_transient(
         match client.post(url).json(body).send() {
             Ok(resp) => return resp,
             Err(err) if is_transient_http_send(&err) => {
-                if start.elapsed() > Duration::from_secs(2) {
+                if start.elapsed() > Duration::from_secs(8) {
                     panic!("POST {url} failed after transient retries: {err}");
                 }
                 thread::sleep(Duration::from_millis(25));
