@@ -1,0 +1,39 @@
+# j.3 release gate (Phase J)
+
+**Status:** blocked  
+**Updated:** 2026-08-28
+
+j.3 cannot start until every gate below is **green**. Do not merge
+`integrate/phase-J` → `develop` for release until then.
+
+## Org kit gates
+
+| Gate | Owner | Status | Evidence |
+|------|-------|--------|----------|
+| sc-publish PR #63 merged → `develop`, `main` fast-forwarded | atm/sc-publish | **open** | [PR #63](https://github.com/randlee/sc-publish/pull/63) |
+| atm-core AT-style qualification @ blessed SHA | atm-core | **pending** | Receipt TBD |
+| Org pin published (target `4ce6aac`) | atm/sc-publish | **pending** | Release notes / pin bump |
+| wyvern `release/sc-publish-pin.toml` bumped + sync dry-run 0 | wyvern | **pending** | After org pin |
+
+## Wyvern preflight gates (j.2 carryover)
+
+| Gate | Status | Evidence |
+|------|--------|----------|
+| Secrets present (`WINGET_*`, `SCOOP_*`, …) | **done** | `gh secret list` |
+| `randlee/scoop-bucket` cloneable | **done** | Public repo |
+| `randlee.wyvern` winget bootstrap | **open** | `manifests/r/randlee/wyvern` 404 |
+| PR #145 consumer pin merged to `integrate/phase-J` | **pending** | [PR #145](https://github.com/randlee/wyvern/pull/145) |
+
+## j.3 execution (after gates)
+
+1. Bump workspace to target semver (e.g. `0.6.0`)
+2. Merge `integrate/phase-J` → `develop` (kit workflows on develop)
+3. Dispatch `release-candidate.yml` on `develop`
+4. `release/vX.Y.Z` → `main` → preflight → production `release.yml`
+5. Post-release legs + record in `first-release-record.md`
+
+## References
+
+- [j3-first-kit-release.md](../j3-first-kit-release.md)
+- [upstream-tracking.md](upstream-tracking.md)
+- [sc-publish-extension-requests.md](sc-publish-extension-requests.md)
