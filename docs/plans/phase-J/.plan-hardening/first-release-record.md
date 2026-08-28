@@ -1,8 +1,8 @@
 # First kit-managed release record (j.3)
 
-**Status:** blocked on [PR #148](https://github.com/randlee/wyvern/pull/148) review  
+**Status:** preflight failed — remediation required  
 **Target version:** `0.6.0`  
-**Branch:** `develop` (phase-J merged via #147) → `main`
+**Release PR:** [#149](https://github.com/randlee/wyvern/pull/149) (`release/v0.6.0` → `main`)
 
 See [j3-rc-runbook.md](j3-rc-runbook.md) for dispatch commands after #148 merges.
 
@@ -17,13 +17,21 @@ See [j3-rc-runbook.md](j3-rc-runbook.md) for dispatch commands after #148 merges
 | B4 spot-check @ blessed SHA | **pass** | sync @ `25668ec` |
 | RC workflow dispatchable | **done** | PR #148 merged; RC [33140961859](https://github.com/randlee/wyvern/actions/runs/33140961859) success |
 
-## State machine
+## Preflight failure remediation (run 33141018872)
+
+| Check | Failure | Remediation |
+|-------|---------|-------------|
+| credential-liveness | `WINGET_GITHUB_TOKEN` 401 | Refresh org PAT on `randlee/wyvern` secrets |
+| credential-liveness | `Unsupported credential liveness check kind: crates_io` | Kit @ `25668ec` preflight gap — escalate to sc-publish org |
+| workspace-tests | `report_review_duplicate_finish_is_409` flake | Increase transient retry on `release/v0.6.0` |
+| package-checks | exit 101 | Cascade from workspace-tests |
+
 
 | Step | Workflow | Run ID | SHA/tag | Result |
 |------|----------|--------|---------|--------|
-| RC dispatch | `release-candidate.yml` | | `release-candidate-vX.Y.Z` | |
-| Release branch merge | PR → `main` | | `release/vX.Y.Z` | |
-| Preflight | `release-preflight.yml` | | exact `main` SHA | |
+| RC dispatch | `release-candidate.yml` | [33140961859](https://github.com/randlee/wyvern/actions/runs/33140961859) | `release-candidate-v0.6.0` | **success** |
+| Readiness preflight | `release-preflight.yml` | [33141018872](https://github.com/randlee/wyvern/actions/runs/33141018872) | `release/v0.6.0` | **failed** — see remediation |
+| Release branch merge | PR → `main` | [#149](https://github.com/randlee/wyvern/pull/149) | `release/v0.6.0` | open |
 | Production | `release.yml` | | `vX.Y.Z` | |
 
 ## Channel outcomes
