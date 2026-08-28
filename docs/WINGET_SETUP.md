@@ -33,6 +33,9 @@ Declared in `release/install.json` → rendered `release/publish-artifacts.toml`
 |--------|---------|
 | **`WINGET_GITHUB_TOKEN`** | PAT that can **fork** `microsoft/winget-pkgs` and **open PRs** |
 
+Same secret name and value as on every other sc-publish consumer repo (see
+[docs/RELEASE_SECRETS.md](RELEASE_SECRETS.md)).
+
 Recommended: classic PAT with `public_repo` (or fine-grained equivalent on fork
 target). Preflight checks token liveness via GitHub `GET /user`; fork capability
 is validated at submit time by `winget-releaser`.

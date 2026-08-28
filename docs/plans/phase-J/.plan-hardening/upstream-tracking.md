@@ -4,8 +4,8 @@ Each blocker is exactly one state:
 
 | Blocker | State | PR / commit | Signed waiver | Effect |
 |---------|-------|-------------|---------------|--------|
-| CR-001 Linux webview deps | implemented (pending merge) | sc-publish `917ddda191e72bad641c612fd54b87d74017d95b` on `fix/cr-001-002-webview-deps-and-renderer-bootstrap` ([open compare](https://github.com/randlee/sc-publish/compare/main...fix/cr-001-002-webview-deps-and-renderer-bootstrap)) | | Kit jobs install webkit/wayland apt packages. **AC `resolved` requires the sc-publish PR to merge.** `gh pr create` was denied (not a collaborator). Until merge, j.3/j.4 stay blocked by the table rule. |
-| CR-002 Homebrew/Scoop renderer | implemented (pending merge) | same commit/branch as CR-001 | | `homebrew-publish.yml` and `scoop-publish.yml` bootstrap the pinned renderer via `.github/actions/setup-renderer` (not the product binary). `release/install.json` keeps non-empty `renderer_archive_path` = `bin/wyvern`. **AC `resolved` requires the sc-publish PR to merge.** |
+| CR-001 Linux webview deps | **resolved** | sc-publish [PR #61](https://github.com/randlee/sc-publish/pull/61) merged → `main` @ `43552e4c9e6d3435ed58a4a7eca42dd82f7edb74` | | Kit jobs install webkit/wayland apt packages via `.github/actions/install-linux-native-deps`. |
+| CR-002 Homebrew/Scoop renderer | **resolved** | same merge as CR-001 | | `homebrew-publish.yml` and `scoop-publish.yml` bootstrap the pinned renderer via `.github/actions/setup-renderer` (not the product binary). `release/install.json` keeps non-empty `renderer_archive_path` = `bin/wyvern`. |
 
 **Rules:**
 
@@ -35,14 +35,14 @@ longer extract `project.renderer_archive_path` from the Linux product archive.
 `renderer_archive_path` remains required by the kit schema while Scoop/Homebrew
 are declared; Wyvern keeps `bin/wyvern` (archive binary path, not the renderer).
 
-Wyvern is re-synced to sc-publish `917ddda` via `scripts/sync-sc-publish.sh`.
+Wyvern is re-synced to sc-publish `43552e4` via `scripts/sync-sc-publish.sh`.
 
 ## j.2 closeout extras
 
 | Item | Status |
 |------|--------|
-| `WINGET_GITHUB_TOKEN` | Present in `gh secret list` (not created in j.2) |
-| `SCOOP_BUCKET_TOKEN` | Present in `gh secret list` (not created in j.2) |
+| `WINGET_GITHUB_TOKEN` | Present in `gh secret list` (shared org PAT — not created in j.2) |
+| `SCOOP_BUCKET_TOKEN` | Present in `gh secret list` (shared org PAT — not created in j.2) |
 | `randlee/scoop-bucket` | Public, cloneable: https://github.com/randlee/scoop-bucket ; `bucket/` has only `.gitkeep` (workflow seeds `bucket/wyvern.json`) |
 | Scoop push probe | Authenticated `gh api repos/randlee/scoop-bucket` as `randlee` reports `permissions.push=true` |
 | `randlee.wyvern` in `winget-pkgs` | **Absent** (`manifests/r/randlee/wyvern` 404). Owner bootstrap **before j.3**. |

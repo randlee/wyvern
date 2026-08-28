@@ -38,6 +38,9 @@ from `release/scoop/manifest.json.j2` when it first succeeds.
 |--------|---------|
 | **`SCOOP_BUCKET_TOKEN`** | PAT with **`contents:write`** on `randlee/scoop-bucket` |
 
+Same secret name and value as on every other sc-publish consumer repo (see
+[docs/RELEASE_SECRETS.md](RELEASE_SECRETS.md)).
+
 The repository **`GITHUB_TOKEN` is not sufficient** and is **not** used to push
 Scoop manifest updates. Preflight fails closed if `SCOOP_BUCKET_TOKEN` is
 missing or not live (GitHub `GET /user`).
@@ -55,7 +58,8 @@ Complete this once before j.3 / the first kit production release:
 1. **Bucket repo exists and is public**
    - URL: `https://github.com/randlee/scoop-bucket`
    - Clone probe: `git ls-remote https://github.com/randlee/scoop-bucket.git`
-2. **`SCOOP_BUCKET_TOKEN` is provisioned** on `randlee/wyvern`
+2. **`SCOOP_BUCKET_TOKEN` is present** on `randlee/wyvern` (shared org PAT — same
+   name/value on all kit repos)
    - Confirm with `gh secret list | rg SCOOP_BUCKET_TOKEN`
    - Do **not** use repository `GITHUB_TOKEN`
 3. **Authenticated push capability**

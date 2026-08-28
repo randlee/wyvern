@@ -7,6 +7,23 @@ consumer (including [`atm-core`](https://github.com/randlee/atm-core)).
 Do **not** invent per-repo token names. Repository `GITHUB_TOKEN` is **not** a
 substitute for the PAT secrets below.
 
+## Org policy — shared secrets
+
+The same four PAT secrets use the **same names and the same values** on every
+sc-publish consumer repository (`randlee/wyvern`, `randlee/atm-core`, and any
+future kit repo). Configure them once per org/account; j.2 verifies **presence**
+on `randlee/wyvern`, not per-repo provisioning or rotation.
+
+| Secret | Shared across kit repos |
+|--------|-------------------------|
+| `CARGO_REGISTRY_TOKEN` | Yes — same token value |
+| `HOMEBREW_TAP_TOKEN` | Yes — same token value |
+| `WINGET_GITHUB_TOKEN` | Yes — same token value |
+| `SCOOP_BUCKET_TOKEN` | Yes — same token value |
+
+Configure the `crates-io` GitHub Environment on each consumer repo the same way
+(environment binding for `CARGO_REGISTRY_TOKEN`).
+
 ## Repository secrets
 
 | Secret | Purpose | Used in | Minimum scope |
@@ -58,7 +75,8 @@ PyPI is **not** declared; preflight does not require PyPI tokens.
 - `WINGET_GITHUB_TOKEN`
 - `SCOOP_BUCKET_TOKEN`
 
-j.2 does **not** create or rotate secrets.
+j.2 does **not** create or rotate secrets — it confirms the shared PATs are
+**present** on this repo (already configured org-wide).
 
 See also: [`docs/WINGET_SETUP.md`](WINGET_SETUP.md),
 [`docs/SCOOP_SETUP.md`](SCOOP_SETUP.md),
