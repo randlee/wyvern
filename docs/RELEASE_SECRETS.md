@@ -24,6 +24,29 @@ on `randlee/wyvern`, not per-repo provisioning or rotation.
 Configure the `crates-io` GitHub Environment on each consumer repo the same way
 (environment binding for `CARGO_REGISTRY_TOKEN`).
 
+## Org policy — shared destinations
+
+Every sc-publish consumer publishes **post-release channels to the same org
+repositories**. Only the **product slot** inside each destination varies per repo
+(formula path, Scoop manifest path, winget package id, crates.io crate names).
+
+| Channel | Shared destination (all kit repos) | Per-repo slot (product identity) |
+|---------|-----------------------------------|----------------------------------|
+| **Homebrew** | [`randlee/homebrew-tap`](https://github.com/randlee/homebrew-tap) | `Formula/<product>.rb` + repo-owned `formula.rb.j2` |
+| **Scoop** | [`randlee/scoop-bucket`](https://github.com/randlee/scoop-bucket) | `bucket/<product>.json` + repo-owned `manifest.json.j2` |
+| **winget** | [`microsoft/winget-pkgs`](https://github.com/microsoft/winget-pkgs) (fork + PR) | `manifests/r/randlee/<product>/` → identifier `randlee.<product>` |
+| **crates.io** | Same crates.io account (`CARGO_REGISTRY_TOKEN`) | Crate names in `install.json` → `crates[]` |
+| **GitHub Releases** | Each product's **source** repository | Archive prefix + assets from that repo's tag |
+
+Do **not** create per-repo Homebrew taps or Scoop buckets. When a repo declares
+`channels.homebrew` or `channels.scoop`, `tap_repository` and `bucket_repository`
+in `release/install.json` must match the shared destinations above (wyvern:
+`randlee/homebrew-tap`, `randlee/scoop-bucket`).
+
+**sc-publish upstream (planned):** vendored `[org.destinations]` in
+`publish-channel-contracts.toml` plus `install.py` validation so drift fails at
+sync time instead of silently forking destinations.
+
 ## Repository secrets
 
 | Secret | Purpose | Used in | Minimum scope |

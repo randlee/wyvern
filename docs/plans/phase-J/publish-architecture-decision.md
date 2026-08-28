@@ -38,6 +38,11 @@ other Rust repos.
    `install.json` omits `channels.pypi` so `publish-artifacts.toml` has no
    `[channels.pypi]` and preflight skips PyPI credential checks (contracts file
    may still document PyPI for kit parity).
+9. **Shared destinations:** All kit repos use the same org publish targets —
+   `randlee/homebrew-tap`, `randlee/scoop-bucket`, `microsoft/winget-pkgs`
+   (via `WINGET_GITHUB_TOKEN`), and one crates.io account. Per-repo
+   `install.json` only names the product slot (formula path, bucket manifest,
+   winget identifier, crate list). See [docs/RELEASE_SECRETS.md](../../RELEASE_SECRETS.md).
 
 ## Consequences
 
