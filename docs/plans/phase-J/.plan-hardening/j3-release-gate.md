@@ -10,9 +10,9 @@ j.3 cannot start until every gate below is **green**. Do not merge
 
 | Gate | Owner | Status | Evidence |
 |------|-------|--------|----------|
-| sc-publish PR #63 merged → `develop`, `main` fast-forwarded | atm/sc-publish | **open** | [PR #63](https://github.com/randlee/sc-publish/pull/63) |
-| atm-core AT-style qualification @ blessed SHA | atm-core | **pending** | Receipt TBD |
-| Org pin published (target `4ce6aac`) | atm/sc-publish | **pending** | Release notes / pin bump |
+| sc-publish PR #63 merged → `develop`, `main` fast-forwarded | atm/sc-publish | **open** | [PR #63](https://github.com/randlee/sc-publish/pull/63) @ `928c8f9` (B1–B4 included) |
+| atm-core AT-style qualification @ blessed SHA | atm-core | **pending** | Receipt TBD after merge |
+| Org pin published (candidate `928c8f9`) | atm/sc-publish | **pending** | Release notes / pin bump |
 | wyvern `release/sc-publish-pin.toml` bumped + sync dry-run 0 | wyvern | **pending** | After org pin |
 
 ## Wyvern preflight gates (j.2 carryover)
