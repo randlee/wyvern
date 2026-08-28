@@ -23,7 +23,7 @@ j.3 cannot start until every gate below is **green**. Do not merge
 | Secrets present (`WINGET_*`, `SCOOP_*`, …) | **done** | `gh secret list` |
 | `randlee/scoop-bucket` cloneable | **done** | Public repo |
 | `randlee.wyvern` winget bootstrap | **open** | `manifests/r/randlee/wyvern` 404 |
-| PR #145 consumer pin merged to `integrate/phase-J` | **pending** | [PR #145](https://github.com/randlee/wyvern/pull/145) |
+| PR #145 consumer pin merged to `integrate/phase-J` | **done** | [PR #145](https://github.com/randlee/wyvern/pull/145) @ `a042e3f` |
 
 ## j.3 execution (after gates)
 
