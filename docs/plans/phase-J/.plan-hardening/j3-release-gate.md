@@ -1,6 +1,6 @@
 # j.3 release gate (Phase J)
 
-**Status:** blocked (org qualification in flight)  
+**Status:** RC dispatch blocked — register workflow on `main` ([PR #148](https://github.com/randlee/wyvern/pull/148))  
 **Updated:** 2026-08-28
 
 j.3 cannot start until every gate below is **green**. Do not merge
@@ -12,10 +12,12 @@ j.3 cannot start until every gate below is **green**. Do not merge
 |------|-------|--------|----------|
 | sc-publish PR #63 merged → `develop` | atm/sc-publish | **done** | [PR #63](https://github.com/randlee/sc-publish/pull/63) merged; `develop` @ `5d7c749` |
 | sc-publish `main` fast-forwarded | atm/sc-publish | **done** | [PR #64](https://github.com/randlee/sc-publish/pull/64) → `main` @ `25668ec` |
-| atm-core AT-style qualification + publish from `develop` | atm-core | **in progress** | [#1069](https://github.com/randlee/atm-core/pull/1069) CI green — merge + v1.4.4 RC retry pending |
-| Org pin published | atm/sc-publish | **pending** | Candidate `25668ec` (`main`); await atm qualification receipt |
-| Wyvern re-pin @ `25668ec` | wyvern | **draft CI green** | [PR #146](https://github.com/randlee/wyvern/pull/146) — merge after atm RC |
-| wyvern `release/sc-publish-pin.toml` bumped + sync dry-run 0 | wyvern | **pending** | Merge #146 after org receipt |
+| atm-core AT-style qualification + publish from `develop` | atm-core | **done** | #1069 merged; RC [33139520613](https://github.com/randlee/atm-core/actions/runs/33139520613) success |
+| Org pin published | atm/sc-publish | **done** | `25668ec` on sc-publish `main`; atm + wyvern pinned |
+| Wyvern re-pin @ `25668ec` | wyvern | **done** | [PR #146](https://github.com/randlee/wyvern/pull/146) merged |
+| wyvern sync dry-run @ blessed SHA | wyvern | **done** | exit 0 @ `25668ec` |
+| `develop` has phase-J @ 0.6.0 | wyvern | **done** | [PR #147](https://github.com/randlee/wyvern/pull/147) merged |
+| RC workflow dispatchable | wyvern | **blocked** | [PR #148](https://github.com/randlee/wyvern/pull/148) needs merge (main default branch) |
 
 ## Wyvern preflight gates (j.2 carryover)
 
