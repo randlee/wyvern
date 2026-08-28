@@ -13,7 +13,7 @@ Fill this during j.3 execution. j.4 go/no-go reads the final row.
 | Org pin @ `25668ec` | pending | atm qualification receipt |
 | Wyvern pin bumped + sync 0 | pending | `release/sc-publish-pin.toml` |
 | CR-001/002 resolved | pending | upstream-tracking |
-| Winget bootstrap submitted | in progress | `randlee/winget-pkgs` branch `wyvern-bootstrap-0.5.0` |
+| Winget bootstrap submitted | **submitted** | [winget-pkgs #425477](https://github.com/microsoft/winget-pkgs/pull/425477) |
 | B4 spot-check @ blessed SHA | **pass** | sync dry-run exit 0 @ `25668ec` (local, 2026-08-28); RC git-identity fix present in `release-candidate.yml` |
 
 ## State machine

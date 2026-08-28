@@ -14,7 +14,8 @@ j.3 cannot start until every gate below is **green**. Do not merge
 | sc-publish `main` fast-forwarded | atm/sc-publish | **done** | [PR #64](https://github.com/randlee/sc-publish/pull/64) → `main` @ `25668ec` |
 | atm-core AT-style qualification + publish from `develop` | atm-core | **in progress** | v1.4.4 RC retry (`chore/sc-publish-repin-25668ec` in CI); prior RC failed pre-fix @ run 33135181716 |
 | Org pin published | atm/sc-publish | **pending** | Candidate `25668ec` (`main`); await atm qualification receipt |
-| wyvern `release/sc-publish-pin.toml` bumped + sync dry-run 0 | wyvern | **pending** | After org pin |
+| Wyvern re-pin @ `25668ec` | wyvern | **draft** | [PR #146](https://github.com/randlee/wyvern/pull/146) — merge after atm RC |
+| wyvern `release/sc-publish-pin.toml` bumped + sync dry-run 0 | wyvern | **pending** | Merge #146 after org receipt |
 
 ## Wyvern preflight gates (j.2 carryover)
 
