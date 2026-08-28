@@ -13,8 +13,8 @@
 ## Quickstart
 
 1. Download the latest release for your platform from [GitHub Releases](https://github.com/randlee/wyvern/releases).
-2. Extract the archive. Keep `wyvern`, `wyvern-viewer`, and `share/wyvern/ui/` together (same layout as the tarball).
-3. Add the extract directory to your `PATH` (so both binaries resolve as siblings).
+2. Extract the archive. Keep `bin/wyvern`, `bin/wyvern-viewer`, and `share/wyvern/ui/` together (same layout as the tarball).
+3. Add the extract `bin/` directory to your `PATH` (so both binaries resolve as siblings).
 4. Try (default viewer is **embedded** — launches `wyvern-viewer`):
 
 ```bash
@@ -42,12 +42,12 @@ Release artifacts (no clone required):
 
 | Platform | Artifact |
 |----------|----------|
-| macOS Apple Silicon | `wyvern-macos-aarch64.tar.gz` |
-| macOS Intel | `wyvern-macos-x86_64.tar.gz` |
-| Windows x86_64 | `wyvern-windows.zip` |
-| Linux x86_64 | `wyvern-linux.tar.gz` |
+| macOS Apple Silicon | `wyvern_<version>_aarch64-apple-darwin.tar.gz` |
+| macOS Intel | `wyvern_<version>_x86_64-apple-darwin.tar.gz` |
+| Windows x86_64 | `wyvern_<version>_x86_64-pc-windows-msvc.zip` |
+| Linux x86_64 | `wyvern_<version>_x86_64-unknown-linux-gnu.tar.gz` |
 
-Each archive contains `wyvern`, `wyvern-viewer`, and `share/wyvern/ui/` (message, input, markdown, question, chrome).
+Each archive uses a `bin/` layout: `bin/wyvern`, `bin/wyvern-viewer`, and `share/wyvern/ui/` (message, input, markdown, question, chrome).
 
 ## Quick examples
 
