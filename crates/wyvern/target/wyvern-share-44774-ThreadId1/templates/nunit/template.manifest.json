@@ -1,0 +1,8 @@
+{
+  "id": "nunit",
+  "label": "NUnit",
+  "description": "NUnit test class starter",
+  "default_output_path": "ExampleTests.cs",
+  "files": ["ExampleTests.cs"],
+  "variables": [{ "name": "class_name", "default": "ExampleTests" }]
+}

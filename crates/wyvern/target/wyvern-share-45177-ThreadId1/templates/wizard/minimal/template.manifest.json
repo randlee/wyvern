@@ -1,0 +1,8 @@
+{
+  "id": "wizard/minimal",
+  "label": "Wizard skeleton (1 page)",
+  "description": "Authoring skeleton with a single wizard page",
+  "default_output_path": "wizard-minimal/",
+  "files": ["wizard.json", "pages/home.html"],
+  "variables": []
+}

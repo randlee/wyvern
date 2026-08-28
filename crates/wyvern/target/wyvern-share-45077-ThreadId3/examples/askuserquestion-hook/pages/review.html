@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Review hook scopes</title>
+  <link rel="stylesheet" href="/shared/embedded-chrome.css" />
+  <link rel="stylesheet" href="/shared/wizard-chrome.css" />
+  <script src="/shared/wyvern-api.js"></script>
+  <style>
+    .scope-path {
+      display: block;
+      margin-top: 4px;
+      color: #475569;
+      overflow-wrap: anywhere;
+      word-break: break-all;
+      font-size: 0.85em;
+    }
+  </style>
+</head>
+<body>
+  <main
+    id="dialog"
+    class="dialog dialog--frame"
+    data-wizard-terminal="true"
+    data-testid="hook-review"
+  >
+    <h1 data-testid="hook-review-heading">Review hook scopes</h1>
+    <p class="lead">
+      Back leaves hook files unchanged; Finish applies your selections.
+      Both scopes disabled removes only Wyvern-managed entries.
+    </p>
+    <dl>
+      <div>
+        <dt>Global</dt>
+        <dd data-testid="review-global">—</dd>
+        <dd>
+          <code class="scope-path" data-testid="review-path-global">resolved after workflow pre</code>
+        </dd>
+      </div>
+      <div>
+        <dt>Repo (local)</dt>
+        <dd data-testid="review-repo">—</dd>
+        <dd>
+          <code class="scope-path" data-testid="review-path-repo">resolved after workflow pre</code>
+        </dd>
+      </div>
+    </dl>
+    <nav class="wizard-chrome" data-wizard-nav aria-label="Wizard navigation">
+      <button type="button" class="secondary" data-wizard-back data-testid="wizard-back">
+        Back
+      </button>
+      <button type="button" class="secondary" data-wizard-cancel data-testid="wizard-cancel">
+        Cancel
+      </button>
+      <button type="button" class="primary" data-wizard-next data-testid="wizard-next">
+        Finish
+      </button>
+    </nav>
+    <p class="wizard-error" data-testid="wizard-error" hidden></p>
+  </main>
+  <script src="../app.js"></script>
+  <script src="/shared/wizard-nav.js" data-wizard-chrome></script>
+</body>
+</html>

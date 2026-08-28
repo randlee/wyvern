@@ -1,0 +1,15 @@
+<section xmlns="http://www.w3.org/1999/xhtml" class="benchmark-run" data-testid="proposed-fix" data-run-id="synth-proposed-clamp-r4">
+  <header>
+    <h2>proposed clamp + bounded decode</h2>
+    <p class="run-status" data-status="PASS">PASS</p>
+  </header>
+  <dl class="metrics">
+    <div><dt>admissions/s</dt><dd>22140</dd></div>
+    <div><dt>floor</dt><dd>18000</dd></div>
+    <div><dt>p99 latency</dt><dd>8.1 ms</dd></div>
+    <div><dt>shards checkpointed</dt><dd>5 / 5</dd></div>
+    <div><dt>replay lag</dt><dd>3.4 s</dd></div>
+    <div><dt>window</dt><dd>64 ms clamped</dd></div>
+  </dl>
+  <p>Fabricated proposal: clamp the admit window to 64 ms, bound decode depth, and require all shards before checkpoint. Status is PASS with revised numbers (22140 admissions/s, 8.1 ms p99, 3.4 s replay lag).</p>
+</section>

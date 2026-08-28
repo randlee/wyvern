@@ -1,0 +1,24 @@
+{
+  "type": "wizard",
+  "page": {
+    "id": "pick",
+    "title": "Templates",
+    "html": "pages/pick.html"
+  },
+  "config": {
+    "templates": [
+      { "id": "pytest", "label": "pytest", "default_output_path": "tests/test_example.py", "variables": [{ "name": "module_name", "default": "example" }] },
+      { "id": "github-workflow", "label": "GitHub workflow", "default_output_path": ".github/workflows/ci.yml", "variables": [{ "name": "name", "default": "ci" }] },
+      { "id": "nunit", "label": "NUnit", "default_output_path": "ExampleTests.cs", "variables": [{ "name": "class_name", "default": "ExampleTests" }] },
+      { "id": "xunit", "label": "xUnit", "default_output_path": "ExampleTests.cs", "variables": [{ "name": "class_name", "default": "ExampleTests" }] },
+      { "id": "benchmark-dotnet", "label": "Benchmark .NET", "default_output_path": "ExampleBenchmarks.cs", "variables": [{ "name": "class_name", "default": "ExampleBenchmarks" }] },
+      { "id": "wizard/minimal", "label": "Wizard skeleton (1 page)", "default_output_path": "wizard-minimal/", "variables": [] },
+      { "id": "wizard/two-step", "label": "Wizard skeleton (2 pages)", "default_output_path": "wizard-two-step/", "variables": [] }
+    ]
+  },
+  "workflow": {
+    "post": "{wyvern_share}/scripts/ext/apply-template.py"
+  },
+  "width": 720,
+  "height": 560
+}

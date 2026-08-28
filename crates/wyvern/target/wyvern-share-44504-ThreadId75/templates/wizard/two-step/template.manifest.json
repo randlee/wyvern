@@ -1,0 +1,8 @@
+{
+  "id": "wizard/two-step",
+  "label": "Wizard skeleton (2 pages)",
+  "description": "Authoring skeleton with two wizard pages",
+  "default_output_path": "wizard-two-step/",
+  "files": ["wizard.json", "pages/one.html", "pages/two.html"],
+  "variables": []
+}

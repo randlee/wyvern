@@ -1,0 +1,13 @@
+<section xmlns="http://www.w3.org/1999/xhtml" class="benchmark-run" data-testid="fail-3" data-run-id="synth-wal-replay-r3">
+  <header>
+    <h2>synth-wal-replay</h2>
+    <p class="run-status" data-status="FAIL">FAIL</p>
+  </header>
+  <dl class="metrics">
+    <div><dt>admissions/s</dt><dd>2100</dd></div>
+    <div><dt>shards checkpointed</dt><dd>2 / 5</dd></div>
+    <div><dt>replay lag</dt><dd>38 s</dd></div>
+    <div><dt>budget</dt><dd>8 s</dd></div>
+  </dl>
+  <p>Fabricated finding: three of five shards missed the checkpoint, so replay lag is 38 s against an 8 s budget.</p>
+</section>

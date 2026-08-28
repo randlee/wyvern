@@ -1,0 +1,10 @@
+{
+  "title": "Synthetic benchmark review (view)",
+  "mode": "view",
+  "panels": [
+    { "path": "panels/fail-1.xhtml", "label": "Fail 1", "role": "failure" },
+    { "path": "panels/fail-2.xhtml", "label": "Fail 2", "role": "failure" },
+    { "path": "panels/fail-3.xhtml", "label": "Fail 3", "role": "failure" },
+    { "path": "panels/proposed-fix.xhtml", "label": "Proposed fix", "role": "proposal" }
+  ]
+}

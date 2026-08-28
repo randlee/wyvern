@@ -1,0 +1,13 @@
+<section xmlns="http://www.w3.org/1999/xhtml" class="benchmark-run" data-testid="fail-1" data-run-id="synth-hash-throughput-r1">
+  <header>
+    <h2>synth-hash-throughput</h2>
+    <p class="run-status" data-status="FAIL">FAIL</p>
+  </header>
+  <dl class="metrics">
+    <div><dt>admissions/s</dt><dd>12480</dd></div>
+    <div><dt>floor</dt><dd>18000</dd></div>
+    <div><dt>p99 latency</dt><dd>9.4 ms</dd></div>
+    <div><dt>window</dt><dd>250 ms unclamped</dd></div>
+  </dl>
+  <p>Fabricated finding: admissions/s fell below the 18000 floor after the open window admitted a burst of duplicate keys.</p>
+</section>

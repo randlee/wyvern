@@ -1,0 +1,8 @@
+{
+  "id": "pytest",
+  "label": "pytest",
+  "description": "Python pytest starter",
+  "default_output_path": "tests/test_example.py",
+  "files": ["test_example.py"],
+  "variables": [{ "name": "module_name", "default": "example" }]
+}

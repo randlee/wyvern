@@ -1,0 +1,10 @@
+{
+  "type": "wizard",
+  "page": {
+    "id": "home",
+    "title": "Home",
+    "html": "pages/home.html"
+  },
+  "width": 640,
+  "height": 400
+}

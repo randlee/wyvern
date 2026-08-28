@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Node extras</title>
+  <link rel="stylesheet" href="/shared/embedded-chrome.css" />
+  <link rel="stylesheet" href="/shared/wizard-chrome.css" />
+  <link rel="stylesheet" href="/wizard/styles.css" />
+  <script src="/shared/wyvern-api.js"></script>
+  <script src="/wizard/stack-merge.js"></script>
+</head>
+<body>
+  <main id="dialog" class="dialog dialog--frame" data-testid="node-extras-root">
+    <h1 data-testid="node-extras-heading">Additional options</h1>
+    <p class="lead">
+      Optional advanced fields. Leave blank and press Back when done.
+    </p>
+    <form class="form" data-testid="node-extras-form">
+      <label>
+        System prompt
+        <textarea name="prompt" data-testid="node-extras-prompt" placeholder="Optional instructions"></textarea>
+      </label>
+      <label>
+        Tool hint
+        <input type="text" name="tool" data-testid="node-extras-tool" placeholder="e.g. web-search" autocomplete="off" />
+      </label>
+      <div class="actions">
+        <button type="button" class="secondary" data-testid="node-extras-back">Back</button>
+      </div>
+    </form>
+    <p class="error" data-testid="wizard-error" hidden></p>
+  </main>
+  <script src="/wizard/app.js"></script>
+</body>
+</html>

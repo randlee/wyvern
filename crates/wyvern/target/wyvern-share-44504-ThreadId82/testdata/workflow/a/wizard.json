@@ -1,0 +1,13 @@
+{
+  "type": "wizard",
+  "page": {
+    "id": "a",
+    "title": "Workflow A",
+    "html": "pages/home.html"
+  },
+  "config": {
+    "from": "fixture-a"
+  },
+  "width": 480,
+  "height": 320
+}

@@ -1,0 +1,19 @@
+{
+  "type": "wizard",
+  "page": {
+    "id": "home",
+    "title": "Wyvern Guide",
+    "html": "pages/home.html"
+  },
+  "config": {
+    "topics": [
+      { "id": "overview", "label": "Overview", "html": "pages/overview.html" },
+      { "id": "questions", "label": "AskUserQuestion", "html": "pages/questions.html" },
+      { "id": "templates", "label": "Template wizard", "html": "pages/templates.html" },
+      { "id": "agent-dag", "label": "Agent DAG", "html": "pages/agent-dag.html" }
+    ],
+    "theme": "light"
+  },
+  "width": 800,
+  "height": 560
+}

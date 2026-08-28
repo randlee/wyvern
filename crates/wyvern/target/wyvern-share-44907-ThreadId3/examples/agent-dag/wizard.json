@@ -1,0 +1,22 @@
+{
+  "type": "wizard",
+  "page": {
+    "id": "canvas",
+    "title": "Agent DAG",
+    "html": "pages/canvas.html",
+    "layout": "workspace"
+  },
+  "config": {
+    "theme": "dark",
+    "layouts": [
+      { "id": "solo", "label": "Solo", "agents": 1 },
+      { "id": "pair", "label": "Pair", "agents": 2 },
+      { "id": "trio", "label": "Trio", "agents": 3 }
+    ],
+    "estimated_size": { "width": 1200, "height": 800 },
+    "note": "Vendored turbo-flow canvas — edit nodes and edges, then finish data.dag"
+  },
+  "workflow": {
+    "post": "{wyvern_share}/scripts/ext/export-agent-dag.py"
+  }
+}

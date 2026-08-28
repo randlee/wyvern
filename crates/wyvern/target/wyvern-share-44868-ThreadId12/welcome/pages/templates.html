@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Template wizard</title>
+  <link rel="stylesheet" href="/wizard/styles.css" />
+  <script src="/shared/wyvern-api.js"></script>
+</head>
+<body data-wizard-terminal="true">
+  <h1 data-testid="guide-templates">Templates</h1>
+  <p class="lead">
+    Opening the template catalog…
+  </p>
+  <nav class="wizard-chrome" data-wizard-nav aria-label="Wizard navigation">
+    <button type="button" class="secondary" data-wizard-back data-testid="wizard-back">
+      Back
+    </button>
+    <button type="button" class="primary" data-wizard-next data-testid="wizard-next">
+      Finish
+    </button>
+  </nav>
+  <p class="error" data-testid="wizard-error" hidden></p>
+  <script>
+    window.collectCurrentPageData = function () {
+      return {};
+    };
+    // Required g.6 next hop (REQ-0126). Auto-finish so this page is not a
+    // prose gate if anything still navigates here.
+    window.wizardNextWizard = {
+      path: "{wyvern_share}/examples/template-picker/wizard.json",
+      input: { from: "welcome" },
+      ui_root: "{wyvern_share}/examples/template-picker"
+    };
+    window.wyvernReady = window.wyvernReady || Promise.resolve();
+    window.wyvernReady.then(function () {
+      if (typeof wyvernWizardState === "function") {
+        return wyvernWizardState();
+      }
+    }).then(function () {
+      if (typeof wyvernWizardFinish !== "function") {
+        return;
+      }
+      var data = {};
+      var stack = (window.wyvern && Array.isArray(window.wyvern.stack)
+        ? window.wyvern.stack.slice()
+        : []);
+      stack.push({
+        page: window.wyvern ? window.wyvern.page : null,
+        data: data
+      });
+      return wyvernWizardFinish({
+        button: "finish",
+        data: data,
+        stack: stack,
+        next_wizard: window.wizardNextWizard
+      });
+    }).catch(function (err) {
+      var el = document.querySelector("[data-testid='wizard-error']");
+      if (el) { el.hidden = false; el.textContent = String(err); }
+    });
+  </script>
+  <script src="/shared/wizard-nav.js" data-wizard-chrome></script>
+</body>
+</html>
