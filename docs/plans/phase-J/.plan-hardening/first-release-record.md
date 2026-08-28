@@ -1,59 +1,59 @@
 # First kit-managed release record (j.3)
 
-**Status:** preflight blocked on `WINGET_GITHUB_TOKEN` refresh  
+**Status:** **go** — production v0.6.0 shipped; winget submission pending Microsoft merge  
 **Target version:** `0.6.0`  
-**Release PR:** [#149](https://github.com/randlee/wyvern/pull/149) (`release/v0.6.0` → `main`)
-
-See [j3-rc-runbook.md](j3-rc-runbook.md) for dispatch commands after #148 merges.
+**Release PR:** [#149](https://github.com/randlee/wyvern/pull/149) (merged → `main` @ `de82405`)
 
 ## Pre-cut gates
 
 | Gate | Status | Evidence |
 |------|--------|----------|
 | Org pin @ `25668ec` | **done** | atm #1069 + wyvern #146 |
-| Wyvern pin bumped + sync 0 | **done** | `develop` pin @ `25668ec` |
+| Wyvern pin bumped + sync 0 | **done** | pin @ `25668ec` |
 | CR-001/002 resolved | **done** | upstream-tracking |
-| Winget bootstrap submitted | **submitted** | [winget-pkgs #425477](https://github.com/microsoft/winget-pkgs/pull/425477) |
+| Winget bootstrap submitted | **done** | [winget-pkgs #425477](https://github.com/microsoft/winget-pkgs/pull/425477) (0.5.0 legacy; superseded by #425526) |
 | B4 spot-check @ blessed SHA | **pass** | sync @ `25668ec` |
-| RC workflow dispatchable | **done** | PR #148 merged; RC [33140961859](https://github.com/randlee/wyvern/actions/runs/33140961859) success |
+| RC workflow dispatchable | **done** | PR #148; RC [33140961859](https://github.com/randlee/wyvern/actions/runs/33140961859) |
 
-## Preflight remediation log
-
-| Run | Result | Remaining blocker |
-|-----|--------|-------------------|
-| [33141018872](https://github.com/randlee/wyvern/actions/runs/33141018872) | failed | WINGET 401, crates_io liveness kind, test flake |
-| [33141348678](https://github.com/randlee/wyvern/actions/runs/33141348678) | failed | sc-lint smoke, WINGET 401 |
-| [33141760349](https://github.com/randlee/wyvern/actions/runs/33141760349) | failed | sc-lint boundary schema |
-| [33142179164](https://github.com/randlee/wyvern/actions/runs/33142179164) | failed | **WINGET 401**, wyvern-mcp package check |
-
-**Fixed on `release/v0.6.0` @ `277d75c`+:** sc-lint smoke (`sc-runtime`), boundary TOML, crates_io liveness contract, test flake retry, publish-plan ordering, preflight package smoke (first crate only).
-
-**Operator action required:** refresh `WINGET_GITHUB_TOKEN` on `randlee/wyvern` (401 from `api.github.com/user`). Classic or fine-grained PAT with fork/PR rights to `microsoft/winget-pkgs`.
+## State machine
 
 | Step | Workflow | Run ID | SHA/tag | Result |
 |------|----------|--------|---------|--------|
 | RC dispatch | `release-candidate.yml` | [33140961859](https://github.com/randlee/wyvern/actions/runs/33140961859) | `release-candidate-v0.6.0` | **success** |
-| Readiness preflight | `release-preflight.yml` | [33142179164](https://github.com/randlee/wyvern/actions/runs/33142179164) | `release/v0.6.0` | **failed** — WINGET token |
-| Release branch merge | PR → `main` | [#149](https://github.com/randlee/wyvern/pull/149) | `release/v0.6.0` | open |
-| Production | `release.yml` | | `v0.6.0` | pending preflight green |
+| Readiness preflight | `release-preflight.yml` | [33142970200](https://github.com/randlee/wyvern/actions/runs/33142970200) | `release/v0.6.0` | **success** |
+| Release branch merge | PR → `main` | [#149](https://github.com/randlee/wyvern/pull/149) | `de82405` | **merged** |
+| Final preflight | `release-preflight.yml` | [33143330784](https://github.com/randlee/wyvern/actions/runs/33143330784) | `main` | **success** |
+| Production | `release.yml` | [33143601484](https://github.com/randlee/wyvern/actions/runs/33143601484) | `v0.6.0` | **success** |
 
 ## Channel outcomes
 
 | Channel | Workflow | Run ID | Result | Notes |
 |---------|----------|--------|--------|-------|
-| GitHub Release | `release.yml` | | | |
-| crates.io | `crates-publish.yml` | | | |
-| Homebrew | `homebrew-publish.yml` | | | |
-| Scoop | `scoop-publish.yml` | | | |
-| Winget | `winget-publish.yml` | | | |
+| GitHub Release | `release.yml` | [33143601484](https://github.com/randlee/wyvern/actions/runs/33143601484) | **success** | Tag `v0.6.0`; kit asset names |
+| crates.io | `release.yml` + `crates-publish.yml` | [33143601484](https://github.com/randlee/wyvern/actions/runs/33143601484), [33144064389](https://github.com/randlee/wyvern/actions/runs/33144064389) | **success** | All 5 crates @ 0.6.0 live |
+| Homebrew | `homebrew-publish.yml` | [33144060674](https://github.com/randlee/wyvern/actions/runs/33144060674) | **success** | `randlee/homebrew-tap` @ 0.6.0 |
+| Scoop | `scoop-publish.yml` | [33144061956](https://github.com/randlee/wyvern/actions/runs/33144061956) | **success** | `randlee/scoop-bucket` @ 0.6.0 |
+| Winget | `winget-publish.yml` | [33144063372](https://github.com/randlee/wyvern/actions/runs/33144063372) | **submission** | Automated leg failed (no bootstrap in upstream); manual PR [winget-pkgs #425526](https://github.com/microsoft/winget-pkgs/pull/425526) opened |
 | PyPI | — | — | **N/A** | omitted from `install.json` |
+
+## Remediation applied during j.3
+
+| Issue | Fix |
+|-------|-----|
+| `WINGET_GITHUB_TOKEN` 401 | Refreshed org PAT on `randlee/wyvern` + `randlee/atm-core` |
+| sc-lint boundary smoke | `setup-sc-lint` uses `sc-runtime`; boundary TOML struct edges |
+| crates_io liveness kind | Removed from `publish-channel-contracts.toml` liveness_checks |
+| First-release package check | Preflight packages first publishable crate only |
+| Test flake | `report_review_finish` transient retry 8s |
 
 ## Post-release verification
 
 ```bash
-gh release view vX.Y.Z --json assets
+gh release view v0.6.0 --json assets
+curl -fsS -A wyvern-check "https://crates.io/api/v1/crates/wyvern-cli/0.6.0"
+curl -fsS "https://raw.githubusercontent.com/randlee/scoop-bucket/main/bucket/wyvern.json" | jq -e '.version == "0.6.0"'
 python3 .github/scripts/release_artifacts.py channel-dispatch-plan \
-  --manifest release/publish-artifacts.toml --tag vX.Y.Z \
+  --manifest release/publish-artifacts.toml --tag v0.6.0 \
   | jq -e '([.channels[]?.name] // []) | index("pypi") | not'
 ```
 
@@ -61,4 +61,4 @@ python3 .github/scripts/release_artifacts.py channel-dispatch-plan \
 
 | Decision | Rationale |
 |----------|-----------|
-| **pending** | Complete after all channels recorded |
+| **go** | Production tag + GitHub Release + crates.io + Homebrew + Scoop verified; winget submission opened (#425526); PyPI N/A per manifest |
