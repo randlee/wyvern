@@ -22,9 +22,9 @@ Each blocker is exactly one state:
 | Pin file | `release/sc-publish-pin.toml` |
 | Current revision | `42e0fcea23f730fae0ef3d08b060cd4df6a2602e` (atm-core AT.2) |
 | Sync entrypoint | `scripts/sync-sc-publish.sh` → isolated `.sc-publish-kit/` cache |
-| Target org revision | `develop` @ `5d7c749` (PR #63 merge) after qualification + org pin |
+| Target org revision | `25668ec` on `main` (PR #64) after qualification receipt |
 
-**Note:** sc-publish `main` @ `43552e4` (#61 merged unqualified) is **not** wyvern's pin. Do not re-sync to `main` until org blessed release.
+**Note:** sc-publish `main` @ `25668ec` (PR #64, reconciled kit from PR #63). Wyvern stays on `42e0fce` until org pin receipt + sync dry-run at blessed SHA.
 
 ## j.2 closeout extras
 
