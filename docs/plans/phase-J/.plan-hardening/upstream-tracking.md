@@ -4,9 +4,9 @@ Each blocker is exactly one state:
 
 | Blocker | State | PR / commit | Signed waiver | Effect |
 |---------|-------|-------------|---------------|--------|
-| CR-001 Linux webview deps | **ready** | sc-publish `main` @ `25668ec` | | Merge wyvern re-pin after atm RC receipt |
-| CR-002 Homebrew/Scoop renderer | **ready** | same | | same |
-| CR-RC Git identity on RC tag | **ready** | `release-candidate.yml` @ `25668ec` | | same |
+| CR-001 Linux webview deps | **resolved** | sc-publish `main` @ `25668ec`; wyvern sync @ `25668ec` (PR #146) |
+| CR-002 Homebrew/Scoop renderer | **resolved** | same |
+| CR-RC Git identity on RC tag | **resolved** | atm-core RC run 33139520613 success |
 
 **Rules:**
 
