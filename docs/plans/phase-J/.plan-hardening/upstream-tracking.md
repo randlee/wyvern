@@ -4,8 +4,8 @@ Each blocker is exactly one state:
 
 | Blocker | State | PR / commit | Signed waiver | Effect |
 |---------|-------|-------------|---------------|--------|
-| CR-001 Linux webview deps | implemented (pending merge) | sc-publish `917ddda191e72bad641c612fd54b87d74017d95b` on `fix/cr-001-002-webview-deps-and-renderer-bootstrap` | | Kit jobs install webkit/wayland apt packages. **AC `resolved` requires the sc-publish PR to merge.** Until then j.3/j.4 stay blocked by the table rule. |
-| CR-002 Homebrew/Scoop renderer | implemented (pending merge) | same commit as CR-001 | | `homebrew-publish.yml` and `scoop-publish.yml` bootstrap the pinned renderer via `.github/actions/setup-renderer` (not the product binary). `release/install.json` keeps non-empty `renderer_archive_path` = `bin/wyvern`. **AC `resolved` requires the sc-publish PR to merge.** |
+| CR-001 Linux webview deps | implemented (pending merge) | sc-publish `917ddda191e72bad641c612fd54b87d74017d95b` on `fix/cr-001-002-webview-deps-and-renderer-bootstrap` ([open compare](https://github.com/randlee/sc-publish/compare/main...fix/cr-001-002-webview-deps-and-renderer-bootstrap)) | | Kit jobs install webkit/wayland apt packages. **AC `resolved` requires the sc-publish PR to merge.** `gh pr create` was denied (not a collaborator). Until merge, j.3/j.4 stay blocked by the table rule. |
+| CR-002 Homebrew/Scoop renderer | implemented (pending merge) | same commit/branch as CR-001 | | `homebrew-publish.yml` and `scoop-publish.yml` bootstrap the pinned renderer via `.github/actions/setup-renderer` (not the product binary). `release/install.json` keeps non-empty `renderer_archive_path` = `bin/wyvern`. **AC `resolved` requires the sc-publish PR to merge.** |
 
 **Rules:**
 
