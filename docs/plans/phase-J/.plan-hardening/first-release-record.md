@@ -1,20 +1,21 @@
 # First kit-managed release record (j.3)
 
-**Status:** pending  
-**Target version:** `0.6.0` (TBD at cut time)  
-**Branch:** `integrate/phase-J` → `develop` → `main`
+**Status:** blocked on [PR #148](https://github.com/randlee/wyvern/pull/148) review  
+**Target version:** `0.6.0`  
+**Branch:** `develop` (phase-J merged via #147) → `main`
 
-Fill this during j.3 execution. j.4 go/no-go reads the final row.
+See [j3-rc-runbook.md](j3-rc-runbook.md) for dispatch commands after #148 merges.
 
 ## Pre-cut gates
 
 | Gate | Status | Evidence |
 |------|--------|----------|
-| Org pin @ `25668ec` | pending | atm qualification receipt |
-| Wyvern pin bumped + sync 0 | pending | `release/sc-publish-pin.toml` |
-| CR-001/002 resolved | pending | upstream-tracking |
+| Org pin @ `25668ec` | **done** | atm #1069 + wyvern #146 |
+| Wyvern pin bumped + sync 0 | **done** | `develop` pin @ `25668ec` |
+| CR-001/002 resolved | **done** | upstream-tracking |
 | Winget bootstrap submitted | **submitted** | [winget-pkgs #425477](https://github.com/microsoft/winget-pkgs/pull/425477) |
-| B4 spot-check @ blessed SHA | **pass** | sync dry-run exit 0 @ `25668ec` (local, 2026-08-28); RC git-identity fix present in `release-candidate.yml` |
+| B4 spot-check @ blessed SHA | **pass** | sync @ `25668ec` |
+| RC workflow dispatchable | **blocked** | PR #148 CI green; review required |
 
 ## State machine
 
