@@ -1,0 +1,16 @@
+{
+  "status": "FAIL",
+  "mode": "plan-scope-review",
+  "reviewer": "plan-scope-reviewer",
+  "round_id": "STEP2-R3",
+  "round_index": 3,
+  "reviewed_commit": "f773670",
+  "previous_reviewed_commit": "6d50753",
+  "findings_hash": "phase-j-r3-scoop-pypi-index",
+  "finding_count": { "blocking": 0, "important": 2, "minor": 1 },
+  "findings": [
+    { "id": "PLAN-SCOPE-001", "severity": "Important", "summary": "j.2 index summaries omit Scoop" },
+    { "id": "PLAN-SCOPE-002", "severity": "Important", "summary": "j.3 missing PyPI N/A/skipped AC" },
+    { "id": "PLAN-SCOPE-M1", "severity": "Minor", "summary": "j.4 missing Scoop validation probe" }
+  ]
+}

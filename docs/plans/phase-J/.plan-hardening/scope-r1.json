@@ -1,0 +1,10 @@
+{
+  "status": "FAIL",
+  "mode": "plan-scope-review",
+  "reviewer": "plan-scope-reviewer",
+  "round_id": "STEP2-R1",
+  "round_index": 1,
+  "reviewed_commit": "69e3ecf",
+  "findings_hash": "phaseJ-scope-r1-69e3ecf",
+  "finding_count": { "blocking": 3, "important": 5 }
+}

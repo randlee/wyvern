@@ -1,49 +1,87 @@
-# Windows Package Manager (`winget`) Setup
+# Windows Package Manager (`winget`) — sc-publish profile
 
-This document explains the retained `winget` path for `wyvern` published from the
-`wyvern` repo.
+Wyvern publishes to `winget` via the vendored **sc-publish** kit. This replaces
+the legacy inline `release.yml` job and fixes the v0.5.0 failure mode (missing
+fork token + wrong asset name).
 
-## Package Identity
+## Package identity
 
-- Package identifier: `randlee.wyvern`
-- Installed binary: `wyvern`
-- Release source repo: `https://github.com/randlee/wyvern`
+| Field | Value |
+|-------|-------|
+| Identifier | `randlee.wyvern` |
+| Installed binary | `wyvern` (from `bin/wyvern.exe` in release archive) |
+| Source repo | `https://github.com/randlee/wyvern` |
 
-## Release Model
+Declared in `release/install.json` → rendered `release/publish-artifacts.toml`
+`[channels.winget]`.
 
-- The first `winget` release requires a one-time manual manifest submission to
-  `microsoft/winget-pkgs`.
-- After that bootstrap submission, later releases are automated by the release
-  workflow via `vedantmgoyal2009/winget-releaser@v2`.
-- No `winget`-specific repository secret is required; the default
-  `GITHUB_TOKEN` is sufficient for the workflow step.
+## Release model (kit)
 
-## Installer Source
+1. **Root release** (`release.yml` on `main`) builds and uploads GitHub Release
+   assets, including Windows ZIP:
+   `wyvern_<version>_x86_64-pc-windows-msvc.zip`
+2. **Post-release leg** — dispatch `winget-publish.yml` with input `tag=vX.Y.Z`.
+3. Workflow reads manifest config, verifies release assets exist, then:
+   - Probes `microsoft/winget-pkgs` for existing manifest or open PR (fail closed)
+   - Submits via pinned `vedantmgoyal2009/winget-releaser@v2` if absent
+4. **Retry:** Re-dispatch `winget-publish.yml` for the same tag; detect-and-skip
+   prevents duplicate submissions.
 
-The workflow submits the Windows ZIP asset from the GitHub Release:
+## Required secret
 
-- `wyvern-windows.zip`
+| Secret | Purpose |
+|--------|---------|
+| **`WINGET_GITHUB_TOKEN`** | PAT that can **fork** `microsoft/winget-pkgs` and **open PRs** |
 
-The `winget` submission uses the ZIP asset URL and SHA256 from the release.
-No extra repository secret is required beyond the default `GITHUB_TOKEN` (same
-as atm-core).
+Same secret name and value as on every other sc-publish consumer repo (see
+[docs/RELEASE_SECRETS.md](RELEASE_SECRETS.md)).
 
-## Review Lag
+Recommended: classic PAT with `public_repo` (or fine-grained equivalent on fork
+target). Preflight checks token liveness via GitHub `GET /user`; fork capability
+is validated at submit time by `winget-releaser`.
 
-Microsoft review normally introduces a 1-2 day lag between submission and
-public `winget install` visibility. Release verification for Wyvern therefore
-checks submission success, not same-day installability.
+The repository **`GITHUB_TOKEN` is not sufficient** for winget submit.
+Preflight fails closed if `WINGET_GITHUB_TOKEN` is missing or not live.
 
-## First Release Bootstrap
+See also: [docs/RELEASE_SECRETS.md](RELEASE_SECRETS.md),
+`release/publish-channel-contracts.toml` `[channels.winget]`.
 
-For the initial submission:
+## First-release bootstrap (one-time)
 
-1. Build and publish the GitHub Release as usual.
-2. Update the template manifest under `.winget/`.
-3. Prepare the initial three-file manifest set for `microsoft/winget-pkgs`:
-   - version manifest
-   - installer manifest
-   - locale/default-locale manifest
-4. Submit that initial manifest set to `microsoft/winget-pkgs`.
-5. After that first package exists, keep using the automated workflow step for
-   later releases.
+Before the automated leg can succeed, `randlee.wyvern` must exist in
+`microsoft/winget-pkgs`. **j.2 closeout (2026-08-27):** the path
+`manifests/r/randlee/wyvern` is **absent**. Owner completes this bootstrap
+**before j.3**:
+
+1. Ship a GitHub Release with the Windows ZIP asset (kit archive name
+   `wyvern_<version>_x86_64-pc-windows-msvc.zip`).
+2. Prepare the initial three-file manifest set (version, installer, locale).
+3. Submit manually to `microsoft/winget-pkgs` (or via maintainer fork PR)
+   using `WINGET_GITHUB_TOKEN` (never repository `GITHUB_TOKEN`).
+4. After merge, use `winget-publish.yml` for all subsequent versions.
+
+## Verification
+
+Release verification checks **submission success**, not same-day
+`winget install` visibility — Microsoft review typically adds 1–2 days lag.
+
+```bash
+# After dispatch
+gh run list --workflow winget-publish.yml --limit 1
+# Probe (optional)
+gh api "repos/microsoft/winget-pkgs/contents/manifests/r/randlee/wyvern/<version>"
+```
+
+## Operator dispatch
+
+```bash
+gh workflow run winget-publish.yml -f tag=vX.Y.Z --ref main
+gh run watch --exit-status
+```
+
+Cursor/ATM: follow `.claude/agents/winget-publisher.md` (inline in Cursor).
+
+## Related
+
+- Phase J plan: [docs/plans/phase-J/README.md](plans/phase-J/README.md)
+- Kit workflow: `.github/workflows/winget-publish.yml` (vendored — do not edit)
