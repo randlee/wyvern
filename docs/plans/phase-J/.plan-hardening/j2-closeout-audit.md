@@ -14,7 +14,7 @@ Evidence snapshot for sprint j.2 acceptance criteria on `integrate/phase-J` @ `8
 | 6 | `SCOOP_SETUP.md` complete | **done** | Bucket repo, token model, asset naming |
 | 7 | `README.md` artifact table kit names | **done** | `wyvern_<version>_<target>.*` |
 | 8 | Secrets provisioned | **done** | `gh secret list`: `WINGET_GITHUB_TOKEN`, `SCOOP_BUCKET_TOKEN` |
-| 9 | Winget bootstrap if absent | **open** | Manifests staged in `release/winget-bootstrap/0.5.0/`; submit to `winget-pkgs` before j.3 |
+| 9 | Winget bootstrap if absent | **in progress** | Branch `wyvern-bootstrap-0.5.0` pushed to `randlee/winget-pkgs`; [open PR](https://github.com/randlee/winget-pkgs/compare/wyvern-bootstrap-0.5.0?expand=1) to `microsoft/winget-pkgs` |
 | 10 | Scoop bootstrap closed | **done** | `randlee/scoop-bucket` public; token present; manifest seeded by workflow on first run |
 | 11 | upstream-tracking CR-001/002 **resolved** | **pending** | Blocked on org pin receipt + wyvern re-sync @ blessed SHA |
 
