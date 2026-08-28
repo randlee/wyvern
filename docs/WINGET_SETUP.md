@@ -46,11 +46,15 @@ See also: [docs/RELEASE_SECRETS.md](RELEASE_SECRETS.md),
 ## First-release bootstrap (one-time)
 
 Before the automated leg can succeed, `randlee.wyvern` must exist in
-`microsoft/winget-pkgs`:
+`microsoft/winget-pkgs`. **j.2 closeout (2026-08-27):** the path
+`manifests/r/randlee/wyvern` is **absent**. Owner completes this bootstrap
+**before j.3**:
 
-1. Ship a GitHub Release with the Windows ZIP asset (kit archive name above).
+1. Ship a GitHub Release with the Windows ZIP asset (kit archive name
+   `wyvern_<version>_x86_64-pc-windows-msvc.zip`).
 2. Prepare the initial three-file manifest set (version, installer, locale).
-3. Submit manually to `microsoft/winget-pkgs` (or via maintainer fork PR).
+3. Submit manually to `microsoft/winget-pkgs` (or via maintainer fork PR)
+   using `WINGET_GITHUB_TOKEN` (never repository `GITHUB_TOKEN`).
 4. After merge, use `winget-publish.yml` for all subsequent versions.
 
 ## Verification

@@ -16,8 +16,8 @@ if [[ ! -d "${sc_publish_root}/.git" ]]; then
   exit 1
 fi
 
-SC_PUBLISH_REF="${SC_PUBLISH_REF:-6aace27}"
-SC_PUBLISH_EXPECTED_SHA="${SC_PUBLISH_EXPECTED_SHA:-6aace27b78aa6487c9185d831e1ae70f407fded9}"
+SC_PUBLISH_REF="${SC_PUBLISH_REF:-917ddda191e72bad641c612fd54b87d74017d95b}"
+SC_PUBLISH_EXPECTED_SHA="${SC_PUBLISH_EXPECTED_SHA:-917ddda191e72bad641c612fd54b87d74017d95b}"
 
 (
   cd "${sc_publish_root}"
