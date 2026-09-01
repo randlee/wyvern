@@ -1,82 +1,123 @@
 schema_version = 1
 
-# Publish order follows the dependency graph:
-#   wyvern-schema (no internal deps)
-#   wyvern-wizard → wyvern-schema
-#   wyvern-host   → wyvern-schema
-#   wyvern-viewer → (no internal deps — pure wry/winit binary)
-#   wyvern-cli    → wyvern-schema, wyvern-host (crates.io name; binary remains `wyvern`)
+[project]
+name = "wyvern"
+archive_prefix = "wyvern"
+description = "Native webview dialogs for CLI agents (JSON in / JSON out)"
+homepage = "https://github.com/randlee/wyvern"
+license = "MIT"
+readme_dependency_crate = "wyvern-schema"
+renderer_archive_path = "bin/wyvern"
+workspace_toml = "Cargo.toml"
+rust_toolchain = "stable"
+
+[[release_targets]]
+target = "aarch64-apple-darwin"
+os = "macos-latest"
+archive = "tar.gz"
+[[release_targets]]
+target = "x86_64-apple-darwin"
+os = "macos-latest"
+archive = "tar.gz"
+[[release_targets]]
+target = "x86_64-pc-windows-msvc"
+os = "windows-latest"
+archive = "zip"
+[[release_targets]]
+target = "x86_64-unknown-linux-gnu"
+os = "ubuntu-latest"
+archive = "tar.gz"
 
 [[crates]]
-artifact              = "wyvern-schema"
-package               = "wyvern-schema"
-cargo_toml            = "crates/wyvern-schema/Cargo.toml"
-required              = true
-publish               = true
-publish_order         = 1
-preflight_check       = "full"
+artifact = "wyvern-schema"
+package = "wyvern-schema"
+cargo_toml = "crates/wyvern-schema/Cargo.toml"
+publish = true
+publish_order = 1
 wait_after_publish_seconds = 30
-verify_install        = false
-
 [[crates]]
-artifact              = "wyvern-wizard"
-package               = "wyvern-wizard"
-cargo_toml            = "crates/wyvern-wizard/Cargo.toml"
-required              = true
-publish               = true
-publish_order         = 2
-preflight_check       = "locked"
+artifact = "wyvern-wizard"
+package = "wyvern-wizard"
+cargo_toml = "crates/wyvern-wizard/Cargo.toml"
+publish = true
+publish_order = 2
 wait_after_publish_seconds = 30
-verify_install        = false
-
 [[crates]]
-artifact              = "wyvern-host"
-package               = "wyvern-host"
-cargo_toml            = "crates/wyvern-host/Cargo.toml"
-required              = true
-publish               = true
-publish_order         = 3
-preflight_check       = "locked"
+artifact = "wyvern-host"
+package = "wyvern-host"
+cargo_toml = "crates/wyvern-host/Cargo.toml"
+publish = true
+publish_order = 3
 wait_after_publish_seconds = 30
-verify_install        = false
-
 [[crates]]
-artifact              = "wyvern-viewer"
-package               = "wyvern-viewer"
-cargo_toml            = "crates/wyvern-viewer/Cargo.toml"
-required              = true
-publish               = true
-publish_order         = 4
-preflight_check       = "full"
+artifact = "wyvern-viewer"
+package = "wyvern-viewer"
+cargo_toml = "crates/wyvern-viewer/Cargo.toml"
+publish = true
+publish_order = 4
 wait_after_publish_seconds = 30
-verify_install        = true
-
 [[crates]]
-artifact              = "wyvern"
-package               = "wyvern-cli"
-cargo_toml            = "crates/wyvern/Cargo.toml"
-required              = true
-publish               = true
-publish_order         = 5
-preflight_check       = "locked"
+artifact = "wyvern"
+package = "wyvern-cli"
+cargo_toml = "crates/wyvern/Cargo.toml"
+publish = true
+publish_order = 5
 wait_after_publish_seconds = 0
-verify_install        = true
-
-# wyvern-mcp is a Phase-E stub; excluded from publish until complete.
 [[crates]]
-artifact              = "wyvern-mcp"
-package               = "wyvern-mcp"
-cargo_toml            = "crates/wyvern-mcp/Cargo.toml"
-required              = false
-publish               = false
-waiver_reason         = "Phase-E stub — MCP server not yet complete; publish = false in Cargo.toml"
-publish_order         = 99
-preflight_check       = "locked"
+artifact = "wyvern-mcp"
+package = "wyvern-mcp"
+cargo_toml = "crates/wyvern-mcp/Cargo.toml"
+publish = false
+publish_order = 0
 wait_after_publish_seconds = 0
-verify_install        = false
 
 [[release_binaries]]
 name = "wyvern"
-
+bundled_paths = [{ source = "ui", destination = "share/wyvern/ui", homebrew_destination_components = ["share", "wyvern", "ui"] }]
 [[release_binaries]]
 name = "wyvern-viewer"
+
+
+
+
+[channels.homebrew]
+workflow = "homebrew-publish.yml"
+dispatch_inputs = {  }
+tap_repository = "randlee/homebrew-tap"
+renderer_target = "x86_64-unknown-linux-gnu"
+
+[[channels.homebrew.formulas]]
+path = "Formula/wyvern.rb"
+template = "release/homebrew/formula.rb.j2"
+class = "Wyvern"
+binaries = ["wyvern", "wyvern-viewer"]
+test_binary = "wyvern"
+test_command = "--help"
+test_output = "Usage: wyvern"
+release_track = "stable"
+
+[[channels.homebrew.assets]]
+key = "macos_arm"
+target = "aarch64-apple-darwin"
+[[channels.homebrew.assets]]
+key = "macos_intel"
+target = "x86_64-apple-darwin"
+[[channels.homebrew.assets]]
+key = "linux"
+target = "x86_64-unknown-linux-gnu"
+
+[channels.winget]
+workflow = "winget-publish.yml"
+dispatch_inputs = {  }
+identifier = "randlee.wyvern"
+installer_target = "x86_64-pc-windows-msvc"
+
+[channels.scoop]
+workflow = "scoop-publish.yml"
+dispatch_inputs = {  }
+bucket_repository = "randlee/scoop-bucket"
+manifest_path = "bucket/wyvern.json"
+manifest_template = "release/scoop/manifest.json.j2"
+installer_target = "x86_64-pc-windows-msvc"
+binary = "bin/wyvern.exe"
+renderer_target = "x86_64-unknown-linux-gnu"
