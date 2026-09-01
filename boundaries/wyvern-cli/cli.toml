@@ -1,9 +1,29 @@
 boundary_id = "BOUNDARY-WyvernCli"
 owner_package = "wyvern-cli"
+owner_crate_path = "wyvern_cli"
 name = "WyvernCli"
 
+[public]
+facade = "run_from_loaded"
+
+[implementation]
+type = "PipelineError"
+module = "wyvern_cli"
+visibility = "public"
+constructor = "none"
+
+[composition]
+roots = [
+  "CliArgs",
+  "PipelineError",
+  "run_from_loaded",
+  "spawn_embedded_viewer",
+  "run_wizard_command",
+  "ExtensionRegistry",
+  "load_command_input",
+]
+
 [dependencies]
-# wyvern-viewer: optional dep for dev binary-path helpers; embedded spawn uses subprocess (no wry in CLI)
 allowed_dependents = []
 allowed_dependencies = [
   "wyvern-schema",
@@ -22,15 +42,24 @@ allowed_dependencies = [
   "libc",
 ]
 forbidden_edges = [
+
   { from = "wyvern-cli", to = "wyvern-mcp" },
   { from = "wyvern-cli", to = "wry" },
   { from = "wyvern-cli", to = "winit" },
   { from = "wyvern-cli", to = "rfd" },
 ]
 
-[ownership]
-io_owns = ["stdin_reading", "stdout_writing", "stderr_writing", "arg_parsing", "host_options", "viewer_flag", "embedded_viewer_spawn", "viewer_show_hide", "workflow_script_spawn", "wizard_chain_loop"]
-io_forbidden = ["http_server", "webview_creation", "static_file_serve", "dialog_content_html"]
+[references]
+scope = "outside_owner_crate"
+forbidden = []
+
+[testing]
+allowed_test_double_paths = []
+forbidden_test_bypasses = []
 
 [enforcement]
 lint_rules = ["LINT-BOUNDARY-CLI-NO-WINDOW-DIRECT"]
+review_gates = ["no_direct_webview_deps"]
+
+[status]
+state = "concrete_landed"

@@ -1,0 +1,3 @@
+[planning]
+# Wyvern does not use inventory-parity sprint escalation yet; set a stable sentinel.
+current_sprint = "J.5"

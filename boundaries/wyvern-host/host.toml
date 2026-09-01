@@ -1,19 +1,65 @@
 boundary_id = "BOUNDARY-WyvernHost"
 owner_package = "wyvern-host"
+owner_crate_path = "wyvern_host"
 name = "WyvernHost"
 
+[public]
+facade = "run"
+
+[implementation]
+type = "HostError"
+module = "wyvern_host"
+visibility = "public"
+constructor = "none"
+
+[composition]
+roots = [
+  "run",
+  "begin",
+  "DialogHandle",
+  "HostOptions",
+  "HostError",
+  "ViewerMode",
+  "BrowserRegistryEntry",
+]
+
 [dependencies]
-allowed_dependencies = ["wyvern-schema", "serde", "serde_json", "axum", "tokio", "tower", "tower-http", "tracing", "rfd", "webbrowser", "dirs", "pulldown-cmark", "ammonia", "wyvern-wizard"]
+allowed_dependents = ["wyvern-cli", "wyvern-mcp"]
+allowed_dependencies = [
+  "wyvern-schema",
+  "serde",
+  "serde_json",
+  "axum",
+  "tokio",
+  "tower",
+  "tower-http",
+  "tracing",
+  "rfd",
+  "webbrowser",
+  "dirs",
+  "pulldown-cmark",
+  "ammonia",
+  "wyvern-wizard",
+]
 forbidden_edges = [
+
   { from = "wyvern-host", to = "wyvern-cli" },
   { from = "wyvern-host", to = "wyvern-mcp" },
   { from = "wyvern-host", to = "wry" },
   { from = "wyvern-host", to = "winit" },
 ]
 
-[ownership]
-io_owns = ["tcp_bind", "http_server", "static_file_serve", "dialog_session", "wizard_session", "wizard_routes", "report_routes", "report_session", "result_channel", "native_file_picker", "browser_registry", "system_browser_launch", "dialog_content_html", "dialog_preview_html"]
-io_forbidden = ["stdin_reading", "stdout_writing", "arg_parsing", "webview_creation", "inline_html_embed", "html_template_generation", "mcp_protocol", "embedded_viewer_spawn", "wizard_history_internals", "wizard_domain_logic", "workflow_script_spawn", "wizard_chain_loop"]
+[references]
+scope = "outside_owner_crate"
+forbidden = []
+
+[testing]
+allowed_test_double_paths = []
+forbidden_test_bypasses = []
 
 [enforcement]
 lint_rules = ["LINT-BOUNDARY-HOST-NO-CLI", "LINT-BOUNDARY-HOST-NO-WEBVIEW"]
+review_gates = ["http_host_only"]
+
+[status]
+state = "concrete_landed"

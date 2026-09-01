@@ -1,17 +1,39 @@
 boundary_id = "BOUNDARY-WyvernMcp"
 owner_package = "wyvern-mcp"
+owner_crate_path = "wyvern_mcp"
 name = "WyvernMcp"
 
+[public]
+facade = "wyvern_mcp"
+
+[implementation]
+visibility = "trait_only"
+
+[composition]
+roots = []
+
 [dependencies]
-allowed_dependencies = ["wyvern-schema", "wyvern-host", "tokio"]
+allowed_dependents = []
+allowed_dependencies = ["wyvern-schema"]
 forbidden_edges = [
+
   { from = "wyvern-mcp", to = "wyvern-cli" },
   { from = "wyvern-mcp", to = "wyvern-wizard" },
+  { from = "wyvern-mcp", to = "wry" },
+  { from = "wyvern-mcp", to = "winit" },
 ]
 
-[ownership]
-io_owns = ["mcp_stdio_transport", "tool_registration", "persistent_host_lifecycle"]
-io_forbidden = ["arg_parsing", "stdin_readline_loop", "direct_wizard_navigation", "http_server_impl"]
+[references]
+scope = "outside_owner_crate"
+forbidden = []
+
+[testing]
+allowed_test_double_paths = []
+forbidden_test_bypasses = []
 
 [enforcement]
 lint_rules = ["LINT-BOUNDARY-MCP-NO-CLI", "LINT-BOUNDARY-MCP-WINDOW-VIA-API-ONLY"]
+review_gates = ["phase_e_stub"]
+
+[status]
+state = "planned"
