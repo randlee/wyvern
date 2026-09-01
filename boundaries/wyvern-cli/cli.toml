@@ -1,0 +1,65 @@
+boundary_id = "BOUNDARY-WyvernCli"
+owner_package = "wyvern-cli"
+owner_crate_path = "wyvern_cli"
+name = "WyvernCli"
+
+[public]
+facade = "run_from_loaded"
+
+[implementation]
+type = "PipelineError"
+module = "wyvern_cli"
+visibility = "public"
+constructor = "none"
+
+[composition]
+roots = [
+  "CliArgs",
+  "PipelineError",
+  "run_from_loaded",
+  "spawn_embedded_viewer",
+  "run_wizard_command",
+  "ExtensionRegistry",
+  "load_command_input",
+]
+
+[dependencies]
+allowed_dependents = []
+allowed_dependencies = [
+  "wyvern-schema",
+  "wyvern-host",
+  "wyvern-wizard",
+  "wyvern-viewer",
+  "serde",
+  "serde_json",
+  "tracing",
+  "tracing-subscriber",
+  "sc-observability",
+  "sc-observability-types",
+  "dirs",
+  "rust-embed",
+  "tempfile",
+  "libc",
+]
+forbidden_edges = [
+
+  { from = "wyvern-cli", to = "wyvern-mcp" },
+  { from = "wyvern-cli", to = "wry" },
+  { from = "wyvern-cli", to = "winit" },
+  { from = "wyvern-cli", to = "rfd" },
+]
+
+[references]
+scope = "outside_owner_crate"
+forbidden = []
+
+[testing]
+allowed_test_double_paths = []
+forbidden_test_bypasses = []
+
+[enforcement]
+lint_rules = ["LINT-BOUNDARY-CLI-NO-WINDOW-DIRECT"]
+review_gates = ["no_direct_webview_deps"]
+
+[status]
+state = "concrete_landed"

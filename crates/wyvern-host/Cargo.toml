@@ -6,6 +6,7 @@ rust-version.workspace = true
 license.workspace     = true
 repository.workspace  = true
 homepage.workspace    = true
+authors.workspace     = true
 description = "Wyvern HTTP dialog host — bind, serve packaged UI, await POST /api/result"
 keywords    = ["wyvern", "dialog", "webview", "http"]
 categories  = ["command-line-utilities", "web-programming"]

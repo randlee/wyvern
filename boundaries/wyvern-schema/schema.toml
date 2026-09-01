@@ -1,14 +1,53 @@
 boundary_id = "BOUNDARY-WyvernSchema"
 owner_package = "wyvern-schema"
+owner_crate_path = "wyvern_schema"
 name = "WyvernSchema"
 
-[dependencies]
-allowed_dependencies = ["serde", "serde_json", "strsim"]
-forbidden_dependencies = ["wyvern-cli", "wyvern-wizard", "wyvern-mcp", "wry", "winit", "rfd"]
+[public]
+facade = "Command"
 
-[ownership]
-io_owns = ["type_definitions", "validation_logic", "error_message_formatting"]
-io_forbidden = ["file_io", "network_io", "window_creation", "webview", "async_runtime"]
+[implementation]
+type = "Command"
+module = "wyvern_schema"
+visibility = "public"
+constructor = "none"
+
+[composition]
+roots = [
+  "ButtonLabel",
+  "ChromeStatus",
+  "ChromeTitle",
+  "Command",
+  "ValidationError",
+  "ErrorCode",
+  "CommandResult",
+  "validate",
+]
+
+[dependencies]
+allowed_dependents = ["wyvern-cli", "wyvern-host", "wyvern-wizard", "wyvern-mcp"]
+allowed_dependencies = ["serde", "serde_json", "strsim"]
+forbidden_edges = [
+
+  { from = "wyvern-schema", to = "wyvern-cli" },
+  { from = "wyvern-schema", to = "wyvern-wizard" },
+  { from = "wyvern-schema", to = "wyvern-mcp" },
+  { from = "wyvern-schema", to = "wry" },
+  { from = "wyvern-schema", to = "winit" },
+  { from = "wyvern-schema", to = "rfd" },
+]
+
+[references]
+scope = "outside_owner_crate"
+forbidden = []
+
+[testing]
+allowed_test_double_paths = []
+forbidden_test_bypasses = []
 
 [enforcement]
 lint_rules = ["LINT-BOUNDARY-SCHEMA-PURE-LOGIC"]
+review_gates = ["pure_logic_only"]
+
+[status]
+state = "concrete_landed"

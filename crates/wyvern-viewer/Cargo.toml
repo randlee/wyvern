@@ -6,6 +6,7 @@ rust-version.workspace = true
 license.workspace     = true
 repository.workspace  = true
 homepage.workspace    = true
+authors.workspace     = true
 description = "Wyvern embedded URL viewer — wry window that loads a dialog URL"
 keywords    = ["wyvern", "webview", "viewer", "wry"]
 categories  = ["command-line-utilities", "gui"]

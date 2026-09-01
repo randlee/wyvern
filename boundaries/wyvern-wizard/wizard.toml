@@ -1,34 +1,59 @@
 boundary_id = "BOUNDARY-WyvernWizard"
 owner_package = "wyvern-wizard"
+owner_crate_path = "wyvern_wizard"
 name = "WyvernWizard"
 
-[dependencies]
-allowed_dependencies = ["wyvern-schema", "serde_json"]
-forbidden_dependencies = ["wyvern", "wyvern-window", "wyvern-host", "wyvern-mcp", "wry", "winit", "rfd", "axum", "tokio", "tower", "hyper", "reqwest"]
+[public]
+facade = "WizardSession"
 
-[ownership]
-io_owns = ["wizard_session", "history_cursor", "stack_snapshot", "navigation"]
-io_forbidden = ["file_io", "network_io", "window_creation", "webview", "ipc", "async_runtime", "http_routes", "browser_history_internals"]
+[implementation]
+type = "WizardSession"
+module = "wyvern_wizard"
+visibility = "public"
+constructor = "none"
 
-[public_api]
-# Host and tests: session API. wyvern-cli (Phase G g.9/g.14): static lint/dataflow only.
-allowed_modules = [
-  "wyvern_wizard::WizardSession",
-  "wyvern_wizard::WizardSnapshot",
-  "wyvern_wizard::WizardError",
-  "wyvern_wizard::NavigateOutcome",
-  "wyvern_wizard::lint",
-  "wyvern_wizard::dataflow",
-  "wyvern_wizard::graph",
-  "wyvern_wizard::LintFinding",
-  "wyvern_wizard::PageInfo",
-  "wyvern_wizard::PageRole",
-  "wyvern_wizard::GraphPage",
-  "wyvern_wizard::WizardPageGraph",
-  "wyvern_wizard::DataflowSpec",
-  "wyvern_wizard::DataflowLintInput",
+[composition]
+roots = [
+  "WizardSession",
+  "WizardSnapshot",
+  "WizardError",
+  "NavigateOutcome",
+  "lint",
+  "dataflow",
+  "LintFinding",
+  "PageInfo",
+  "DataflowSpec",
 ]
-permitted_consumers = ["wyvern-host", "wyvern-cli"]
+
+[dependencies]
+allowed_dependents = ["wyvern-host", "wyvern-cli"]
+allowed_dependencies = ["wyvern-schema", "serde_json"]
+forbidden_edges = [
+
+  { from = "wyvern-wizard", to = "wyvern-cli" },
+  { from = "wyvern-wizard", to = "wyvern-host" },
+  { from = "wyvern-wizard", to = "wyvern-mcp" },
+  { from = "wyvern-wizard", to = "wry" },
+  { from = "wyvern-wizard", to = "winit" },
+  { from = "wyvern-wizard", to = "rfd" },
+  { from = "wyvern-wizard", to = "axum" },
+  { from = "wyvern-wizard", to = "tokio" },
+  { from = "wyvern-wizard", to = "tower" },
+  { from = "wyvern-wizard", to = "hyper" },
+  { from = "wyvern-wizard", to = "reqwest" },
+]
+
+[references]
+scope = "outside_owner_crate"
+forbidden = []
+
+[testing]
+allowed_test_double_paths = []
+forbidden_test_bypasses = []
 
 [enforcement]
 lint_rules = ["LINT-BOUNDARY-WIZARD-PURE-LOGIC"]
+review_gates = ["pure_logic_only"]
+
+[status]
+state = "concrete_landed"
