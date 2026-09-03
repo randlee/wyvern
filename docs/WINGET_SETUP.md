@@ -29,13 +29,17 @@ found — winget may not refresh PATH in the current session.
 
 ## PortableCommandAlias (required)
 
-Portable zip manifests must alias the nested binary to `wyvern`:
+Portable zip manifests must alias the nested binary to `wyvern`. Kit release
+archives extract with a versioned top-level directory — `RelativeFilePath` is
+relative to the **zip root**, not the inner folder:
 
 ```yaml
 NestedInstallerFiles:
-  - RelativeFilePath: bin/wyvern.exe
+  - RelativeFilePath: wyvern_0.6.0_x86_64-pc-windows-msvc/bin/wyvern.exe
     PortableCommandAlias: wyvern
 ```
+
+(Scoop uses the same layout via `extract_dir` + `bin/wyvern.exe`.)
 
 Without `PortableCommandAlias`, winget defaults the shim name to the filename
 (`wyvern.exe`). Reference: `release/winget-bootstrap/0.5.0/randlee.wyvern.installer.yaml`.

@@ -11,6 +11,10 @@ Every portable installer manifest must set `PortableCommandAlias: wyvern` under
 `NestedInstallerFiles`. Without it, winget exposes `wyvern.exe` on PATH instead
 of `wyvern` (Homebrew and Scoop use the bare command name).
 
+Kit archives (`wyvern_<version>_x86_64-pc-windows-msvc.zip`) include a
+versioned top-level directory; winget `RelativeFilePath` must start with that
+prefix (e.g. `wyvern_0.6.0_x86_64-pc-windows-msvc/bin/wyvern.exe`).
+
 ## Submit
 
 1. Fork `microsoft/winget-pkgs` using `WINGET_GITHUB_TOKEN` (see
