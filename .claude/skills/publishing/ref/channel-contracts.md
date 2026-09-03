@@ -88,6 +88,11 @@ Use the contract-declared GitHub token liveness check before dispatching the
 manifest-declared workflow. The manifest owns the package identifier and
 installer target.
 
+Portable zip submissions must include `PortableCommandAlias: wyvern` under
+`NestedInstallerFiles` so installs expose `wyvern` on PATH (komac does not add
+this automatically — verify or amend before merge). See
+[docs/WINGET_SETUP.md](../../../../docs/WINGET_SETUP.md).
+
 ## Scoop — `scoop-publisher`
 
 Use the contract-declared GitHub token liveness check before dispatching the

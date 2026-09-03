@@ -6,6 +6,7 @@ InstallerType: zip
 NestedInstallerType: portable
 NestedInstallerFiles:
   - RelativeFilePath: wyvern.exe
+    PortableCommandAlias: wyvern
 Installers:
   - Architecture: x64
     InstallerUrl: https://github.com/randlee/wyvern/releases/download/v0.5.0/wyvern-windows.zip
