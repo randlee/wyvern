@@ -1,6 +1,10 @@
-# sc-lint workspace config (Phase A — a.7)
-# Install: cargo install sc-lint --version 0.4.0 --locked
+# sc-lint workspace config (Phase A — a.7, upgraded 0.5.0)
+# Local install: cargo install sc-lint --version 0.5.0 --locked
+# CI install: .github/actions/setup-sc-lint (GitHub release bundle)
 # Canonical check: sc-lint check native --config .sc-lint.toml
+
+[tool.sc-lint]
+minimum_version = "0.5.0"
 
 [workspace]
 root = "."

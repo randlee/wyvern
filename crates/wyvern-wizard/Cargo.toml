@@ -6,6 +6,7 @@ rust-version.workspace = true
 license.workspace     = true
 repository.workspace  = true
 homepage.workspace    = true
+authors.workspace     = true
 description = "Wyvern wizard navigation state machine (browser-history cursor)"
 keywords    = ["wyvern", "dialog", "wizard", "state-machine"]
 categories  = ["command-line-utilities"]

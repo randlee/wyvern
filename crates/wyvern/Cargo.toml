@@ -6,6 +6,7 @@ rust-version.workspace = true
 license.workspace    = true
 repository.workspace = true
 homepage.workspace   = true
+authors.workspace    = true
 description  = "What You View, Engine Renders Natively — HTTP dialog CLI"
 keywords     = ["wyvern", "dialog", "webview", "cli", "json"]
 categories   = ["command-line-utilities", "gui"]

@@ -1,28 +1,35 @@
 # Linting
 
-Wyvern uses [`sc-lint`](https://crates.io/crates/sc-lint) from crates.io for
-workspace policy checks in local development and CI.
+Wyvern uses [`sc-lint`](https://crates.io/crates/sc-lint) **0.5.0** for workspace
+policy checks in local development and CI. CI installs the verified GitHub release
+bundle (`sc-lint`, `sc-lint-boundary`, `sc-lint-portability`, `sc-lint-runtime`)
+via [`.github/actions/setup-sc-lint`](../.github/actions/setup-sc-lint).
 
-Boundary TOML under `boundaries/` is inventory for later phases; Phase A does
-not enforce `sc-lint-boundary` in CI (see Phase B planning).
+Boundary dependency allowlists and forbidden edges are enforced by
+`sc-lint lint sc-boundary` against ADR-004 records under `boundaries/<owner-package>/`.
+Wyvern-specific `io_forbidden` grep policy lives in
+[`scripts/io-forbidden.toml`](../scripts/io-forbidden.toml) and is checked by
+`scripts/check-boundaries.py`.
 
 ## Install
 
-Pin to the 0.4 line (exact release `0.4.0`):
+Pin to **0.5.0** (local development):
 
 ```bash
-cargo install sc-lint --version 0.4.0 --locked
+cargo install sc-lint --version 0.5.0 --locked
 ```
 
 Ensure `~/.cargo/bin` is on `PATH` so the crates.io binary is used (Homebrew
-formulas may still ship an older `sc-lint`).
+formulas may ship an older `sc-lint`).
 
 ## Config
 
-Repo-root [`.sc-lint.toml`](../.sc-lint.toml) scopes the tool to this
-workspace:
+Repo-root [`.sc-lint.toml`](../.sc-lint.toml) declares the consumer contract:
 
 ```toml
+[tool.sc-lint]
+minimum_version = "0.5.0"
+
 [workspace]
 root = "."
 ```
@@ -36,11 +43,21 @@ file.
 sc-lint check native --config .sc-lint.toml
 ```
 
-`check` requires a target (`native` or `xwin`). Phase A CI uses `native`, which
+`check` requires a target (`native` or `xwin`). CI uses `native`, which
 runs `cargo check --workspace` and must pass with zero warnings/failures.
 
 Always pass `--test-threads=1` for workspace tests on macOS (winit/objc races when
 multiple webview children spawn). CI already enforces this; local runs must match.
+
+## Published analyzers (0.5.0)
+
+| Backend | CLI target | Wyvern CI |
+|---------|------------|-----------|
+| Compile gate | `sc-lint check native` | **Yes** — all matrix legs |
+| Boundary graph | `sc-lint lint sc-boundary` | **Yes** — boundaries CI job |
+| Portability | `sc-lint lint sc-portability` | Not run |
+| Runtime liveness | `sc-lint lint sc-runtime` | Setup smoke test only |
+| Full consumer CI | `sc-lint ci` | Not run (requires `sc-lint init --just`) |
 
 ## Panic policy
 
@@ -50,14 +67,14 @@ Production paths must not panic. Panics are forbidden in non-test code in
 `panic!`.
 
 **Enforcement is Clippy crate-root denies — not a `.sc-lint.toml` key.**
-`sc-lint` 0.4.x has no panic/unwrap policy knobs.
+`sc-lint` 0.5.x has no panic/unwrap policy knobs.
 
 | Surface | Detects production `unwrap`/`expect`/`panic!`? | Wyvern CI |
 |---------|-----------------------------------------------|-----------|
 | `sc-lint check native` | **No** — wraps `cargo check --workspace` | Yes |
 | `sc-lint clippy native` | **Indirect** — wraps `cargo clippy -D warnings`; honors crate `#![deny(...)]` | No (direct `cargo clippy` instead) |
-| `sc-lint lint sc-boundary` | **No** — dependency/ownership graph | Stub only |
-| `sc-lint lint sc-runtime` | **No** — condvar liveness only | Not run |
+| `sc-lint lint sc-boundary` | **No** — dependency/ownership graph | Yes |
+| `sc-lint lint sc-runtime` | **No** — condvar liveness only | Setup smoke only |
 
 Authoritative regression gate:
 
@@ -75,5 +92,8 @@ sc-lint clippy native --config .sc-lint.toml
 ## CI
 
 Every matrix leg (`ubuntu-latest`, `macos-latest`, `windows-latest`) installs
-`sc-lint` 0.4.0 from crates.io and runs the canonical command above. See
-[`.github/workflows/ci.yml`](../.github/workflows/ci.yml).
+sc-lint **0.5.0** from the GitHub release bundle and runs the canonical command
+above. See [`.github/workflows/ci.yml`](../.github/workflows/ci.yml).
+
+The **Boundary lint** job runs `sc-lint lint sc-boundary`, `scripts/check-boundaries.py`
+(io_forbidden greps), and ui/share sync checks.

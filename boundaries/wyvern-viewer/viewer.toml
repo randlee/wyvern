@@ -1,20 +1,48 @@
 boundary_id = "BOUNDARY-WyvernViewer"
 owner_package = "wyvern-viewer"
+owner_crate_path = "wyvern_viewer"
 name = "WyvernViewer"
-status = "active"
+
+[public]
+facade = "DismissError"
+
+[implementation]
+type = "DismissError"
+module = "wyvern_viewer"
+visibility = "public"
+constructor = "none"
+
+[composition]
+roots = [
+  "DismissError",
+  "ViewportBounds",
+  "resolve_bootstrap_size",
+  "post_dismissed",
+  "is_wizard_dialog_url",
+]
 
 [dependencies]
+allowed_dependents = ["wyvern-cli"]
 allowed_dependencies = ["wry", "winit", "url", "tracing", "serde", "serde_json", "gtk"]
 forbidden_edges = [
-  { from = "wyvern-viewer", to = "wyvern" },
+
+  { from = "wyvern-viewer", to = "wyvern-cli" },
   { from = "wyvern-viewer", to = "wyvern-mcp" },
   { from = "wyvern-viewer", to = "wyvern-host" },
   { from = "wyvern-viewer", to = "wyvern-schema" },
 ]
 
-[ownership]
-io_owns = ["webview_open_url", "webview_show_hide", "viewer_lifecycle_stdin", "chrome_presentation_ipc"]
-io_forbidden = ["http_server", "stdout_writing", "inline_html"]
+[references]
+scope = "outside_owner_crate"
+forbidden = []
+
+[testing]
+allowed_test_double_paths = []
+forbidden_test_bypasses = []
 
 [enforcement]
 lint_rules = ["LINT-BOUNDARY-VIEWER-URL-ONLY"]
+review_gates = ["url_only_webview"]
+
+[status]
+state = "concrete_landed"
