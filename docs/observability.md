@@ -1,13 +1,13 @@
 # Wyvern observability
 
-Structured logging for the Wyvern CLI via [`sc-observability`](https://crates.io/crates/sc-observability) **1.2** (crates.io only — no path dependency).
+Structured logging for the Wyvern CLI via [`sc-observability`](https://crates.io/crates/sc-observability) **1.5** (crates.io only — no path dependency). The binary installs the canonical `sc_observability::v2` logger; v1 root re-exports are deprecated.
 
 ## Dependency pin
 
 | Location | Declaration |
 |----------|-------------|
-| Workspace `Cargo.toml` | `sc-observability = "1.2"` under `[workspace.dependencies]` |
-| `crates/wyvern/Cargo.toml` | `sc-observability = { workspace = true }` |
+| Workspace `Cargo.toml` | `sc-observability = "1.5.0"` and `sc-observability-types = "1.5.0"` under `[workspace.dependencies]` |
+| `crates/wyvern/Cargo.toml` | `sc-observability = { workspace = true }`, `sc-observability-types = { workspace = true }` |
 
 Only the `wyvern` binary crate depends on `sc-observability`. Library crates (`wyvern-schema`, `wyvern-window`, `wyvern-wizard`, `wyvern-mcp`) must not import it.
 
@@ -57,7 +57,7 @@ main
        └─ log_result_emitted
 ```
 
-Implementation: `crates/wyvern/src/observability.rs` (wrapper) and `crates/wyvern/src/pipeline.rs` (hooks).
+Implementation: `crates/wyvern/src/main_observability.rs` (binary-only v2 logger), `crates/wyvern/src/observability.rs` (library tracing facade; no `sc_observability` import), and `crates/wyvern/src/pipeline.rs` (hooks).
 
 ## Out of scope
 
