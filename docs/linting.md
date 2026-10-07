@@ -56,7 +56,7 @@ multiple webview children spawn). CI already enforces this; local runs must matc
 | Compile gate | `sc-lint check native` | **Yes** — all matrix legs |
 | Clippy wrapper | `sc-lint clippy native` | **Yes** — all build matrix legs |
 | Boundary graph | `sc-lint lint sc-boundary` | **Yes** — boundaries CI job |
-| Portability | `sc-lint lint sc-portability` | Not run |
+| Portability | `sc-lint lint sc-portability` | **Yes** — boundaries CI job |
 | Runtime liveness | `sc-lint lint sc-runtime` | Setup smoke test only |
 | Full consumer CI | `sc-lint ci` | Not run (requires `sc-lint init --just`) |
 
@@ -97,5 +97,13 @@ sc-lint **0.5.0** from the GitHub release bundle, runs **`sc-lint clippy native`
 (JSON gate via [`scripts/sc_lint_json_gate.sh`](../scripts/sc_lint_json_gate.sh)),
 then **`sc-lint check native`**. See [`.github/workflows/ci.yml`](../.github/workflows/ci.yml).
 
-The **Boundary lint** job runs `sc-lint lint sc-boundary`, `scripts/check-boundaries.py`
-(io_forbidden greps), and ui/share sync checks.
+The **Boundary lint** job runs `sc-lint lint sc-boundary`, `sc-lint lint
+sc-portability` (JSON `data.status == pass`; the 0.5.0 CLI exits 0 even when
+findings exist), `scripts/check-boundaries.py` (io_forbidden greps), and
+ui/share sync checks.
+
+`sc-lint lint sc-portability` needs no extra policy file. The analyzer ships
+built-in `unix_path_prefixes` (`/tmp/`, `/var/tmp/`, `/private/tmp/`) and only
+reads optional `[portability].config_home_env` from `sc-lint.toml` or
+`.just/lint-config.toml` — not from [`.sc-lint.toml`](../.sc-lint.toml). There
+is no rule-disable / allowlist surface in 0.5.0.

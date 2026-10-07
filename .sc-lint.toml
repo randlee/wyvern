@@ -2,6 +2,9 @@
 # Local install: cargo install sc-lint --version 0.5.0 --locked
 # CI install: .github/actions/setup-sc-lint (GitHub release bundle)
 # Canonical check: sc-lint check native --config .sc-lint.toml
+# Portability (`sc-lint lint sc-portability`) uses built-in unix_path_prefixes.
+# Optional [portability].config_home_env is only read from sc-lint.toml or
+# .just/lint-config.toml (not this dotfile); Wyvern does not set it.
 
 [tool.sc-lint]
 minimum_version = "0.5.0"
