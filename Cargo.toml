@@ -55,7 +55,8 @@ dirs       = "6"
 webbrowser = "1"
 
 # Logging (crates.io — see docs/plans/phase-A/a6-sc-observability.md)
-sc-observability = "1.2"
+sc-observability = "1.5.0"
+sc-observability-types = "1.5.0"
 
 [profile.release]
 opt-level     = "z"

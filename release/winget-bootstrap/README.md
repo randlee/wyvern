@@ -7,6 +7,10 @@ Uses the **legacy** v0.5.0 asset `wyvern-windows.zip` (root-level `wyvern.exe`).
 Kit releases from j.3 onward use `wyvern_<version>_x86_64-pc-windows-msvc.zip`
 with `bin/wyvern.exe`; subsequent versions are handled by the kit workflow.
 
+Every portable installer manifest must set `PortableCommandAlias: wyvern` under
+`NestedInstallerFiles`. Without it, winget exposes `wyvern.exe` on PATH instead
+of `wyvern` (Homebrew and Scoop use the bare command name).
+
 ## Submit
 
 1. Fork `microsoft/winget-pkgs` using `WINGET_GITHUB_TOKEN` (see

@@ -15,6 +15,35 @@ fork token + wrong asset name).
 Declared in `release/install.json` → rendered `release/publish-artifacts.toml`
 `[channels.winget]`.
 
+## PATH after install
+
+| Channel | Command on PATH | Notes |
+|---------|-----------------|-------|
+| **winget** | `wyvern` | Requires `PortableCommandAlias: wyvern` in the installer manifest (see below) |
+| Homebrew | `wyvern`, `wyvern-viewer` | Automatic via `bin.install` |
+| Scoop | `wyvern` | Automatic via `"bin": "bin/wyvern.exe"` shim |
+| `cargo install wyvern-cli` | `wyvern` | Only when `~/.cargo/bin` is on PATH (typical rustup setup) |
+
+After `winget install randlee.wyvern`, open a **new terminal** if `wyvern` is not
+found — winget may not refresh PATH in the current session.
+
+## PortableCommandAlias (required)
+
+Portable zip manifests must alias the nested binary to `wyvern`:
+
+```yaml
+NestedInstallerFiles:
+  - RelativeFilePath: bin/wyvern.exe
+    PortableCommandAlias: wyvern
+```
+
+Without `PortableCommandAlias`, winget defaults the shim name to the filename
+(`wyvern.exe`). Reference: `release/winget-bootstrap/0.5.0/randlee.wyvern.installer.yaml`.
+
+`winget-releaser` / komac does **not** emit this field today. After each
+automated submission (or before merging a manual PR), verify the installer
+manifest includes `PortableCommandAlias: wyvern`.
+
 ## Release model (kit)
 
 1. **Root release** (`release.yml` on `main`) builds and uploads GitHub Release

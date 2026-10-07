@@ -28,7 +28,7 @@ target: integrate/phase-A
 
 ## Deliverables
 
-- Workspace + crate dep: `sc-observability = "1.2"` (crates.io — no path dep)
+- Workspace + crate dep: `sc-observability = "1.5.0"` (crates.io — no path dep; binary uses `sc_observability::v2`)
 - Normative events: `process_start`, `command_received`, `validation_result`, `window_open`, `window_close`, `result_emitted`, `error`
 - `WYVERN_LOG` env var documented
 - Pipeline integration sample (below) — logging calls live in `pipeline.rs`; `main.rs` calls `observability::init()` only
@@ -38,7 +38,8 @@ target: integrate/phase-A
 ```toml
 # Cargo.toml (workspace)
 [workspace.dependencies]
-sc-observability = "1.2"
+sc-observability = "1.5.0"
+sc-observability-types = "1.5.0"
 
 # crates/wyvern/Cargo.toml
 sc-observability = { workspace = true }

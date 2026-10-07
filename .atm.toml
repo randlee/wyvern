@@ -33,7 +33,7 @@ ATM_TEAM = "wyvern"
 CLAUDE_CODE_TASK_LIST_ID = "wyvern"
 
 [[rmux.windows.panes]]
-command = "codex -c features.codex_hooks=true --yolo"
+command = "codex -c features.hooks=true --yolo"
 name = "cwy"
 tmux_pane_id = "%10"
 
