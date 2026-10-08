@@ -2,9 +2,20 @@ name: CI
 
 on:
   pull_request:
-    branches: [develop, main, "integrate/*"]
+    # gh-stack middle layers target feature/* bases — must trigger CI on those PRs.
+    branches:
+      - develop
+      - main
+      - "integrate/**"
+      - "feature/**"
+      - "plan/**"
   push:
-    branches: [develop, main]
+    branches:
+      - develop
+      - main
+      - "integrate/**"
+      - "feature/**"
+      - "plan/**"
 
 jobs:
   build:
@@ -284,6 +295,91 @@ jobs:
         with:
           components: rustfmt
       - run: cargo fmt --all -- --check
+
+  # Dedicated Ubuntu job (not the 3-OS build matrix). Top-level `sc-lint ci` is
+  # the source-maintainer profile and shells into sc-lint's own `.just/*.py`
+  # helpers (`cargo run -p sc-lint-boundary`). Consumer CI is
+  # `sc-lint lint --consumer --config sc-lint.toml ci` (fmt + clippy; only valid consumer TARGET).
+  # Workspace tests stay on the build matrix (`--test-threads=1`).
+  sc-lint-ci:
+    name: sc-lint consumer CI
+    runs-on: ubuntu-latest
+    needs: [fmt]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Install Linux build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwayland-dev \
+            pkg-config \
+            libwebkit2gtk-4.1-dev \
+            libxkbcommon-x11-0 \
+            libgl1-mesa-dri \
+            mesa-utils \
+            at-spi2-core \
+            dbus-x11 \
+            xvfb
+
+      - name: Set up sc-lint (published release bundle)
+        uses: ./.github/actions/setup-sc-lint
+
+      - name: Install just (consumer bootstrap smoke)
+        run: curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
+
+      - name: sc-lint init --just --check
+        run: bash scripts/sc_lint_json_gate.sh current -- init --just --check
+
+      # Consumer lint only supports TARGET=ci (named fmt/clippy profiles are not CLI targets).
+      # needs: [fmt] still skips this job when fmt fails; consumer ci re-runs fmt here.
+      - name: sc-lint consumer lint ci
+        run: bash scripts/sc_lint_json_gate.sh pass -- lint --consumer --config sc-lint.toml ci
+
+      - name: just available for local bootstrap
+        run: just --version
+
+  sc-lint-consumer-windows:
+    name: sc-lint consumer CI (Windows)
+    runs-on: windows-latest
+    needs: [fmt]
+    steps:
+      # init --just --check is byte-identical to LF canonical files.
+      # Set this before checkout: Git for Windows defaults to autocrlf=true.
+      - name: Keep LF working tree
+        shell: bash
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Set up sc-lint (published release bundle)
+        uses: ./.github/actions/setup-sc-lint
+
+      # Windows 0.5.0 embeds CRLF templates; official --check is a raw byte
+      # compare and fails LF checkouts. Compare newline-normalized instead.
+      - name: sc-lint init --just (newline-normalized)
+        shell: bash
+        run: bash scripts/sc_lint_init_check.sh
+
+      - name: sc-lint consumer lint ci
+        shell: bash
+        run: bash scripts/sc_lint_json_gate.sh pass -- lint --consumer --config sc-lint.toml ci
+
+      - name: bootstrap.ps1 resolves
+        shell: pwsh
+        run: Test-Path .sc-lint/bootstrap.ps1
 
   boundaries:
     name: Boundary lint

@@ -24,11 +24,15 @@ formulas may ship an older `sc-lint`).
 
 ## Config
 
-Repo-root [`.sc-lint.toml`](../.sc-lint.toml) declares the analyzer CLI contract.
-Python analyzers (`line-counts`, `identity-literals`) use
-[`sc-lint-analyzers.toml`](../sc-lint-analyzers.toml) via
-[`scripts/sc_lint_python_gate.sh`](../scripts/sc_lint_python_gate.sh) — do not
-merge that policy into `.sc-lint.toml`.
+Two repo-root files, on purpose:
+
+| File | Owner | Used by |
+|------|-------|---------|
+| [`.sc-lint.toml`](../.sc-lint.toml) | Wyvern | Analyzer CLI `--config` (`check native`, `lint sc-boundary`, `lint sc-portability`) |
+| [`sc-lint.toml`](../sc-lint.toml) | `sc-lint init --just` | Consumer Just bootstrap (`just setup` / `lint` / `test` / `upgrade`) and `sc-lint lint --consumer` |
+| [`sc-lint-analyzers.toml`](../sc-lint-analyzers.toml) | Wyvern | Python analyzers (`line-counts`, `identity-literals`) via [`scripts/sc_lint_python_gate.sh`](../scripts/sc_lint_python_gate.sh) |
+
+[`.sc-lint.toml`](../.sc-lint.toml) is the stable `--config` contract:
 
 ```toml
 [tool.sc-lint]
@@ -38,8 +42,18 @@ minimum_version = "0.5.0"
 root = "."
 ```
 
-Pass `--config .sc-lint.toml` explicitly so CI and local runs share the same
-file.
+Pass `--config .sc-lint.toml` explicitly for analyzer commands. sc-lint 0.5.0
+default discovery looks for `sc-lint.toml` then `.just/lint-config.toml` — not
+this dotfile.
+
+`sc-lint.toml` holds the product-owned lint/test argv profiles (`fmt`,
+`clippy`, `cargo test --workspace`). Do not copy those arrays into
+`.sc-lint.toml`: an empty consumer profile fails `--consumer`, and mixing the
+files would break `sc-lint init --just --check`.
+
+Portability (`sc-lint lint sc-portability`) still uses built-in
+`unix_path_prefixes`. Optional `[portability].config_home_env` is only read
+from `sc-lint.toml` or `.just/lint-config.toml` — Wyvern does not set it.
 
 ## Canonical command
 
@@ -58,13 +72,14 @@ multiple webview children spawn). CI already enforces this; local runs must matc
 | Backend | CLI target | Wyvern CI |
 |---------|------------|-----------|
 | Compile gate | `sc-lint check native` | **Yes** — all matrix legs |
-| Clippy wrapper | `sc-lint clippy native` | **Yes** — all build matrix legs |
 | Boundary graph | `sc-lint lint sc-boundary` | **Yes** — boundaries CI job |
 | Portability | `sc-lint lint sc-portability` | **Yes** — boundaries CI job |
 | Runtime liveness | `sc-lint lint sc-runtime` | **Yes** — Boundary lint job |
+| Clippy wrapper | `sc-lint clippy native` | **Yes** — all build matrix legs |
 | line-counts | [`scripts/sc_lint_python_gate.sh`](../scripts/sc_lint_python_gate.sh) + [`sc-lint-analyzers.toml`](../sc-lint-analyzers.toml) | **Yes** — Boundary lint job |
 | identity-literals | same Python gate | **Yes** — Boundary lint job |
-| Full consumer CI | `sc-lint ci` | Not run (requires `sc-lint init --just`) |
+| Consumer lint | `sc-lint lint --consumer --config sc-lint.toml ci` (fmt + clippy) | **Yes** — Ubuntu + Windows consumer CI jobs |
+| Local aggregate | `just lint` → same consumer `ci` profile | Local |
 
 ## Panic policy
 
@@ -96,17 +111,47 @@ Optional local alias for the same clippy gate:
 sc-lint clippy native --config .sc-lint.toml
 ```
 
+## Consumer Just bootstrap
+
+`sc-lint init --just` (0.5.0) writes `sc-lint.toml`, `Justfile`,
+`.sc-lint/bootstrap`, and `.sc-lint/bootstrap.ps1`. After a clean checkout:
+
+```bash
+just setup   # download/verify the minimum_version release if needed
+just lint    # sc-lint lint --consumer --config sc-lint.toml ci
+just test    # sc-lint test --config sc-lint.toml
+```
+
+`just test` is `cargo test --workspace` without `--test-threads=1`. Local and
+CI workspace tests must still pass `--test-threads=1` on macOS (winit/objc
+races). Prefer the build-matrix `cargo test` job for that gate.
+
+Do **not** run top-level `sc-lint ci` in this repo. That command is
+sc-lint's source-maintainer profile: `fmt`, `clippy`, then `.just/*.py`
+helpers that `cargo run -p sc-lint-boundary` / `sc-lint-portability`. Those
+crates are not Wyvern workspace members.
+
 ## CI
 
 Every matrix leg (`ubuntu-latest`, `macos-latest`, `windows-latest`) installs
 sc-lint **0.5.0** from the GitHub release bundle, runs **`sc-lint clippy native`**
-(JSON gate via [`scripts/sc_lint_json_gate.sh`](../scripts/sc_lint_json_gate.sh)),
-then **`sc-lint check native`**. See [`.github/workflows/ci.yml`](../.github/workflows/ci.yml).
+(JSON gate), then **`sc-lint check native`**. See [`.github/workflows/ci.yml`](../.github/workflows/ci.yml).
+
+The **sc-lint consumer CI** jobs (Ubuntu + Windows, `needs: [fmt]`) run
+`sc-lint init --just --check`, then `sc-lint lint --consumer --config
+sc-lint.toml ci` (the same aggregate profile as `just lint`; 0.5.0 does not
+expose per-profile consumer targets such as `clippy`).
+Steps use [`scripts/sc_lint_json_gate.sh`](../scripts/sc_lint_json_gate.sh) because
+sc-lint 0.5.0 can exit 0 when `data.status` is not `pass`. `just` is installed
+so local `just setup` / `just lint` match documented bootstrap; CI invokes
+`sc-lint` directly for deterministic JSON gates.
+
+Workspace tests stay on the build matrix (`--test-threads=1`). Consumer
+`just test` / `sc-lint test` use the canonical profile in [`sc-lint.toml`](../sc-lint.toml)
+(without `--test-threads=1`); keep macOS threading on the matrix job or pass flags locally.
 
 The **Boundary lint** job runs `sc-lint lint sc-boundary`, `sc-lint lint
-sc-portability`, `sc-lint lint sc-runtime` (JSON `data.status == pass` via
-[`scripts/sc_lint_json_gate.sh`](../scripts/sc_lint_json_gate.sh); the 0.5.0 CLI
-exits 0 even when findings exist), Python **`line-counts`** and
+sc-portability`, `sc-lint lint sc-runtime`, Python **`line-counts`** and
 **`identity-literals`** (policy in [`sc-lint-analyzers.toml`](../sc-lint-analyzers.toml);
 see [j5 sprint plan](plans/phase-J/j5-sc-lint-extended-analyzers.md)), then
 `scripts/check-boundaries.py` (io_forbidden greps) and ui/share sync checks.
@@ -117,6 +162,21 @@ see [j5 sprint plan](plans/phase-J/j5-sc-lint-extended-analyzers.md)), then
 sc-lint view findings --config .sc-lint.toml   # after a lint run wrote artifacts
 sc-lint view graph --config .sc-lint.toml      # boundary graph (when supported)
 ```
+
+### Stack #160 landing (sc-lint 0.5.0)
+
+After PR **#159** is green: `gh stack sync --remote origin`, confirm stack coherence on
+`develop`, merge bottom **#154** upward (or `gh stack merge` per team workflow). Trunk
+should include observability **#161** via the stack base merge commit.
+
+## Release preflight tooling
+
+[`.github/actions/setup-lint-toolchain`](../.github/actions/setup-lint-toolchain)
+(cargo-deny, shear, codespell, etc.) is used only by
+[`release-preflight.yml`](../.github/workflows/release-preflight.yml), not PR CI.
+PR CI uses the sc-lint release bundle via `setup-sc-lint`.
+
+## Portability policy
 
 `sc-lint lint sc-portability` needs no extra policy file. The analyzer ships
 built-in `unix_path_prefixes` (`/tmp/`, `/var/tmp/`, `/private/tmp/`) and only

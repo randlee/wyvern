@@ -167,9 +167,29 @@ wyvern my-doc.md
 
 ---
 
+## Developing (clone)
+
+Rust **stable** with `clippy` and `rustfmt`. Policy linting uses **[sc-lint 0.5.0](docs/linting.md)**:
+
+```bash
+cargo install sc-lint --version 0.5.0 --locked   # ~/.cargo/bin on PATH
+sc-lint init --just --check                      # verify Just/bootstrap files
+just setup && just lint                          # consumer fmt + clippy
+sc-lint check native --config .sc-lint.toml      # compile gate (CI matrix)
+sc-lint clippy native --config .sc-lint.toml     # same clippy gate as CI
+```
+
+Materialize `.just/*.py` locally by running the same steps as
+[`.github/actions/setup-sc-lint`](.github/actions/setup-sc-lint) (release bundle + source
+archive), then run `bash scripts/sc_lint_python_gate.sh line-counts` /
+`identity-literals` with [`sc-lint-analyzers.toml`](sc-lint-analyzers.toml).
+
+Workspace tests on macOS: `cargo test --workspace -- --test-threads=1`.
+
 ## Docs
 
 - [PRD](docs/prd/wyvern-prd.md) — full product requirements and JSON schema reference
+- [Linting / sc-lint](docs/linting.md) — CI analyzers, Just bootstrap, stack landing
 - [CHANGELOG](CHANGELOG.md) — release history
 
 ## Deferred (post–v0.5.0)
