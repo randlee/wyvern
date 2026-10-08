@@ -1,0 +1,8 @@
+# sc-lint init --just --check compares these product-managed files
+# byte-for-byte against the published LF canonical integration.
+# Git for Windows defaults to core.autocrlf=true, which would rewrite
+# them to CRLF and fail with CLI.SC_LINT_INTEGRATION_CONFLICT.
+sc-lint.toml text eol=lf
+Justfile text eol=lf
+.sc-lint/bootstrap text eol=lf
+.sc-lint/bootstrap.ps1 text eol=lf

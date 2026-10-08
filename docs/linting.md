@@ -54,6 +54,7 @@ multiple webview children spawn). CI already enforces this; local runs must matc
 | Backend | CLI target | Wyvern CI |
 |---------|------------|-----------|
 | Compile gate | `sc-lint check native` | **Yes** — all matrix legs |
+| Clippy wrapper | `sc-lint clippy native` | **Yes** — all build matrix legs |
 | Boundary graph | `sc-lint lint sc-boundary` | **Yes** — boundaries CI job |
 | Portability | `sc-lint lint sc-portability` | Not run |
 | Runtime liveness | `sc-lint lint sc-runtime` | Setup smoke test only |
@@ -72,14 +73,14 @@ Production paths must not panic. Panics are forbidden in non-test code in
 | Surface | Detects production `unwrap`/`expect`/`panic!`? | Wyvern CI |
 |---------|-----------------------------------------------|-----------|
 | `sc-lint check native` | **No** — wraps `cargo check --workspace` | Yes |
-| `sc-lint clippy native` | **Indirect** — wraps `cargo clippy -D warnings`; honors crate `#![deny(...)]` | No (direct `cargo clippy` instead) |
+| `sc-lint clippy native` | **Indirect** — wraps `cargo clippy -D warnings`; honors crate `#![deny(...)]` | Yes (matrix) |
 | `sc-lint lint sc-boundary` | **No** — dependency/ownership graph | Yes |
 | `sc-lint lint sc-runtime` | **No** — condvar liveness only | Setup smoke only |
 
 Authoritative regression gate:
 
 1. Crate-root `#![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unreachable, clippy::todo, clippy::unimplemented))]` on the four roots above
-2. Existing `cargo clippy --workspace -- -D warnings` in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)
+2. `sc-lint clippy native --config .sc-lint.toml` in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) (JSON-gated)
 
 `#![allow(...)]` for these lints is permitted only inside `#[cfg(test)]` modules.
 
@@ -92,8 +93,9 @@ sc-lint clippy native --config .sc-lint.toml
 ## CI
 
 Every matrix leg (`ubuntu-latest`, `macos-latest`, `windows-latest`) installs
-sc-lint **0.5.0** from the GitHub release bundle and runs the canonical command
-above. See [`.github/workflows/ci.yml`](../.github/workflows/ci.yml).
+sc-lint **0.5.0** from the GitHub release bundle, runs **`sc-lint clippy native`**
+(JSON gate via [`scripts/sc_lint_json_gate.sh`](../scripts/sc_lint_json_gate.sh)),
+then **`sc-lint check native`**. See [`.github/workflows/ci.yml`](../.github/workflows/ci.yml).
 
 The **Boundary lint** job runs `sc-lint lint sc-boundary`, `scripts/check-boundaries.py`
 (io_forbidden greps), and ui/share sync checks.

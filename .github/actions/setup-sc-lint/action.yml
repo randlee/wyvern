@@ -138,6 +138,12 @@ runs:
         cp "${source_root}/.just/"*.py "${GITHUB_WORKSPACE}/.just/"
         printf '%s\n' "${SC_LINT_VERSION}" > "${GITHUB_WORKSPACE}/.just/.sc-lint-runtime-version"
         test -f "${GITHUB_WORKSPACE}/.just/run_lint.py"
+        for helper in lint_line_counts.py lint_identity_literals.py; do
+          test -f "${GITHUB_WORKSPACE}/.just/${helper}" || {
+            echo "sc-lint setup: source archive is missing .just/${helper}" >&2
+            exit 1
+          }
+        done
     - name: Materialize pinned sc-lint Python utilities (Windows)
       if: runner.os == 'Windows'
       shell: pwsh
@@ -157,6 +163,11 @@ runs:
         Set-Content -Path (Join-Path $justRoot '.sc-lint-runtime-version') -Value $env:SC_LINT_VERSION -NoNewline
         if (-not (Test-Path (Join-Path $justRoot 'run_lint.py'))) {
           throw 'sc-lint setup: source archive is missing .just/run_lint.py'
+        }
+        foreach ($helper in @('lint_line_counts.py', 'lint_identity_literals.py')) {
+          if (-not (Test-Path (Join-Path $justRoot $helper))) {
+            throw "sc-lint setup: source archive is missing .just/$helper"
+          }
         }
     - name: Smoke-test repository root discovery (Unix)
       if: runner.os != 'Windows'

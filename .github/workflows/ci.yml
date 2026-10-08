@@ -45,11 +45,11 @@ jobs:
       - name: cargo test
         run: cargo test --workspace -- --test-threads=1
 
-      - name: cargo clippy
-        run: cargo clippy --workspace -- -D warnings
-
       - name: Set up sc-lint (published release bundle)
         uses: ./.github/actions/setup-sc-lint
+
+      - name: sc-lint clippy native
+        run: bash scripts/sc_lint_json_gate.sh pass -- clippy native --config .sc-lint.toml
 
       - name: sc-lint check
         run: sc-lint check native --config .sc-lint.toml
