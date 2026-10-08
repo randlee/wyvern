@@ -273,7 +273,61 @@ jobs:
 
       - name: Run Phase D L2 specs
         working-directory: tests/l2
-        run: npx playwright test wizard-layout-picker viewport-sizing wizard-edge-cases
+        run: npx playwright test wizard-layout-picker viewport-sizing wizard-edge-cases wizard-atm-pick-member
+
+  atm-send-to-contract:
+    name: atm-core Send-To contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Linux build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwayland-dev \
+            pkg-config \
+            libwebkit2gtk-4.1-dev \
+            libxkbcommon-x11-0 \
+            libgl1-mesa-dri \
+            mesa-utils \
+            at-spi2-core \
+            dbus-x11 \
+            xvfb
+
+      - name: cargo build -p wyvern-cli
+        run: cargo build -p wyvern-cli
+
+      - name: Set WYVERN_BIN
+        run: echo "WYVERN_BIN=${GITHUB_WORKSPACE}/target/debug/wyvern" >> "$GITHUB_ENV"
+
+      - name: Verify atm-core pin, fixtures, and picker HTML
+        run: bash scripts/verify_atm_core_send_to_contract.sh
+
+      - name: Run atm-core Send-To surface tests and real Wyvern probe
+        run: bash scripts/run_atm_core_send_to_surface_tests.sh
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install l2 npm deps
+        working-directory: tests/l2
+        run: npm install
+
+      - name: Install Playwright Chromium (l2)
+        working-directory: tests/l2
+        run: npx playwright install --with-deps chromium
+
+      - name: Run atm-pick-member L2 contract spec
+        working-directory: tests/l2
+        env:
+          WYVERN_BIN: ${{ github.workspace }}/target/debug/wyvern
+        run: npx playwright test wizard-atm-pick-member.spec.ts
 
   deny:
     name: cargo deny

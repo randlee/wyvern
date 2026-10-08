@@ -1,0 +1,35 @@
+# atm-core Send-To / Wyvern picker contract pin.
+#
+# Wyvern CI checks out this exact revision, hash-verifies the canonical
+# fixtures, and compares the vendored pick-member.html body to
+# examples/wizards/atm-pick-member/pages/pick-member.html. Advance the pin
+# together with any PickerInput/PickerOutput schema change.
+
+[atm-core.send-to]
+repository = "https://github.com/randlee/atm-core"
+tag = "v1.6.1"
+revision = "1272d4c8a0256982fa550e592f77771e6d5a8bb2"
+# Latest release tag on GitHub (2026-09-24); develop may advance afterward.
+develop_branch = "develop"
+wyvern_pin = "0.6.0"
+
+# Paths are relative to the atm-core repository root.
+[[atm-core.send-to.fixtures]]
+path = "docs/plans/phase-aq/fixtures/picker-input-v1.json"
+sha256 = "68e6109ed34441812b8a350939525b03bbd77f2b15609ac2307b96929311e739"
+
+[[atm-core.send-to.fixtures]]
+path = "docs/plans/phase-aq/fixtures/picker-output-v1.json"
+sha256 = "5af47e62084a487bb6fe34a436cb1788b533636a46f36a8f7309e8e65f7f8228"
+
+[[atm-core.send-to.fixtures]]
+path = "docs/plans/phase-aq/fixtures/wyvern-pick-member-contract.md"
+sha256 = "b628931366345488e60d59a1a0c5c12df09376891f55675d023c273e6308fea0"
+
+[[atm-core.send-to.fixtures]]
+path = "docs/plans/phase-aq/fixtures/picker-output-unknown-schema.json"
+sha256 = "3851036fb52a924f09e94dc3f5c6636e84e71b2b3a67b880f1cd1dddaf38f162"
+
+[atm-core.send-to.assets]
+vendored_picker_html = "scripts/send-to/pick-member.html"
+wyvern_canonical_picker_html = "examples/wizards/atm-pick-member/pages/pick-member.html"
