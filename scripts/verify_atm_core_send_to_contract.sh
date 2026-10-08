@@ -35,9 +35,15 @@ with pin_path.open("rb") as handle:
 repo = pin["repository"]
 tag = pin["tag"]
 revision = pin["revision"].lower()
+develop_branch = pin.get("develop_branch", "develop")
 wyvern_pin = pin["wyvern_pin"]
 fixtures = pin["fixtures"]
 assets = pin["assets"]
+tracked_paths = [item["path"] for item in fixtures] + [
+    assets["vendored_picker_html"],
+    "scripts/send-to/atm-send-to.sh",
+    "scripts/send-to/atm-send-to.ps1",
+]
 
 checkout.parent.mkdir(parents=True, exist_ok=True)
 
@@ -138,6 +144,50 @@ if match is None or match.group(1) != wyvern_pin:
     )
     raise SystemExit(1)
 print(f"verify_atm_core_send_to_contract OK: atm-core WYVERN_PIN {wyvern_pin}")
+
+fetch_develop = run(
+    "git",
+    "fetch",
+    "--depth",
+    "1",
+    "origin",
+    f"{develop_branch}:refs/remotes/origin/{develop_branch}",
+    cwd=checkout,
+)
+if fetch_develop.returncode != 0:
+    print(fetch_develop.stderr or fetch_develop.stdout, file=sys.stderr)
+    raise SystemExit(fetch_develop.returncode)
+develop_ref = f"refs/remotes/origin/{develop_branch}"
+develop_head = run("git", "rev-parse", develop_ref, cwd=checkout).stdout.strip()
+release_head = run("git", "rev-parse", "HEAD", cwd=checkout).stdout.strip()
+if develop_head.lower() == release_head.lower():
+    print(
+        f"verify_atm_core_send_to_contract OK: origin/{develop_branch} "
+        f"matches release pin {tag} ({release_head[:12]})"
+    )
+else:
+    drift: list[str] = []
+    for rel in tracked_paths:
+        release_blob = run("git", "show", f"HEAD:{rel}", cwd=checkout)
+        develop_blob = run("git", "show", f"{develop_ref}:{rel}", cwd=checkout)
+        if release_blob.returncode != 0 or develop_blob.returncode != 0:
+            drift.append(f"{rel}: missing on release and/or develop")
+            continue
+        if release_blob.stdout != develop_blob.stdout:
+            drift.append(rel)
+    if drift:
+        print(
+            "verify_atm_core_send_to_contract: origin/"
+            f"{develop_branch} ({develop_head[:12]}) diverged from release "
+            f"{tag} ({release_head[:12]}) on Send-To contract paths:\n  "
+            + "\n  ".join(drift),
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+    print(
+        f"verify_atm_core_send_to_contract OK: origin/{develop_branch} "
+        f"({develop_head[:12]}) is ahead of {tag} but Send-To contract bytes unchanged"
+    )
 
 # Emit checkout path for follow-on scripts in the same job.
 print(checkout)

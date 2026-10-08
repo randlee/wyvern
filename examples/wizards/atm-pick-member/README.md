@@ -59,7 +59,10 @@ and hash-checking the fetched fixtures (`release/atm-core-send-to-pin.toml`),
 not maintaining a divergent copy.
 
 atm-core **v1.6.1** (`1272d4c8a0256982fa550e592f77771e6d5a8bb2`; recorded in
-`release/atm-core-send-to-pin.toml`):
+`release/atm-core-send-to-pin.toml`). CI also fetches **`origin/develop`**
+and fails if any Send-To fixture, vendored `pick-member.html`, or
+`WYVERN_PIN` drifts from that release pin (develop may be many commits
+ahead while the picker contract stays stable).
 
 | What | Path in atm-core |
 |---|---|

@@ -9,6 +9,8 @@
 repository = "https://github.com/randlee/atm-core"
 tag = "v1.6.1"
 revision = "1272d4c8a0256982fa550e592f77771e6d5a8bb2"
+# Latest release tag on GitHub (2026-09-24); develop may advance afterward.
+develop_branch = "develop"
 wyvern_pin = "0.6.0"
 
 # Paths are relative to the atm-core repository root.
