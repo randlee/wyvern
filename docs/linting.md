@@ -24,7 +24,11 @@ formulas may ship an older `sc-lint`).
 
 ## Config
 
-Repo-root [`.sc-lint.toml`](../.sc-lint.toml) declares the consumer contract:
+Repo-root [`.sc-lint.toml`](../.sc-lint.toml) declares the analyzer CLI contract.
+Python analyzers (`line-counts`, `identity-literals`) use
+[`sc-lint-analyzers.toml`](../sc-lint-analyzers.toml) via
+[`scripts/sc_lint_python_gate.sh`](../scripts/sc_lint_python_gate.sh) — do not
+merge that policy into `.sc-lint.toml`.
 
 ```toml
 [tool.sc-lint]
@@ -57,7 +61,9 @@ multiple webview children spawn). CI already enforces this; local runs must matc
 | Clippy wrapper | `sc-lint clippy native` | **Yes** — all build matrix legs |
 | Boundary graph | `sc-lint lint sc-boundary` | **Yes** — boundaries CI job |
 | Portability | `sc-lint lint sc-portability` | **Yes** — boundaries CI job |
-| Runtime liveness | `sc-lint lint sc-runtime` | Setup smoke test only |
+| Runtime liveness | `sc-lint lint sc-runtime` | **Yes** — Boundary lint job |
+| line-counts | [`scripts/sc_lint_python_gate.sh`](../scripts/sc_lint_python_gate.sh) + [`sc-lint-analyzers.toml`](../sc-lint-analyzers.toml) | **Yes** — Boundary lint job |
+| identity-literals | same Python gate | **Yes** — Boundary lint job |
 | Full consumer CI | `sc-lint ci` | Not run (requires `sc-lint init --just`) |
 
 ## Panic policy
@@ -75,7 +81,7 @@ Production paths must not panic. Panics are forbidden in non-test code in
 | `sc-lint check native` | **No** — wraps `cargo check --workspace` | Yes |
 | `sc-lint clippy native` | **Indirect** — wraps `cargo clippy -D warnings`; honors crate `#![deny(...)]` | Yes (matrix) |
 | `sc-lint lint sc-boundary` | **No** — dependency/ownership graph | Yes |
-| `sc-lint lint sc-runtime` | **No** — condvar liveness only | Setup smoke only |
+| `sc-lint lint sc-runtime` | **No** — condvar liveness only | Yes (Boundary lint) |
 
 Authoritative regression gate:
 
@@ -98,9 +104,19 @@ sc-lint **0.5.0** from the GitHub release bundle, runs **`sc-lint clippy native`
 then **`sc-lint check native`**. See [`.github/workflows/ci.yml`](../.github/workflows/ci.yml).
 
 The **Boundary lint** job runs `sc-lint lint sc-boundary`, `sc-lint lint
-sc-portability` (JSON `data.status == pass`; the 0.5.0 CLI exits 0 even when
-findings exist), `scripts/check-boundaries.py` (io_forbidden greps), and
-ui/share sync checks.
+sc-portability`, `sc-lint lint sc-runtime` (JSON `data.status == pass` via
+[`scripts/sc_lint_json_gate.sh`](../scripts/sc_lint_json_gate.sh); the 0.5.0 CLI
+exits 0 even when findings exist), Python **`line-counts`** and
+**`identity-literals`** (policy in [`sc-lint-analyzers.toml`](../sc-lint-analyzers.toml);
+see [j5 sprint plan](plans/phase-J/j5-sc-lint-extended-analyzers.md)), then
+`scripts/check-boundaries.py` (io_forbidden greps) and ui/share sync checks.
+
+### Debugging analyzer output
+
+```bash
+sc-lint view findings --config .sc-lint.toml   # after a lint run wrote artifacts
+sc-lint view graph --config .sc-lint.toml      # boundary graph (when supported)
+```
 
 `sc-lint lint sc-portability` needs no extra policy file. The analyzer ships
 built-in `unix_path_prefixes` (`/tmp/`, `/var/tmp/`, `/private/tmp/`) and only

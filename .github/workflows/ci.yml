@@ -295,15 +295,19 @@ jobs:
         uses: ./.github/actions/setup-sc-lint
 
       - name: sc-lint boundary inventory
-        run: sc-lint lint sc-boundary --config .sc-lint.toml
+        run: bash scripts/sc_lint_json_gate.sh pass -- lint sc-boundary --config .sc-lint.toml
 
-      # 0.5.0 exits 0 even when data.status is fail; gate on the JSON status.
       - name: sc-lint portability
-        run: |
-          set -euo pipefail
-          report="$(sc-lint --json lint sc-portability --config .sc-lint.toml)"
-          printf '%s\n' "${report}"
-          jq -e '.ok == true and .data.status == "pass"' <<<"${report}" >/dev/null
+        run: bash scripts/sc_lint_json_gate.sh pass -- lint sc-portability --config .sc-lint.toml
+
+      - name: sc-lint runtime liveness
+        run: bash scripts/sc_lint_json_gate.sh pass -- lint sc-runtime --config .sc-lint.toml
+
+      - name: sc-lint line-counts (Python adapter)
+        run: bash scripts/sc_lint_python_gate.sh line-counts
+
+      - name: sc-lint identity-literals (Python adapter)
+        run: bash scripts/sc_lint_python_gate.sh identity-literals
 
       - name: Enforce io_forbidden grep policy
         run: python3 scripts/check-boundaries.py
