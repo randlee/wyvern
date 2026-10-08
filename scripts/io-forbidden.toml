@@ -1,0 +1,39 @@
+# Wyvern-specific io_forbidden grep policy (not part of sc-lint ADR-004 schema).
+# Enforced by scripts/check-boundaries.py alongside sc-lint lint sc-boundary.
+
+[wyvern-cli]
+io_forbidden = ["http_server", "webview_creation", "static_file_serve", "dialog_content_html"]
+
+[wyvern-host]
+io_forbidden = [
+  "stdin_reading",
+  "stdout_writing",
+  "arg_parsing",
+  "webview_creation",
+  "inline_html_embed",
+  "html_template_generation",
+  "mcp_protocol",
+  "embedded_viewer_spawn",
+  "wizard_history_internals",
+  "wizard_domain_logic",
+  "workflow_script_spawn",
+  "wizard_chain_loop",
+]
+
+[wyvern-wizard]
+io_forbidden = [
+  "file_io",
+  "network_io",
+  "window_creation",
+  "webview",
+  "ipc",
+  "async_runtime",
+  "http_routes",
+  "browser_history_internals",
+]
+
+[wyvern-viewer]
+io_forbidden = ["http_server", "stdout_writing", "inline_html"]
+
+[wyvern-mcp]
+io_forbidden = ["arg_parsing", "stdin_readline_loop", "direct_wizard_navigation", "http_server_impl"]

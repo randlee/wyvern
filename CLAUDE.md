@@ -43,6 +43,7 @@ git checkout -b feature/phase-A-a1-scaffold
 | [`docs/requirements.md`](docs/requirements.md) | Numbered requirements (REQ/NFR) — links to crate docs |
 | [`docs/architecture.md`](docs/architecture.md) | ADRs — links to crate docs |
 | [`docs/plans/project-plan.md`](docs/plans/project-plan.md) | 5-phase, 30-sprint plan |
+| [`docs/linting.md`](docs/linting.md) | sc-lint 0.5.0, Just bootstrap, CI analyzers |
 
 **Per-crate docs** (referenced by principals above):
 
@@ -91,7 +92,9 @@ main
 ### Sprint execution
 1. Create worktree from `develop` via `sc-git-worktree`
 2. Implement sprint to its acceptance criteria
-3. Run `cargo test --workspace` + clippy clean
+3. Run `cargo test --workspace -- --test-threads=1` and sc-lint gates from [`docs/linting.md`](docs/linting.md):
+   `sc-lint check native --config .sc-lint.toml`, `sc-lint clippy native --config .sc-lint.toml`,
+   and (after materializing `.just/` via setup-sc-lint) `scripts/sc_lint_python_gate.sh` when touching policy
 4. PR → `integrate/phase-N`
 5. Do NOT clean up worktree until user reviews
 

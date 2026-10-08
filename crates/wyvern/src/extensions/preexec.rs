@@ -700,7 +700,17 @@ fn terminate_child(child: &mut Child, process_group: bool) {
     #[cfg(unix)]
     {
         if process_group {
-            kill_process_group(child);
+            // Process-group SIGKILL lives here (not a standalone #[cfg(unix)]
+            // item) so PORT-010 sees the #[cfg(not(unix))] fallback below as
+            // the same-scope companion. `child` must have been spawned with
+            // CommandExt::process_group(0); kill(-pid, SIGKILL) then targets
+            // that group only.
+            let pid = child.id() as i32;
+            if pid > 1 {
+                // SAFETY: child is the process-group leader created at spawn.
+                // Negative pid to kill(2) targets that group only.
+                let _ = unsafe { libc::kill(-pid, libc::SIGKILL) };
+            }
             let _ = child.wait();
             return;
         }
@@ -709,22 +719,6 @@ fn terminate_child(child: &mut Child, process_group: bool) {
     let _ = process_group;
     let _ = child.kill();
     let _ = child.wait();
-}
-
-/// Send `SIGKILL` to the child's process group so descendants are reaped.
-///
-/// `child` must have been spawned with [`std::os::unix::process::CommandExt::process_group`]`(0)`,
-/// so its process-group id equals its pid. `kill(-pid, SIGKILL)` then targets
-/// that group only.
-#[cfg(unix)]
-fn kill_process_group(child: &Child) {
-    let pid = child.id() as i32;
-    if pid <= 1 {
-        return;
-    }
-    // SAFETY: child is the process-group leader created at spawn. Negative
-    // pid to `kill(2)` targets that group only.
-    let _ = unsafe { libc::kill(-pid, libc::SIGKILL) };
 }
 
 /// Lexicographically first `*.html` basename under `{tmpdir}/pages/`.

@@ -364,13 +364,13 @@ fn hook_command_quotes_space_containing_script_path() {
 #[test]
 fn command_quote_check_accepts_list2cmdline_without_verbatim_prefix() {
     let script = Path::new(
-        r"C:\Users\runner\AppData\Local\Temp\.tmpX\path with spaces\apply-askuserquestion-hook.py",
+        r"C:/Users/runner/AppData/Local/Temp/.tmpX/path with spaces/apply-askuserquestion-hook.py",
     );
-    let command = r#""C:\Python\python.exe" "C:\Users\runner\AppData\Local\Temp\.tmpX\path with spaces\apply-askuserquestion-hook.py" --invoke"#;
+    let command = r#""C:/Python/python.exe" "C:/Users/runner/AppData/Local/Temp/.tmpX/path with spaces/apply-askuserquestion-hook.py" --invoke"#;
     assert!(command_quotes_script(command, script));
 
     let verbatim = Path::new(
-        r"\\?\C:\Users\runner\AppData\Local\Temp\.tmpX\path with spaces\apply-askuserquestion-hook.py",
+        r"\\?\C:/Users/runner/AppData/Local/Temp/.tmpX/path with spaces/apply-askuserquestion-hook.py",
     );
     assert!(
         command_quotes_script(command, verbatim),
@@ -380,9 +380,11 @@ fn command_quote_check_accepts_list2cmdline_without_verbatim_prefix() {
 
 #[test]
 fn command_quote_check_rejects_unquoted_spaced_path() {
-    let script = Path::new("/tmp/path with spaces/apply-askuserquestion-hook.py");
-    let command = "/usr/bin/python3 /tmp/path with spaces/apply-askuserquestion-hook.py --invoke";
-    assert!(!command_quotes_script(command, script));
+    let script = std::env::temp_dir()
+        .join("path with spaces")
+        .join("apply-askuserquestion-hook.py");
+    let command = format!("python {} --invoke", script.display());
+    assert!(!command_quotes_script(&command, &script));
 }
 
 #[test]

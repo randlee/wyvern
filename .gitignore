@@ -1,5 +1,7 @@
 /target
 /crates/wyvern/target
+.just/
+artifacts/
 /dist
 Cargo.lock
 **/*.rs.bk
