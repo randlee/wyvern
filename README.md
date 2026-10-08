@@ -6,14 +6,18 @@
 
 > A lightweight CLI tool that opens native webview windows for user interaction and returns structured JSON results — with zero browser dependency, declarative CLI extensions, and an MCP-ready JSON schema (MCP server ships in Phase E).
 
-**Current release:** [v0.5.0](CHANGELOG.md#050--2026-08-26) — headless CI/agent hardening (30s idle timeout, fail-fast undriven dialogs), plus Phase H/I/G features from v0.4.0.
+**Current release:** [v0.7.0](CHANGELOG.md#070--2026-10-08) — atm-core Send-To picker example + contract CI, sc-lint 0.5.0 boundaries, sc-observability v2 logging. See also [v0.6.0](CHANGELOG.md#060--2026-09-24) (sc-publish kit production release) and [v0.5.0](CHANGELOG.md#050--2026-08-26) (headless/CI hardening).
 
 ---
 
 ## Quickstart
 
-1. Download the latest release for your platform from [GitHub Releases](https://github.com/randlee/wyvern/releases).
-2. Extract the archive. Keep `bin/wyvern`, `bin/wyvern-viewer`, and `share/wyvern/ui/` together (same layout as the tarball).
+1. Install **v0.7.0** (pick one):
+   - **GitHub Releases** — [wyvern v0.7.0](https://github.com/randlee/wyvern/releases/tag/v0.7.0) archives for your platform
+   - **crates.io** — `cargo install wyvern-cli --version 0.7.0 --locked` (Rust stable)
+   - **Homebrew** — `brew install randlee/tap/wyvern` (after tap update; see release notes)
+   - **winget** — `winget install randlee.wyvern` (catalog may lag submission; see [docs/WINGET_SETUP.md](docs/WINGET_SETUP.md))
+2. For tarball/zip installs: keep `bin/wyvern`, `bin/wyvern-viewer`, and `share/wyvern/ui/` together (same layout as the archive).
 3. Add the extract `bin/` directory to your `PATH` (so both binaries resolve as siblings).
 4. Try (default viewer is **embedded** — launches `wyvern-viewer`):
 
@@ -78,6 +82,10 @@ wyvern doc.md
 wyvern share/wyvern/examples/path-picker/wizard.json
 wyvern share/wyvern/examples/template-picker/wizard.json
 
+# atm-core Send-To picker contract (PickerInput via wizard config → PickerOutput in .data)
+wyvern examples/wizards/atm-pick-member/wizard.json
+# See examples/wizards/atm-pick-member/README.md and release/atm-core-send-to-pin.toml
+
 # XHTML report panels (view or review mode)
 wyvern share/wyvern/examples/xhtml-review/panels/fail-1.xhtml
 wyvern report-xhtml share/wyvern/examples/xhtml-review/review-view.json
@@ -108,7 +116,7 @@ wyvern compose render --root ./my-template-dir --file page.j2
 
 Wyvern bridges the gap between CLI tools and rich user interaction. Pass it a JSON command, get back a JSON result — or use argv shorthands for common file types and prefix skills. No Electron. No Chrome. Just the OS's built-in webview rendering your HTML.
 
-**v0.5.0** hardens headless/CI paths (`WYVERN_VIEWER=none`): shorter idle budget, non-zero exit when agents fail to drive blocking dialogs, and clearer test harness rules. **v0.4.0** added XHTML reporting and wizard native pickers on top of the core dialog API and extension runtime:
+**v0.7.0** adds the **atm-pick-member** reference wizard for [atm-core](https://github.com/randlee/atm-core) Send-To (optional native picker), **sc-lint 0.5.0** policy gates, and **sc-observability v2** logging — without changing dialog JSON schemas. **v0.6.0** moved releases to the shared **sc-publish** kit (crates.io, GitHub, Homebrew, Scoop, winget). **v0.5.0** hardened headless/CI (`WYVERN_VIEWER=none`: 30s idle, exit **6** when dialogs are undriven). **v0.4.0** added XHTML reporting and wizard native pickers on top of the core API:
 
 - Blocking dialog commands: `message`, `input`, `markdown`, `question`, `chrome`
 - Multi-page **`wizard`** flows with browser-history navigation (since v0.2.0)
@@ -192,7 +200,7 @@ Workspace tests on macOS: `cargo test --workspace -- --test-threads=1`.
 - [Linting / sc-lint](docs/linting.md) — CI analyzers, Just bootstrap, stack landing
 - [CHANGELOG](CHANGELOG.md) — release history
 
-## Deferred (post–v0.5.0)
+## Deferred (post–v0.7.0)
 
 - **`--interactive`** — persistent stdin loop with `show`, `hide`, and `exit` lifecycle actions (Phase E)
 - **`wyvern --mcp`** — MCP server; JSON schema is MCP-ready today, binary ships Phase E
