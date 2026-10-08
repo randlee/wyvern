@@ -42,7 +42,7 @@ exit, no stdout" contract at the picker-selection level).
 
 This was a real, minimal gap between the sprint doc's illustrative
 `wyvern --picker page.html < input.json > output.json` sketch and Wyvern
-v0.5.0's actual CLI surface -- **now closed**: the atm-core adapter scripts
+v0.6.0's actual CLI surface -- **now closed**: the atm-core adapter scripts
 (`scripts/send-to/atm-send-to.sh` and `.ps1`) generate the `wizard.json` and
 unwrap `.data` exactly as described above, and were run end to end against
 a real `wyvern` build from this PR (see
@@ -54,13 +54,12 @@ atm-core's Send-To feature, not only demonstrated by this example.
 
 Per [atm-core issue #139](https://github.com/randlee/atm-core/issues/139)
 (mirrors the comment there): the precise schema requirements live in
-atm-core as the canonical files below. Wyvern-side integration tests/CI
-should reference these by pinning an atm-core ref and hash-checking the
-fetched fixtures, not maintain a divergent copy.
+atm-core as the canonical files below. Wyvern-side integration tests/CI reference these by pinning an atm-core ref
+and hash-checking the fetched fixtures (`release/atm-core-send-to-pin.toml`),
+not maintaining a divergent copy.
 
-atm-core (branch `feature/aq-5-surface-evidence`, head
-`8cb881dfe99879db3cc09bf089757bc947cbb523`; moves to `integrate/phase-aq` ->
-`develop` at Phase AQ closeout):
+atm-core **v1.6.1** (`1272d4c8a0256982fa550e592f77771e6d5a8bb2`; recorded in
+`release/atm-core-send-to-pin.toml`):
 
 | What | Path in atm-core |
 |---|---|
@@ -76,9 +75,9 @@ atm-core (branch `feature/aq-5-surface-evidence`, head
 | Wyvern-degradation + generated-`wizard.json`-shape tests | `.just/tests/test_send_to_surface.py` (`test_wyvern_degradation_cases_fall_back_and_still_send`, `test_generated_wizard_json_matches_contract_shape`) |
 | R4 dead/idle-exclusion contract tests (all four picker adapters; not Wyvern-degradation-specific) | `.just/tests/test_picker_exclusion.py` |
 | Real end-to-end local transcript against this PR's build | `docs/plans/phase-aq/evidence/AQ5/wyvern-real-invocation-local.md` |
-| Pinned Wyvern version | the literal `"0.5.0"` in both `scripts/send-to/atm-send-to.sh` (`WYVERN_PIN`) and `.ps1` (`$wyvernPin`) -- two copies kept in sync by convention/AQ6 preflight, not one shared constant |
+| Pinned Wyvern version | the literal `"0.6.0"` in both `scripts/send-to/atm-send-to.sh` (`WYVERN_PIN`) and `.ps1` (`$wyvernPin`) -- two copies kept in sync by convention/AQ6 preflight, not one shared constant |
 
-### Corrected process contract (real Wyvern, verified against v0.5.0)
+### Corrected process contract (real Wyvern, verified against v0.6.0)
 
 - There is **no** `wyvern --picker <page>` flag. The picker runs as a
   wizard: the adapter writes `wizard.json` with `config` = PickerInput and
@@ -91,14 +90,16 @@ atm-core (branch `feature/aq-5-surface-evidence`, head
 - idle/dead members must be rendered `disabled` (non-routable), not merely
   styled; unknown `schema_version` is rejected, never guessed.
 
-### Requested Wyvern CI shape
+### Wyvern CI (implemented)
 
-1. Keep this PR's Playwright L2 test
-   (`tests/l2/wizard-atm-pick-member.spec.ts`) as the page-level contract
-   test.
-2. Add an integration job that checks out atm-core at the pinned ref, runs
-   `scripts/phase-aq/run_aq5_wyvern_degradation_evidence.py` and
-   `.just/tests/test_send_to_surface.py` against the **real** Wyvern build
-   on `PATH`, and fails on any wire drift.
-3. When the contract evolves, bump `schema_version` and the atm-core ref
-   together; the hash check makes silent widening impossible.
+1. Playwright L2 (`tests/l2/wizard-atm-pick-member.spec.ts`) exercises the
+   page contract (active vs disabled rows, schema rejection, Finish disabled
+   on bad input).
+2. CI job **`atm-send-to-contract`** (`.github/workflows/ci.yml`): shallow
+   checkout at `release/atm-core-send-to-pin.toml`, fixture SHA256 checks,
+   vendored `pick-member.html` vs this example, atm-core
+   `.just/tests/test_send_to_surface.py`, AQ5 degradation evidence, and
+   `probe_wyvern.py` against the **real** `wyvern` build from this repo.
+3. When the contract evolves, bump `schema_version` and advance
+   `release/atm-core-send-to-pin.toml` together; the hash check blocks silent
+   fixture drift.

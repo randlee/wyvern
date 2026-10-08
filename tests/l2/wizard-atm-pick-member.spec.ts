@@ -168,6 +168,7 @@ test("atm-pick-member rejects an unrecognized PickerInput schema_version", async
     await expect(page.getByTestId("wizard-error")).toBeVisible();
     await expect(page.getByTestId("wizard-error")).toContainText("schema_version");
     await expect(page.getByTestId("atm-picker-teams")).toBeEmpty();
+    await expect(page.getByTestId("wizard-next")).toBeDisabled();
 
     child.kill("SIGTERM");
     await exitPromise;
