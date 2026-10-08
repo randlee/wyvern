@@ -1,7 +1,9 @@
 //! Subprocess tests for g.2 near-miss diagnostics (REQ-0130, REQ-0136).
 
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+#[cfg(unix)]
+use std::path::PathBuf;
 use std::process::Command;
 
 fn wyvern() -> Command {

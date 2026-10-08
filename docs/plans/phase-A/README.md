@@ -91,7 +91,7 @@ Win/Linux decoration polish deferred to Phase C. Cross-platform window and `chro
 
 | Crate / tool | Source | Pin |
 |--------------|--------|-----|
-| `sc-observability` | [crates.io](https://crates.io/crates/sc-observability) | `"1.2"` in workspace `Cargo.toml` |
+| `sc-observability` | [crates.io](https://crates.io/crates/sc-observability) | `"1.5.0"` in workspace `Cargo.toml` |
 | `sc-lint` | [crates.io](https://crates.io/crates/sc-lint) | `cargo install sc-lint --version 0.4` (CI + local) |
 
 No path deps or sibling repo checkouts for either package.

@@ -20,11 +20,11 @@ Each blocker is exactly one state:
 | Item | Value |
 |------|-------|
 | Pin file | `release/sc-publish-pin.toml` |
-| Current revision | `42e0fce` on `integrate/phase-J`; re-pin staged on `feature/phase-J-repin-25668ec` |
+| Current revision | `25668ecc164261be676c9414c4f603b18ab74c91` (org blessed, PR #146) |
 | Sync entrypoint | `scripts/sync-sc-publish.sh` → isolated `.sc-publish-kit/` cache |
-| Target org revision | `25668ec` — [atm-core #1069](https://github.com/randlee/atm-core/pull/1069) |
+| Target org revision | `25668ec` — qualified via atm-core #1069 + RC 33139520613 |
 
-**Note:** sc-publish `main` @ `25668ec` (PR #64, reconciled kit from PR #63). Wyvern stays on `42e0fce` until org pin receipt + sync dry-run at blessed SHA.
+**Note:** Org pin active on wyvern @ `25668ec`. j.3 RC dispatch blocked until [PR #148](https://github.com/randlee/wyvern/pull/148) registers workflow on `main` (default branch) or default branch switches to `develop`.
 
 ## j.2 closeout extras
 

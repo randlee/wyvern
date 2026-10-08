@@ -5,6 +5,36 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] — 2026-10-08
+
+sc-lint 0.5.0 boundary enforcement, sc-observability v2 logging, and the
+atm-core Send-To picker example with cross-repo contract CI.
+
+### New features & fixes
+
+| Feature | Area | Entry point | Description |
+|---------|------|-------------|-------------|
+| **atm-pick-member example** | Examples / atm-core | `examples/wizards/atm-pick-member/` | Reference `PickerInput`/`PickerOutput` wizard page for atm-core Send-To; vendored HTML stays byte-synced with atm-core **v1.6.1** |
+| **atm-core contract CI** | CI | `atm-send-to-contract` job | Pins atm-core fixtures (SHA256), runs Send-To surface tests + real `probe_wyvern.py`, Playwright L2; asserts `origin/develop` has not drifted Send-To bytes |
+| **sc-lint 0.5.0 adoption** | CI / boundaries | `sc-lint.toml`, `boundaries/` | Published sc-lint tools, matrix native clippy, consumer Just/bootstrap lanes, Python/JSON gates, `sc-runtime` in boundary lint |
+| **sc-observability v2** | CLI | `wyvern` binary logger | Migrates binary logging to sc-observability v2 API (#161) |
+| **Winget PATH docs** | Docs | `docs/WINGET_SETUP.md` (via #155) | Documents PortableCommandAlias / PATH behavior for winget installs |
+
+### Distribution
+
+- **crates.io** — all published workspace crates bump to **0.7.0**
+- **GitHub Releases** — kit-managed channels (crates, Homebrew, Scoop, winget) via sc-publish workflows
+
+## [0.6.0] — 2026-09-24
+
+First **sc-publish** kit-managed production release (Phase J): org-qualified kit
+pin, release-candidate → preflight → production dispatch, and winget bootstrap
+manifests staged for the org tap.
+
+### Distribution
+
+- **crates.io** / **GitHub Releases** / **Homebrew** / **Scoop** / **winget** — first cut on the shared publish kit (see Phase J release record on `integrate/phase-J`).
+
 ## [0.5.0] — 2026-08-26
 
 Headless CI and agent ergonomics — fail fast when blocking dialogs are undriven, shorter idle budget for `--viewer none`, and Playwright harness hardening.

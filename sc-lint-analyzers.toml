@@ -1,0 +1,15 @@
+# Wyvern policy for sc-lint Python analyzers (line-counts, identity-literals).
+# CI runs `.just/lint_*.py` from the pinned sc-lint source bundle (see setup-sc-lint).
+# Pass `--config sc-lint-analyzers.toml` to those scripts; do not merge into `.sc-lint.toml`.
+
+[line_counts]
+# No active limits yet — inventory-only gate. Raise when a crate needs a cap:
+# max_production_lines = 800
+# max_scoped_code_lines = 400
+
+[line_counts.exclusions]
+# "crates/wyvern/src/generated.rs" = "codegen output"
+
+[identities]
+forbidden_literals = []
+production_canonical_literals = {}

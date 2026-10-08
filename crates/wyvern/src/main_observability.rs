@@ -2,13 +2,13 @@
 
 use std::sync::{Arc, OnceLock};
 
+use sc_observability::v2::{ConsoleSink, Logger, LoggerBuilder, LoggerConfig, SinkRegistration};
 use sc_observability::{
-    ActionName, ConsoleSink, Level, LogEvent, Logger, LoggerConfig, OutcomeLabel, ProcessIdentity,
-    SchemaVersion, ServiceName, SinkRegistration, TargetCategory, Timestamp,
-    OBSERVATION_ENVELOPE_VERSION,
+    ActionName, Level, LogEvent, OutcomeLabel, ProcessIdentity, SchemaVersion, ServiceName,
+    TargetCategory, Timestamp, OBSERVATION_ENVELOPE_VERSION,
 };
-use sc_observability_types::CorrelationId;
-use serde_json::{json, Map, Value};
+use sc_observability_types::{CorrelationId, LevelFilter};
+use serde_json::{Map, Value};
 use tracing_subscriber::EnvFilter;
 
 /// Env var that sets the minimum log level (`off`/`error`/`warn`/`info`/`debug`/`trace`).
@@ -94,11 +94,13 @@ pub fn init() -> Result<(), ObservabilityInitError> {
     config.enable_console_sink = false;
     config.enable_file_sink = true;
 
-    let mut builder = Logger::builder(config).map_err(|e| {
+    let mut builder = LoggerBuilder::new(config).map_err(|e| {
         ObservabilityInitError::new("failed to build observability Logger", Some(e.to_string()))
     })?;
-    builder.register_sink(SinkRegistration::new(Arc::new(ConsoleSink::stderr())));
-    let logger = builder.build();
+    builder.register_sink(SinkRegistration::typed(Arc::new(ConsoleSink::stderr())));
+    let logger = builder.build().map_err(|e| {
+        ObservabilityInitError::new("failed to build observability Logger", Some(e.to_string()))
+    })?;
 
     let _ = SERVICE_NAME.set(service);
     let _ = LOGGER.set(logger);
@@ -150,13 +152,12 @@ fn session_correlation_id() -> Option<CorrelationId> {
 }
 
 fn apply_level(config: &mut LoggerConfig, raw: &str) -> Result<(), ObservabilityInitError> {
-    // `LevelFilter` is not re-exported by `sc-observability`; deserialize into the field.
     config.level = match raw.to_ascii_lowercase().as_str() {
-        "trace" => serde_json::from_value(json!("Trace")),
-        "debug" => serde_json::from_value(json!("Debug")),
-        "info" => serde_json::from_value(json!("Info")),
-        "warn" | "warning" => serde_json::from_value(json!("Warn")),
-        "error" => serde_json::from_value(json!("Error")),
+        "trace" => LevelFilter::Trace,
+        "debug" => LevelFilter::Debug,
+        "info" => LevelFilter::Info,
+        "warn" | "warning" => LevelFilter::Warn,
+        "error" => LevelFilter::Error,
         other => {
             return Err(ObservabilityInitError::new(
                 format!(
@@ -165,8 +166,7 @@ fn apply_level(config: &mut LoggerConfig, raw: &str) -> Result<(), Observability
                 None,
             ));
         }
-    }
-    .map_err(|e| ObservabilityInitError::new("failed to parse log level", Some(e.to_string())))?;
+    };
     Ok(())
 }
 
@@ -242,6 +242,7 @@ fn build_event(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn apply_level_accepts_debug() {
