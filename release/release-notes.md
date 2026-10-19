@@ -1,43 +1,47 @@
-# Wyvern v0.5.0
+# Wyvern v0.7.0
 
 ## Summary
 
-- **version:** 0.5.0
-- **release date:** 2026-08-26
+- **version:** 0.7.0
+- **release date:** 2026-10-08
 - **release owner:** publisher
 
-Headless CI and agent hardening on top of v0.4.0 (Phase H XHTML reporting, Phase I wizard pickers, g.15 examples catalog). Undriven blocking dialogs in `--viewer none` mode now fail fast with exit **6** instead of silently emitting dismissed JSON.
+Minor release on top of **v0.6.0** (first sc-publish kit-managed production cut). Adds **sc-lint 0.5.0** boundary enforcement, **sc-observability v2** binary logging, and the **atm-core Send-To** picker example with cross-repo contract CI. Dialog JSON schemas and host IPC are unchanged for integrators on 0.6.x.
 
 ## Included Changes
 
-### Headless / CI / agents
+### atm-core Send-To integration
 
-- **`WYVERN_VIEWER=none`** uses a **30s** idle session budget (embedded viewer unchanged at **600s**)
-- Undriven blocking dialogs exit **`SESSION_TIMEOUT_ERROR`** (exit **6**) — CI misconfiguration is a hard fail
-- `docs/plans/phase-C/c9-testing-headless.md` — active-drive rules; Playwright timeouts are hang detectors only
-- Playwright input picker specs wait for mock picker field population before OK
+- **`examples/wizards/atm-pick-member/`** — reference `PickerInput` / `PickerOutput` wizard page (atm-core vendors matching HTML)
+- **`release/atm-core-send-to-pin.toml`** — pins atm-core **v1.6.1** fixture SHA256s; CI verifies vendored page bytes and runs Send-To surface tests + real `probe_wyvern.py`
+- Wizard contract: roster travels as wizard **`config`**; terminal stdout is **`WizardResult`** — callers read **`.data`** as PickerOutput
+
+### Tooling / CI / observability
+
+- **sc-lint 0.5.0** — published tools, boundary TOML refresh, matrix native clippy, consumer Just/bootstrap lanes, Python/JSON gates (`docs/linting.md`)
+- **sc-observability v2** — wyvern CLI binary logger migration (#161)
+- **Winget PATH** — documents PortableCommandAlias behavior (`docs/WINGET_SETUP.md`)
 
 ## Operator / User Impact
 
-- **Agents / CI:** If a headless blocking command hangs then exits **6**, the harness did not drive `WYVERN_DIALOG_URL` — fix the test, do not raise timeouts.
-- **Desktop users:** No behavior change for embedded viewer (default product path).
-- **Instant headless smoke:** `WYVERN_VIEWER=none wyvern examples list` (no dialog host).
+- **Desktop / default embedded viewer:** no intentional behavior change vs 0.6.x for standard dialog commands.
+- **Headless / CI (`WYVERN_VIEWER=none`):** unchanged 30s idle budget and fail-fast undriven dialogs (since 0.5.0).
+- **atm-core operators:** optional Wyvern picker stays aligned with pinned fixtures; advance `atm-core-send-to-pin.toml` when the wire contract changes.
 
 ## Packaging / Distribution Notes
 
-- **crates.io:** `wyvern-schema`, `wyvern-wizard`, `wyvern-host`, `wyvern-viewer`, `wyvern-cli` → 0.5.0 (dependency order preserved)
-- **GitHub Releases:** tag `v0.5.0` — macOS aarch64/x86_64, Windows, Linux archives (`wyvern` + `wyvern-viewer` + `share/wyvern/ui/`)
-- **Homebrew:** `randlee/homebrew-tap` formula updated by release workflow
-- **winget:** automated step requires prior bootstrap of `randlee.wyvern` in `microsoft/winget-pkgs` (see `docs/WINGET_SETUP.md`)
+- **crates.io:** `wyvern-schema`, `wyvern-wizard`, `wyvern-host`, `wyvern-viewer`, `wyvern-cli` → **0.7.0** (dependency order preserved)
+- **GitHub Releases:** tag **`v0.7.0`** — `wyvern_0.7.0_<target>.{tar.gz,zip}` plus checksums (`bin/wyvern`, `bin/wyvern-viewer`, `share/wyvern/ui/`)
+- **Homebrew:** `randlee/homebrew-tap` formula bumped for v0.7.0
+- **Scoop:** `randlee/scoop-bucket` manifest updated
+- **winget:** submission workflow dispatched for `randlee.wyvern` (Microsoft catalog visibility may lag)
 
 ## Known Issues / Waivers
 
-- **winget:** first automated submission may fail until manual bootstrap manifest is merged; crates.io and GitHub Release assets are unaffected.
-- **Homebrew:** formula `brew test` may expect `--help` exit **2** (v0.5.0 exits **0**); Intel Mac tarball URL may need tap-side fix.
+- None recorded for this tag.
 
 ## Follow-Up
 
-- Phase E: `--interactive` argv expansion and MCP server binary
-- User extension registry (`~/.config/wyvern/extensions.json`)
-- Winget bootstrap PR to `microsoft/winget-pkgs`
-- Homebrew tap test + Intel tarball fixes
+- **`main` → `develop` back-merge** after production cut (this release)
+- Refresh **`release/release-notes.md`** on `main` before the next RC (done in back-merge PR)
+- **`site/announcements/wyvern-v0.7.0.md`** — user-facing announce (consider PR to `main` if not already merged)
