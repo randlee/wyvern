@@ -1,0 +1,8 @@
+{
+  "status": "PASS",
+  "mode": "plan-scope-review",
+  "reviewer": "plan-scope-reviewer",
+  "round_id": "STEP2-R3",
+  "round_index": 3,
+  "findings_hash": "phase-k-r3-clean"
+}

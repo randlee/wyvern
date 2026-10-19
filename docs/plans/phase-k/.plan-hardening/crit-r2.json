@@ -1,0 +1,8 @@
+{
+  "status": "PASS",
+  "mode": "critical-plan-review",
+  "reviewer": "critical-plan-reviewer",
+  "round_id": "STEP4-R4",
+  "round_index": 4,
+  "findings_hash": "K-R4:clean-0B0I1m"
+}
