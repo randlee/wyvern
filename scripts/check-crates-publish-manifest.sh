@@ -123,9 +123,21 @@ PY
 
   pkg_log="$(mktemp)"
   if cargo package -p "$package" --allow-dirty --no-verify --manifest-path "${ROOT}/Cargo.toml" >"$pkg_log" 2>&1; then
-    version="$(sed -n "s/^[[:space:]]*Packaging ${package} v\\([^[:space:]]*\\) (.*/\\1/p" "$pkg_log")"
     rm -f "$pkg_log"
-    crate_file="${TARGET_DIR}/package/${package}-${version}.crate"
+    shopt -s nullglob
+    crate_candidates=("${TARGET_DIR}/package/${package}-"*.crate)
+    shopt -u nullglob
+    if ((${#crate_candidates[@]} == 0)); then
+      echo "check-crates-publish-manifest: no tarball for ${package} under ${TARGET_DIR}/package" >&2
+      fail=1
+      continue
+    fi
+    IFS=$'\n' crate_candidates_sorted=($(printf '%s\n' "${crate_candidates[@]}" | sort -V))
+    unset IFS
+    crate_file="${crate_candidates_sorted[${#crate_candidates_sorted[@]} - 1]}"
+    version="${crate_file##*/}"
+    version="${version#${package}-}"
+    version="${version%.crate}"
     if [[ -z "$version" || ! -f "$crate_file" ]]; then
       echo "check-crates-publish-manifest: missing tarball ${crate_file}" >&2
       fail=1
