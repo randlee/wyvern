@@ -1,8 +1,9 @@
-# Issue closeout evidence — k.1 (#115, #139)
+# Issue closeout evidence — k.1 (#115, #139) and k.2 (#141)
 
-Issues are already closed. This sprint does not re-close them. It records the
-test or job that keeps each checklist row true, and the sprint PR CI run that
-executed those jobs.
+k.1 records #115 and #139. Those issues were already closed; k.1 does not
+re-close them. It records the test or job that keeps each checklist row true,
+and the sprint PR CI run that executed those jobs. k.2 records the #141
+checksum policy at the end of this file.
 
 Pin for every #139 row: [`release/atm-core-send-to-pin.toml`](../../../release/atm-core-send-to-pin.toml)
 
@@ -74,3 +75,37 @@ Fixture bytes checked by the verify step (paths relative to the atm-core pin):
 | `docs/plans/phase-aq/fixtures/picker-output-unknown-schema.json` | unknown-schema fixture |
 | `docs/plans/phase-aq/fixtures/wyvern-pick-member-contract.md` | invocation-shape contract |
 | `scripts/send-to/pick-member.html` | vendored page must match `examples/wizards/atm-pick-member/pages/pick-member.html` |
+
+## #141 — `checksums.txt` (k.2)
+
+**Close policy: wontfix.** Do not publish `checksums.txt` on the v0.5.0 GitHub Release.
+
+Forward kit releases already satisfy the request. v0.6.0 and v0.7.0 each include `checksums.txt` covering every kit binary archive. The consumer contract is [`docs/release-checksums.md`](../../release-checksums.md) § Contract.
+
+### atm-core legacy pin check
+
+Inspected `https://github.com/randlee/atm-core` at `a9d0efcd37d2a5946086e98be75a2e8780837d2b` (2026-10-20) and the local Send-To pin [`release/atm-core-send-to-pin.toml`](../../../release/atm-core-send-to-pin.toml).
+
+| Source | Legacy names (`wyvern-windows.zip`, `wyvern-linux.tar.gz`, `wyvern-macos-aarch64.tar.gz`, `wyvern-macos-x86_64.tar.gz`) |
+|--------|------------------------------------------------------------------------------------------------------------------------|
+| `tools/bootstrap.toml` `[wyvern]` | Absent. Pin is version `0.6.0` with kit filenames only. The four pinned SHA-256 values equal the v0.6.0 `checksums.txt` lines. |
+| `tools/bootstrap.py` `wyvern_asset_name` | Present only in the `version == "0.5.0"` branch. |
+| `release/atm-core-send-to-pin.toml` | Absent. `wyvern_pin = 0.6.0`. The file names Send-To fixtures, not release archives. |
+
+v0.5.0 assets are those four legacy names and the release has no `checksums.txt`. atm-core warns and continues when `checksums.txt` is missing, after the pinned archive hash matches. No current pin requests the legacy names.
+
+### Why wontfix
+
+1. The live atm-core bootstrap pin is Wyvern 0.6.0 kit assets, and those assets already have a matching `checksums.txt`.
+2. Legacy filenames are selected only when the pin version is exactly `0.5.0`. The bootstrap pin and the Send-To pin both use `0.6.0`.
+3. A missing `checksums.txt` on v0.5.0 is the existing non-fatal path. There is no current consumer outage.
+4. v0.6.0 and v0.7.0 are the releases this contract covers. v0.5.0 stays as published.
+
+### v0.7.0 `checksums.txt`
+
+```text
+51bb9c96c81a7da0abc282f65187d2a9c18b65cccf3bbead6d15417e6c9e214f  wyvern_0.7.0_aarch64-apple-darwin.tar.gz
+7f16ad1fa1e8e412307ee55c019594032b4b22f6b6a6d4911adf0e60eddd6b8b  wyvern_0.7.0_x86_64-apple-darwin.tar.gz
+92235dd9097890d1ffabcff4b33a4d19fafc231165668ceb961f05e1593f486f  wyvern_0.7.0_x86_64-unknown-linux-gnu.tar.gz
+a4e94411b9a21acd7431ff94231d1974179cfd8852e7641c972ac8a4117d5d17  wyvern_0.7.0_x86_64-pc-windows-msvc.zip
+```

@@ -1,7 +1,7 @@
 ---
 id: k.2
 title: checksums.txt release contract and #141 closeout
-status: planned
+status: complete
 branch: feature/phase-K-k2-checksums
 worktree: ../wyvern-worktrees/feature/phase-K-k2-checksums
 target: integrate/phase-K
