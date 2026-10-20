@@ -53,12 +53,3 @@ contract, automated test coverage, and an explicit **legacy v0.5.0** policy deci
 python3 -m pytest .github/scripts/tests/test_release_artifacts.py -q
 gh release view v0.7.0 --repo randlee/wyvern --json assets --jq '.assets[].name'
 ```
-
-## Cursor orchestration
-
-| Field | Value |
-|-------|--------|
-| `pr_target` | `integrate/phase-K` |
-| `sprint_doc` | `docs/plans/phase-k/k2-checksums-release-contract.md` |
-| QA-1 reviewers | req-qa, arch-qa, rust-qa-agent, rust-best-practices-agent, rust-service-hardening-agent, flaky-test-qa |
-| Dev agent | `rust-developer` |

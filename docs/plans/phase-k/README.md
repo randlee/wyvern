@@ -64,10 +64,11 @@ wire into release/docs surface.
 
 ## Sprint map
 
-Authoritative breakdown: [plan-phase-k.md § Sprint sequence](plan-phase-k.md). Sprint doc
-links: k.1–k.5 markdown files in this directory (see orchestration JSON).
+Authoritative breakdown: [plan-phase-k.md § Sprint sequence](plan-phase-k.md). Sprints
+**k.1–k.4**; orchestration state: `.cursor/phase-k-orchestration.json`.
 
-**Merge order:** k.1 → k.2 → k.3 → k.4 on **`integrate/phase-K`**; k.5 → **`develop`**.
+**Merge order:** k.1 → k.2 → k.3 → k.4 on **`integrate/phase-K`**. **`integrate/phase-K` →
+`develop`** only after **phase-ending review** on k.4 (see k.4 § Phase-ending closeout).
 
 ---
 
@@ -78,25 +79,10 @@ links: k.1–k.5 markdown files in this directory (see orchestration JSON).
 
 ---
 
-## Cursor orchestration (`/cursor-orchestration`)
+## Execution
 
-Phase K execution uses the same dev→QA loop as other Wyvern phases. State file: `.cursor/phase-k-orchestration.json` (repo root).
-
-| Step | Action |
-|------|--------|
-| Bootstrap | Create `integrate/phase-K` from `develop` if absent; create sprint worktree via `/sc-git-worktree` |
-| Dev | Render `dev-template.xml.j2` with `sprint_doc` = active k.* markdown; Task **`rust-developer`** |
-| PR | Target **`integrate/phase-K`** (not `develop` directly) |
-| Pre-QA-1 | Optional **`rust-best-practices-agent`** on planned `review_targets` |
-| QA | Parent spawns reviewers → **`cursor-quality-mgr`** enforcer (never ATM `quality-mgr`) |
-| Gates | `reviewer_spawn_gate: pass`, 0B+0I+0m findings, CI green, evidence chain on PR |
-| Next | Merge sprint PR; advance `active_sprint` in orchestration JSON; repeat |
-
-**Phase-ending QA:** Run on k.4 PR with full reviewer set; prefer Terra on `rust-qa-agent`
-when available (see `.cursor/orchestration-agent-models.yaml`).
-
-**Plan review (this document):** Before k.1 dev, optional plan QA with `review_mode: plan`
-on `docs/plans/phase-k/` — parent spawns req-qa + arch-qa (+ plan-scope if used).
+Use `/cursor-orchestration` with `.cursor/phase-k-orchestration.json`. Sprint PRs target
+**`integrate/phase-K`** until k.4 phase-ending closeout merges to **`develop`**.
 
 ---
 

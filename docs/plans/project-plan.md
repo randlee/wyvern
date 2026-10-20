@@ -329,16 +329,16 @@ See [docs/plans/phase-J/README.md](phase-J/README.md). Tag-push release removed 
 
 **Prerequisite:** v0.7.0+ on `main` (Phase J kit releases).
 
-Phase K sprint PRs target `integrate/phase-K` (k.5 → `develop`). Plan authority:
-[plan-phase-k.md](phase-k/plan-phase-k.md). Sprints **k.1–k.5**.
+Phase K sprint PRs target `integrate/phase-K`; **`integrate/phase-K` → `develop`** after
+phase-ending review on k.4. Plan authority:
+[plan-phase-k.md](phase-k/plan-phase-k.md). Sprints **k.1–k.4**.
 
 | Sprint | Deliverable | Doc |
 |--------|-------------|-----|
 | k.1 | Regression tests + evidence (#115, #139 closed) | [k1-issue-closeout-xhtml-sendto.md](phase-k/k1-issue-closeout-xhtml-sendto.md) |
 | k.2 | `checksums.txt` policy / #141 closeout | [k2-checksums-release-contract.md](phase-k/k2-checksums-release-contract.md) |
 | k.3 | crates.io README + `documentation` field (#62, #63) | [k3-crates-io-readme-docs-rs.md](phase-k/k3-crates-io-readme-docs-rs.md) |
-| k.4 | docli CLI HTML → `site/cli/` | [k4-docli-cli-html-docs.md](phase-k/k4-docli-cli-html-docs.md) |
-| k.5 | Merge `integrate/phase-K` → `develop` | [k5-merge-develop.md](phase-k/k5-merge-develop.md) |
+| k.4 | docli CLI HTML → `site/cli/` + phase-ending merge to `develop` | [k4-docli-cli-html-docs.md](phase-k/k4-docli-cli-html-docs.md) |
 
 ---
 

@@ -60,12 +60,3 @@ bash scripts/verify_atm_core_send_to_contract.sh
 cargo test --workspace
 cargo clippy --workspace -- -D warnings
 ```
-
-## Cursor orchestration
-
-| Field | Value |
-|-------|--------|
-| `pr_target` | `integrate/phase-K` |
-| `sprint_doc` | `docs/plans/phase-k/k1-issue-closeout-xhtml-sendto.md` |
-| QA-1 reviewers | req-qa, arch-qa, rust-qa-agent, rust-best-practices-agent, rust-service-hardening-agent, flaky-test-qa |
-| Dev agent | `rust-developer` |

@@ -10,12 +10,10 @@
     "docs/plans/phase-k/plan-phase-k.md",
     "docs/plans/phase-k/README.md",
     "docs/plans/phase-k/k4-docli-cli-html-docs.md",
-    "docs/plans/phase-k/k5-merge-develop.md",
     "docs/plans/project-plan.md"
   ],
   "docs_created": [
     "docs/plans/phase-k/plan-phase-k.md",
-    "docs/plans/phase-k/k5-merge-develop.md",
     "docs/plans/phase-k/.plan-hardening/guidelines-pass.json",
     "docs/plans/phase-k/.plan-hardening/plan-hardening-rounds.md"
   ],

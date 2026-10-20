@@ -87,6 +87,22 @@ cargo install sc-docli --version 0.2.0 --locked
 5. **REQ-0150** in `docs/wyvern/requirements.md` + index in `docs/requirements.md`.
 6. `cargo test --workspace` + clippy clean.
 
+## Phase-ending closeout
+
+Runs on the k.4 PR after k.1–k.3 are on **`integrate/phase-K`**. Full reviewer set
+(phase-ending QA). Then merge **`integrate/phase-K` → `develop`** (coordinator; no
+separate sprint).
+
+| Path | Purpose |
+|------|---------|
+| PR `integrate/phase-K` → `develop` | Integration merge |
+| `CHANGELOG.md` | **0.8.0** section + **0.7.1** if shipped in k.3 |
+| `site/announcements/wyvern-v0.8.0.md` | Phase K announcement (omit only if patch-only per `docs/release/version-policy.md`) |
+
+Closeout AC (in addition to sprint AC above): merge PR green; #141/#62/#63 closed per
+prior sprints; `docs/release/version-policy.md` records version decisions; phase AC in
+[plan-phase-k.md](plan-phase-k.md) satisfied.
+
 ## Validation
 
 ```bash
@@ -95,12 +111,3 @@ git diff --exit-code fixtures/cli/wyvern-cli-model.json site/cli/
 cargo test --workspace
 cargo clippy --workspace -- -D warnings
 ```
-
-## Cursor orchestration
-
-| Field | Value |
-|-------|--------|
-| `pr_target` | `integrate/phase-K` |
-| `sprint_doc` | `docs/plans/phase-k/k4-docli-cli-html-docs.md` |
-| QA-1 reviewers | req-qa, arch-qa, rust-qa-agent, rust-best-practices-agent, rust-service-hardening-agent, flaky-test-qa (phase-ending; prefer Terra on `rust-qa-agent` if available) |
-| Dev agent | `rust-developer` |

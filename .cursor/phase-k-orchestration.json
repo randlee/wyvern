@@ -47,18 +47,8 @@
       "pr_target": "integrate/phase-K",
       "status": "pending",
       "depends_on": ["k.3"],
-      "phase_ending": true
-    },
-    "k.5": {
-      "id": "k.5",
-      "title": "Merge integrate/phase-K to develop",
-      "branch": "feature/phase-K-k5-merge-develop",
-      "worktree": "../wyvern-worktrees/feature/phase-K-k5-merge-develop",
-      "sprint_doc": "docs/plans/phase-k/k5-merge-develop.md",
-      "pr_target": "develop",
-      "merge_only": true,
-      "status": "pending",
-      "depends_on": ["k.4"]
+      "phase_ending": true,
+      "integration_merge_target": "develop"
     }
   }
 }

@@ -57,8 +57,8 @@ include = ["src/**", "Cargo.toml", "README.md"]
 
 1. Audit **only** crates with `publish = true` in `release/publish-artifacts.toml`.
 2. Fix `include` / crate-local README so `cargo package` ships non-empty README.
-3. Bump workspace to **0.7.1** (patch) unless k.5 defers version — default: **0.7.1** for
-   crates.io metadata-only fix.
+3. Bump workspace to **0.7.1** (patch) by default for crates.io metadata-only fix (record in
+   `docs/release/version-policy.md`).
 4. Post-merge: dispatch **`crates-publish.yml`** for tag **v0.7.1** (document in PR).
 
 ## Non-closure
@@ -83,12 +83,4 @@ cargo test --workspace
 cargo clippy --workspace -- -D warnings
 ```
 
-## Cursor orchestration
-
-| Field | Value |
-|-------|--------|
-| `pr_target` | `integrate/phase-K` |
-| `sprint_doc` | `docs/plans/phase-k/k3-crates-io-readme-docs-rs.md` |
-| QA-1 reviewers | req-qa, arch-qa, rust-qa-agent, rust-best-practices-agent, rust-service-hardening-agent, flaky-test-qa |
-| Post-merge ops | `gh workflow run crates-publish.yml` after **v0.7.1** tag |
-| Dev agent | `rust-developer` |
+Post-merge: `gh workflow run crates-publish.yml` after **v0.7.1** tag.

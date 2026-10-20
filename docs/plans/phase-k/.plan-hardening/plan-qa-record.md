@@ -4,7 +4,7 @@
 |-------|--------|
 | review_mode | plan |
 | plan authority | `docs/plans/phase-k/plan-phase-k.md` |
-| sprints | k.1–k.5 |
+| sprints | k.1–k.4 |
 | scope reviewer | STEP2-R2 → fixes → STEP2-R3 (coordinator verified) |
 | critical reviewer | STEP4-R1 → fixes → STEP4-R2 (coordinator verified) |
 | target release | v0.8.0 (+ v0.7.1 patch for crates.io) |
