@@ -128,6 +128,12 @@ fn extensions_xhtml_suffix_headless_viewer_none_exits_zero() {
         .timeout(Duration::from_secs(5))
         .build()
         .expect("http client");
+    let page = wait_for_get(&client, &dialog_url);
+    assert!(
+        page.contains("report report--single") && page.contains("sc-compose-fragment"),
+        "expected wrapped fragment in viewer HTML: {page}"
+    );
+
     let result_url = dialog_url
         .split_once("/report/")
         .map(|(base, _)| format!("{base}/api/result"))
@@ -171,5 +177,22 @@ fn wait_for_url_file(path: &std::path::Path) -> String {
             panic!("timed out waiting for dialog URL file {}", path.display());
         }
         thread::sleep(Duration::from_millis(20));
+    }
+}
+
+fn wait_for_get(client: &reqwest::blocking::Client, url: &str) -> String {
+    let start = std::time::Instant::now();
+    loop {
+        match client.get(url).send() {
+            Ok(resp) if resp.status().is_success() => {
+                return resp.text().expect("html");
+            }
+            Ok(_) | Err(_) => {
+                if start.elapsed() > Duration::from_secs(15) {
+                    panic!("timed out waiting for GET {url}");
+                }
+                thread::sleep(Duration::from_millis(20));
+            }
+        }
     }
 }
