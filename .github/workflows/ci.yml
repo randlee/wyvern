@@ -52,6 +52,10 @@ jobs:
       - name: cargo build
         run: cargo build --workspace
 
+      - name: Check crates.io publish manifests
+        if: runner.os == 'Linux'
+        run: bash scripts/check-crates-publish-manifest.sh
+
       # Workspace includes wyvern-viewer (wry); headless e2e still uses --viewer none.
       - name: cargo test
         run: cargo test --workspace -- --test-threads=1

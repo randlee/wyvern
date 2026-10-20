@@ -9,8 +9,10 @@ homepage.workspace    = true
 authors.workspace     = true
 description = "Wyvern embedded URL viewer — wry window that loads a dialog URL"
 keywords    = ["wyvern", "webview", "viewer", "wry"]
-categories  = ["command-line-utilities", "gui"]
-readme      = "../../README.md"
+categories    = ["command-line-utilities", "gui"]
+documentation = "https://docs.rs/wyvern-viewer"
+readme        = "README.md"
+include       = ["src/**", "Cargo.toml", "README.md"]
 
 [[bin]]
 name = "wyvern-viewer"

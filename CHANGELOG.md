@@ -5,6 +5,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.1] — 2026-10-20
+
+Packaging patch for crates.io metadata. No dialog or CLI behavior change.
+
+### Distribution
+
+- **README in the package** — each `publish = true` crate ships a crate-local `README.md` listed in `include`, so `cargo package` no longer depends on a path outside the crate (#62)
+- **docs.rs link** — `documentation = "https://docs.rs/<crate>"` on `wyvern-schema`, `wyvern-wizard`, `wyvern-host`, `wyvern-viewer`, and `wyvern-cli` (#63)
+- **Publish** — after tag **v0.7.1** is a published GitHub Release, dispatch `crates-publish.yml` with `tag=v0.7.1`. #62 and #63 stay open until crates.io shows the README and Documentation link
+
 ## [0.7.0] — 2026-10-08
 
 sc-lint 0.5.0 boundary enforcement, sc-observability v2 logging, and the

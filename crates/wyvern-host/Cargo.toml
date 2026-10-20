@@ -9,8 +9,10 @@ homepage.workspace    = true
 authors.workspace     = true
 description = "Wyvern HTTP dialog host — bind, serve packaged UI, await POST /api/result"
 keywords    = ["wyvern", "dialog", "webview", "http"]
-categories  = ["command-line-utilities", "web-programming"]
-readme      = "../../README.md"
+categories    = ["command-line-utilities", "web-programming"]
+documentation = "https://docs.rs/wyvern-host"
+readme        = "README.md"
+include       = ["src/**", "Cargo.toml", "README.md"]
 
 [dependencies]
 wyvern-schema = { workspace = true }
