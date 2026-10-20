@@ -1,0 +1,54 @@
+{
+  "phase": "K",
+  "integration_branch": "integrate/phase-K",
+  "created": "2026-10-19T21:20:00Z",
+  "active_sprint": "k.1",
+  "status": "plan_hardened",
+  "pr_target_default": "integrate/phase-K",
+  "github_issues": [141, 62, 63],
+  "qa_rounds": [],
+  "sprints": {
+    "k.1": {
+      "id": "k.1",
+      "title": "Regression tests for #115 / #139",
+      "branch": "feature/phase-K-k1-issue-closeout",
+      "worktree": "../wyvern-worktrees/feature/phase-K-k1-issue-closeout",
+      "sprint_doc": "docs/plans/phase-k/k1-issue-closeout-xhtml-sendto.md",
+      "pr_target": "integrate/phase-K",
+      "status": "pending",
+      "depends_on": []
+    },
+    "k.2": {
+      "id": "k.2",
+      "title": "checksums.txt release contract and #141 closeout",
+      "branch": "feature/phase-K-k2-checksums",
+      "worktree": "../wyvern-worktrees/feature/phase-K-k2-checksums",
+      "sprint_doc": "docs/plans/phase-k/k2-checksums-release-contract.md",
+      "pr_target": "integrate/phase-K",
+      "status": "pending",
+      "depends_on": ["k.1"]
+    },
+    "k.3": {
+      "id": "k.3",
+      "title": "crates.io README and documentation links",
+      "branch": "feature/phase-K-k3-crates-io-metadata",
+      "worktree": "../wyvern-worktrees/feature/phase-K-k3-crates-io-metadata",
+      "sprint_doc": "docs/plans/phase-k/k3-crates-io-readme-docs-rs.md",
+      "pr_target": "integrate/phase-K",
+      "status": "pending",
+      "depends_on": ["k.2"]
+    },
+    "k.4": {
+      "id": "k.4",
+      "title": "docli-generated CLI HTML documentation",
+      "branch": "feature/phase-K-k4-docli",
+      "worktree": "../wyvern-worktrees/feature/phase-K-k4-docli",
+      "sprint_doc": "docs/plans/phase-k/k4-docli-cli-html-docs.md",
+      "pr_target": "integrate/phase-K",
+      "status": "pending",
+      "depends_on": ["k.3"],
+      "phase_ending": true,
+      "integration_merge_target": "develop"
+    }
+  }
+}

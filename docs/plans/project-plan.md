@@ -20,6 +20,7 @@ A sprint is a single testable deliverable that fits within one AI context window
 | `integrate/phase-H` | Phase H — XHTML reporting & review | `docs/plans/phase-H/` |
 | `integrate/phase-I` | Phase I — Wizard native path picker | `docs/plans/phase-I/` |
 | `integrate/phase-J` | Phase J — sc-publish migration | `docs/plans/phase-J/` |
+| `integrate/phase-K` | Phase K — Issue closeout, crates.io polish, docli CLI docs | `docs/plans/phase-k/` |
 
 Phase A sprint PRs target `integrate/phase-A`. Sprint authority: `docs/plans/phase-A/` (sprints **a.1–a.7**).
 
@@ -322,6 +323,25 @@ See [docs/plans/phase-J/README.md](phase-J/README.md). Tag-push release removed 
 
 ---
 
+## Phase K — Issue closeout & CLI docs (docli)
+
+**Phase goal:** Close all open GitHub hygiene issues ([#115](https://github.com/randlee/wyvern/issues/115), [#139](https://github.com/randlee/wyvern/issues/139), [#141](https://github.com/randlee/wyvern/issues/141), [#62](https://github.com/randlee/wyvern/issues/62), [#63](https://github.com/randlee/wyvern/issues/63)), fix crates.io README/documentation metadata, and integrate **[docli](https://github.com/randlee/docli)** for generated CLI HTML documentation.
+
+**Prerequisite:** v0.7.0+ on `main` (Phase J kit releases).
+
+Phase K sprint PRs target `integrate/phase-K`; **`integrate/phase-K` → `develop`** after
+phase-ending review on k.4. Plan authority:
+[plan-phase-k.md](phase-k/plan-phase-k.md). Sprints **k.1–k.4**.
+
+| Sprint | Deliverable | Doc |
+|--------|-------------|-----|
+| k.1 | Regression tests + evidence (#115, #139 closed) | [k1-issue-closeout-xhtml-sendto.md](phase-k/k1-issue-closeout-xhtml-sendto.md) |
+| k.2 | `checksums.txt` policy / #141 closeout | [k2-checksums-release-contract.md](phase-k/k2-checksums-release-contract.md) |
+| k.3 | crates.io README + `documentation` field (#62, #63) | [k3-crates-io-readme-docs-rs.md](phase-k/k3-crates-io-readme-docs-rs.md) |
+| k.4 | docli CLI HTML → `site/cli/` + phase-ending merge to `develop` | [k4-docli-cli-html-docs.md](phase-k/k4-docli-cli-html-docs.md) |
+
+---
+
 ## Phase Summary
 
 | Phase | Sprints | Ships |
@@ -335,6 +355,7 @@ See [docs/plans/phase-J/README.md](phase-J/README.md). Tag-push release removed 
 | Phase H — XHTML reporting & review | 5 | Single/array XHTML panels + `--review` finish JSON |
 | Phase I — Wizard native path picker | 1 | Wizard in-page native pickers + `path-picker` example (closes #99) |
 | Phase J — sc-publish migration | 4 | Kit vendored publish; crates/GitHub/Homebrew/Scoop/winget legs; PyPI omitted (no Python bindings); tag-push retired |
+| Phase K — Issue closeout & docli | 5 | GitHub backlog cleared; crates.io polish; docli `site/cli/`; merge to develop |
 
 ## Dependency Map
 
@@ -351,4 +372,5 @@ Phase A
 
 Phase J (sc-publish migration — tooling only; parallel to product feature chain;
          gated on main @ v0.5.0+, not on any feature phase)
+  └─ Phase K (open-issue closeout + docli CLI docs — after main @ v0.7.0+)
 ```
