@@ -196,6 +196,7 @@ Workspace tests on macOS: `cargo test --workspace -- --test-threads=1`.
 
 ## Docs
 
+- [CLI reference](site/cli/index.html) — generated HTML for `wyvern` (`usage_message()` + shipped extensions)
 - [PRD](docs/prd/wyvern-prd.md) — full product requirements and JSON schema reference
 - [Linting / sc-lint](docs/linting.md) — CI analyzers, Just bootstrap, stack landing
 - [CHANGELOG](CHANGELOG.md) — release history

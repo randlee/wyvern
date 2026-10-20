@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en" id="docli-default-pack">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>wyvern CLI Reference</title>
+<style>
+:root{color-scheme:light dark;--bg:#fff;--fg:#1a1a2e;--border:#ddd;--hover:#f0f0f0;--accent:#007acc;--muted:#666}
+@media (prefers-color-scheme:dark){:root{--bg:#16181d;--fg:#e6e6e6;--border:#333;--hover:#23262e;--accent:#4da3ff;--muted:#999}}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;background:var(--bg);color:var(--fg)}
+header{display:flex;flex-wrap:wrap;align-items:baseline;gap:.75rem;padding:.75rem 1.25rem;border-bottom:1px solid var(--border)}
+header h1{font-size:1.2rem;margin:0}
+.meta{color:var(--muted);font-size:.85rem}
+.crumb{color:var(--accent);text-decoration:none;font-size:.9rem}
+.search{margin-left:auto}
+.search input{padding:.35rem .6rem;border:1px solid var(--border);border-radius:6px;font:inherit;background:var(--bg);color:var(--fg);min-width:16rem}
+main{display:grid;grid-template-columns:minmax(16rem,28%) 1fr;min-height:calc(100vh - 3.2rem)}
+.pane{min-width:0}
+aside.pane{padding:1rem;border-right:1px solid var(--border);overflow:auto}
+aside.pane h2{font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:0 0 .5rem}
+article.pane{padding:1.25rem 1.5rem;max-width:72rem}
+#tree ul{list-style:none;margin:0;padding:0}
+#tree .docli-caret,#tree .docli-cmd{border:0;background:none;color:inherit;font:inherit;cursor:pointer}
+#tree .docli-caret{width:1.1rem;height:1.4rem;padding:0;color:var(--muted);vertical-align:middle}
+#tree .docli-caret::before{content:"\25B6";display:inline-block;font-size:.65rem;transition:transform .15s}
+#tree .node.open>.docli-caret::before{transform:rotate(90deg)}
+#tree .node.leaf>.docli-caret{visibility:hidden}
+#tree .docli-cmd{display:inline-flex;align-items:center;padding:.28rem .5rem;border-radius:6px;text-align:left}
+#tree .docli-cmd:hover{background:var(--hover)}
+#tree .docli-cmd[aria-current=true]{background:var(--accent);color:#fff;font-weight:600}
+#tree .children{margin-left:.9em;border-left:1px solid var(--border);padding-left:.35em}
+#tree .children[hidden]{display:none}
+#tree .hidden{display:none}
+.card{border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:1rem}
+.card h2{margin-top:0}
+.card h3{font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:.25rem 0 .5rem}
+pre.usage{background:#164e63;color:#fff;padding:1rem;border-radius:8px;overflow-x:auto;margin:0}
+table{border-collapse:collapse;width:100%}
+th,td{border:1px solid var(--border);padding:.4rem .55rem;text-align:left;vertical-align:top}
+th{background:var(--hover);font-size:.85rem}
+code{overflow-wrap:anywhere}
+@media (max-width:760px){main{display:block}aside.pane{border-right:0;border-bottom:1px solid var(--border)}.search input{min-width:0;width:100%}}
+</style>
+</head>
+<body>
+<header><a class="crumb" href="../">Documentation</a><h1>wyvern CLI Reference</h1><span class="meta">Version 0.8.0</span><label class="search">Search <input id="search" type="search" autocomplete="off" placeholder="commands and options"></label></header>
+<main>
+<aside class="pane"><h2>Commands</h2><nav id="tree"><ul><li class="node open" data-anchor="wyvern"><button type="button" class="docli-caret" aria-expanded="true"></button><button type="button" class="docli-cmd" data-anchor="wyvern">wyvern</button><ul class="children"><li class="node open" data-anchor="wyvern-browsers"><button type="button" class="docli-caret" aria-expanded="true"></button><button type="button" class="docli-cmd" data-anchor="wyvern-browsers">browsers</button><ul class="children"><li class="node leaf" data-anchor="wyvern-browsers-list"><button type="button" class="docli-caret" aria-expanded="false"></button><button type="button" class="docli-cmd" data-anchor="wyvern-browsers-list">list</button></li><li class="node leaf" data-anchor="wyvern-browsers-refresh"><button type="button" class="docli-caret" aria-expanded="false"></button><button type="button" class="docli-cmd" data-anchor="wyvern-browsers-refresh">refresh</button></li></ul></li><li class="node open" data-anchor="wyvern-extensions"><button type="button" class="docli-caret" aria-expanded="true"></button><button type="button" class="docli-cmd" data-anchor="wyvern-extensions">extensions</button><ul class="children"><li class="node leaf" data-anchor="wyvern-extensions-list"><button type="button" class="docli-caret" aria-expanded="false"></button><button type="button" class="docli-cmd" data-anchor="wyvern-extensions-list">list</button></li><li class="node leaf" data-anchor="wyvern-extensions-show"><button type="button" class="docli-caret" aria-expanded="false"></button><button type="button" class="docli-cmd" data-anchor="wyvern-extensions-show">show</button></li></ul></li><li class="node open" data-anchor="wyvern-examples"><button type="button" class="docli-caret" aria-expanded="true"></button><button type="button" class="docli-cmd" data-anchor="wyvern-examples">examples</button><ul class="children"><li class="node leaf" data-anchor="wyvern-examples-list"><button type="button" class="docli-caret" aria-expanded="false"></button><button type="button" class="docli-cmd" data-anchor="wyvern-examples-list">list</button></li></ul></li><li class="node open" data-anchor="wyvern-wizard"><button type="button" class="docli-caret" aria-expanded="true"></button><button type="button" class="docli-cmd" data-anchor="wyvern-wizard">wizard</button><ul class="children"><li class="node leaf" data-anchor="wyvern-wizard-lint"><button type="button" class="docli-caret" aria-expanded="false"></button><button type="button" class="docli-cmd" data-anchor="wyvern-wizard-lint">lint</button></li></ul></li><li class="node leaf" data-anchor="wyvern-markdown-suffix"><button type="button" class="docli-caret" aria-expanded="false"></button><button type="button" class="docli-cmd" data-anchor="wyvern-markdown-suffix">markdown-suffix</button></li><li class="node leaf" data-anchor="wyvern-html-suffix"><button type="button" class="docli-caret" aria-expanded="false"></button><button type="button" class="docli-cmd" data-anchor="wyvern-html-suffix">html-suffix</button></li><li class="node leaf" data-anchor="wyvern-xhtml-suffix"><button type="button" class="docli-caret" aria-expanded="false"></button><button type="button" class="docli-cmd" data-anchor="wyvern-xhtml-suffix">xhtml-suffix</button></li><li class="node leaf" data-anchor="wyvern-report-xhtml-review"><button type="button" class="docli-caret" aria-expanded="false"></button><button type="button" class="docli-cmd" data-anchor="wyvern-report-xhtml-review">report-xhtml-review</button></li><li class="node leaf" data-anchor="wyvern-report-xhtml"><button type="button" class="docli-caret" aria-expanded="false"></button><button type="button" class="docli-cmd" data-anchor="wyvern-report-xhtml">report-xhtml</button></li><li class="node leaf" data-anchor="wyvern-wizard-json-suffix"><button type="button" class="docli-caret" aria-expanded="false"></button><button type="button" class="docli-cmd" data-anchor="wyvern-wizard-json-suffix">wizard-json-suffix</button></li><li class="node leaf" data-anchor="wyvern-compose-render"><button type="button" class="docli-caret" aria-expanded="false"></button><button type="button" class="docli-cmd" data-anchor="wyvern-compose-render">compose-render</button></li><li class="node leaf" data-anchor="wyvern-csv-suffix"><button type="button" class="docli-caret" aria-expanded="false"></button><button type="button" class="docli-cmd" data-anchor="wyvern-csv-suffix">csv-suffix</button></li><li class="node leaf" data-anchor="wyvern-csv-table-alias"><button type="button" class="docli-caret" aria-expanded="false"></button><button type="button" class="docli-cmd" data-anchor="wyvern-csv-table-alias">csv-table-alias</button></li><li class="node leaf" data-anchor="wyvern-csv-md"><button type="button" class="docli-caret" aria-expanded="false"></button><button type="button" class="docli-cmd" data-anchor="wyvern-csv-md">csv-md</button></li><li class="node leaf" data-anchor="wyvern-guide"><button type="button" class="docli-caret" aria-expanded="false"></button><button type="button" class="docli-cmd" data-anchor="wyvern-guide">guide</button></li></ul></li></ul></nav></aside>
+<article class="pane" id="detail" aria-live="polite"></article>
+</main>
+<script id="docli-data" type="application/json">{"name":"wyvern","version":"0.8.0","description":"What You View, Engine Renders Natively — HTTP dialog CLI","long_description":"Pass a JSON string, .json file, or a path handled by an extension; or pipe JSON on stdin.\n  See `wyvern extensions list` for the skill index.\n  See `wyvern examples list` for bundled example READMEs.\n  Prefix skills answer --help (example: wyvern compose render --help).\nCatalog ids for `wyvern extensions show <id>` (not argv commands): markdown-suffix, html-suffix, xhtml-suffix, report-xhtml-review, report-xhtml, wizard-json-suffix, compose-render, csv-suffix, csv-table-alias, csv-md, guide","epilogue":"Extensions (see `wyvern extensions list`):\n  wyvern guide                   # visual feature guide (welcome wizard)\n  wyvern doc.md\n  wyvern page.html\n  wyvern panel.xhtml\n  wyvern report-xhtml <manifest.json>  # title, optional mode, panels[{path,label,role}]\n  wyvern report-xhtml --review <manifest.json>  # comments + Approve/Cancel finish\n  wyvern path/to/wizard.json\n  wyvern data.csv\n  wyvern table data.csv          # same interactive table as data.csv\n  wyvern md data.csv             # CSV as a markdown dialog\n  wyvern compose render --root DIR --file FILE.j2 [--var k=v] [--var-file vars.json] [--env-prefix PREFIX]\n\nEnvironment:\n  WYVERN_VIEWER              Override --viewer default\n  WYVERN_UI_ROOT             Override default UI root discovery\n  WYVERN_SHARE               Override share/wyvern root (extensions + scripts)\n\nPass a JSON string, .json file, or a path handled by an extension; or pipe JSON on stdin.\n  See `wyvern extensions list` for the skill index.\n  See `wyvern examples list` for bundled example READMEs.\n  Prefix skills answer --help (example: wyvern compose render --help).\nCatalog ids for `wyvern extensions show <id>` (not argv commands): markdown-suffix, html-suffix, xhtml-suffix, report-xhtml-review, report-xhtml, wizard-json-suffix, compose-render, csv-suffix, csv-table-alias, csv-md, guide","usage":"wyvern --help | -h | help\nwyvern '<json>' | <file.json> | <file.md> | <page.html> | <panel.xhtml> | wizard.json [options]\necho '<json>' | wyvern [options]\nwyvern browsers list|refresh\nwyvern extensions list|show\nwyvern examples list\nwyvern wizard lint <path> [<path>...]   Static nav-button lint for wizard packages\nwyvern --version","options":[{"name":"bind","long":"--bind","short":null,"help":"HTTP bind (default 127.0.0.1:0)","long_help":"","value_name":"ADDR:PORT","required":false,"default_value":"127.0.0.1:0","choices":[],"min_values":null,"max_values":null},{"name":"allow-non-loopback","long":"--allow-non-loopback","short":null,"help":"Permit non-loopback --bind (0.0.0.0 / LAN)","long_help":"","value_name":null,"required":false,"default_value":null,"choices":[],"min_values":null,"max_values":null},{"name":"ui-root","long":"--ui-root","short":null,"help":"Packaged UI root (default: share/wyvern/ui beside binary). For .html / wizard.json, ui-root is inferred from the directory that contains wizard.json or pages/. An extension host.ui_root replaces this flag.","long_help":"","value_name":"PATH","required":false,"default_value":"share/wyvern/ui beside binary","choices":[],"min_values":null,"max_values":null},{"name":"viewer","long":"--viewer","short":null,"help":"embedded|none|system|chrome|safari|edge|firefox (default: embedded; CI: WYVERN_VIEWER=none)","long_help":"","value_name":"MODE","required":false,"default_value":"embedded","choices":["embedded","none","system","chrome","safari","edge","firefox"],"min_values":null,"max_values":null},{"name":"workflow-dry-run","long":"--workflow-dry-run","short":null,"help":"Append --dry-run to wizard workflow pre/post scripts","long_help":"","value_name":null,"required":false,"default_value":null,"choices":[],"min_values":null,"max_values":null},{"name":"help","long":"--help","short":"-h","help":"Print usage and exit","long_help":"","value_name":null,"required":false,"default_value":null,"choices":[],"min_values":null,"max_values":null},{"name":"version","long":"--version","short":"-V","help":"Print the version and exit","long_help":"","value_name":null,"required":false,"default_value":null,"choices":[],"min_values":null,"max_values":null}],"arguments":[{"name":"input","help":"JSON command string, a path handled by an extension, or omit to read JSON from stdin.","required":false,"default_value":null,"choices":[]}],"subcommands":[{"name":"browsers","version":null,"description":"List browsers in the local registry","long_description":"list — List browsers in the local registry\nrefresh — Rebuild the local browser registry","epilogue":"See also: wyvern --help","usage":"wyvern browsers list|refresh\nwyvern browsers --help","options":[],"arguments":[],"subcommands":[{"name":"list","version":null,"description":"List browsers in the local registry","long_description":"","epilogue":"","usage":"wyvern browsers list","options":[],"arguments":[],"subcommands":[]},{"name":"refresh","version":null,"description":"Rebuild the local browser registry","long_description":"","epilogue":"","usage":"wyvern browsers refresh","options":[],"arguments":[],"subcommands":[]}]},{"name":"extensions","version":null,"description":"List shipped and project CLI extensions","long_description":"list — List shipped and project CLI extensions\nshow — Print one skill (text or --json object)","epilogue":"Warning: `.wyvern/extensions.json` is trusted preexec; review it before running wyvern.\nSee also: wyvern --help","usage":"wyvern extensions [list] [--json]\nwyvern extensions show <id> [--json]\nwyvern extensions --help","options":[{"name":"json","long":"--json","short":null,"help":"Print SkillRecord JSON (array for list, object for show)","long_help":"","value_name":null,"required":false,"default_value":null,"choices":[],"min_values":null,"max_values":null}],"arguments":[],"subcommands":[{"name":"list","version":null,"description":"List shipped and project CLI extensions","long_description":"","epilogue":"","usage":"wyvern extensions list","options":[],"arguments":[],"subcommands":[]},{"name":"show","version":null,"description":"Print one skill (text or --json object)","long_description":"","epilogue":"","usage":"wyvern extensions show <id>","options":[],"arguments":[{"name":"id","help":"Print one skill (text or --json object)","required":true,"default_value":null,"choices":[]}],"subcommands":[]}]},{"name":"examples","version":null,"description":"List bundled examples discovered from README frontmatter","long_description":"list — List bundled examples discovered from README frontmatter","epilogue":"Each example README under {wyvern_share}/examples/ must begin with:\n  ---\n  name: Example title\n  description: One-line summary\n  ---\n\nSee also: wyvern guide, wyvern --help","usage":"wyvern examples [list] [--json]\nwyvern examples --help","options":[{"name":"json","long":"--json","short":null,"help":"Print ExampleRecord JSON array","long_help":"","value_name":null,"required":false,"default_value":null,"choices":[],"min_values":null,"max_values":null}],"arguments":[],"subcommands":[{"name":"list","version":null,"description":"List bundled examples discovered from README frontmatter","long_description":"","epilogue":"","usage":"wyvern examples list","options":[],"arguments":[],"subcommands":[]}]},{"name":"wizard","version":null,"description":"Lint one or more wizard packages for missing nav buttons","long_description":"lint — Lint one or more wizard packages for missing nav buttons","epilogue":"Exit codes:\n  0   All pages are clean\n  1   One or more findings\n  2   Usage / bad arguments\n\nFindings codes:\n  WIZARD-LINT-001  Non-entry page missing back button\n  WIZARD-LINT-002  Terminal page missing cancel button\n  WIZARD-LINT-003  wizard-nav.js chrome opt-in but no nav region\n  WIZARD-LINT-004  Non-terminal page (with chrome opt-in) missing next button\n  WIZARD-LINT-005  config.dataflow requires unsatisfied or type conflict\n  WIZARD-LINT-006  Terminal post_input not covered by exports\n  WIZARD-LINT-007  next_wizard input keys undeclared on target\n  WIZARD-LINT-008  Local JS reads a key no page exports\n\nSee also: wyvern --help","usage":"wyvern wizard lint <path> [<path>...]\nwyvern wizard lint --help","options":[],"arguments":[],"subcommands":[{"name":"lint","version":null,"description":"Lint one or more wizard packages for missing nav buttons","long_description":"","epilogue":"","usage":"wyvern wizard lint <path...>","options":[],"arguments":[{"name":"path","help":"Directory containing wizard.json, or path to wizard.json itself","required":true,"default_value":null,"choices":[]}],"subcommands":[]}]},{"name":"markdown-suffix","version":null,"description":"Open a Markdown file as a markdown dialog.","long_description":"Open a Markdown file as a markdown dialog.","epilogue":"Match: positional_suffix=.md\n","usage":"wyvern README.md","options":[],"arguments":[],"subcommands":[]},{"name":"html-suffix","version":null,"description":"Open an HTML page as a wizard dialog.","long_description":"Open an HTML page as a wizard dialog.","epilogue":"Match: positional_suffix=.html\n","usage":"wyvern page.html","options":[],"arguments":[],"subcommands":[]},{"name":"xhtml-suffix","version":null,"description":"Open an XHTML panel as a report view (wrapped document frame).","long_description":"Open an XHTML panel as a report view (wrapped document frame).","epilogue":"Match: positional_suffix=.xhtml\n","usage":"wyvern panel.xhtml","options":[],"arguments":[],"subcommands":[]},{"name":"report-xhtml-review","version":null,"description":"Open XHTML panels in review mode (comments + Approve/Cancel).","long_description":"Open XHTML panels in review mode (comments + Approve/Cancel).","epilogue":"Match: argv_prefix=report-xhtml --review, arg_suffix=.json\n","usage":"wyvern report-xhtml --review path/to/review.json","options":[],"arguments":[],"subcommands":[]},{"name":"report-xhtml","version":null,"description":"Open an ordered array of XHTML panels as one report view. Manifest fields: title, optional mode (view|review), panels[{path, label?, role?}].","long_description":"Open an ordered array of XHTML panels as one report view. Manifest fields: title, optional mode (view|review), panels[{path, label?, role?}].","epilogue":"Match: argv_prefix=report-xhtml, arg_suffix=.json\n","usage":"wyvern report-xhtml path/to/review.json","options":[],"arguments":[],"subcommands":[]},{"name":"wizard-json-suffix","version":null,"description":"Open a wizard.json file as a multi-page wizard.","long_description":"Open a wizard.json file as a multi-page wizard.","epilogue":"Match: filename=wizard.json\n","usage":"wyvern path/to/wizard.json","options":[],"arguments":[],"subcommands":[]},{"name":"compose-render","version":null,"description":"Render a sc-compose template and preview the HTML page.","long_description":"Render a sc-compose template and preview the HTML page.","epilogue":"Match: argv_prefix=compose render\n","usage":"wyvern compose render --root DIR --file FILE.j2 [--var k=v] [--var-file vars.json] [--env-prefix PREFIX]","options":[],"arguments":[],"subcommands":[]},{"name":"csv-suffix","version":null,"description":"Open a CSV file as an interactive sortable table.","long_description":"Open a CSV file as an interactive sortable table.","epilogue":"Match: positional_suffix=.csv\n","usage":"wyvern data.csv","options":[],"arguments":[],"subcommands":[]},{"name":"csv-table-alias","version":null,"description":"Alias of csv-suffix: open a CSV file as an interactive table.","long_description":"Alias of csv-suffix: open a CSV file as an interactive table.","epilogue":"Match: argv_prefix=table, arg_suffix=.csv\n","usage":"wyvern table data.csv","options":[],"arguments":[],"subcommands":[]},{"name":"csv-md","version":null,"description":"Open a CSV file as a markdown dialog.","long_description":"Open a CSV file as a markdown dialog.","epilogue":"Match: argv_prefix=md, arg_suffix=.csv\n","usage":"wyvern md data.csv","options":[],"arguments":[],"subcommands":[]},{"name":"guide","version":null,"description":"Visual feature guide (multi-page wizard).","long_description":"Visual feature guide (multi-page wizard).","epilogue":"Match: argv_prefix=guide\n","usage":"wyvern guide","options":[],"arguments":[],"subcommands":[]}]}</script>
+<script id="docli-search" type="application/json">[{"anchor":"wyvern","ancestors":[],"terms":["wyvern","bind","--bind","allow-non-loopback","--allow-non-loopback","ui-root","--ui-root","viewer","--viewer","workflow-dry-run","--workflow-dry-run","help","--help","-h","version","--version","-V","input"]},{"anchor":"wyvern-browsers","ancestors":["wyvern"],"terms":["browsers"]},{"anchor":"wyvern-browsers-list","ancestors":["wyvern","wyvern-browsers"],"terms":["list"]},{"anchor":"wyvern-browsers-refresh","ancestors":["wyvern","wyvern-browsers"],"terms":["refresh"]},{"anchor":"wyvern-extensions","ancestors":["wyvern"],"terms":["extensions","json","--json"]},{"anchor":"wyvern-extensions-list","ancestors":["wyvern","wyvern-extensions"],"terms":["list"]},{"anchor":"wyvern-extensions-show","ancestors":["wyvern","wyvern-extensions"],"terms":["show","id"]},{"anchor":"wyvern-examples","ancestors":["wyvern"],"terms":["examples","json","--json"]},{"anchor":"wyvern-examples-list","ancestors":["wyvern","wyvern-examples"],"terms":["list"]},{"anchor":"wyvern-wizard","ancestors":["wyvern"],"terms":["wizard"]},{"anchor":"wyvern-wizard-lint","ancestors":["wyvern","wyvern-wizard"],"terms":["lint","path"]},{"anchor":"wyvern-markdown-suffix","ancestors":["wyvern"],"terms":["markdown-suffix"]},{"anchor":"wyvern-html-suffix","ancestors":["wyvern"],"terms":["html-suffix"]},{"anchor":"wyvern-xhtml-suffix","ancestors":["wyvern"],"terms":["xhtml-suffix"]},{"anchor":"wyvern-report-xhtml-review","ancestors":["wyvern"],"terms":["report-xhtml-review"]},{"anchor":"wyvern-report-xhtml","ancestors":["wyvern"],"terms":["report-xhtml"]},{"anchor":"wyvern-wizard-json-suffix","ancestors":["wyvern"],"terms":["wizard-json-suffix"]},{"anchor":"wyvern-compose-render","ancestors":["wyvern"],"terms":["compose-render"]},{"anchor":"wyvern-csv-suffix","ancestors":["wyvern"],"terms":["csv-suffix"]},{"anchor":"wyvern-csv-table-alias","ancestors":["wyvern"],"terms":["csv-table-alias"]},{"anchor":"wyvern-csv-md","ancestors":["wyvern"],"terms":["csv-md"]},{"anchor":"wyvern-guide","ancestors":["wyvern"],"terms":["guide"]}]</script>
+<script>
+
+(() => {
+  "use strict";
+  const treeEl = document.getElementById("tree");
+  const detailEl = document.getElementById("detail");
+  const searchEl = document.getElementById("search");
+
+  function report(message) {
+    if (!detailEl) return;
+    detailEl.replaceChildren();
+    const note = document.createElement("p");
+    note.id = "docli-status";
+    note.textContent = message;
+    detailEl.append(note);
+  }
+
+  let data;
+  let searchIndex;
+  try {
+    const dataNode = document.getElementById("docli-data");
+    const searchNode = document.getElementById("docli-search");
+    if (!dataNode || !searchNode) {
+      throw new Error("embedded JSON is missing");
+    }
+    data = JSON.parse(dataNode.textContent);
+    searchIndex = JSON.parse(searchNode.textContent);
+    if (data === null || typeof data !== "object" || Array.isArray(data) || !Array.isArray(searchIndex)) {
+      throw new Error("embedded JSON is invalid");
+    }
+  } catch (err) {
+    const why = err && err.message ? err.message : "invalid JSON";
+    report("Could not read this page's command data. " + why);
+    return;
+  }
+
+  const all = [];
+  const usedAnchors = new Set();
+
+  // Mirror `search::slug`: only ASCII alnum are kept; other code points are separators.
+  function slug(value) {
+    let out = "";
+    let pendingDash = false;
+    for (const ch of value) {
+      const code = ch.charCodeAt(0);
+      const isAsciiAlnum =
+        (code >= 48 && code <= 57) ||
+        (code >= 65 && code <= 90) ||
+        (code >= 97 && code <= 122);
+      if (isAsciiAlnum) {
+        if (pendingDash) {
+          out += "-";
+          pendingDash = false;
+        }
+        out += ch.toLowerCase();
+      } else if (out.length) {
+        pendingDash = true;
+      }
+    }
+    return out;
+  }
+
+  // Same preorder rule as `search::unique_anchor`: the first slug wins, and
+  // each later collision takes the next free -2, -3, ... anchor.
+  function uniqueAnchor(base) {
+    if (!usedAnchors.has(base)) {
+      usedAnchors.add(base);
+      return base;
+    }
+    let suffix = 2;
+    let candidate = base + "-" + suffix;
+    while (usedAnchors.has(candidate)) {
+      suffix += 1;
+      candidate = base + "-" + suffix;
+    }
+    usedAnchors.add(candidate);
+    return candidate;
+  }
+
+  function flatten(node, path) {
+    const full = path.concat(node.name);
+    node.anchor = uniqueAnchor(slug(full.join(" ")));
+    all.push(node);
+    (node.subcommands || []).forEach((child) => flatten(child, full));
+  }
+  flatten(data, []);
+
+  function el(tag, text) {
+    const node = document.createElement(tag);
+    if (text != null) node.textContent = text;
+    return node;
+  }
+
+  function show(node, notice) {
+    if (!notice && location.hash.slice(1) !== node.anchor) {
+      location.hash = node.anchor;
+    }
+    detailEl.replaceChildren();
+    if (notice) {
+      const note = el("p", notice);
+      note.id = "docli-status";
+      note.className = "meta";
+      detailEl.append(note);
+    }
+    const head = el("section");
+    head.className = "card";
+    head.append(el("h2", node.name));
+    const desc = node.long_description || node.description;
+    if (desc) head.append(el("p", desc));
+    if (node.usage) {
+      const usage = el("pre", node.usage);
+      usage.className = "usage";
+      head.append(el("h3", "Usage"), usage);
+    }
+    detailEl.append(head);
+    const opts = node.options || [];
+    const args = node.arguments || [];
+    if (opts.length || args.length) {
+      const sec = el("section");
+      sec.className = "card";
+      sec.append(el("h3", "Arguments & options"));
+      const table = el("table");
+      const header = el("tr");
+      ["Name", "Short", "Value", "Required", "Default", "Choices", "Description"].forEach((label) => {
+        header.append(el("th", label));
+      });
+      const thead = el("thead");
+      thead.append(header);
+      table.append(thead);
+      const body = el("tbody");
+      args.forEach((arg) => {
+        const row = el("tr");
+        row.id = arg.name;
+        row.append(
+          el("td", arg.name),
+          el("td", ""),
+          el("td", ""),
+          el("td", arg.required ? "yes" : "no"),
+          el("td", arg.default_value || ""),
+          el("td", (arg.choices || []).join(", ")),
+          el("td", arg.help || "")
+        );
+        body.append(row);
+      });
+      opts.forEach((option) => {
+        const row = el("tr");
+        row.id = option.name;
+        row.append(
+          el("td", option.long || option.name || ""),
+          el("td", option.short || ""),
+          el("td", option.value_name || ""),
+          el("td", option.required ? "yes" : "no"),
+          el("td", option.default_value || ""),
+          el("td", (option.choices || []).join(", ")),
+          el("td", option.long_help || option.help || "")
+        );
+        body.append(row);
+      });
+      table.append(body);
+      sec.append(table);
+      detailEl.append(sec);
+    }
+    if (node.epilogue) {
+      const notes = el("section");
+      notes.className = "card";
+      notes.append(el("h3", "Notes"), el("p", node.epilogue));
+      detailEl.append(notes);
+    }
+  }
+
+  function buildTree(node) {
+    const hasKids = Array.isArray(node.subcommands) && node.subcommands.length > 0;
+    const li = el("li");
+    li.className = hasKids ? "node open" : "node leaf";
+    li.dataset.anchor = node.anchor;
+    const caret = el("button");
+    caret.type = "button";
+    caret.className = "docli-caret";
+    caret.setAttribute("aria-expanded", hasKids ? "true" : "false");
+    caret.addEventListener("click", () => {
+      const kids = li.querySelector(":scope > .children");
+      if (!kids) return;
+      const open = li.classList.toggle("open");
+      caret.setAttribute("aria-expanded", open ? "true" : "false");
+      kids.hidden = !open;
+    });
+    const cmd = el("button", node.name);
+    cmd.type = "button";
+    cmd.className = "docli-cmd";
+    cmd.dataset.anchor = node.anchor;
+    cmd.addEventListener("click", () => select(node));
+    li.append(caret, cmd);
+    if (hasKids) {
+      const ul = el("ul");
+      ul.className = "children";
+      node.subcommands.forEach((child) => ul.append(buildTree(child)));
+      li.append(ul);
+    }
+    return li;
+  }
+
+  function select(node, notice) {
+    document.querySelectorAll("#tree .docli-cmd").forEach((button) => {
+      button.setAttribute("aria-current", String(button.dataset.anchor === node.anchor));
+    });
+    show(node, notice);
+  }
+
+  function routeFromHash() {
+    const anchor = location.hash.slice(1);
+    if (anchor === "") {
+      select(data);
+      return;
+    }
+    const node = all.find((item) => item.anchor === anchor);
+    if (!node) {
+      select(data, "No command matches this link.");
+      return;
+    }
+    select(node);
+  }
+
+  function matchingAnchors(query) {
+    const q = query.toLowerCase();
+    if (q === "") return null;
+    const hits = new Set();
+    for (const entry of searchIndex) {
+      const matched = (entry.terms || []).some((term) => {
+        const value = String(term).toLowerCase();
+        if (value === "") return false;
+        return value.includes(q) || q.includes(value);
+      });
+      if (matched) {
+        hits.add(entry.anchor);
+        (entry.ancestors || []).forEach((ancestor) => hits.add(ancestor));
+      }
+    }
+    return hits;
+  }
+
+  function applySearch() {
+    const hits = matchingAnchors(searchEl.value);
+    document.querySelectorAll("#tree li.node").forEach((li) => {
+      const visible = hits === null || hits.has(li.dataset.anchor);
+      li.classList.toggle("hidden", !visible);
+      if (hits === null || !visible) return;
+      const kids = li.querySelector(":scope > .children");
+      if (!kids) return;
+      li.classList.add("open");
+      const caret = li.querySelector(":scope > .docli-caret");
+      if (caret) caret.setAttribute("aria-expanded", "true");
+      kids.hidden = false;
+    });
+    let status = document.getElementById("docli-search-status");
+    if (hits !== null && hits.size === 0) {
+      if (!status) {
+        status = el("p", "No matching commands.");
+        status.id = "docli-search-status";
+        status.className = "meta";
+        treeEl.before(status);
+      } else {
+        status.textContent = "No matching commands.";
+      }
+    } else if (status) {
+      status.remove();
+    }
+  }
+
+  treeEl.replaceChildren();
+  const root = el("ul");
+  root.append(buildTree(data));
+  treeEl.append(root);
+  searchEl.addEventListener("input", applySearch);
+  window.addEventListener("hashchange", routeFromHash);
+  routeFromHash();
+})();
+
+</script>
+</body>
+</html>

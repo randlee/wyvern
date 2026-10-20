@@ -1,0 +1,30 @@
+{
+  "name": "demo",
+  "version": "1.0.0",
+  "description": "A tiny example CLI",
+  "long_description": "A slightly longer description of the demo tool that spans a sentence.",
+  "usage": "demo [OPTIONS] <COMMAND>",
+  "epilogue": "See the full docs for more detail.",
+  "options": [
+    {"name": "verbose", "long": "--verbose", "short": "-v", "help": "Increase verbosity", "required": false},
+    {"name": "output", "long": "--output", "short": "-o", "value_name": "PATH", "help": "Write output to PATH", "required": false, "choices": ["json", "yaml"]}
+  ],
+  "arguments": [
+    {"name": "config", "help": "Path to the config file", "required": false}
+  ],
+  "subcommands": [
+    {
+      "name": "run",
+      "description": "Run the thing",
+      "usage": "demo run [OPTIONS]",
+      "options": [
+        {"name": "dry-run", "long": "--dry-run", "short": null, "help": "Do not execute", "required": false, "default_value": "false"}
+      ],
+      "arguments": [],
+      "subcommands": [
+        {"name": "once", "description": "Run exactly once", "usage": "demo run once", "options": [], "arguments": [], "subcommands": []}
+      ]
+    },
+    {"name": "check", "description": "Check the config", "usage": "demo check <CONFIG>", "options": [], "arguments": [{"name": "config", "help": "Config to check", "required": true}], "subcommands": []}
+  ]
+}

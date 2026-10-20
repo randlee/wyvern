@@ -477,3 +477,35 @@ jobs:
 
       - name: Verify share/ and scripts/ext match crates/wyvern/
         run: bash scripts/check-share-sync.sh
+
+  cli-docs:
+    name: CLI HTML docs drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Linux build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwayland-dev \
+            pkg-config \
+            libwebkit2gtk-4.1-dev \
+            libxkbcommon-x11-0 \
+            libgl1-mesa-dri \
+            mesa-utils \
+            at-spi2-core \
+            dbus-x11 \
+            xvfb
+
+      - name: Regenerate CLI docs and fail on drift
+        run: |
+          bash scripts/generate-cli-docs.sh
+          git diff --exit-code -- fixtures/cli/wyvern-cli-model.json site/cli/
+          if [[ -n "$(git status --porcelain -- fixtures/cli/wyvern-cli-model.json site/cli/)" ]]; then
+            git status --porcelain -- fixtures/cli/wyvern-cli-model.json site/cli/
+            exit 1
+          fi
