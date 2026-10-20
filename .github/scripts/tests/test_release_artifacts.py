@@ -2025,8 +2025,11 @@ def test_public_registry_check_plan_assigns_named_agents_and_normalizes_python_n
     checks = json.loads(result.stdout)["checks"]
     crates = [entry for entry in checks if entry["channel"] == "crates_io"]
     pypi = [entry for entry in checks if entry["channel"] == "pypi"]
+    manifest_crates_by_order = sorted(
+        manifest["crates"], key=lambda entry: entry.get("publish_order", 0)
+    )
     assert [entry["name"] for entry in crates] == [
-        entry["package"] for entry in manifest["crates"]
+        entry["package"] for entry in manifest_crates_by_order
     ]
     assert all(entry["agent"] == "crates-io-publisher" for entry in crates)
     assert all(entry["version_policy"] == "must_be_absent" for entry in crates)
