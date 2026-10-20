@@ -13,7 +13,6 @@ use std::time::Duration;
 use test_support::PresentProbe;
 use wyvern::extensions::{build_match_context, expand_command_host, ExtensionRegistry};
 
-const PARSE_ERROR: &str = "PARSE_ERROR";
 const NO_MATCH: &str = "No shipped extension matches";
 
 fn workspace_root() -> PathBuf {
@@ -41,15 +40,42 @@ fn wyvern() -> Command {
     cmd
 }
 
+/// Parse a structured stderr envelope the same way as `extension_diagnostics`.
+///
+/// The host may print `WYVERN_DIALOG_URL=…` before a JSON error line. When no
+/// JSON object is present, the text is not a closeout failure.
+fn parse_stderr(text: &str) -> Option<serde_json::Value> {
+    let json_line = text
+        .lines()
+        .rev()
+        .find(|line| line.trim_start().starts_with('{'))?;
+    Some(
+        serde_json::from_str(json_line.trim()).unwrap_or_else(|err| {
+            panic!("stderr is not JSON ({err}): {text}");
+        }),
+    )
+}
+
+/// Reject a structured closeout failure.
+///
+/// A `StderrError` envelope fails when `code` is `PARSE_ERROR`, or when
+/// `message` / `cause` reports that no shipped extension matched.
 fn assert_no_closeout_failure(label: &str, text: &str) {
-    assert!(
-        !text.contains(PARSE_ERROR),
-        "{label} must not contain {PARSE_ERROR}: {text}"
+    let Some(value) = parse_stderr(text) else {
+        return;
+    };
+    assert_ne!(
+        value["code"], "PARSE_ERROR",
+        "{label} code must not be PARSE_ERROR: {text}"
     );
-    assert!(
-        !text.contains(NO_MATCH),
-        "{label} must not contain {NO_MATCH}: {text}"
-    );
+    for field in ["message", "cause"] {
+        if let Some(body) = value[field].as_str() {
+            assert!(
+                !body.contains(NO_MATCH),
+                "{label} {field} must not report a missed extension: {text}"
+            );
+        }
+    }
 }
 
 #[test]
