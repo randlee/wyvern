@@ -17,8 +17,8 @@ CI job: **`atm-send-to-contract`** in [`.github/workflows/ci.yml`](../../../.git
 
 | Step | Script |
 |------|--------|
-| Verify atm-core pin, fixtures, and picker HTML | `scripts/verify_atm_core_send_to_contract.sh` |
-| Run atm-core Send-To surface tests and real Wyvern probe | `scripts/run_atm_core_send_to_surface_tests.sh` |
+| Verify atm-core pin, fixtures, and picker HTML | `scripts/verify_atm_core_send_to_contract.sh` (exports `ATM_CORE_CHECKOUT`) |
+| Run atm-core Send-To surface tests and real Wyvern probe | `scripts/run_atm_core_send_to_surface_tests.sh` (reuses `ATM_CORE_CHECKOUT`) |
 | Run atm-pick-member L2 contract spec | `npx playwright test wizard-atm-pick-member.spec.ts` |
 
 The surface-test step runs, against the pinned checkout:
