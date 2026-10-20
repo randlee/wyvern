@@ -9,8 +9,10 @@ homepage.workspace    = true
 authors.workspace     = true
 description = "Wyvern wizard navigation state machine (browser-history cursor)"
 keywords    = ["wyvern", "dialog", "wizard", "state-machine"]
-categories  = ["command-line-utilities"]
-readme      = "../../README.md"
+categories    = ["command-line-utilities"]
+documentation = "https://docs.rs/wyvern-wizard"
+readme        = "README.md"
+include       = ["src/**", "Cargo.toml", "README.md"]
 
 [dependencies]
 wyvern-schema = { workspace = true }

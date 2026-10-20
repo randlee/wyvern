@@ -9,11 +9,13 @@ homepage.workspace   = true
 authors.workspace    = true
 description  = "What You View, Engine Renders Natively — HTTP dialog CLI"
 keywords     = ["wyvern", "dialog", "webview", "cli", "json"]
-categories   = ["command-line-utilities", "gui"]
-readme       = "../../README.md"
+categories    = ["command-line-utilities", "gui"]
+documentation = "https://docs.rs/wyvern-cli"
+readme        = "README.md"
 # ui/, share/wyvern/, and scripts/ext/ are vendored under this crate for cargo publish
 # (see scripts/check-ui-sync.sh and scripts/check-share-sync.sh).
-include      = ["src/**", "ui/**", "share/**", "scripts/**", "Cargo.toml"]
+# README.md must stay in include so crates.io receives a non-empty readme (#62).
+include       = ["src/**", "ui/**", "share/**", "scripts/**", "Cargo.toml", "README.md"]
 
 [lib]
 name = "wyvern"

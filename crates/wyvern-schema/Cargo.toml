@@ -9,8 +9,10 @@ homepage.workspace    = true
 authors.workspace     = true
 description = "Wyvern JSON types, validation, and error messages"
 keywords    = ["wyvern", "dialog", "webview", "cli", "json"]
-categories  = ["command-line-utilities"]
-readme      = "../../README.md"
+categories    = ["command-line-utilities"]
+documentation = "https://docs.rs/wyvern-schema"
+readme        = "README.md"
+include       = ["src/**", "Cargo.toml", "README.md"]
 
 [dependencies]
 serde      = { workspace = true }
