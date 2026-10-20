@@ -304,8 +304,14 @@ jobs:
       - name: Set WYVERN_BIN
         run: echo "WYVERN_BIN=${GITHUB_WORKSPACE}/target/debug/wyvern" >> "$GITHUB_ENV"
 
+      # Hand the checkout to the next step. Re-running verify fetches the same
+      # shallow atm-core repo again and flakes with
+      # "fatal: shallow file has changed since we read it".
       - name: Verify atm-core pin, fixtures, and picker HTML
-        run: bash scripts/verify_atm_core_send_to_contract.sh
+        run: |
+          checkout="$(bash scripts/verify_atm_core_send_to_contract.sh | tail -1)"
+          test -d "${checkout}/.git"
+          echo "ATM_CORE_CHECKOUT=${checkout}" >> "$GITHUB_ENV"
 
       - name: Run atm-core Send-To surface tests and real Wyvern probe
         run: bash scripts/run_atm_core_send_to_surface_tests.sh
