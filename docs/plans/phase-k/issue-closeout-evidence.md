@@ -33,7 +33,7 @@ The surface-test step runs, against the pinned checkout:
 
 ## Sprint PR CI run
 
-- Workflow run: `https://github.com/randlee/wyvern/actions/runs/39386540906`
+- Workflow run: `https://github.com/randlee/wyvern/actions/runs/39388028136`
 - #115 job on that run: `build` (`cargo test`)
 - #139 job on that run: `atm-send-to-contract`
 
@@ -44,9 +44,9 @@ fixture: `fixtures/xhtml/panel.xhtml`.
 
 | Checklist row | Test or job verified this sprint | CI run |
 |---------------|----------------------------------|--------|
-| Shipped `xhtml-suffix` matches a repo `.xhtml` fixture | `extensions_xhtml_suffix_matches_fixture` | `https://github.com/randlee/wyvern/actions/runs/39386540906` (`build` / `cargo test`) |
-| Expanded command JSON includes `"type":"report"` (no `PARSE_ERROR`, no "No shipped extension matches") | `extensions_xhtml_suffix_expand_command_is_report` | `https://github.com/randlee/wyvern/actions/runs/39386540906` (`build` / `cargo test`) |
-| `WYVERN_VIEWER=none wyvern <fixture>.xhtml` exits 0 on the headless report path | `extensions_xhtml_suffix_headless_viewer_none_exits_zero` | `https://github.com/randlee/wyvern/actions/runs/39386540906` (`build` / `cargo test`) |
+| Shipped `xhtml-suffix` matches a repo `.xhtml` fixture | `extensions_xhtml_suffix_matches_fixture` | `https://github.com/randlee/wyvern/actions/runs/39388028136` (`build` / `cargo test`) |
+| Expanded command JSON includes `"type":"report"` (no `PARSE_ERROR`, no "No shipped extension matches") | `extensions_xhtml_suffix_expand_command_is_report` | `https://github.com/randlee/wyvern/actions/runs/39388028136` (`build` / `cargo test`) |
+| `WYVERN_VIEWER=none wyvern <fixture>.xhtml` exits 0 on the headless report path | `extensions_xhtml_suffix_headless_viewer_none_exits_zero` | `https://github.com/randlee/wyvern/actions/runs/39388028136` (`build` / `cargo test`) |
 
 ## #139 — ATM Send-To picker contract
 
