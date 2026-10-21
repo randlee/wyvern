@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# CI gate: every publish=true crate in release/publish-artifacts.toml packages a
-# non-empty README and sets documentation = https://docs.rs/<package>.
+# Release preflight: every publish=true crate in release/publish-artifacts.toml
+# packages a non-empty README and sets documentation = https://docs.rs/<package>.
 # Uses `cargo package --allow-dirty --no-verify` so the check inspects the
-# crates.io tarball without a second compile (workspace CI already builds).
+# crates.io tarball without a second compile.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
