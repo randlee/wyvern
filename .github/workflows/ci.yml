@@ -66,8 +66,6 @@ jobs:
 
       - name: Set up sc-lint (published release bundle)
         uses: ./.github/actions/setup-sc-lint
-        with:
-          version: "0.5.0"
 
       - name: sc-lint clippy native
         run: bash scripts/sc_lint_json_gate.sh pass -- clippy native --config .sc-lint.toml
@@ -399,8 +397,6 @@ jobs:
 
       - name: Set up sc-lint (published release bundle)
         uses: ./.github/actions/setup-sc-lint
-        with:
-          version: "0.5.0"
 
       - name: Install just (consumer bootstrap smoke)
         run: curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
@@ -438,8 +434,6 @@ jobs:
 
       - name: Set up sc-lint (published release bundle)
         uses: ./.github/actions/setup-sc-lint
-        with:
-          version: "0.5.0"
 
       # Windows 0.5.0 embeds CRLF templates; official --check is a raw byte
       # compare and fails LF checkouts. Compare newline-normalized instead.
@@ -463,8 +457,6 @@ jobs:
 
       - name: Set up sc-lint (published release bundle)
         uses: ./.github/actions/setup-sc-lint
-        with:
-          version: "0.5.0"
 
       - name: sc-lint boundary inventory
         run: bash scripts/sc_lint_json_gate.sh pass -- lint sc-boundary --config .sc-lint.toml
