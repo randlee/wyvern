@@ -15,6 +15,20 @@ k.4 moves the workspace to **0.8.0**. This section is the patch decision; tag **
 | Deferred to 0.8.0 | docli-generated `site/cli/` and the phase-ending minor (k.4) |
 | Not in 0.7.1 | Dialog protocol, CLI behavior, or kit channel formula changes |
 
+## Release preflight (repo-specific)
+
+Before any root release dispatch, run **`release-preflight.yml`** on the exact releasing
+commit. Wyvern adds consumer checks in **`release/publish-preflight.toml`**, executed by
+`scripts/release-preflight-wyvern.sh` inside that workflow:
+
+| Check | Purpose |
+|-------|---------|
+| `cli-html-docs` | Regenerate docli output; fail if `fixtures/cli/wyvern-cli-model.json` or `site/cli/` drift |
+| `crates-publish-manifest` | Same gate as PR CI for crates.io README / `documentation` in packages |
+
+PR CI still runs the docli drift job on every pull request; release preflight repeats it at
+publish time so a release cannot ship stale CLI HTML.
+
 ## Publish dispatch
 
 `crates-publish.yml` republishes crates for an **already published** GitHub Release tag. It checks out that tag and fails closed unless the release exists and is complete.

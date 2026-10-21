@@ -234,7 +234,7 @@ Boundary rules are encoded in `boundaries/` and enforced in CI.
 
 1. `crates/wyvern/src/bin/gen-cli-model.rs` emits docli CliModel JSON from `usage_message()` and `SHIPPED_EXTENSIONS_JSON`. No clap. The serde model types stay in that binary.
 2. `sc-docli` is not a workspace `[dependencies]` entry. `scripts/generate-cli-docs.sh` installs the binary pinned in `release/docli-pin.toml` (**0.2.0**) and runs `docli generate --input fixtures/cli/wyvern-cli-model.json --html site/cli`.
-3. `fixtures/cli/cli-model.schema.json` is the vendored sc-docli 0.2.0 contract shape (`fixtures/contract/model.json`). `fixtures/cli/wyvern-cli-model.json` and `site/cli/` are committed. CI regenerates them and fails on `git diff --exit-code`.
+3. `fixtures/cli/cli-model.schema.json` is the vendored sc-docli 0.2.0 contract shape (`fixtures/contract/model.json`). `fixtures/cli/wyvern-cli-model.json` and `site/cli/` are committed. CI regenerates them and fails on `git diff --exit-code`. **`release-preflight.yml`** runs the same regeneration via `release/publish-preflight.toml` before publish.
 4. A Markdown manual (`docli --markdown`) and docli template-pack overrides are out of scope.
 
 **Consequences:** HTML docs change only when help text, the shipped registry, or the pinned docli version changes, and that change is reviewed as a diff. The `wyvern` binary does not embed the HTML site.

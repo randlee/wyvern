@@ -1,0 +1,15 @@
+# Wyvern repository-specific release preflight checks.
+# Invoked from .github/workflows/release-preflight.yml via scripts/release-preflight-wyvern.sh
+# after kit checks (fmt/clippy/tests) and before release dispatch.
+
+schema_version = 1
+
+[[checks]]
+id = "cli-html-docs"
+description = "docli CLI reference matches usage_message() and shipped extensions (ADR-0027)"
+run = "bash scripts/release-preflight-cli-docs.sh"
+
+[[checks]]
+id = "crates-publish-manifest"
+description = "Published crates ship README.md and documentation URLs in cargo package"
+run = "bash scripts/check-crates-publish-manifest.sh"
