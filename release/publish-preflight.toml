@@ -1,0 +1,18 @@
+# Consumer publish preflight checks. Executed from release-preflight.yml via
+# .github/scripts/run-consumer-preflight.sh (fail-closed before release dispatch).
+
+schema_version = 1
+
+[docli]
+generate_script = "scripts/generate-cli-docs.sh"
+drift_paths = ["fixtures/cli/wyvern-cli-model.json", "site/cli/"]
+
+[[checks]]
+id = "docli-cli-html"
+description = "docli CLI reference matches usage_message() and shipped extensions (ADR-0027)"
+run = "bash .github/scripts/release-preflight-docli.sh"
+
+[[checks]]
+id = "crates-publish-manifest"
+description = "Published crates ship README.md and documentation URLs in cargo package"
+run = "bash scripts/check-crates-publish-manifest.sh"

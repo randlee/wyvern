@@ -1,3 +1,22 @@
+---
+required_variables:
+  - formula_class
+  - description
+  - homepage
+  - version
+  - license
+  - macos_arm_url
+  - macos_arm_sha256
+  - macos_intel_url
+  - macos_intel_sha256
+  - linux_url
+  - linux_sha256
+  - binary_paths
+  - bundled_paths
+  - test_output
+  - test_binary
+  - test_command
+---
 class {{ formula_class }} < Formula
   desc {{ description | tojson }}
   homepage {{ homepage | tojson }}
@@ -26,7 +45,7 @@ class {{ formula_class }} < Formula
     bin.install {{ binary_path | tojson }}
 {% endfor %}
 {% for bundle in bundled_paths %}
-    ({% for component in bundle.destination_components %}{{ component | tojson }}{% if not loop.last %}/{% endif %}{% endfor %}).install Dir[{{ bundle.source_glob | tojson }}]
+    ({% for component in bundle.destination_components %}{% if loop.first %}{{ component }}{% else %}/{{ component | tojson }}{% endif %}{% endfor %}).install Dir[{{ bundle.source_glob | tojson }}]
 {% endfor %}
   end
 
