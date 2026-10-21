@@ -9,8 +9,7 @@
     "readme_dependency_crate": "wyvern-schema",
     "renderer_archive_path": "bin/wyvern",
     "workspace_toml": "Cargo.toml",
-    "rust_toolchain": "stable",
-    "sc_lint_source_revision": "d4d023c2f3d792b117f5398b1e8cdefc65537189"
+    "rust_toolchain": "stable"
   },
   "release_targets": [
     {
