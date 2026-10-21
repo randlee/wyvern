@@ -101,12 +101,9 @@ PY
   fi
 
   echo "check-crates-publish-manifest: packaging ${package}"
-<<<<<<< HEAD
   # --list is the package file set. It succeeds before path deps exist on
   # crates.io. A full .crate tarball rewrites those deps to registry versions
   # and cannot be built until the dependency crates are published.
-=======
->>>>>>> fb7a74a (chore(release): advance sc-publish pin to d96b467 with docli preflight)
   list_log="$(mktemp)"
   if ! cargo package -p "$package" --allow-dirty --no-verify --list --manifest-path "${ROOT}/Cargo.toml" >"$list_log" 2>&1; then
     cat "$list_log" >&2

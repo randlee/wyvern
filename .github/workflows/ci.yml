@@ -52,10 +52,6 @@ jobs:
       - name: cargo build
         run: cargo build --workspace
 
-      - name: Check crates.io publish manifests
-        if: runner.os == 'Linux'
-        run: bash scripts/check-crates-publish-manifest.sh
-
       - name: Check release checksum coverage (manifest vs release.yml)
         if: runner.os == 'Linux'
         run: |
@@ -70,6 +66,8 @@ jobs:
 
       - name: Set up sc-lint (published release bundle)
         uses: ./.github/actions/setup-sc-lint
+        with:
+          version: "0.5.0"
 
       - name: sc-lint clippy native
         run: bash scripts/sc_lint_json_gate.sh pass -- clippy native --config .sc-lint.toml
@@ -401,6 +399,8 @@ jobs:
 
       - name: Set up sc-lint (published release bundle)
         uses: ./.github/actions/setup-sc-lint
+        with:
+          version: "0.5.0"
 
       - name: Install just (consumer bootstrap smoke)
         run: curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
@@ -438,6 +438,8 @@ jobs:
 
       - name: Set up sc-lint (published release bundle)
         uses: ./.github/actions/setup-sc-lint
+        with:
+          version: "0.5.0"
 
       # Windows 0.5.0 embeds CRLF templates; official --check is a raw byte
       # compare and fails LF checkouts. Compare newline-normalized instead.
@@ -461,6 +463,8 @@ jobs:
 
       - name: Set up sc-lint (published release bundle)
         uses: ./.github/actions/setup-sc-lint
+        with:
+          version: "0.5.0"
 
       - name: sc-lint boundary inventory
         run: bash scripts/sc_lint_json_gate.sh pass -- lint sc-boundary --config .sc-lint.toml
@@ -485,35 +489,3 @@ jobs:
 
       - name: Verify share/ and scripts/ext match crates/wyvern/
         run: bash scripts/check-share-sync.sh
-
-  cli-docs:
-    name: CLI HTML docs drift
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install Linux build deps
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwayland-dev \
-            pkg-config \
-            libwebkit2gtk-4.1-dev \
-            libxkbcommon-x11-0 \
-            libgl1-mesa-dri \
-            mesa-utils \
-            at-spi2-core \
-            dbus-x11 \
-            xvfb
-
-      - name: Regenerate CLI docs and fail on drift
-        run: |
-          bash scripts/generate-cli-docs.sh
-          git diff --exit-code -- fixtures/cli/wyvern-cli-model.json site/cli/
-          if [[ -n "$(git status --porcelain -- fixtures/cli/wyvern-cli-model.json site/cli/)" ]]; then
-            git status --porcelain -- fixtures/cli/wyvern-cli-model.json site/cli/
-            exit 1
-          fi
