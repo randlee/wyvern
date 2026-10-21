@@ -1,0 +1,5 @@
+# Pinned sc-docli release for CLI HTML generation (ADR-0027, REQ-0150).
+# Binary-only integration: do not add sc-docli to workspace Cargo dependencies.
+package = "sc-docli"
+bin = "docli"
+version = "0.2.0"

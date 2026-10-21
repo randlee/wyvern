@@ -52,6 +52,18 @@ jobs:
       - name: cargo build
         run: cargo build --workspace
 
+      - name: Check crates.io publish manifests
+        if: runner.os == 'Linux'
+        run: bash scripts/check-crates-publish-manifest.sh
+
+      - name: Check release checksum coverage (manifest vs release.yml)
+        if: runner.os == 'Linux'
+        run: |
+          # Vendored publish-kit tests locate repo root via install.py (gitignored locally).
+          test -f install.py || printf '# CI marker for publish-kit pytest\n' > install.py
+          python3 -m pip install --disable-pip-version-check pytest
+          python3 -m pytest .github/scripts/tests/test_release_artifacts.py::test_checksum_step_covers_every_manifest_asset_pattern -q
+
       # Workspace includes wyvern-viewer (wry); headless e2e still uses --viewer none.
       - name: cargo test
         run: cargo test --workspace -- --test-threads=1
@@ -304,8 +316,14 @@ jobs:
       - name: Set WYVERN_BIN
         run: echo "WYVERN_BIN=${GITHUB_WORKSPACE}/target/debug/wyvern" >> "$GITHUB_ENV"
 
+      # Hand the checkout to the next step. Re-running verify fetches the same
+      # shallow atm-core repo again and flakes with
+      # "fatal: shallow file has changed since we read it".
       - name: Verify atm-core pin, fixtures, and picker HTML
-        run: bash scripts/verify_atm_core_send_to_contract.sh
+        run: |
+          checkout="$(bash scripts/verify_atm_core_send_to_contract.sh | tail -1)"
+          test -d "${checkout}/.git"
+          echo "ATM_CORE_CHECKOUT=${checkout}" >> "$GITHUB_ENV"
 
       - name: Run atm-core Send-To surface tests and real Wyvern probe
         run: bash scripts/run_atm_core_send_to_surface_tests.sh
@@ -467,3 +485,35 @@ jobs:
 
       - name: Verify share/ and scripts/ext match crates/wyvern/
         run: bash scripts/check-share-sync.sh
+
+  cli-docs:
+    name: CLI HTML docs drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Linux build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwayland-dev \
+            pkg-config \
+            libwebkit2gtk-4.1-dev \
+            libxkbcommon-x11-0 \
+            libgl1-mesa-dri \
+            mesa-utils \
+            at-spi2-core \
+            dbus-x11 \
+            xvfb
+
+      - name: Regenerate CLI docs and fail on drift
+        run: |
+          bash scripts/generate-cli-docs.sh
+          git diff --exit-code -- fixtures/cli/wyvern-cli-model.json site/cli/
+          if [[ -n "$(git status --porcelain -- fixtures/cli/wyvern-cli-model.json site/cli/)" ]]; then
+            git status --porcelain -- fixtures/cli/wyvern-cli-model.json site/cli/
+            exit 1
+          fi

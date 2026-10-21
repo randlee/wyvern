@@ -1,7 +1,7 @@
 ---
 id: k.1
 title: Regression tests for #115 / #139 (issues already closed)
-status: planned
+status: complete
 branch: feature/phase-K-k1-issue-closeout
 worktree: ../wyvern-worktrees/feature/phase-K-k1-issue-closeout
 target: integrate/phase-K

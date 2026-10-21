@@ -325,7 +325,10 @@ See [docs/plans/phase-J/README.md](phase-J/README.md). Tag-push release removed 
 
 ## Phase K — Issue closeout & CLI docs (docli)
 
-**Phase goal:** Close all open GitHub hygiene issues ([#115](https://github.com/randlee/wyvern/issues/115), [#139](https://github.com/randlee/wyvern/issues/139), [#141](https://github.com/randlee/wyvern/issues/141), [#62](https://github.com/randlee/wyvern/issues/62), [#63](https://github.com/randlee/wyvern/issues/63)), fix crates.io README/documentation metadata, and integrate **[docli](https://github.com/randlee/docli)** for generated CLI HTML documentation.
+**Phase goal:** Close hygiene issues **#115**, **#139**, and **#141** with evidence; ship
+crates.io README/`documentation` fixes in k.3 and close **#62** / **#63** only after
+**v0.7.1** crates.io publish verification; integrate **[docli](https://github.com/randlee/docli)**
+for generated CLI HTML documentation.
 
 **Prerequisite:** v0.7.0+ on `main` (Phase J kit releases).
 
@@ -355,7 +358,7 @@ phase-ending review on k.4. Plan authority:
 | Phase H — XHTML reporting & review | 5 | Single/array XHTML panels + `--review` finish JSON |
 | Phase I — Wizard native path picker | 1 | Wizard in-page native pickers + `path-picker` example (closes #99) |
 | Phase J — sc-publish migration | 4 | Kit vendored publish; crates/GitHub/Homebrew/Scoop/winget legs; PyPI omitted (no Python bindings); tag-push retired |
-| Phase K — Issue closeout & docli | 5 | GitHub backlog cleared; crates.io polish; docli `site/cli/`; merge to develop |
+| Phase K — Issue closeout & docli | 4 | #141 closed; #62/#63 after v0.7.1 publish; docli `site/cli/`; merge to develop |
 
 ## Dependency Map
 

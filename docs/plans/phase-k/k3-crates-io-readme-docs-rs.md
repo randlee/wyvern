@@ -1,7 +1,7 @@
 ---
 id: k.3
 title: crates.io README and documentation links (#62, #63)
-status: planned
+status: complete
 branch: feature/phase-K-k3-crates-io-metadata
 worktree: ../wyvern-worktrees/feature/phase-K-k3-crates-io-metadata
 target: integrate/phase-K

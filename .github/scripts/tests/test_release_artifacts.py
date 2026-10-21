@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 import json
 import os
+import re
 import subprocess
 import sys
 import tarfile
@@ -926,6 +927,72 @@ def test_github_release_leg_is_detect_and_skip(tmp_path: Path) -> None:
     assert result.stdout.splitlines() == [
         r"^fixture_.*_x86_64\-unknown\-linux\-gnu\.tar\.gz$"
     ]
+
+
+def checksum_generation_globs(workflow_text: str) -> list[str]:
+    """Return the shell globs hashed by the Generate checksums step."""
+    marker = "      - name: Generate checksums\n"
+    assert marker in workflow_text
+    step = workflow_text.split(marker, 1)[1].split("\n      - name:", 1)[0]
+    assignment = next(
+        line.strip()
+        for line in step.splitlines()
+        if line.strip().startswith("for pattern in ")
+    )
+    globs = assignment.removeprefix("for pattern in ").split(";", 1)[0].split()
+    assert globs
+    assert "sha256sum" in step
+    assert "> checksums.txt" in step
+    return globs
+
+
+def asset_pattern_has_checksum_glob(pattern: str, globs: list[str]) -> bool:
+    """True when an anchored asset regex ends in a suffix the checksum step hashes."""
+    for glob in globs:
+        if not glob.startswith("*") or glob == "*":
+            continue
+        if pattern.endswith(re.escape(glob[1:]) + "$"):
+            return True
+    return False
+
+
+def test_checksum_step_covers_every_manifest_asset_pattern() -> None:
+    """Fail when a manifest release-asset pattern is outside checksum generation."""
+    globs = ["*.tar.gz", "*.zip", "*.whl"]
+    assert not asset_pattern_has_checksum_glob(
+        r"^wyvern_.*_x86_64\-unknown\-linux\-gnu\.tar\.xz$",
+        globs,
+    )
+    assert asset_pattern_has_checksum_glob(
+        r"^wyvern_.*_x86_64\-pc\-windows\-msvc\.zip$",
+        globs,
+    )
+
+    manifest = repo_root() / "release" / "publish-artifacts.toml"
+    if not manifest.is_file():
+        pytest.skip("package source has no consumer-specific rendered manifest")
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(scripts_root() / "release_artifacts.py"),
+            "release-asset-patterns",
+            "--manifest",
+            str(manifest),
+        ],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    patterns = [line for line in result.stdout.splitlines() if line]
+    assert patterns
+    workflow_globs = checksum_generation_globs(release_workflow_text())
+    uncovered = [
+        pattern
+        for pattern in patterns
+        if not asset_pattern_has_checksum_glob(pattern, workflow_globs)
+    ]
+    assert uncovered == []
 
 
 def test_no_single_repo_concerns_leak_into_kit_workflows_actions_or_scripts() -> None:
@@ -1958,8 +2025,11 @@ def test_public_registry_check_plan_assigns_named_agents_and_normalizes_python_n
     checks = json.loads(result.stdout)["checks"]
     crates = [entry for entry in checks if entry["channel"] == "crates_io"]
     pypi = [entry for entry in checks if entry["channel"] == "pypi"]
+    manifest_crates_by_order = sorted(
+        manifest["crates"], key=lambda entry: entry.get("publish_order", 0)
+    )
     assert [entry["name"] for entry in crates] == [
-        entry["package"] for entry in manifest["crates"]
+        entry["package"] for entry in manifest_crates_by_order
     ]
     assert all(entry["agent"] == "crates-io-publisher" for entry in crates)
     assert all(entry["version_policy"] == "must_be_absent" for entry in crates)

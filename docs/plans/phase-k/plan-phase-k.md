@@ -9,7 +9,8 @@
 
 ## Phase goal
 
-1. Close remaining GitHub hygiene issues **#141**, **#62**, **#63** with evidence.
+1. Close **#141** with evidence; ship **#62** / **#63** fixes in k.3 and close those issues
+   only after **v0.7.1** `crates-publish.yml` shows README + Documentation on crates.io.
 2. Keep regression coverage for already-shipped work (#115 → v0.4.0, #139 → v0.7.0).
 3. Adopt **[docli](https://github.com/randlee/docli)** (`sc-docli` on crates.io) to generate
    **`site/cli/`** from `usage_message()` + extension registry via **`gen-cli-model`** (no clap).
@@ -25,7 +26,7 @@ Issue inventory and background: [README.md § Issue inventory](README.md#issue-i
 |--------|--------|-----|-------|
 | k.1 | `feature/phase-K-k1-issue-closeout` | [k1-issue-closeout-xhtml-sendto.md](k1-issue-closeout-xhtml-sendto.md) | Regression tests + evidence doc |
 | k.2 | `feature/phase-K-k2-checksums` | [k2-checksums-release-contract.md](k2-checksums-release-contract.md) | Checksum contract docs/tests; close #141 |
-| k.3 | `feature/phase-K-k3-crates-io-metadata` | [k3-crates-io-readme-docs-rs.md](k3-crates-io-readme-docs-rs.md) | crates.io manifest fixes; close #62, #63 |
+| k.3 | `feature/phase-K-k3-crates-io-metadata` | [k3-crates-io-readme-docs-rs.md](k3-crates-io-readme-docs-rs.md) | crates.io manifest fixes; defer #62/#63 close until post-publish |
 | k.4 | `feature/phase-K-k4-docli` | [k4-docli-cli-html-docs.md](k4-docli-cli-html-docs.md) | docli → `site/cli/` + CI drift; phase-ending closeout |
 
 **Merge order:** k.1 → k.2 → k.3 → k.4. Sprint PRs target **`integrate/phase-K`**.
@@ -45,8 +46,8 @@ Uses **`sc-docli` 0.2.0** (crates.io) as an installed binary → output **`site/
 
 ## Phase acceptance criteria (sole authority)
 
-1. **#141**, **#62**, **#63** closed on GitHub with PR/evidence links (regression issues
-   #115/#139 already closed).
+1. **#141** closed on GitHub with PR/evidence links; **#62** and **#63** closed only after
+   successful **v0.7.1** crates.io publish verification (regression issues #115/#139 already closed).
 2. Latest GitHub Release **`checksums.txt`** covers every kit binary archive declared in
    `release/install.json` / `publish-artifacts.toml` (k.2 documents contract).
 3. Post-**v0.7.1** (or chosen patch) publish: crates.io pages for **`wyvern-cli`** and
@@ -55,6 +56,19 @@ Uses **`sc-docli` 0.2.0** (crates.io) as an installed binary → output **`site/
 5. `cargo test --workspace` and full CI green on `integrate/phase-K`.
 6. **`integrate/phase-K` → `develop`** merged after phase-ending review; `docs/release/version-policy.md`
    records version decisions (0.7.1 patch + 0.8.0 minor as applicable).
+
+## k.4 closeout record
+
+Recorded on the k.4 PR. Publish and integration-merge items stay with the coordinator.
+
+| Phase AC | State |
+|----------|--------|
+| 1 | #141 closed in k.2. #62 and #63 stay open until the **v0.7.1** crates.io publish shows a README and Documentation link (k.3). |
+| 2 | Checksum contract is [`docs/release-checksums.md`](../../release-checksums.md) (k.2). |
+| 3 | crates.io spot-check waits on the **v0.7.1** publish dispatch. |
+| 4 | `fixtures/cli/wyvern-cli-model.json`, `site/cli/`, and the CI drift job land in k.4. |
+| 5 | `cargo test --workspace` is the sprint gate; full CI runs on the k.4 PR. |
+| 6 | [`docs/release/version-policy.md`](../../release/version-policy.md) records **0.7.1** and **0.8.0**. Merging `integrate/phase-K` into `develop` follows phase-ending QA. |
 
 ---
 

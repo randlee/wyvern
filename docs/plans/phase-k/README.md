@@ -31,7 +31,7 @@ unless a closeout test exposes a regression.
 |-------|----------|---------------------|
 | [#115](https://github.com/randlee/wyvern/issues/115) | `release/0.4.0` | **Closed** — PR [#119](https://github.com/randlee/wyvern/pull/119), commit `02454bb` |
 | [#139](https://github.com/randlee/wyvern/issues/139) | `release/0.7.0` | **Closed** — PR [#140](https://github.com/randlee/wyvern/pull/140), commits `c6a51f0` / `cf25aec` |
-| [#141](https://github.com/randlee/wyvern/issues/141) | `release/0.6.0`, `release/0.8.0` | **Open** — forward fix in v0.6.0+ (PR [#147](https://github.com/randlee/wyvern/pull/147)); k.2 closeout |
+| [#141](https://github.com/randlee/wyvern/issues/141) | `release/0.6.0`, `release/0.8.0` | **Closed** — k.2 wontfix for a v0.5.0 backfill; contract [`docs/release-checksums.md`](../../release-checksums.md) |
 | [#62](https://github.com/randlee/wyvern/issues/62) | `release/0.8.0` | **Open** — k.3 |
 | [#63](https://github.com/randlee/wyvern/issues/63) | `release/0.8.0` | **Open** — k.3 |
 
