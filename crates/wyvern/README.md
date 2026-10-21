@@ -8,8 +8,11 @@
 ## Install
 
 ```bash
-cargo install wyvern-cli --locked
+cargo install wyvern-cli --locked --bin wyvern
 ```
+
+The crate also builds the maintainer-only `gen-cli-model` binary (docli input). End users
+who `cargo install` without `--bin` get both binaries; prefer `--bin wyvern` for the dialog CLI.
 
 Platform archives, Homebrew, and winget are published from [GitHub Releases](https://github.com/randlee/wyvern/releases). Keep `bin/wyvern`, `bin/wyvern-viewer`, and `share/wyvern/ui/` together when extracting an archive.
 

@@ -5,6 +5,23 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] — 2026-10-20
+
+Phase K closeout: generated CLI HTML documentation. No dialog protocol change.
+The **0.7.1** section below remains the crates.io metadata patch.
+
+### New features & fixes
+
+| Feature | Area | Entry point | Description |
+|---------|------|-------------|-------------|
+| **CLI HTML reference** | Docs | `site/cli/index.html` | `gen-cli-model` writes a docli CliModel from `usage_message()` and the shipped extension registry; pinned `sc-docli` 0.2.0 renders HTML (ADR-0027, REQ-0150). CI fails on drift |
+
+### Distribution
+
+- **Workspace** — version **0.8.0**. Tag **v0.7.1** for the crates.io README and docs.rs patch from the k.3 commit, then ship this minor as **v0.8.0**
+- **Announcement** — `site/announcements/wyvern-v0.8.0.md`
+- **`gen-cli-model`** — maintainer binary in the `wyvern-cli` package. `cargo install wyvern-cli --locked --bin wyvern` installs the dialog CLI alone
+
 ## [0.7.1] — 2026-10-20
 
 Packaging patch for crates.io metadata. No dialog or CLI behavior change.

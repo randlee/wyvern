@@ -57,6 +57,19 @@ Uses **`sc-docli` 0.2.0** (crates.io) as an installed binary → output **`site/
 6. **`integrate/phase-K` → `develop`** merged after phase-ending review; `docs/release/version-policy.md`
    records version decisions (0.7.1 patch + 0.8.0 minor as applicable).
 
+## k.4 closeout record
+
+Recorded on the k.4 PR. Publish and integration-merge items stay with the coordinator.
+
+| Phase AC | State |
+|----------|--------|
+| 1 | #141 closed in k.2. #62 and #63 stay open until the **v0.7.1** crates.io publish shows a README and Documentation link (k.3). |
+| 2 | Checksum contract is [`docs/release-checksums.md`](../../release-checksums.md) (k.2). |
+| 3 | crates.io spot-check waits on the **v0.7.1** publish dispatch. |
+| 4 | `fixtures/cli/wyvern-cli-model.json`, `site/cli/`, and the CI drift job land in k.4. |
+| 5 | `cargo test --workspace` is the sprint gate; full CI runs on the k.4 PR. |
+| 6 | [`docs/release/version-policy.md`](../../release/version-policy.md) records **0.7.1** and **0.8.0**. Merging `integrate/phase-K` into `develop` follows phase-ending QA. |
+
 ---
 
 ## Non-goals (Phase K)

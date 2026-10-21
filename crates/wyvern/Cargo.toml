@@ -25,6 +25,12 @@ path = "src/lib.rs"
 name = "wyvern"
 path = "src/main.rs"
 
+# Maintainer binary: writes the docli CliModel. Not a dialog command (ADR-0027).
+# Install the product binary with `cargo install wyvern-cli --locked --bin wyvern`.
+[[bin]]
+name = "gen-cli-model"
+path = "src/bin/gen-cli-model.rs"
+
 [dependencies]
 wyvern-schema      = { workspace = true }
 wyvern-wizard      = { workspace = true }

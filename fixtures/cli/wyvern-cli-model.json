@@ -1,0 +1,251 @@
+{
+  "name": "wyvern",
+  "version": "0.8.0",
+  "description": "What You View, Engine Renders Natively — HTTP dialog CLI",
+  "long_description": "Pass a JSON string, .json file, or a path handled by an extension; or pipe JSON on stdin.\n  See `wyvern extensions list` for the skill index.\n  See `wyvern examples list` for bundled example READMEs.\n  Prefix skills answer --help (example: wyvern compose render --help).\nCatalog ids for `wyvern extensions show <id>` (not argv commands): markdown-suffix, html-suffix, xhtml-suffix, report-xhtml-review, report-xhtml, wizard-json-suffix, compose-render, csv-suffix, csv-table-alias, csv-md, guide",
+  "usage": "wyvern --help | -h | help\nwyvern '<json>' | <file.json> | <file.md> | <page.html> | <panel.xhtml> | wizard.json [options]\necho '<json>' | wyvern [options]\nwyvern browsers list|refresh\nwyvern extensions list|show\nwyvern examples list\nwyvern wizard lint <path> [<path>...]   Static nav-button lint for wizard packages\nwyvern --version",
+  "epilogue": "Extensions (see `wyvern extensions list`):\n  wyvern guide                   # visual feature guide (welcome wizard)\n  wyvern doc.md\n  wyvern page.html\n  wyvern panel.xhtml\n  wyvern report-xhtml <manifest.json>  # title, optional mode, panels[{path,label,role}]\n  wyvern report-xhtml --review <manifest.json>  # comments + Approve/Cancel finish\n  wyvern path/to/wizard.json\n  wyvern data.csv\n  wyvern table data.csv          # same interactive table as data.csv\n  wyvern md data.csv             # CSV as a markdown dialog\n  wyvern compose render --root DIR --file FILE.j2 [--var k=v] [--var-file vars.json] [--env-prefix PREFIX]\n\nEnvironment:\n  WYVERN_VIEWER              Override --viewer default\n  WYVERN_UI_ROOT             Override default UI root discovery\n  WYVERN_SHARE               Override share/wyvern root (extensions + scripts)\n\nPass a JSON string, .json file, or a path handled by an extension; or pipe JSON on stdin.\n  See `wyvern extensions list` for the skill index.\n  See `wyvern examples list` for bundled example READMEs.\n  Prefix skills answer --help (example: wyvern compose render --help).\nCatalog ids for `wyvern extensions show <id>` (not argv commands): markdown-suffix, html-suffix, xhtml-suffix, report-xhtml-review, report-xhtml, wizard-json-suffix, compose-render, csv-suffix, csv-table-alias, csv-md, guide",
+  "options": [
+    {
+      "name": "bind",
+      "long": "--bind",
+      "help": "HTTP bind (default 127.0.0.1:0)",
+      "value_name": "ADDR:PORT",
+      "required": false,
+      "default_value": "127.0.0.1:0"
+    },
+    {
+      "name": "allow-non-loopback",
+      "long": "--allow-non-loopback",
+      "help": "Permit non-loopback --bind (0.0.0.0 / LAN)",
+      "required": false
+    },
+    {
+      "name": "ui-root",
+      "long": "--ui-root",
+      "help": "Packaged UI root (default: share/wyvern/ui beside binary). For .html / wizard.json, ui-root is inferred from the directory that contains wizard.json or pages/. An extension host.ui_root replaces this flag.",
+      "value_name": "PATH",
+      "required": false,
+      "default_value": "share/wyvern/ui beside binary"
+    },
+    {
+      "name": "viewer",
+      "long": "--viewer",
+      "help": "embedded|none|system|chrome|safari|edge|firefox (default: embedded; CI: WYVERN_VIEWER=none)",
+      "value_name": "MODE",
+      "required": false,
+      "default_value": "embedded",
+      "choices": [
+        "embedded",
+        "none",
+        "system",
+        "chrome",
+        "safari",
+        "edge",
+        "firefox"
+      ]
+    },
+    {
+      "name": "workflow-dry-run",
+      "long": "--workflow-dry-run",
+      "help": "Append --dry-run to wizard workflow pre/post scripts",
+      "required": false
+    },
+    {
+      "name": "help",
+      "long": "--help",
+      "short": "-h",
+      "help": "Print usage and exit",
+      "required": false
+    },
+    {
+      "name": "version",
+      "long": "--version",
+      "short": "-V",
+      "help": "Print the version and exit",
+      "required": false
+    }
+  ],
+  "arguments": [
+    {
+      "name": "input",
+      "help": "JSON command string, a path handled by an extension, or omit to read JSON from stdin.",
+      "required": false
+    }
+  ],
+  "subcommands": [
+    {
+      "name": "browsers",
+      "description": "List browsers in the local registry",
+      "long_description": "list — List browsers in the local registry\nrefresh — Rebuild the local browser registry",
+      "usage": "wyvern browsers list|refresh\nwyvern browsers --help",
+      "epilogue": "See also: wyvern --help",
+      "subcommands": [
+        {
+          "name": "list",
+          "description": "List browsers in the local registry",
+          "usage": "wyvern browsers list"
+        },
+        {
+          "name": "refresh",
+          "description": "Rebuild the local browser registry",
+          "usage": "wyvern browsers refresh"
+        }
+      ]
+    },
+    {
+      "name": "extensions",
+      "description": "List shipped and project CLI extensions",
+      "long_description": "list — List shipped and project CLI extensions\nshow — Print one skill (text or --json object)",
+      "usage": "wyvern extensions [list] [--json]\nwyvern extensions show <id> [--json]\nwyvern extensions --help",
+      "epilogue": "Warning: `.wyvern/extensions.json` is trusted preexec; review it before running wyvern.\nSee also: wyvern --help",
+      "options": [
+        {
+          "name": "json",
+          "long": "--json",
+          "help": "Print SkillRecord JSON (array for list, object for show)",
+          "required": false
+        }
+      ],
+      "subcommands": [
+        {
+          "name": "list",
+          "description": "List shipped and project CLI extensions",
+          "usage": "wyvern extensions list"
+        },
+        {
+          "name": "show",
+          "description": "Print one skill (text or --json object)",
+          "usage": "wyvern extensions show <id>",
+          "arguments": [
+            {
+              "name": "id",
+              "help": "Print one skill (text or --json object)",
+              "required": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "examples",
+      "description": "List bundled examples discovered from README frontmatter",
+      "long_description": "list — List bundled examples discovered from README frontmatter",
+      "usage": "wyvern examples [list] [--json]\nwyvern examples --help",
+      "epilogue": "Each example README under {wyvern_share}/examples/ must begin with:\n  ---\n  name: Example title\n  description: One-line summary\n  ---\n\nSee also: wyvern guide, wyvern --help",
+      "options": [
+        {
+          "name": "json",
+          "long": "--json",
+          "help": "Print ExampleRecord JSON array",
+          "required": false
+        }
+      ],
+      "subcommands": [
+        {
+          "name": "list",
+          "description": "List bundled examples discovered from README frontmatter",
+          "usage": "wyvern examples list"
+        }
+      ]
+    },
+    {
+      "name": "wizard",
+      "description": "Lint one or more wizard packages for missing nav buttons",
+      "long_description": "lint — Lint one or more wizard packages for missing nav buttons",
+      "usage": "wyvern wizard lint <path> [<path>...]\nwyvern wizard lint --help",
+      "epilogue": "Exit codes:\n  0   All pages are clean\n  1   One or more findings\n  2   Usage / bad arguments\n\nFindings codes:\n  WIZARD-LINT-001  Non-entry page missing back button\n  WIZARD-LINT-002  Terminal page missing cancel button\n  WIZARD-LINT-003  wizard-nav.js chrome opt-in but no nav region\n  WIZARD-LINT-004  Non-terminal page (with chrome opt-in) missing next button\n  WIZARD-LINT-005  config.dataflow requires unsatisfied or type conflict\n  WIZARD-LINT-006  Terminal post_input not covered by exports\n  WIZARD-LINT-007  next_wizard input keys undeclared on target\n  WIZARD-LINT-008  Local JS reads a key no page exports\n\nSee also: wyvern --help",
+      "subcommands": [
+        {
+          "name": "lint",
+          "description": "Lint one or more wizard packages for missing nav buttons",
+          "usage": "wyvern wizard lint <path...>",
+          "arguments": [
+            {
+              "name": "path",
+              "help": "Directory containing wizard.json, or path to wizard.json itself",
+              "required": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "markdown-suffix",
+      "description": "Open a Markdown file as a markdown dialog.",
+      "long_description": "Open a Markdown file as a markdown dialog.",
+      "usage": "wyvern README.md",
+      "epilogue": "Match: positional_suffix=.md\n"
+    },
+    {
+      "name": "html-suffix",
+      "description": "Open an HTML page as a wizard dialog.",
+      "long_description": "Open an HTML page as a wizard dialog.",
+      "usage": "wyvern page.html",
+      "epilogue": "Match: positional_suffix=.html\n"
+    },
+    {
+      "name": "xhtml-suffix",
+      "description": "Open an XHTML panel as a report view (wrapped document frame).",
+      "long_description": "Open an XHTML panel as a report view (wrapped document frame).",
+      "usage": "wyvern panel.xhtml",
+      "epilogue": "Match: positional_suffix=.xhtml\n"
+    },
+    {
+      "name": "report-xhtml-review",
+      "description": "Open XHTML panels in review mode (comments + Approve/Cancel).",
+      "long_description": "Open XHTML panels in review mode (comments + Approve/Cancel).",
+      "usage": "wyvern report-xhtml --review path/to/review.json",
+      "epilogue": "Match: argv_prefix=report-xhtml --review, arg_suffix=.json\n"
+    },
+    {
+      "name": "report-xhtml",
+      "description": "Open an ordered array of XHTML panels as one report view. Manifest fields: title, optional mode (view|review), panels[{path, label?, role?}].",
+      "long_description": "Open an ordered array of XHTML panels as one report view. Manifest fields: title, optional mode (view|review), panels[{path, label?, role?}].",
+      "usage": "wyvern report-xhtml path/to/review.json",
+      "epilogue": "Match: argv_prefix=report-xhtml, arg_suffix=.json\n"
+    },
+    {
+      "name": "wizard-json-suffix",
+      "description": "Open a wizard.json file as a multi-page wizard.",
+      "long_description": "Open a wizard.json file as a multi-page wizard.",
+      "usage": "wyvern path/to/wizard.json",
+      "epilogue": "Match: filename=wizard.json\n"
+    },
+    {
+      "name": "compose-render",
+      "description": "Render a sc-compose template and preview the HTML page.",
+      "long_description": "Render a sc-compose template and preview the HTML page.",
+      "usage": "wyvern compose render --root DIR --file FILE.j2 [--var k=v] [--var-file vars.json] [--env-prefix PREFIX]",
+      "epilogue": "Match: argv_prefix=compose render\n"
+    },
+    {
+      "name": "csv-suffix",
+      "description": "Open a CSV file as an interactive sortable table.",
+      "long_description": "Open a CSV file as an interactive sortable table.",
+      "usage": "wyvern data.csv",
+      "epilogue": "Match: positional_suffix=.csv\n"
+    },
+    {
+      "name": "csv-table-alias",
+      "description": "Alias of csv-suffix: open a CSV file as an interactive table.",
+      "long_description": "Alias of csv-suffix: open a CSV file as an interactive table.",
+      "usage": "wyvern table data.csv",
+      "epilogue": "Match: argv_prefix=table, arg_suffix=.csv\n"
+    },
+    {
+      "name": "csv-md",
+      "description": "Open a CSV file as a markdown dialog.",
+      "long_description": "Open a CSV file as a markdown dialog.",
+      "usage": "wyvern md data.csv",
+      "epilogue": "Match: argv_prefix=md, arg_suffix=.csv\n"
+    },
+    {
+      "name": "guide",
+      "description": "Visual feature guide (multi-page wizard).",
+      "long_description": "Visual feature guide (multi-page wizard).",
+      "usage": "wyvern guide",
+      "epilogue": "Match: argv_prefix=guide\n"
+    }
+  ]
+}

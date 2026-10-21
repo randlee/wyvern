@@ -109,3 +109,12 @@ v0.5.0 assets are those four legacy names and the release has no `checksums.txt`
 92235dd9097890d1ffabcff4b33a4d19fafc231165668ceb961f05e1593f486f  wyvern_0.7.0_x86_64-unknown-linux-gnu.tar.gz
 a4e94411b9a21acd7431ff94231d1974179cfd8852e7641c972ac8a4117d5d17  wyvern_0.7.0_x86_64-pc-windows-msvc.zip
 ```
+
+## #62 / #63 — crates.io README and Documentation (k.3)
+
+| Item | Status |
+|------|--------|
+| Manifest + README fixes | Shipped on `integrate/phase-K` in PR #172 (workspace **0.7.1**) |
+| GitHub issue state | **OPEN** until **v0.7.1** tag + `crates-publish.yml` completes |
+| Close policy | Close with crates.io spot-check URLs for `wyvern-cli` and `wyvern-schema` after publish |
+| Tag note | Tag **v0.7.1** at merge commit `3b9f498` (k.3), not at k.4 **0.8.0** tip |
