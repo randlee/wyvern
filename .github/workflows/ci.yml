@@ -56,6 +56,10 @@ jobs:
         if: runner.os == 'Linux'
         run: bash scripts/check-crates-publish-manifest.sh
 
+      - name: Check release checksum coverage (manifest vs release.yml)
+        if: runner.os == 'Linux'
+        run: python3 -m pytest .github/scripts/tests/test_release_artifacts.py::test_checksum_step_covers_every_manifest_asset_pattern -q
+
       # Workspace includes wyvern-viewer (wry); headless e2e still uses --viewer none.
       - name: cargo test
         run: cargo test --workspace -- --test-threads=1

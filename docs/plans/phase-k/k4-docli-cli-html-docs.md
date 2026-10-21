@@ -1,7 +1,7 @@
 ---
 id: k.4
 title: docli-generated CLI HTML documentation
-status: planned
+status: complete
 branch: feature/phase-K-k4-docli
 worktree: ../wyvern-worktrees/feature/phase-K-k4-docli
 target: integrate/phase-K
@@ -99,9 +99,11 @@ separate sprint).
 | `CHANGELOG.md` | **0.8.0** section + **0.7.1** if shipped in k.3 |
 | `site/announcements/wyvern-v0.8.0.md` | Phase K announcement (omit only if patch-only per `docs/release/version-policy.md`) |
 
-Closeout AC (in addition to sprint AC above): merge PR green; #141/#62/#63 closed per
-prior sprints; `docs/release/version-policy.md` records version decisions; phase AC in
-[plan-phase-k.md](plan-phase-k.md) satisfied.
+Closeout AC (in addition to sprint AC above): k.4 PR merge green; **#141** closed in
+k.2; **#62 / #63** remain open until post-**v0.7.1** `crates-publish.yml` spot-check
+(per [plan-phase-k.md](plan-phase-k.md)); `docs/release/version-policy.md` records
+version decisions; remaining phase AC in plan-phase-k satisfied before
+**`integrate/phase-K` → `develop`**.
 
 ## Validation
 
