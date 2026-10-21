@@ -59,6 +59,8 @@ jobs:
       - name: Check release checksum coverage (manifest vs release.yml)
         if: runner.os == 'Linux'
         run: |
+          # Vendored publish-kit tests locate repo root via install.py (gitignored locally).
+          test -f install.py || printf '# CI marker for publish-kit pytest\n' > install.py
           python3 -m pip install --disable-pip-version-check pytest
           python3 -m pytest .github/scripts/tests/test_release_artifacts.py::test_checksum_step_covers_every_manifest_asset_pattern -q
 
