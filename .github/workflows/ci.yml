@@ -58,7 +58,9 @@ jobs:
 
       - name: Check release checksum coverage (manifest vs release.yml)
         if: runner.os == 'Linux'
-        run: python3 -m pytest .github/scripts/tests/test_release_artifacts.py::test_checksum_step_covers_every_manifest_asset_pattern -q
+        run: |
+          python3 -m pip install --disable-pip-version-check pytest
+          python3 -m pytest .github/scripts/tests/test_release_artifacts.py::test_checksum_step_covers_every_manifest_asset_pattern -q
 
       # Workspace includes wyvern-viewer (wry); headless e2e still uses --viewer none.
       - name: cargo test
