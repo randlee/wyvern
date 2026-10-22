@@ -140,5 +140,21 @@
       "binary": "bin/wyvern.exe",
       "renderer_target": "x86_64-unknown-linux-gnu"
     }
-  }
+  },
+  "docli": {
+    "enabled": true,
+    "generate_script": "scripts/generate-cli-docs.sh",
+    "drift_paths": [
+      "fixtures/cli/wyvern-cli-model.json",
+      "site/cli/"
+    ],
+    "description": "docli CLI reference matches usage_message() and shipped extensions (ADR-0027)"
+  },
+  "preflight_checks": [
+    {
+      "id": "crates-publish-manifest",
+      "description": "Published crates ship README.md and documentation URLs in cargo package",
+      "run": "bash scripts/check-crates-publish-manifest.sh"
+    }
+  ]
 }

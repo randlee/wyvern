@@ -3,6 +3,9 @@
 use wyvern::extensions::RequiresProbe;
 
 /// Always reports every binary as absent from PATH.
+///
+/// Not every integration-test crate constructs this probe.
+#[allow(dead_code)]
 pub struct AbsentProbe;
 
 impl RequiresProbe for AbsentProbe {

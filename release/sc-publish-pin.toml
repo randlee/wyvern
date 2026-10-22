@@ -1,5 +1,5 @@
 # Pinned sc-publish kit revision for wyvern (consumer-owned).
 # Must match the org-wide qualified kit SHA — do not advance unilaterally.
-# org-blessed kit revision (sc-publish main @ 25668ec, PR #64).
+# org-blessed kit revision (sc-publish main @ d96b467, PR #129).
 repository = "https://github.com/randlee/sc-publish.git"
-revision = "25668ecc164261be676c9414c4f603b18ab74c91"
+revision = "d96b4674b29660a661b2c8200b62d632ae91bc94"

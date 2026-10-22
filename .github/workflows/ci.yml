@@ -52,6 +52,14 @@ jobs:
       - name: cargo build
         run: cargo build --workspace
 
+      - name: Check release checksum coverage (manifest vs release.yml)
+        if: runner.os == 'Linux'
+        run: |
+          # Vendored publish-kit tests locate repo root via install.py (gitignored locally).
+          test -f install.py || printf '# CI marker for publish-kit pytest\n' > install.py
+          python3 -m pip install --disable-pip-version-check pytest
+          python3 -m pytest .github/scripts/tests/test_release_artifacts.py::test_checksum_step_covers_every_manifest_asset_pattern -q
+
       # Workspace includes wyvern-viewer (wry); headless e2e still uses --viewer none.
       - name: cargo test
         run: cargo test --workspace -- --test-threads=1
@@ -304,8 +312,14 @@ jobs:
       - name: Set WYVERN_BIN
         run: echo "WYVERN_BIN=${GITHUB_WORKSPACE}/target/debug/wyvern" >> "$GITHUB_ENV"
 
+      # Hand the checkout to the next step. Re-running verify fetches the same
+      # shallow atm-core repo again and flakes with
+      # "fatal: shallow file has changed since we read it".
       - name: Verify atm-core pin, fixtures, and picker HTML
-        run: bash scripts/verify_atm_core_send_to_contract.sh
+        run: |
+          checkout="$(bash scripts/verify_atm_core_send_to_contract.sh | tail -1)"
+          test -d "${checkout}/.git"
+          echo "ATM_CORE_CHECKOUT=${checkout}" >> "$GITHUB_ENV"
 
       - name: Run atm-core Send-To surface tests and real Wyvern probe
         run: bash scripts/run_atm_core_send_to_surface_tests.sh

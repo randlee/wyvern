@@ -82,7 +82,7 @@ Configure the `crates-io` environment on `randlee/wyvern` the same way as on
 ## Distribution channels
 
 - **crates.io** — crates listed in `release/publish-artifacts.toml`
-- **GitHub Releases** — `wyvern_<version>_<target>.{tar.gz,zip}` with `bin/` + `share/wyvern/ui/`
+- **GitHub Releases** — `wyvern_<version>_<target>.{tar.gz,zip}` with `bin/` + `share/wyvern/ui/`, plus `checksums.txt` ([`docs/release-checksums.md`](release-checksums.md))
 - **Homebrew** — `randlee/homebrew-tap` → `Formula/wyvern.rb` via `homebrew-publish.yml`
 - **Scoop** — `randlee/scoop-bucket` → `bucket/wyvern.json` via `scoop-publish.yml`
 - **winget** — `randlee.wyvern` via `winget-publish.yml` (requires one-time
