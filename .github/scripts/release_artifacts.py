@@ -280,6 +280,19 @@ def _validate_scoop_channel(manifest: dict) -> None:
             raise SystemExit(f"[channels.scoop].{key} must be a non-empty string")
 
 
+def _validate_winget_channel(manifest: dict) -> None:
+    """Require nested portable layout inputs for WinGet zip manifests."""
+    channel = _channel_config(manifest, "winget")
+    _require_keys(
+        channel,
+        ("nested_binary", "portable_command_alias"),
+        "[channels.winget]",
+    )
+    for key in ("nested_binary", "portable_command_alias"):
+        if not isinstance(channel[key], str) or not channel[key]:
+            raise SystemExit(f"[channels.winget].{key} must be a non-empty string")
+
+
 def _channel_asset_patterns(manifest: dict, channel_name: str) -> list[str]:
     project = _require_project(manifest)
     targets = _release_targets_by_name(manifest)
@@ -345,6 +358,8 @@ def cmd_validate_manifest(args: argparse.Namespace) -> int:
         )
     if "scoop" in channel_names:
         _validate_scoop_channel(manifest)
+    if "winget" in channel_names:
+        _validate_winget_channel(manifest)
     seen = set()
     if manifest["crates"]:
         members = workspace_members(Path(args.workspace_toml))

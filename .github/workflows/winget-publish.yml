@@ -24,6 +24,7 @@ jobs:
     outputs:
       channel_config: ${{ steps.config.outputs.channel_config }}
       asset_patterns: ${{ steps.config.outputs.asset_patterns }}
+      release_version: ${{ steps.meta.outputs.release_version }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -44,11 +45,19 @@ jobs:
         with:
           release_tag: ${{ inputs.tag }}
           asset_patterns: ${{ steps.config.outputs.asset_patterns }}
+      - id: meta
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: echo "release_version=${RELEASE_TAG#v}" >> "$GITHUB_OUTPUT"
 
   publish-winget:
     needs: verify-release
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag }}
       # Detect-and-skip: a retried leg must not open a duplicate winget-pkgs
       # pull request for an identifier+version that is already merged or
       # already awaiting review. The probe fails closed: only a confirmed
@@ -100,15 +109,94 @@ jobs:
           fi
           echo "already_published=${already_published}" >> "$GITHUB_OUTPUT"
 
-      - name: Publish to Winget
+      - name: Require WinGet fork credential
         if: ${{ steps.winget_probe.outputs.already_published != 'true' }}
-        # Pinned to the v2 release commit so this leg's behavior cannot change
-        # without a kit change (mutable tags are not a retry-safety contract).
-        uses: vedantmgoyal2009/winget-releaser@4ffc7888bffd451b357355dc214d43bb9f23917e # v2
-        with:
-          identifier: ${{ fromJSON(needs.verify-release.outputs.channel_config).channel.identifier }}
-          release-tag: ${{ inputs.tag }}
-          installers-regex: ${{ fromJSON(needs.verify-release.outputs.channel_config).asset_patterns[0] }}
-          # Must authorize a fork of microsoft/winget-pkgs; the repository
-          # GITHUB_TOKEN is intentionally not used for this external channel.
-          token: ${{ secrets.WINGET_GITHUB_TOKEN }}
+        shell: bash
+        env:
+          WINGET_GITHUB_TOKEN: ${{ secrets.WINGET_GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${WINGET_GITHUB_TOKEN}" ]]; then
+            echo 'WINGET_GITHUB_TOKEN is required to submit to microsoft/winget-pkgs.' >&2
+            exit 1
+          fi
+
+      - name: Install komac
+        if: ${{ steps.winget_probe.outputs.already_published != 'true' }}
+        uses: cargo-bins/cargo-binstall@main
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Install komac CLI
+        if: ${{ steps.winget_probe.outputs.already_published != 'true' }}
+        run: cargo binstall komac -y
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Prepare WinGet installer variables from release asset
+        if: ${{ steps.winget_probe.outputs.already_published != 'true' }}
+        shell: bash
+        env:
+          CHANNEL_CONFIG: ${{ needs.verify-release.outputs.channel_config }}
+          RELEASE_REPOSITORY: ${{ github.repository }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_VERSION: ${{ needs.verify-release.outputs.release_version }}
+        run: |
+          set -euo pipefail
+          printf '%s' "${CHANNEL_CONFIG}" > channel-config.json
+          python3 .github/scripts/winget_release.py prepare-vars \
+            --channel-config channel-config.json \
+            --repository "${RELEASE_REPOSITORY}" \
+            --tag "${RELEASE_TAG}" \
+            --version "${RELEASE_VERSION}" \
+            --output winget-vars.json
+
+      - name: Generate WinGet manifests with komac
+        if: ${{ steps.winget_probe.outputs.already_published != 'true' }}
+        shell: bash
+        env:
+          IDENTIFIER: ${{ fromJSON(needs.verify-release.outputs.channel_config).channel.identifier }}
+          RELEASE_VERSION: ${{ needs.verify-release.outputs.release_version }}
+          GITHUB_TOKEN: ${{ secrets.WINGET_GITHUB_TOKEN }}
+          KOMAC_FORK_OWNER: ${{ github.repository_owner }}
+          KOMAC_CREATED_WITH: wyvern winget-publish.yml
+          KOMAC_CREATED_WITH_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          url="$(jq -r '.installer_url' winget-vars.json)"
+          komac update "${IDENTIFIER}" \
+            --version "${RELEASE_VERSION}" \
+            --urls "${url}" \
+            --release-notes-url "https://github.com/${{ github.repository }}/releases/tag/${{ inputs.tag }}" \
+            --output winget-manifests \
+            --dry-run
+
+      - name: Patch nested portable installer path
+        if: ${{ steps.winget_probe.outputs.already_published != 'true' }}
+        run: |
+          python3 .github/scripts/winget_release.py patch-installer \
+            --output-dir winget-manifests \
+            --vars winget-vars.json
+
+      - name: Submit WinGet pull request
+        if: ${{ steps.winget_probe.outputs.already_published != 'true' }}
+        shell: bash
+        env:
+          IDENTIFIER: ${{ fromJSON(needs.verify-release.outputs.channel_config).channel.identifier }}
+          RELEASE_VERSION: ${{ needs.verify-release.outputs.release_version }}
+          GITHUB_TOKEN: ${{ secrets.WINGET_GITHUB_TOKEN }}
+          KOMAC_FORK_OWNER: ${{ github.repository_owner }}
+          KOMAC_CREATED_WITH: wyvern winget-publish.yml
+          KOMAC_CREATED_WITH_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          first_letter="$(tr '[:upper:]' '[:lower:]' <<<"${IDENTIFIER:0:1}")"
+          manifest_dir="winget-manifests/manifests/${first_letter}/${IDENTIFIER//.//}/${RELEASE_VERSION}"
+          komac submit "${manifest_dir}" --yes
+
+      - name: Cleanup merged komac branches
+        if: ${{ steps.winget_probe.outputs.already_published != 'true' }}
+        run: komac cleanup --only-merged
+        env:
+          GITHUB_TOKEN: ${{ secrets.WINGET_GITHUB_TOKEN }}
+          KOMAC_FORK_OWNER: ${{ github.repository_owner }}

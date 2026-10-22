@@ -190,6 +190,8 @@ def write_repo_fixture(
                 'dispatch_inputs = {}',
                 'identifier = "example.fixture"',
                 'installer_target = "x86_64-unknown-linux-gnu"',
+                'nested_binary = "bin/fixture.exe"',
+                'portable_command_alias = "fixture"',
                 "",
                 "[channels.scoop]",
                 'workflow = "scoop-publish.yml"',
@@ -1251,7 +1253,7 @@ def test_load_manifest_rejects_unsupported_schema_version(tmp_path: Path) -> Non
     assert "unsupported manifest schema_version" in result.stderr
 
 
-def test_winget_leg_probes_before_submitting_and_pins_the_releaser() -> None:
+def test_winget_leg_probes_before_submitting_and_patches_komac_output() -> None:
     text = winget_publish_workflow_text()
 
     assert "id: winget_probe" in text
@@ -1265,12 +1267,11 @@ def test_winget_leg_probes_before_submitting_and_pins_the_releaser() -> None:
     assert "grep -Eqi 'HTTP 404|Not Found'" in text
     assert "is indeterminate (not a confirmed 404); failing closed" in text
     assert "incomplete_results" in text
-    # The third-party releaser must be pinned to an immutable commit SHA.
-    assert (
-        "uses: vedantmgoyal2009/winget-releaser@4ffc7888bffd451b357355dc214d43bb9f23917e # v2"
-        in text
-    )
-    assert "winget-releaser@v2\n" not in text
+    assert "winget_release.py prepare-vars" in text
+    assert "winget_release.py patch-installer" in text
+    assert "komac update" in text
+    assert "komac submit" in text
+    assert "vedantmgoyal2009/winget-releaser" not in text
 
 
 def test_crates_already_published_detection_uses_exact_version_lookup() -> None:

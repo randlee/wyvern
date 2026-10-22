@@ -112,6 +112,8 @@ workflow = "winget-publish.yml"
 dispatch_inputs = {  }
 identifier = "randlee.wyvern"
 installer_target = "x86_64-pc-windows-msvc"
+nested_binary = "bin/wyvern.exe"
+portable_command_alias = "wyvern"
 
 [channels.scoop]
 workflow = "scoop-publish.yml"
