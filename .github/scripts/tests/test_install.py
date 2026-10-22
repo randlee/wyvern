@@ -131,6 +131,8 @@ class InstallValuesTests(unittest.TestCase):
                     "dispatch_inputs": {},
                     "identifier": "example.example",
                     "installer_target": "x86_64-pc-windows-msvc",
+                    "nested_binary": "bin/example.exe",
+                    "portable_command_alias": "example",
                 },
                 "scoop": {
                     "workflow": "scoop-publish.yml",

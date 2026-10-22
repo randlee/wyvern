@@ -40,9 +40,12 @@ NestedInstallerFiles:
 Without `PortableCommandAlias`, winget defaults the shim name to the filename
 (`wyvern.exe`). Reference: `release/winget-bootstrap/0.5.0/randlee.wyvern.installer.yaml`.
 
-`winget-releaser` / komac does **not** emit this field today. After each
-automated submission (or before merging a manual PR), verify the installer
-manifest includes `PortableCommandAlias: wyvern`.
+Komac copies nested zip layout from the **previous** winget-pkgs version when
+updating a package. Wyvern's `winget-publish.yml` therefore downloads the
+release zip, verifies the versioned extract directory (same rule as Scoop's
+`extract_dir`), runs `komac update --dry-run`, then **patches**
+`NestedInstallerFiles` with manifest-declared `nested_binary` and
+`portable_command_alias` before `komac submit`.
 
 ## Release model (kit)
 
@@ -52,7 +55,7 @@ manifest includes `PortableCommandAlias: wyvern`.
 2. **Post-release leg** — dispatch `winget-publish.yml` with input `tag=vX.Y.Z`.
 3. Workflow reads manifest config, verifies release assets exist, then:
    - Probes `microsoft/winget-pkgs` for existing manifest or open PR (fail closed)
-   - Submits via pinned `vedantmgoyal2009/winget-releaser@v2` if absent
+   - Generates manifests with komac, patches nested portable paths, submits if absent
 4. **Retry:** Re-dispatch `winget-publish.yml` for the same tag; detect-and-skip
    prevents duplicate submissions.
 
