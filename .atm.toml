@@ -23,7 +23,7 @@ layout = "even-horizontal"
 name = "agents"
 
 [[rmux.windows.panes]]
-model = "sonnet"
+model = "opus"
 name = "team-lead"
 tmux_pane_id = "%9"
 
